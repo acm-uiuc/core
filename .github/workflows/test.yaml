@@ -20,6 +20,8 @@ jobs:
         mysql password: 'devpass'
     - name: build
       run: make all
+    - name: wait
+      run: sleep 60
     - name: migration
       run: make test-migration
     - name: unit-test
