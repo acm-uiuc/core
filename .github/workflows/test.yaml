@@ -15,7 +15,7 @@ jobs:
         mysql user: 'devuser'
         mysql password: 'devpass'
     - name: mysql-permission
-      run: sudo mysql -u root -e "GRANT ALL PRIVILEGES ON *.* TO 'devuser'@'%'"";
+      run: sudo mysql -u root -e "GRANT ALL PRIVILEGES ON *.* TO 'devuser'@'%'";
     - name: build
       run: make all
     - name: migration
