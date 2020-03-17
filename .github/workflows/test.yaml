@@ -1,0 +1,21 @@
+name: test
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+    - name: mysql-shutdown
+      run: sudo service mysql stop
+    - name: mysql-setup
+      uses: mirromutth/mysql-action@v1.1
+      mysql database: 'core-test'
+      mysql user: 'devuser'
+      mysql password: 'devpass'
+    - name: build
+      run: make all
+    - name: migration
+      run: make migration
+    - name: unit-test
+      run: make test

@@ -39,3 +39,8 @@ fmt:
 .PHONY: container
 container:
 	@docker build -t core:prod $(REPO_ROOT)
+
+# Runs all migration
+.PHONY: migration
+migration:
+	@$(REPO_ROOT)/bin/core -migration all

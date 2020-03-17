@@ -1,0 +1,10 @@
+name: build
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+    - name: build
+      run: make all
