@@ -25,7 +25,7 @@ func (service *resumeImpl) UploadResume(resume model.Resume) (string, error) {
 		return "", fmt.Errorf("failed to create resume: %w", err)
 	}
 
-	signedUri, err := service.getSignedUri(resume.BlobKey, "POST")
+	signedUri, err := service.getSignedUri(resume.BlobKey, "PUT")
 	if err != nil {
 		return "", fmt.Errorf("failed to create signed uri: %w", err)
 	}
