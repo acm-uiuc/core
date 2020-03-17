@@ -21,6 +21,6 @@ jobs:
     - name: build
       run: make all
     - name: migration
-      run: make migration
+      run: make test-migration
     - name: unit-test
       run: make test

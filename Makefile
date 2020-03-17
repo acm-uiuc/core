@@ -17,6 +17,12 @@ core:
 	@go build -o $(REPO_ROOT)/bin/core $(BASE_PACKAGE)
 	@echo 'Finished'
 
+# Runs all migration
+.PHONY: test-migration
+migration:
+	@echo 'Migrating ACM@UIUC Core Test Database'
+	@IS_TEST=true DB_NAME=core-test $(REPO_ROOT)/bin/core -migration all
+
 # Runs all tests
 .PHONY: test
 test:
@@ -39,8 +45,3 @@ fmt:
 .PHONY: container
 container:
 	@docker build -t core:prod $(REPO_ROOT)
-
-# Runs all migration
-.PHONY: migration
-migration:
-	@$(REPO_ROOT)/bin/core -migration all
