@@ -10,7 +10,9 @@ type StorageProvider interface {
 	GetSignedUri(blobKey string, method string) (string, error)
 }
 
-var providers map[string]StorageProvider = map[string]StorageProvider{}
+var providers map[string]StorageProvider = map[string]StorageProvider{
+	"google": &GoogleStorage{},
+}
 
 func GetProvider(provider string) (StorageProvider, error) {
 	isTest, err := config.GetConfigValue("IS_TEST")
