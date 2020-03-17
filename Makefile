@@ -19,7 +19,7 @@ core:
 
 # Runs all migration
 .PHONY: test-migration
-migration:
+test-migration:
 	@echo 'Migrating ACM@UIUC Core Test Database'
 	@IS_TEST=true DB_NAME=core-test $(REPO_ROOT)/bin/core -migration all
 
