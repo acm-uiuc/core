@@ -10,9 +10,10 @@ jobs:
       run: sudo service mysql stop
     - name: mysql-setup
       uses: mirromutth/mysql-action@v1.1
-      mysql database: 'core-test'
-      mysql user: 'devuser'
-      mysql password: 'devpass'
+      with:
+        mysql database: 'core-test'
+        mysql user: 'devuser'
+        mysql password: 'devpass'
     - name: build
       run: make all
     - name: migration
