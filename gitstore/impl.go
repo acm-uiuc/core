@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"path"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -57,7 +56,7 @@ func (store *gitStoreImpl) refreshData() error {
 			continue
 		}
 
-		uri := path.Join(store.basePath, pathKey)
+		uri := store.basePath + pathKey
 
 		resp, err := http.Get(uri)
 		if err != nil {

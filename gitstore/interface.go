@@ -24,11 +24,6 @@ func New() (GitStore, error) {
 			data:     map[string]*gitStoreBlob{},
 		}
 
-		err = store.refreshData()
-		if err != nil {
-			return nil, fmt.Errorf("failed to refresh store data: %w", err)
-		}
-
 		gs = store
 	}
 
