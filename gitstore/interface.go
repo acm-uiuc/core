@@ -14,7 +14,7 @@ var gs GitStore
 
 func New() (GitStore, error) {
 	if gs == nil {
-		basePath, err := config.GetConfigValue("GITSTORE_BASE_PATH")
+		basePath, err := config.GetConfigValue("GITSTORE_BASE_URI")
 		if err != nil {
 			return nil, fmt.Errorf("failed to get config value: %w", err)
 		}
