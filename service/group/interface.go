@@ -3,6 +3,7 @@ package group
 import (
 	"fmt"
 
+	"github.com/acm-uiuc/core/gitstore"
 	"github.com/acm-uiuc/core/model"
 )
 
@@ -12,14 +13,12 @@ type GroupService interface {
 }
 
 func New() (GroupService, error) {
-	service := &groupImpl{
-		lastUpdated: 0,
-	}
-
-	err := service.refreshData()
+	gs, err := gitstore.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create group service: %w", err)
 	}
 
-	return service, nil
+	return &groupImpl{
+		gs: gs,
+	}, nil
 }
