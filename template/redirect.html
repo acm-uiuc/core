@@ -6,7 +6,7 @@
     const code = (new URLSearchParams(window.location.search)).get("code");
     const provider = {{.Provider}};
 
-    const target = (new URLSearchParams(window.location.search)).get("state");
+    var target = (new URLSearchParams(window.location.search)).get("state");
     if (target == null) {
         target = "/";
     }
