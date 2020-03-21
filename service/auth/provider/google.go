@@ -35,6 +35,7 @@ func (oauth *GoogleOAuth) GetOAuthRedirect(target string) (string, error) {
 		"scope":         "profile email",
 		"response_type": "code",
 		"redirect_uri":  redirectUri,
+		"state":         target,
 	}
 
 	query := uri.Query()
