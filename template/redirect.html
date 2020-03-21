@@ -16,23 +16,21 @@
     if (target[0] != '/') {
         target += '?code=' + code;
         window.location.replace(target);
-        return;
+    } else {
+        fetch("/api/auth/" + provider, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                code: code,
+            }),
+        }).then(res => {
+            return res.json();
+        }).then(data => {
+            window.location.replace(target);
+        })
     }
-
-    fetch("/api/auth/" + provider, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            code: code,
-        }),
-    }).then(res => {
-        return res.json();
-    }).then(data => {
-        window.location.replace(target);
-    }
-    )
 </script>
 Verifying Acount...
 
