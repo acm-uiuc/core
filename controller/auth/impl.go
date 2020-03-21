@@ -20,7 +20,7 @@ func New(svc *service.Service) *AuthController {
 
 func (controller *AuthController) GetOAuthRedirect(ctx *context.Context) error {
 	provider := ctx.Param("provider")
-	target := ctx.Param("target")
+	target := ctx.QueryParam("target")
 	if target == "" {
 		target = "/"
 	}
