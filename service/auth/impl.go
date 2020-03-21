@@ -24,13 +24,13 @@ type authImpl struct {
 	db *sqlx.DB
 }
 
-func (service *authImpl) GetOAuthRedirect(providerName string) (string, error) {
+func (service *authImpl) GetOAuthRedirect(providerName string, target string) (string, error) {
 	oauthProvider, err := provider.GetProvider(providerName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get oauth provider %s: %w", providerName, err)
 	}
 
-	return oauthProvider.GetOAuthRedirect()
+	return oauthProvider.GetOAuthRedirect(target)
 }
 
 func (service *authImpl) Authorize(providerName string, code string) (*model.Token, error) {

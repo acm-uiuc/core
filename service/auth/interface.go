@@ -8,7 +8,7 @@ import (
 )
 
 type AuthService interface {
-	GetOAuthRedirect(providerName string) (string, error)
+	GetOAuthRedirect(providerName string, target string) (string, error)
 	Authorize(providerName string, code string) (*model.Token, error)
 	Verify(token string) (string, error)
 }

@@ -39,7 +39,7 @@ func TestGetOAuthRedirect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	uri, err := svc.GetOAuthRedirect(provider)
+	uri, err := svc.GetOAuthRedirect(provider, "/")
 	if err != nil {
 		t.Fatal(err)
 	}

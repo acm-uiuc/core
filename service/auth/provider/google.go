@@ -13,7 +13,7 @@ import (
 
 type GoogleOAuth struct{}
 
-func (oauth *GoogleOAuth) GetOAuthRedirect() (string, error) {
+func (oauth *GoogleOAuth) GetOAuthRedirect(target string) (string, error) {
 	clientId, err := config.GetConfigValue("OAUTH_GOOGLE_ID")
 	if err != nil {
 		return "", fmt.Errorf("failed to get client id: %w", err)

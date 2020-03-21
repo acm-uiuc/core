@@ -2,7 +2,7 @@ package provider
 
 type FakeOAuth struct{}
 
-func (oauth *FakeOAuth) GetOAuthRedirect() (string, error) {
+func (oauth *FakeOAuth) GetOAuthRedirect(target string) (string, error) {
 	return "http://fake.oauth", nil
 }
 

@@ -20,8 +20,12 @@ func New(svc *service.Service) *AuthController {
 
 func (controller *AuthController) GetOAuthRedirect(ctx *context.Context) error {
 	provider := ctx.Param("provider")
+	target := ctx.Param("target")
+	if target == "" {
+		target = "/"
+	}
 
-	uri, err := controller.svc.Auth.GetOAuthRedirect(provider)
+	uri, err := controller.svc.Auth.GetOAuthRedirect(provider, target)
 	if err != nil {
 		ctx.String(http.StatusBadRequest, "Invalid Provider")
 		return err

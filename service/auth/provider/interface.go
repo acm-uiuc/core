@@ -7,7 +7,7 @@ import (
 )
 
 type OAuthProvider interface {
-	GetOAuthRedirect() (string, error)
+	GetOAuthRedirect(target string) (string, error)
 	GetOAuthToken(code string) (string, error)
 	GetVerifiedEmail(token string) (string, error)
 }
