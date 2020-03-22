@@ -83,7 +83,7 @@ func (oauth *LinkedinOAuth) GetOAuthToken(code string) (string, error) {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("x-li-format", "json")
 
@@ -164,7 +164,7 @@ func (oauth *LinkedinOAuth) GetVerifiedEmail(token string) (string, error) {
 			Handle struct {
 				Email string `json:"emailAddress"`
 			} `json:"handle~"`
-		} `json:"email"`
+		} `json:"elements"`
 	}{}
 
 	err = json.Unmarshal(respBody, &email)
