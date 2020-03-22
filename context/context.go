@@ -30,3 +30,18 @@ func (ctx *Context) RenderError(code int, title string, message string, err erro
 
 	return err
 }
+
+func (ctx *Context) JSONError(code int, title string, message string, err error) error {
+	jerr := ctx.JSON(code, &struct {
+		Title   string `json:"title"`
+		Message string `json:"message"`
+	}{
+		Title:   title,
+		Message: message,
+	})
+	if jerr != nil {
+		return fmt.Errorf("failed to marshal error: %w, original error: %w", jerr, err)
+	}
+
+	return err
+}
