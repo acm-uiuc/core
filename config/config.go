@@ -21,6 +21,8 @@ var defaultConfig = map[string]string{
 	"OAUTH_REDIRECT_URI":         "http://localhost:8000/api/auth/google/redirect",
 	"OAUTH_GOOGLE_ID":            "",
 	"OAUTH_GOOGLE_SECRET":        "",
+	"OAUTH_LINKEDIN_ID":          "",
+	"OAUTH_LINKEDIN_SECRET":      "",
 	"STORAGE_PROVIDER":           "google",
 	"GOOGLE_BUCKET_NAME":         "acm-core-resume",
 	"GOOGLE_SERVICE_ACCOUNT":     "",
