@@ -15,6 +15,7 @@ import (
 
 const (
 	validEmailDomain = "@illinois.edu"
+	studentProvider  = "google"
 
 	tokenLength   = 64
 	tokenLifetime = 24
@@ -49,9 +50,12 @@ func (service *authImpl) Authorize(providerName string, code string) (*model.Tok
 		return nil, fmt.Errorf("failed to get verified email: %w", err)
 	}
 
-	username, err := service.parseUsername(email)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse username: %w", err)
+	username := email
+	if providerName == studentProvider {
+		username, err = service.parseUsername(email)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse username: %w", err)
+		}
 	}
 
 	token := &model.Token{
