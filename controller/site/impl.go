@@ -33,14 +33,22 @@ func (controller *SiteController) Home(ctx *context.Context) error {
 func (controller *SiteController) About(ctx *context.Context) error {
 	groups, err := controller.svc.Group.GetGroups()
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Getting Groups")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Groups",
+			"could not get group data",
+			err,
+		)
 	}
 
 	committees, ok := groups[model.GroupCommittees]
 	if !ok {
-		ctx.String(http.StatusBadRequest, "Failed Getting Committees")
-		return fmt.Errorf("Failed Getting Committees")
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Committees",
+			"could not get committees in group data",
+			fmt.Errorf("failed getting committees"),
+		)
 	}
 
 	params := struct {
@@ -67,15 +75,23 @@ func (controller *SiteController) History(ctx *context.Context) error {
 func (controller *SiteController) ReflectionsProjections(ctx *context.Context) error {
 	eventUri, err := config.GetConfigValue("REFLECTIONSPROJECTIONS_URI")
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Getting Event Data")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Event Data",
+			"could not get event data uri",
+			err,
+		)
 	}
 
 	event := model.Event{}
 	err = controller.svc.Store.ParseInto(eventUri, &event)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Getting Event Data")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Event Data",
+			"could not parse event data",
+			err,
+		)
 	}
 
 	params := struct {
@@ -92,15 +108,23 @@ func (controller *SiteController) ReflectionsProjections(ctx *context.Context) e
 func (controller *SiteController) HackIllinois(ctx *context.Context) error {
 	eventUri, err := config.GetConfigValue("HACKILLINOIS_URI")
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Getting Event Data")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Event Data",
+			"could not get event data uri",
+			err,
+		)
 	}
 
 	event := model.Event{}
 	err = controller.svc.Store.ParseInto(eventUri, &event)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Getting Event Data")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Event Data",
+			"could not parse event data",
+			err,
+		)
 	}
 
 	params := struct {
@@ -127,14 +151,22 @@ func (controller *SiteController) Sponsors(ctx *context.Context) error {
 func (controller *SiteController) Sigs(ctx *context.Context) error {
 	groups, err := controller.svc.Group.GetGroups()
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Getting Groups")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Groups",
+			"could not get group data",
+			err,
+		)
 	}
 
 	sigs, ok := groups[model.GroupSIGs]
 	if !ok {
-		ctx.String(http.StatusBadRequest, "Failed Getting Sigs")
-		return fmt.Errorf("Failed Getting Sigs")
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Sigs",
+			"could not get sigs in group data",
+			fmt.Errorf("failed getting sigs"),
+		)
 	}
 
 	sigsColLeft := sigs[:len(sigs)/2]
@@ -214,8 +246,12 @@ func (controller *SiteController) ResumeUpload(ctx *context.Context) error {
 func (controller *SiteController) UserManager(ctx *context.Context) error {
 	users, err := controller.svc.User.GetUsers()
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Getting Users")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Users",
+			"could not get users data",
+			err,
+		)
 	}
 
 	params := struct {
@@ -242,8 +278,12 @@ func (controller *SiteController) RecruiterCreator(ctx *context.Context) error {
 func (controller *SiteController) RecruiterManager(ctx *context.Context) error {
 	users, err := controller.svc.User.GetUsers()
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Getting Users")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Users",
+			"could not get users data",
+			err,
+		)
 	}
 
 	// TODO: Use filtering on GetUsers() instead once implemented
@@ -276,21 +316,33 @@ func (controller *SiteController) Intranet(ctx *context.Context) error {
 
 	user, err := controller.svc.User.GetUser(ctx.Username)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Getting User")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting User",
+			"could not get user data",
+			err,
+		)
 	}
 
 	markRole, ok := marksToRole[user.Mark]
 	if !ok {
-		ctx.String(http.StatusBadRequest, "Invalid User Mark")
-		return fmt.Errorf("Invalid User Mark")
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Invalid User Mark",
+			"could not convert user mark to role",
+			fmt.Errorf("invalid user mark: %s", user.Mark),
+		)
 	}
 	roles = append(roles, markRole)
 
 	isTop4, err := controller.svc.Group.VerifyMembership(ctx.Username, model.GroupCommittees, model.GroupTop4)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Membership Verification")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Membership Verification",
+			"could not verify if user was a member of Top4",
+			err,
+		)
 	}
 	if isTop4 {
 		roles = append(roles, "Top4")
@@ -360,8 +412,12 @@ func (controller *SiteController) Intranet(ctx *context.Context) error {
 func (controller *SiteController) ResumeBook(ctx *context.Context) error {
 	resumes, err := controller.svc.Resume.GetResumes()
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Getting Resumes")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Resumes",
+			"could not retrieve resumes",
+			err,
+		)
 	}
 
 	// TODO: Use filtering on GetResumes() instead once implemented
@@ -386,8 +442,12 @@ func (controller *SiteController) ResumeBook(ctx *context.Context) error {
 func (controller *SiteController) ResumeManager(ctx *context.Context) error {
 	resumes, err := controller.svc.Resume.GetResumes()
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Getting Resumes")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Resumes",
+			"could not retrieve resumes",
+			err,
+		)
 	}
 
 	params := struct {
