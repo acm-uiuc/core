@@ -66,7 +66,7 @@ func TestAuthorize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedUsername := "fake"
+	expectedUsername := "fake@illinois.edu"
 	if token.Username != expectedUsername {
 		t.Fatalf("expected '%s', got '%s", expectedUsername, token.Username)
 	}
