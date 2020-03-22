@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -27,8 +28,12 @@ func (controller *AuthController) GetOAuthRedirect(ctx *context.Context) error {
 
 	uri, err := controller.svc.Auth.GetOAuthRedirect(provider, target)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Invalid Provider")
-		return err
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Invalid Provider",
+			fmt.Sprintf("%s is not a valid provider", provider),
+			err,
+		)
 	}
 
 	return ctx.Redirect(http.StatusFound, uri)
@@ -55,14 +60,22 @@ func (controller *AuthController) GetToken(ctx *context.Context) error {
 
 	err := ctx.Bind(&req)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Bind")
-		return err
+		return ctx.JSONError(
+			http.StatusBadRequest,
+			"Failed Bind",
+			"malformed request",
+			err,
+		)
 	}
 
 	token, err := controller.svc.Auth.Authorize(provider, req.Code)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Token Generation")
-		return err
+		return ctx.JSONError(
+			http.StatusBadRequest,
+			"Failed Token Generation",
+			"could not generate an authorization token",
+			err,
+		)
 	}
 
 	ctx.SetCookie(&http.Cookie{
