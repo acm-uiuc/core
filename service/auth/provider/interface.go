@@ -13,7 +13,8 @@ type OAuthProvider interface {
 }
 
 var providers map[string]OAuthProvider = map[string]OAuthProvider{
-	"google": &GoogleOAuth{},
+	"google":   &GoogleOAuth{},
+	"linkedin": &LinkedinOAuth{},
 }
 
 func GetProvider(provider string) (OAuthProvider, error) {
