@@ -23,8 +23,12 @@ func (controller *ResumeController) UploadResume(ctx *context.Context) error {
 
 	err := ctx.Bind(&req)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Bind")
-		return err
+		return ctx.JSONError(
+			http.StatusBadRequest,
+			"Failed Bind",
+			"malformed request",
+			err,
+		)
 	}
 
 	req.BlobKey = req.Username
@@ -32,8 +36,12 @@ func (controller *ResumeController) UploadResume(ctx *context.Context) error {
 
 	uri, err := controller.svc.Resume.UploadResume(req)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Resume Upload")
-		return err
+		return ctx.JSONError(
+			http.StatusBadRequest,
+			"Failed Resume Upload",
+			"could not upload metadata or get file upload uri",
+			err,
+		)
 	}
 
 	return ctx.JSON(http.StatusOK, &struct {
@@ -46,8 +54,12 @@ func (controller *ResumeController) UploadResume(ctx *context.Context) error {
 func (controller *ResumeController) GetResumes(ctx *context.Context) error {
 	resumes, err := controller.svc.Resume.GetResumes()
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Resumes Lookup")
-		return err
+		return ctx.JSONError(
+			http.StatusBadRequest,
+			"Failed Resumes Lookup",
+			"could not retrieve resume metadata",
+			err,
+		)
 	}
 
 	return ctx.JSON(http.StatusOK, resumes)
@@ -58,14 +70,22 @@ func (controller *ResumeController) ApproveResume(ctx *context.Context) error {
 
 	err := ctx.Bind(&req)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Bind")
-		return err
+		return ctx.JSONError(
+			http.StatusBadRequest,
+			"Failed Bind",
+			"malformed request",
+			err,
+		)
 	}
 
 	err = controller.svc.Resume.ApproveResume(req.Username)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, "Failed Resume Approval")
-		return err
+		return ctx.JSONError(
+			http.StatusBadRequest,
+			"Failed Resumes Approval",
+			"could not mark resume as approved",
+			err,
+		)
 	}
 
 	return ctx.JSON(http.StatusOK, struct{}{})
