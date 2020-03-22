@@ -19,7 +19,7 @@ func (oauth *GoogleOAuth) GetOAuthRedirect(target string) (string, error) {
 		return "", fmt.Errorf("failed to get client id: %w", err)
 	}
 
-	redirectUri, err := config.GetConfigValue("OAUTH_REDIRECT_URI")
+	redirectUri, err := config.GetConfigValue("OAUTH_GOOGLE_REDIRECT_URI")
 	if err != nil {
 		return "", fmt.Errorf("failed to get oauth redirect: %w", err)
 	}
@@ -58,7 +58,7 @@ func (oauth *GoogleOAuth) GetOAuthToken(code string) (string, error) {
 		return "", fmt.Errorf("failed to get client secret: %w", err)
 	}
 
-	redirectUri, err := config.GetConfigValue("OAUTH_REDIRECT_URI")
+	redirectUri, err := config.GetConfigValue("OAUTH_GOOGLE_REDIRECT_URI")
 	if err != nil {
 		return "", fmt.Errorf("failed to get oauth redirect: %w", err)
 	}
