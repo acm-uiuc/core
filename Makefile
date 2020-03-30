@@ -36,6 +36,12 @@ run:
 	@echo 'Starting ACM@UIUC Core'
 	@$(REPO_ROOT)/scripts/run.sh
 
+# Runs the existing binary in dev mode
+.PHONY: run-dev
+run-dev:
+	@echo 'Starting ACM@UIUC Core'
+	@$(REPO_ROOT)/scripts/run-dev.sh
+
 # Formats the repo's golang files
 .PHONY: fmt
 fmt:

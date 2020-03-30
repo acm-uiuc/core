@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/acm-uiuc/core/config"
 )
 
 const (
@@ -58,16 +60,29 @@ func (store *gitStoreImpl) refreshData() error {
 
 		uri := store.basePath + pathKey
 
-		resp, err := http.Get(uri)
+		isDev, err := config.GetConfigValue("IS_DEV")
 		if err != nil {
-			return fmt.Errorf("failed to retrieve data: %w", err)
+			return fmt.Errorf("failed to get config value: %w", err)
 		}
 
-		defer resp.Body.Close()
+		data := []byte{}
+		if isDev != "true" {
+			resp, err := http.Get(uri)
+			if err != nil {
+				return fmt.Errorf("failed to retrieve data: %w", err)
+			}
 
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("failed to read raw data: %w", err)
+			defer resp.Body.Close()
+
+			data, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return fmt.Errorf("failed to read raw data: %w", err)
+			}
+		} else {
+			data, err = ioutil.ReadFile(uri)
+			if err != nil {
+				return fmt.Errorf("failed to read raw data: %w", err)
+			}
 		}
 
 		store.data[pathKey].data = data
