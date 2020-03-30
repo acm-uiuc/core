@@ -28,7 +28,7 @@ func (ctx *Context) ErrorWithFormat(format ContextError, code int, title string,
 	default:
 		err := ctx.String(code, fmt.Sprintf("%s\n%s\n", title, message))
 		if err != nil {
-			fmt.Errorf("invalid error format: %s, failed to write string reponse: %w", format, err)
+			return fmt.Errorf("invalid error format: %s, failed to write string reponse: %w", format, err)
 		}
 
 		return fmt.Errorf("invalid error format: %s", format)
