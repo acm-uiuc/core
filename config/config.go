@@ -27,6 +27,7 @@ var defaultConfig = map[string]string{
 	"STORAGE_PROVIDER":            "google",
 	"GOOGLE_BUCKET_NAME":          "acm-core-resume",
 	"GOOGLE_SERVICE_ACCOUNT":      "",
+	"OAUTH_FAKE_USER":             "fake",
 }
 
 func GetConfigValue(key string) (string, error) {

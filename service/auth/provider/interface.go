@@ -23,7 +23,12 @@ func GetProvider(provider string) (OAuthProvider, error) {
 		return nil, fmt.Errorf("failed to check if in test: %w", err)
 	}
 
-	if isTest == "true" {
+	isDev, err := config.GetConfigValue("IS_DEV")
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if in dev: %w", err)
+	}
+
+	if isTest == "true" || isDev == "true" {
 		return &FakeOAuth{}, nil
 	}
 

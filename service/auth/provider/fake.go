@@ -1,5 +1,11 @@
 package provider
 
+import (
+	"fmt"
+
+	"github.com/acm-uiuc/core/config"
+)
+
 type FakeOAuth struct{}
 
 func (oauth *FakeOAuth) GetOAuthRedirect(target string) (string, error) {
@@ -11,5 +17,10 @@ func (oauth *FakeOAuth) GetOAuthToken(code string) (string, error) {
 }
 
 func (oauth *FakeOAuth) GetVerifiedEmail(token string) (string, error) {
-	return "fake@illinois.edu", nil
+	fakeUser, err := config.GetConfigValue("OAUTH_FAKE_USER")
+	if err != nil {
+		return "", fmt.Errorf("failed to get fake user: %w", err)
+	}
+
+	return fmt.Sprintf("%s@illinois.edu", fakeUser), nil
 }
