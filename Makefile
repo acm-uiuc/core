@@ -36,12 +36,6 @@ run:
 	@echo 'Starting ACM@UIUC Core'
 	@$(REPO_ROOT)/scripts/run.sh
 
-# Runs the existing binary in dev mode
-.PHONY: run-dev
-run-dev:
-	@echo 'Starting ACM@UIUC Core'
-	@$(REPO_ROOT)/scripts/run-dev.sh
-
 # Formats the repo's golang files
 .PHONY: fmt
 fmt:
@@ -51,3 +45,16 @@ fmt:
 .PHONY: container
 container:
 	@docker build -t core:prod $(REPO_ROOT)
+
+# Resets the development environment
+.PHONY: dev-reset
+dev-reset:
+	@mysql --host=127.0.0.1 --port=3306 --user=devuser --password=devpass -e 'DROP DATABASE IF EXISTS core;'
+	@mysql --host=127.0.0.1 --port=3306 --user=devuser --password=devpass -e 'CREATE DATABASE core;'
+	@$(REPO_ROOT)/bin/core -migration all
+
+# Runs the existing binary in dev mode
+.PHONY: dev-run
+dev-run:
+	@echo 'Starting ACM@UIUC Core'
+	@$(REPO_ROOT)/scripts/run-dev.sh
