@@ -119,14 +119,14 @@ sigs:
     chairs: Jeffrey Lai, Arjun Gupta, Shaw Kagawa
     meetingTime: 'Sunday 1:00 PM - 4:00 PM'
     meetingLocation: Siebel 1105
-    website: aida.acm.illinois.edu
-    email: sig-aida@lists.illinois.edu
+    website: https://aida.acm.illinois.edu
+    email: sig-aida-request@lists.illinois.edu
   - name: QUIUC
     description: Special Interest Group for Quantum Computing
     chairs: Bailey Tincher, Graeme Jacobson
     meetingTime: 'Sunday 2:00 PM - 3:00 PM'
     meetingLocation: Siebel 1103
-    website: ''
+    website: https://www.quiuc.org
     email: info@quiuc.org
   - name: SIGOPS
     description: Special Interest Group for Operating Systems
