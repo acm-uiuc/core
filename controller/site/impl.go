@@ -186,10 +186,22 @@ func (controller *SiteController) Sigs(ctx *context.Context) error {
 }
 
 func (controller *SiteController) Login(ctx *context.Context) error {
+	isDev, err := config.GetConfigValue("IS_DEV")
+	if err != nil {
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Checking Mode",
+			"could not determine if in dev mode",
+			err,
+		)
+	}
+
 	params := struct {
 		Authenticated bool
+		IsDev         bool
 	}{
 		Authenticated: ctx.LoggedIn,
+		IsDev:         isDev == "true",
 	}
 
 	return ctx.Render(http.StatusOK, "login", params)

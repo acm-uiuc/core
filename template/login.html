@@ -4,6 +4,7 @@
 <div id="login-container">
     <div class="row col-centered small-12 medium-4 large-4 login-form">
         <h3>Login</h3>
+        {{if not .IsDev}}
         <div>
             <p>
             Student / Faculty ACM@UIUC Members can log into the ACM intranet using their university provided Google account (netid@illinois.edu).
@@ -20,6 +21,16 @@
                 <button class="button">Login With LinkedIn</button>
             </a>
         </div>
+        {{else}}
+        <div>
+            <p>
+            Developers can login with an authentication bypass when dev mode is enabled
+            </p>
+            <a href="/api/auth/fake/redirect">
+                <button class="button">Login With Bypass</button>
+            </a>
+        </div>
+        {{end}}
     </div>
 </div>
 
