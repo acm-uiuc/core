@@ -22,5 +22,5 @@ func (oauth *FakeOAuth) GetVerifiedEmail(token string) (string, error) {
 		return "", fmt.Errorf("failed to get fake user: %w", err)
 	}
 
-	return fmt.Sprintf("%s@illinois.edu", fakeUser), nil
+	return fakeUser, nil
 }
