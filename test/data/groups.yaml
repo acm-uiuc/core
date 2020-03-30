@@ -1,0 +1,186 @@
+---
+committees:
+  - name: Top4
+    description: The leadership team for ACM
+    chairs: Arnav Sankaran
+    email: acm@illinois.edu
+    members:
+      - role: Chair
+        username: arnavs3
+        displayName: Arnav Sankaran
+        email: acm@illinois.edu
+      - role: Vice Chair
+        username: asdale2
+        displayName: Asher Dale
+        email: vice-chair@acm.illinois.edu
+      - role: Treasurer
+        username: mpj4
+        displayName: Martin Juskelis
+        email: treasurer@acm.illinois.edu
+      - role: Secretary
+        username: devyesh2
+        displayName: Dev Satpathy
+        email: secretary@acm.illinois.edu
+  - name: Admin
+    description: The admin team build and maintains ACM@UIUC's infrastructure
+    chairs: Evan Widloski
+    email: admin-l@acm.illinois.edu
+    members:
+      - username: evanw3
+      - username: rishipd2
+  - name: Corporate
+    description: The corporate team handles communication with ACM@UIUC's sponsors
+    chairs: Cecilia Ding
+    email: corporate@acm.illinois.edu
+    members:
+      - username: cding20
+  - name: Events
+    description: The events team runs Reflections | Projections and HackIllinois
+    chairs: Arnav Sankaran
+    email: events-l@acm.illinois.edu
+    members:
+      - role: Director of HackIllinois
+        username: myc2
+        displayName: Melissa Chen
+        email: contact@hackillinois.org
+      - role: Director of HackIllinois
+        username: sathwik2
+        displayName: Sathwik Pochampally
+        email: contact@hackillinois.org
+      - role: Director of Reflections | Projections
+        username: sspal2
+        displayName: Sam Pal
+        email: conference@acm.illinois.edu
+      - role: Director of Reflections | Projections
+        username: aaron2
+        displayName: Aaron Aftab
+        email: conference@acm.illinois.edu
+  - name: Projects
+    description: The project team manages the engineering efforts of ACM@UIUC
+    chairs: Rishi Desai
+    members:
+      - role: Director of Projects
+        username: rishipd2
+        displayName: Rishi Desai
+        email: projects-l@acm.illinois.edu
+  - name: Social
+    description: The social team organizes fun events for ACM@UIUC
+    chairs: Nathaniel Cohen
+    members:
+      - role: Director of Social
+        username: njcohen2
+        displayName: Nathaniel Cohen
+        email: social-l@acm.illinois.edu
+sigs:
+  - name: Gamebuilders
+    description: Anything and everything related to game development
+    chairs: Aditya Bawankule
+    meetingTime: 'Monday 7:00 PM - 8:30 PM'
+    meetingLocation: Siebel 3405
+    website: http://gamebuilders.acm.illinois.edu/
+    email: adityab2@illinois.edu
+  - name: GLUG
+    description: GNU/Linux Users Group
+    chairs: Jav Mohamed
+    meetingTime: 'Thursday 5:00 PM - 6:00 PM'
+    meetingLocation: Siebel 1109
+    website: http://gnulug.org
+    email: glug@acm.illinois.org
+  - name: ICPC
+    description: Competitive programming skill development and competitions
+    chairs: Vivek Gupta, Eric Wang
+    meetingTime: 'Tuesday 7:00 PM - 9:00 PM'
+    meetingLocation: Siebel 1109
+    website: http://icpc.cs.illinois.edu/
+    email: icpc@cs.illinois.edu
+  - name: SIGBot
+    description: Special Interest Group for Robotics
+    chairs: Ananmay Jain
+    meetingTime: 'Saturday & Sunday 12:00 PM - 2:00 PM'
+    meetingLocation: Siebel 1104
+    website: http://illinoisauv.com/
+    email: ananmay3@illinois.edu
+  - name: SIGCHI
+    description: Special Interest Group for Human-Computer Interaction
+    chairs: Jeffrey Tsai
+    meetingTime: 'Tuesday 5:00 PM - 7:00 PM'
+    meetingLocation: Siebel 1304
+    website: http://sigchi.acm.illinois.edu/
+    email: jeffrey5@illinois.edu
+  - name: SIGGRAPH
+    description: Special Interest Group for Graphics
+    chairs: Chen Qian
+    meetingTime: 'Monday 6:00 PM - 7:00 PM'
+    meetingLocation: Siebel 3401
+    website: https://acm-uiuc.github.io/siggraph/
+    email: siggraphuiuc@gmail.com
+  - name: AIDA
+    description: Artificial Intelligence and Data Analytics
+    chairs: Jeffrey Lai, Arjun Gupta, Shaw Kagawa
+    meetingTime: 'Sunday 1:00 PM - 4:00 PM'
+    meetingLocation: Siebel 1105
+    website: https://aida.acm.illinois.edu
+    email: sig-aida-request@lists.illinois.edu
+  - name: QUIUC
+    description: Special Interest Group for Quantum Computing
+    chairs: Bailey Tincher, Graeme Jacobson
+    meetingTime: 'Sunday 2:00 PM - 3:00 PM'
+    meetingLocation: Siebel 1103
+    website: https://www.quiuc.org
+    email: info@quiuc.org
+  - name: SIGOPS
+    description: Special Interest Group for Operating Systems
+    chairs: Anshul Sanamvenkata, Chinmaya Mahesh, Kapil Kanwar
+    meetingTime: 'Saturday 12:00 PM - 2:00 PM'
+    meetingLocation: Siebel 1302
+    website: http://sigops.acm.illinois.edu
+    email: anshul2@illinois.edu
+  - name: SIGMobile
+    description: Special Interest Group for Mobile Development
+    chairs: Patrick Feltes
+    meetingTime: 'Tuesday 5:00 PM - 6:00 PM'
+    meetingLocation: Siebel 1214
+    website: http://github.com/SIGMobileUIUC
+    email: pfeltes2@illinois.edu
+  - name: SIGMusic
+    description: Special Interest Group for Music
+    chairs: Melissa Chen, Sahil Patel
+    meetingTime: 'Thursday 6:00 PM - 7:00 PM'
+    meetingLocation: Siebel 1109
+    website: http://sigmusic.acm.illinois.edu
+    email: myc2@illinois.edu
+  - name: SIGPwny
+    description: Special Interest Group for Security
+    chairs: Joseph Ravichandran
+    meetingTime: 'Thursday 6:00 PM - 7:00 PM'
+    meetingLocation: Siebel 1314
+    website: https://sigpwny.com
+    email: jpr3@illinois.edu
+  - name: SIGBlockchain
+    description: Special Interest Group for Blockchain Technologies
+    chairs: Jason Maldonado
+    meetingTime: 'Wednesday 5:00 PM - 6:00 PM'
+    meetingLocation: Siebel 1302
+    website: ''
+    email: jmaldo2@illinois.edu
+  - name: SIGNLL
+    description: Special Interest Group for Natural Language Learning
+    chairs: Jackie Oh, Jason Xia
+    meetingTime: 'Wednesday 5:30 PM - 6:30 PM'
+    meetingLocation: Siebel 1214
+    website: https://www.facebook.com/groups/uiucsignll
+    email: jmoh3@illinois.edu
+  - name: SIGArch
+    desription: Special Interest Group for Architecture
+    chairs: Kris Koepcke
+    meetingTime: 'Tuesday 6:00 PM - 7:00 PM'
+    meetingLocation: Siebel 1214
+    website: ''
+    email: koepcke2@illinois.edu
+  - name: SIGPlan
+    description: Special Interest Group for Programming Languages
+    chairs: Reed Oei
+    meetingTime: 'Sunday 4:00 PM - 5:00 PM'
+    meetingLocation: Siebel 2407
+    website: ''
+    email: reedoei2@illinois.edu
