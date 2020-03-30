@@ -40,11 +40,14 @@ func AuthorizeMatchAny(format context.ContextError, svc *service.Service, match 
 
 			isMarkMatch, err := hasMarkMatch(svc, ctx.Username, match.Marks)
 			if err != nil {
+				message := "could not find user marks; " +
+					"students: ensure you have filled out the join form to create an account; " +
+					"recruiters: please reach out to the corporate team for help creating an account"
 				return ctx.ErrorWithFormat(
 					format,
 					http.StatusForbidden,
 					"Failed Mark Match",
-					"could not find user marks",
+					message,
 					err,
 				)
 			}
@@ -61,11 +64,14 @@ func AuthorizeMatchAny(format context.ContextError, svc *service.Service, match 
 			}
 
 			if !isMarkMatch && !isCommitteeMatch {
+				message := "unauthorized attempt to access resource; " +
+					"students: please be patient as access to paid resources need to be manually granted by an administrator; " +
+					"recruiters: please reach out to the corporate team for help whitelisting account"
 				return ctx.ErrorWithFormat(
 					format,
 					http.StatusForbidden,
 					"Invalid Authorization Matches",
-					"unauthorized attempt to access resource",
+					message,
 					fmt.Errorf("unauthorized attempt to access resource"),
 				)
 			}
