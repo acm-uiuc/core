@@ -27,7 +27,7 @@ test-migration:
 .PHONY: test
 test:
 	@echo 'Testing ACM@UIUC Core'
-	@IS_TEST=true DB_NAME=core-test go test -p 1 -count=1 github.com/acm-uiuc/core/test/...
+	@IS_TEST=true DB_NAME=core-test GITSTORE_BASE_URI=$(REPO_ROOT)/test/data/ go test -p 1 -count=1 github.com/acm-uiuc/core/test/...
 	@echo 'Finished'
 
 # Runs the existing binary

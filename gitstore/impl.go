@@ -65,8 +65,13 @@ func (store *gitStoreImpl) refreshData() error {
 			return fmt.Errorf("failed to get config value: %w", err)
 		}
 
+		isTest, err := config.GetConfigValue("IS_TEST")
+		if err != nil {
+			return fmt.Errorf("failed to get config value: %w", err)
+		}
+
 		data := []byte{}
-		if isDev != "true" {
+		if isDev != "true" && isTest != "true" {
 			resp, err := http.Get(uri)
 			if err != nil {
 				return fmt.Errorf("failed to retrieve data: %w", err)
