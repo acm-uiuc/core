@@ -16,26 +16,58 @@ type AuthorizeMatchParameters struct {
 	Committees []string
 }
 
-func AuthorizeMatchAny(svc *service.Service, match AuthorizeMatchParameters) func(echo.HandlerFunc) echo.HandlerFunc {
+func AuthorizeMatchAnyAPI(svc *service.Service, match AuthorizeMatchParameters) func(echo.HandlerFunc) echo.HandlerFunc {
+	return AuthorizeMatchAny(context.ContextErrorFormatJSON, svc, match)
+}
+
+func AuthorizeMatchAnyWebPage(svc *service.Service, match AuthorizeMatchParameters) func(echo.HandlerFunc) echo.HandlerFunc {
+	return AuthorizeMatchAny(context.ContextErrorFormatHTML, svc, match)
+}
+
+func AuthorizeMatchAny(format context.ContextError, svc *service.Service, match AuthorizeMatchParameters) func(echo.HandlerFunc) echo.HandlerFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			ctx, ok := c.(*context.Context)
 			if !ok {
-				return ctx.String(http.StatusForbidden, "Invalid Context")
+				return ctx.ErrorWithFormat(
+					format,
+					http.StatusForbidden,
+					"Invalid Context",
+					"could not convert context",
+					fmt.Errorf("could not convert context"),
+				)
 			}
 
 			isMarkMatch, err := hasMarkMatch(svc, ctx.Username, match.Marks)
 			if err != nil {
-				return ctx.String(http.StatusForbidden, "Failed Mark Match")
+				return ctx.ErrorWithFormat(
+					format,
+					http.StatusForbidden,
+					"Failed Mark Match",
+					"could not find user marks",
+					err,
+				)
 			}
 
 			isCommitteeMatch, err := hasCommitteeMatch(svc, ctx.Username, match.Committees)
 			if err != nil {
-				return ctx.String(http.StatusForbidden, "Failed Committee Match")
+				return ctx.ErrorWithFormat(
+					format,
+					http.StatusForbidden,
+					"Failed Committee Match",
+					"could not find commitee information",
+					err,
+				)
 			}
 
 			if !isMarkMatch && !isCommitteeMatch {
-				return ctx.String(http.StatusForbidden, "Invalid Authorization Matches")
+				return ctx.ErrorWithFormat(
+					format,
+					http.StatusForbidden,
+					"Invalid Authorization Matches",
+					"unauthorized attempt to access resource",
+					fmt.Errorf("unauthorized attempt to access resource"),
+				)
 			}
 
 			return next(ctx)
