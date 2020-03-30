@@ -12,6 +12,29 @@ type Context struct {
 	LoggedIn bool
 }
 
+type ContextError string
+
+const (
+	ContextErrorFormatJSON ContextError = "json"
+	ContextErrorFormatHTML ContextError = "html"
+)
+
+func (ctx *Context) ErrorWithFormat(format ContextError, code int, title string, message string, err error) error {
+	switch format {
+	case ContextErrorFormatJSON:
+		return ctx.JSONError(code, title, message, err)
+	case ContextErrorFormatHTML:
+		return ctx.RenderError(code, title, message, err)
+	default:
+		err := ctx.String(code, fmt.Sprintf("%s\n%s\n", title, message))
+		if err != nil {
+			fmt.Errorf("invalid error format: %s, failed to write string reponse: %w", format, err)
+		}
+
+		return fmt.Errorf("invalid error format: %s", format)
+	}
+}
+
 func (ctx *Context) RenderError(code int, title string, message string, err error) error {
 	params := struct {
 		Authenticated bool
