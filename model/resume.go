@@ -12,4 +12,5 @@ type Resume struct {
 	Seeking         string `db:"seeking" json:"seeking"`
 	BlobKey         string `db:"blob_key" json:"blob_key"`
 	Approved        bool   `db:"approved" json:"approved"`
+	UpdatedAt       int64  `db:"updated_at" json:"updated_at"`
 }
