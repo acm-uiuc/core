@@ -41,6 +41,7 @@ func TestCreateAndGetUser(t *testing.T) {
 		FirstName: "fake",
 		LastName:  "fake",
 		Mark:      model.UserMarkBasic,
+		CreatedAt: 10,
 	}
 
 	err = svc.CreateUser(expectedUser)
@@ -74,6 +75,7 @@ func TestCreateAndGetUsers(t *testing.T) {
 		FirstName: "fake1",
 		LastName:  "fake1",
 		Mark:      model.UserMarkBasic,
+		CreatedAt: 10,
 	}
 
 	expectedUserTwo := model.User{
@@ -81,6 +83,7 @@ func TestCreateAndGetUsers(t *testing.T) {
 		FirstName: "fake2",
 		LastName:  "fake2",
 		Mark:      model.UserMarkBasic,
+		CreatedAt: 20,
 	}
 
 	err = svc.CreateUser(expectedUserOne)
@@ -124,6 +127,7 @@ func TestCreateAndMarkAndGetUser(t *testing.T) {
 		FirstName: "fake",
 		LastName:  "fake",
 		Mark:      model.UserMarkBasic,
+		CreatedAt: 10,
 	}
 
 	err = svc.CreateUser(expectedUser)
@@ -173,6 +177,7 @@ func TestCreateAndGetAndRemoveAndGetUser(t *testing.T) {
 		FirstName: "fake",
 		LastName:  "fake",
 		Mark:      model.UserMarkBasic,
+		CreatedAt: 10,
 	}
 
 	err = svc.CreateUser(expectedUser)

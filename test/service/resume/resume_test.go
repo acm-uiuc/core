@@ -48,6 +48,7 @@ func TestCreateAndGetresumes(t *testing.T) {
 		Seeking:         "Full Time",
 		BlobKey:         "fake1",
 		Approved:        false,
+		UpdatedAt:       10,
 	}
 
 	expectedResumeTwo := model.Resume{
@@ -62,6 +63,7 @@ func TestCreateAndGetresumes(t *testing.T) {
 		Seeking:         "Internship",
 		BlobKey:         "fake2",
 		Approved:        false,
+		UpdatedAt:       20,
 	}
 
 	_, err = svc.UploadResume(expectedResumeOne)
@@ -115,6 +117,7 @@ func TestCreateAndApproveAndGetresume(t *testing.T) {
 		Seeking:         "Full Time",
 		BlobKey:         "fake1",
 		Approved:        false,
+		UpdatedAt:       10,
 	}
 
 	_, err = svc.UploadResume(expectedResumeOne)
