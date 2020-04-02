@@ -2,6 +2,7 @@ package resume
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/acm-uiuc/core/context"
 	"github.com/acm-uiuc/core/model"
@@ -33,6 +34,7 @@ func (controller *ResumeController) UploadResume(ctx *context.Context) error {
 
 	req.BlobKey = req.Username
 	req.Approved = false
+	req.UpdatedAt = time.Now().Unix()
 
 	uri, err := controller.svc.Resume.UploadResume(req)
 	if err != nil {

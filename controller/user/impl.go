@@ -2,6 +2,7 @@ package user
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/acm-uiuc/core/context"
 	"github.com/acm-uiuc/core/model"
@@ -46,6 +47,7 @@ func (controller *UserController) CreateUser(ctx *context.Context) error {
 	}
 
 	req.Mark = model.UserMarkBasic
+	req.CreatedAt = time.Now().Unix()
 
 	err = controller.svc.User.CreateUser(req)
 	if err != nil {
