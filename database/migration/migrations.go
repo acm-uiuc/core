@@ -15,6 +15,8 @@ var migrations []migration = []migration{
 	migration{name: "create_tokens_table", command: create_tokens_table},
 	migration{name: "create_users_table", command: create_users_table},
 	migration{name: "create_resumes_table", command: create_resumes_table},
+	migration{name: "add_users_timestamp", command: add_users_timestamp},
+	migration{name: "add_resumes_timestamp", command: add_resumes_timestamp},
 }
 
 func Migrate(startName string) error {
