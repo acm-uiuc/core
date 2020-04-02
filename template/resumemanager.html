@@ -15,6 +15,7 @@
                             <th>Graduation </th>
                             <th>Level </th>
                             <th>Seeking </th>
+                            <th>Last Updated </th>
                             <th>Resume </th>
                         </tr>
                     </thead>
@@ -33,6 +34,7 @@
                             <td>{{.GraduationMonth}} / {{.GraduationYear}}</td>
                             <td>{{.Degree}}</td>
                             <td>{{.Seeking}}</td>
+                            <td>{{.HumanTimestamp}}</td>
                             <td><a href="{{.BlobKey}}" target="_blank">View Resume</a></td>
                         </tr>
                     {{end}}

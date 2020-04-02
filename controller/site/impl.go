@@ -3,6 +3,7 @@ package site
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/acm-uiuc/core/config"
 	"github.com/acm-uiuc/core/context"
@@ -266,12 +267,30 @@ func (controller *SiteController) UserManager(ctx *context.Context) error {
 		)
 	}
 
+	extendedUsers := []struct {
+		model.User
+		HumanTimestamp string
+	}{}
+
+	for _, user := range users {
+		extendedUsers = append(extendedUsers, struct {
+			model.User
+			HumanTimestamp string
+		}{
+			User:           user,
+			HumanTimestamp: time.Unix(user.CreatedAt, 0).Format(time.UnixDate),
+		})
+	}
+
 	params := struct {
 		Authenticated bool
-		Users         []model.User
+		Users         []struct {
+			model.User
+			HumanTimestamp string
+		}
 	}{
 		Authenticated: ctx.LoggedIn,
-		Users:         users,
+		Users:         extendedUsers,
 	}
 
 	return ctx.Render(http.StatusOK, "usermanager", params)
@@ -462,12 +481,30 @@ func (controller *SiteController) ResumeManager(ctx *context.Context) error {
 		)
 	}
 
+	extendedResumes := []struct {
+		model.Resume
+		HumanTimestamp string
+	}{}
+
+	for _, resume := range resumes {
+		extendedResumes = append(extendedResumes, struct {
+			model.Resume
+			HumanTimestamp string
+		}{
+			Resume:         resume,
+			HumanTimestamp: time.Unix(resume.UpdatedAt, 0).Format(time.UnixDate),
+		})
+	}
+
 	params := struct {
 		Authenticated bool
-		Resumes       []model.Resume
+		Resumes       []struct {
+			model.Resume
+			HumanTimestamp string
+		}
 	}{
 		Authenticated: ctx.LoggedIn,
-		Resumes:       resumes,
+		Resumes:       extendedResumes,
 	}
 
 	return ctx.Render(http.StatusOK, "resumemanager", params)
