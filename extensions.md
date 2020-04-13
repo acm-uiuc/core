@@ -2,7 +2,7 @@
 Extensions allow additional functionality to be added ACM@UIUC Core without needing to be embedded with in Core's codebase. Exentions are primarly expected to leverage Core for authentication and authorization, but can utilize any of Core's publically exposed endpoints. The full list of exposed endpoint can be found in `design.md`. Below a very simple sample extension is provided to illustrate the bare minimum which needs to be done in order to properly interface with Core. This application allows users to login and have their use information displayed to them.
 
 ## Sample Extension
-```
+```python
 from flask import Flask, redirect, request
 import requests
 import json
