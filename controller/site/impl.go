@@ -248,7 +248,7 @@ func (controller *SiteController) ResumeUpload(ctx *context.Context) error {
 		Authenticated:    ctx.LoggedIn,
 		GraduationMonths: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
 		GraduationYears:  []int{2020, 2021, 2022, 2023, 2024, 2025},
-		Degrees:          []string{"Bachlors", "Masters", "PhD"},
+		Degrees:          []string{"Bachelors", "Masters", "PhD"},
 		Seekings:         []string{"Internship", "Co Op", "Full Time"},
 		Majors:           []string{"Computer Science", "Computer Engineering", "Electrical Enginering", "Mathematics", "Other Engineering", "Other Sciences", "Other"},
 	}
@@ -466,11 +466,19 @@ func (controller *SiteController) ResumeBook(ctx *context.Context) error {
 	}
 
 	params := struct {
-		Authenticated bool
-		Resumes       []model.Resume
+		Authenticated    bool
+		Resumes          []model.Resume
+		GraduationMonths []int
+		GraduationYears  []int
+		Degrees          []string
+		Seekings         []string
 	}{
-		Authenticated: ctx.LoggedIn,
-		Resumes:       approvedResumes,
+		Authenticated:    ctx.LoggedIn,
+		Resumes:          approvedResumes,
+		GraduationMonths: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+		GraduationYears:  []int{2020, 2021, 2022, 2023, 2024, 2025},
+		Degrees:          []string{"Bachelors", "Masters", "PhD"},
+		Seekings:         []string{"Internship", "Co Op", "Full Time"},
 	}
 
 	return ctx.Render(http.StatusOK, "resumebook", params)

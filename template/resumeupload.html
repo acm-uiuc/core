@@ -35,43 +35,53 @@
             </div>
             <div class="field-group required">
                 <label for="major" class="field-label">Major</label>
-                <select id="major" name="major">
-                    {{range .Majors}}
-                        <option value='{{.}}'>{{.}}</option>
-                    {{end}}
-                </select>
+                <div class="field">
+                    <select id="major" name="major">
+                        {{range .Majors}}
+                            <option value='{{.}}'>{{.}}</option>
+                        {{end}}
+                    </select>
+                </div>
             </div>
             <div class="field-group required">
                 <label for="graduation_month" class="field-label">Graduation Month</label>
-                <select id="graduation_month" name="graduation_month">
-                    {{range .GraduationMonths}}
-                        <option value='{{.}}'>{{.}}</option>
-                    {{end}}
-                </select>
+                <div class="field">
+                    <select id="graduation_month" name="graduation_month">
+                        {{range .GraduationMonths}}
+                            <option value='{{.}}'>{{.}}</option>
+                        {{end}}
+                    </select>
+                </div>
             </div>
             <div class="field-group required">
                 <label for="graduation_year" class="field-label">Graduation Year</label>
-                <select id="graduation_year" name="graduation_year">
-                    {{range .GraduationYears}}
-                        <option value='{{.}}'>{{.}}</option>
-                    {{end}}
-                </select>
+                <div class="field">
+                    <select id="graduation_year" name="graduation_year">
+                        {{range .GraduationYears}}
+                            <option value='{{.}}'>{{.}}</option>
+                        {{end}}
+                    </select>
+                </div>
             </div>
             <div class="field-group required">
                 <label for="degree" class="field-label">Degree</label>
-                <select id="degree" name="degree">
-                    {{range .Degrees}}
-                        <option value='{{.}}'>{{.}}</option>
-                    {{end}}
-                </select>
+                <div class="field">
+                    <select id="degree" name="degree">
+                        {{range .Degrees}}
+                            <option value='{{.}}'>{{.}}</option>
+                        {{end}}
+                    </select>
+                </div>
             </div>
             <div class="field-group required">
                 <label for="seeking" class="field-label">Seeking</label>
-                <select id="seeking" name="seeking">
-                    {{range .Seekings}}
-                        <option value='{{.}}'>{{.}}</option>
-                    {{end}}
-                </select>
+                <div class="field">
+                    <select id="seeking" name="seeking">
+                        {{range .Seekings}}
+                            <option value='{{.}}'>{{.}}</option>
+                        {{end}}
+                    </select>
+                </div>
             </div>
             <div class="field-group required">
                 <label for="resume" class="field-label">Resume</label>
