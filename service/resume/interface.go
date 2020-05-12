@@ -10,6 +10,7 @@ import (
 type ResumeService interface {
 	UploadResume(resume model.Resume) (string, error)
 	GetResumes() ([]model.Resume, error)
+	GetFilteredResumes(filters map[string]string) ([]model.Resume, error)
 	ApproveResume(username string) error
 }
 
