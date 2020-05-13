@@ -5,31 +5,12 @@
     <div class="row">
         <h2>ACM@UIUC Resume Book</h2>
         <div class="resume-table-container">
-            <table id="resume-table" class="dynatable-container">
-                <thead>
-                <tr>
-                    <th>Name </th>
-                    <th>NetID </th>
-                    <th>Graduation </th>
-                    <th>Level </th>
-                    <th>Seeking </th>
-                    <th>Resume </th>
-                </tr>
-                </thead>
-                {{range .Resumes}}
-                    <tr>
-                        <td>{{.FirstName}} {{.LastName}}</td>
-                        <td>{{.Username}}</td>
-                        <td>{{.GraduationMonth}} / {{.GraduationYear}}</td>
-                        <td>{{.Degree}}</td>
-                        <td>{{.Seeking}}</td>
-                        <td><a href="{{.BlobKey}}" target="_blank">View Resume</a></td>
-                    </tr>
-                {{end}}
-            </table>
-
             <form id="resume-filter-form">
-                <h4>Filter <a class="clear-form" href="?">Clear</a></h4>
+                <h4>
+                    Filter
+                    <a class="clear-form" href="?"><i class="fa fa-times-circle"></i> Clear</a>
+                </h4>
+
                 <input type="text" name="first_name" placeholder="First Name">
                 <input type="text" name="last_name" placeholder="Last Name">
                 <input type="text" name="username" placeholder="NetID">
@@ -64,6 +45,29 @@
 
                 <button class="button" type="submit">Submit</button>
             </form>
+
+            <table id="resume-table" class="dynatable-container">
+                <thead>
+                <tr>
+                    <th>Name </th>
+                    <th>NetID </th>
+                    <th>Graduation </th>
+                    <th>Level </th>
+                    <th>Seeking </th>
+                    <th>Resume </th>
+                </tr>
+                </thead>
+                {{range .Resumes}}
+                    <tr>
+                        <td>{{.FirstName}} {{.LastName}}</td>
+                        <td>{{.Username}}</td>
+                        <td>{{.GraduationMonth}} / {{.GraduationYear}}</td>
+                        <td>{{.Degree}}</td>
+                        <td>{{.Seeking}}</td>
+                        <td><a href="{{.BlobKey}}" target="_blank">View Resume</a></td>
+                    </tr>
+                {{end}}
+            </table>
         </div>
     </div>
 </div>
