@@ -54,7 +54,7 @@ func (controller *ResumeController) UploadResume(ctx *context.Context) error {
 }
 
 func (controller *ResumeController) GetResumes(ctx *context.Context) error {
-	resumes, err := controller.svc.Resume.GetResumes()
+	resumes, err := controller.svc.Resume.GetFilteredResumes(ctx.QueryParams())
 	if err != nil {
 		return ctx.JSONError(
 			http.StatusBadRequest,

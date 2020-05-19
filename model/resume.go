@@ -14,3 +14,19 @@ type Resume struct {
 	Approved        bool   `db:"approved" json:"approved"`
 	UpdatedAt       int64  `db:"updated_at" json:"updated_at"`
 }
+
+type ResumeOptions struct {
+	GraduationMonths []int
+	GraduationYears  []int
+	Degrees          []string
+	Seekings         []string
+	Majors           []string
+}
+
+var ResumeValidOptions = ResumeOptions{
+	GraduationMonths: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+	GraduationYears:  []int{2020, 2021, 2022, 2023, 2024, 2025},
+	Degrees:          []string{"Bachelors", "Masters", "PhD"},
+	Seekings:         []string{"Internship", "Co Op", "Full Time"},
+	Majors:           []string{"Computer Science", "Computer Engineering", "Electrical Enginering", "Mathematics", "Other Engineering", "Other Sciences", "Other"},
+}
