@@ -35,7 +35,7 @@ func (service *resumeImpl) UploadResume(resume model.Resume) (string, error) {
 }
 
 func (service *resumeImpl) GetResumes() ([]model.Resume, error) {
-	resumes, err := service.getFilteredResumes(make(map[string][]string))
+	resumes, err := service.getFilteredResumes(map[string][]string{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get resumes: %w", err)
 	}
