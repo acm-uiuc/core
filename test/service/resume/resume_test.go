@@ -199,6 +199,9 @@ func TestCreateAndGetFilteredResumes(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	expectedResumeOne.BlobKey = "http://fakestorage.local"
+	expectedResumeTwo.BlobKey = "http://fakestorage.local"
+
 	t.Run("no filters", func(t *testing.T) {
 		filters := map[string][]string{}
 		resumes, err := svc.GetFilteredResumes(filters)
