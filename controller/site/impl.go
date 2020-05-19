@@ -495,9 +495,11 @@ func (controller *SiteController) ResumeManager(ctx *context.Context) error {
 			model.Resume
 			HumanTimestamp string
 		}
+		model.ResumeOptions
 	}{
 		Authenticated: ctx.LoggedIn,
 		Resumes:       extendedResumes,
+		ResumeOptions: model.ResumeValidOptions,
 	}
 
 	return ctx.Render(http.StatusOK, "resumemanager", params)

@@ -1,0 +1,63 @@
+{{define "resumefilterform"}}
+
+<form id="resume-filter-form">
+    <h4>
+        Filter
+        <a class="clear-form" href="?"><i class="fa fa-times-circle"></i> Clear</a>
+    </h4>
+
+    <input type="text" name="first_name" placeholder="First Name">
+    <input type="text" name="last_name" placeholder="Last Name">
+    <input type="text" name="username" placeholder="NetID">
+
+    <select name="graduation_month">
+        <option disabled selected hidden value="">Graduation Month</option>
+        {{range .GraduationMonths}}
+            <option value='{{.}}'>{{.}}</option>
+        {{end}}
+    </select>
+
+    <select name="graduation_year">
+        <option disabled selected hidden value="">Graduation Year</option>
+        {{range .GraduationYears}}
+            <option value='{{.}}'>{{.}}</option>
+        {{end}}
+    </select>
+
+    <select name="degree">
+        <option disabled selected hidden value="">Level</option>
+        {{range .Degrees}}
+            <option value='{{.}}'>{{.}}</option>
+        {{end}}
+    </select>
+
+    <select name="seeking">
+        <option disabled selected hidden value="">Seeking</option>
+        {{range .Seekings}}
+            <option value='{{.}}'>{{.}}</option>
+        {{end}}
+    </select>
+
+    <button class="button" type="submit">Submit</button>
+</form>
+
+<script>
+    window.addEventListener("load", () => {
+        // set the initial value for each filter based on the current query parameters
+        const url = new URL(location.href);
+        url.searchParams.forEach((value, key) => {
+            $(`#resume-filter-form [name=${key}]`).val(value);
+        });
+
+        // on form submit, remove 'name' for all blank fields to prevent them from being sent in the request
+        document.getElementById('resume-filter-form').addEventListener('submit', e => {
+            $(e.target).find('[name]').each((_, inputElement) => {
+                if ($(inputElement).val() === "") {
+                    $(inputElement).attr('name', '');
+                }
+            });
+        });
+    });
+</script>
+
+{{end}}
