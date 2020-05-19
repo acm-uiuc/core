@@ -441,14 +441,7 @@ func (controller *SiteController) Intranet(ctx *context.Context) error {
 }
 
 func (controller *SiteController) ResumeBook(ctx *context.Context) error {
-	filters := make(map[string]string)
-	for key, values := range ctx.QueryParams() {
-		if len(values) >= 1 {
-			filters[key] = values[0] // we only consider the first query parameter
-		}
-	}
-
-	resumes, err := controller.svc.Resume.GetFilteredResumes(filters)
+	resumes, err := controller.svc.Resume.GetFilteredResumes(ctx.QueryParams())
 	if err != nil {
 		return ctx.RenderError(
 			http.StatusBadRequest,

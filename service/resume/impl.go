@@ -2,12 +2,11 @@ package resume
 
 import (
 	"fmt"
-	"reflect"
-	"strconv"
 
 	"github.com/jmoiron/sqlx"
 
 	"github.com/acm-uiuc/core/config"
+	"github.com/acm-uiuc/core/database/querybuilder"
 	"github.com/acm-uiuc/core/model"
 	"github.com/acm-uiuc/core/service/resume/provider"
 )
@@ -36,7 +35,7 @@ func (service *resumeImpl) UploadResume(resume model.Resume) (string, error) {
 }
 
 func (service *resumeImpl) GetResumes() ([]model.Resume, error) {
-	resumes, err := service.getFilteredResumes(make(map[string]string))
+	resumes, err := service.getFilteredResumes(make(map[string][]string))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get resumes: %w", err)
 	}
@@ -44,7 +43,7 @@ func (service *resumeImpl) GetResumes() ([]model.Resume, error) {
 	return resumes, nil
 }
 
-func (service *resumeImpl) GetFilteredResumes(filters map[string]string) ([]model.Resume, error) {
+func (service *resumeImpl) GetFilteredResumes(filters map[string][]string) ([]model.Resume, error) {
 	resumes, err := service.getFilteredResumes(filters)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get filtered resumes: %w", err)
@@ -85,35 +84,13 @@ func (service *resumeImpl) addResume(resume *model.Resume) error {
 	return nil
 }
 
-func (service *resumeImpl) getFilteredResumes(filterStrings map[string]string) ([]model.Resume, error) {
-	filters := make(map[string]interface{})
-	query := "SELECT * FROM resumes WHERE 1=1"
-	resumeModel := reflect.ValueOf(model.Resume{})
-	for i := 0; i < resumeModel.NumField(); i++ {
-		filterKey := resumeModel.Type().Field(i).Tag.Get("db")
-		if filterString, ok := filterStrings[filterKey]; ok {
-			var filter interface{}
-			var err error
-			switch resumeModel.Field(i).Interface().(type) {
-			case string:
-				filter = filterString
-			case int:
-				filter, err = strconv.Atoi(filterString)
-			case int64:
-				filter, err = strconv.ParseInt(filterString, 10, 64)
-			case bool:
-				filter, err = strconv.ParseBool(filterString)
-			}
-
-			if err != nil {
-				return nil, fmt.Errorf("invalid filter type for field '%v': %w", filterKey, err)
-			}
-			filters[filterKey] = filter
-			query += fmt.Sprintf(" AND %[1]v = :%[1]v", filterKey) // e.g. " AND username = :username"
-		}
+func (service *resumeImpl) getFilteredResumes(filterStrings map[string][]string) ([]model.Resume, error) {
+	query, args, err := querybuilder.FilterQuery("SELECT * FROM resumes", filterStrings, model.Resume{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct query with appropriate filters: %w", err)
 	}
 
-	rows, err := service.db.NamedQuery(query, filters)
+	rows, err := service.db.NamedQuery(query, args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query database for resumes: %w", err)
 	}
