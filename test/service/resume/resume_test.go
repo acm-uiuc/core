@@ -253,7 +253,7 @@ func TestCreateAndGetFilteredResumes(t *testing.T) {
 		}
 	})
 
-	t.Run("Filter with no expected results", func(t *testing.T) {
+	t.Run("filter with no expected results", func(t *testing.T) {
 		filters := map[string][]string{
 			"username": {"fake3"},
 		}
