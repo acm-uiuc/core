@@ -6,7 +6,6 @@
         <div id="links-top" class="row">
             <div id="main-left" class="small-12 medium-12 large-12 columns">
                 <h3>Your information</h3>
-
                 <h5>Hello, {{.Username}}</p>
                 <h6>Role(s): |{{range .Roles}} {{.}} |{{end}}</h6>
             </div>
@@ -38,9 +37,9 @@
             </div>
         </div>
     </div>
-  </div>
-  <div class="footer_padding">
-  </div>
+</div>
+<div class="footer_padding">
+</div>
 
-  {{template "footer" .}}
-  {{end}}
+{{template "footer" .}}
+{{end}}
