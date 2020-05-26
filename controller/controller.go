@@ -215,8 +215,7 @@ func New(svc *service.Service) (*Controller, error) {
 		"/intranet",
 		Chain(siteController.Intranet, middleware.AuthorizeMatchAnyWebPage(
 			controller.svc, middleware.AuthorizeMatchParameters{
-				Marks:      []string{model.UserMarkPaid},
-				Committees: []string{model.GroupTop4},
+				Marks: model.UserValidMarks,
 			},
 		)),
 	)

@@ -17,6 +17,20 @@ cards:
     groups:
       - Top4
       - Corporate
+  - title: Resume Book
+    description: View ACM@UIUC's resumes
+    uri: /resumebook
+    groups:
+      - Top4
+      - Corporate
+    marks:
+      - Recruiter
+  - title: Resume Upload
+    description: Upload your resume
+    uri: /resumeupload
+    marks:
+      - Basic
+      - Paid
 links:
   - name: Mailing Lists
     uri: https://www-s.acm.illinois.edu/mailman/listinfo

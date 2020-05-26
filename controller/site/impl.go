@@ -3,6 +3,7 @@ package site
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/acm-uiuc/core/config"
@@ -395,21 +396,40 @@ func (controller *SiteController) Intranet(ctx *context.Context) error {
 		)
 	}
 
-	cards := []model.IntranetCard{}
-	for _, card := range intranet.Cards {
+	checkAccessToCard := func(card model.IntranetCard) (bool, error) {
+		for _, mark := range card.Marks {
+			if user.Mark == strings.ToUpper(mark) {
+				return true, nil
+			}
+		}
+
 		for _, group := range card.Groups {
 			isMember, err := controller.svc.Group.VerifyMembership(ctx.Username, model.GroupCommittees, group)
 			if err != nil {
-				return ctx.RenderError(
-					http.StatusBadRequest,
-					"Failed Membership Verification",
-					fmt.Sprintf("could not verify if user was a member of %s", group),
-					err,
-				)
+				return false, err
 			}
 			if isMember {
-				cards = append(cards, card)
+				return true, nil
 			}
+		}
+
+		return false, nil
+	}
+
+	cards := []model.IntranetCard{}
+	for _, card := range intranet.Cards {
+		hasAccess, err := checkAccessToCard(card)
+		if err != nil {
+			return ctx.RenderError(
+				http.StatusBadRequest,
+				"Failed Checking Card Access",
+				fmt.Sprintf("could not verify if user has access to card %s", card.Title),
+				err,
+			)
+		}
+
+		if hasAccess {
+			cards = append(cards, card)
 		}
 	}
 

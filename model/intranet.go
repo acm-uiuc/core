@@ -10,6 +10,7 @@ type IntranetCard struct {
 	Description string   `yaml:"description"`
 	Uri         string   `yaml:"uri"`
 	Groups      []string `yaml:"groups"`
+	Marks       []string `yaml:"marks"`
 }
 
 type IntranetLink struct {
