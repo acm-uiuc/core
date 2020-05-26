@@ -9,7 +9,7 @@
             <p>
             Student / Faculty ACM@UIUC Members can log into the ACM intranet using their university provided Google account (netid@illinois.edu).
             </p>
-            <a href="/api/auth/google">
+            <a href="/api/auth/google?target=/intranet">
                 <button class="button">Login With Google</button>
             </a>
         </div><br/>
@@ -17,7 +17,7 @@
             <p>
             Recruiters who sponsor ACM@UIUC can login with their LinkedIn account and request access to view the ACM@UIUC resume book.
             </p>
-            <a href="/api/auth/linkedin">
+            <a href="/api/auth/linkedin?target=/intranet">
                 <button class="button">Login With LinkedIn</button>
             </a>
         </div>
@@ -26,7 +26,7 @@
             <p>
             Developers can login with an student authentication bypass when dev mode is enabled
             </p>
-            <a href="/api/auth/google/redirect">
+            <a href="/api/auth/google/redirect?state=/intranet">
                 <button class="button">Login With Google</button>
             </a>
         </div>
@@ -34,7 +34,7 @@
             <p>
             Developers can login with an recruiter authentication bypass when dev mode is enabled
             </p>
-            <a href="/api/auth/linkedin/redirect">
+            <a href="/api/auth/linkedin/redirect?state=/intranet">
                 <button class="button">Login With LinkedIn</button>
             </a>
         </div>
