@@ -340,12 +340,7 @@ func (controller *SiteController) Intranet(ctx *context.Context) error {
 
 	user, err := controller.svc.User.GetUser(ctx.Username)
 	if err != nil {
-		return ctx.RenderError(
-			http.StatusBadRequest,
-			"Failed Getting User",
-			"could not get user data",
-			err,
-		)
+		return fmt.Errorf("intranet error: %s, join error: %w ", err.Error(), controller.Join(ctx))
 	}
 
 	markRole, ok := marksToRole[user.Mark]
