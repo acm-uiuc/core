@@ -2,6 +2,7 @@ package model
 
 type Intranet struct {
 	Cards []IntranetCard `yaml:"cards"`
+	Links []IntranetLink `yaml:"links"`
 }
 
 type IntranetCard struct {
@@ -9,4 +10,9 @@ type IntranetCard struct {
 	Description string   `yaml:"description"`
 	Uri         string   `yaml:"uri"`
 	Groups      []string `yaml:"groups"`
+}
+
+type IntranetLink struct {
+	Name string `yaml:"name"`
+	Uri  string `yaml:"uri"`
 }

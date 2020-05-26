@@ -17,3 +17,12 @@ cards:
     groups:
       - Top4
       - Corporate
+links:
+  - name: Mailing Lists
+    uri: https://www-s.acm.illinois.edu/mailman/listinfo
+  - name: Slack
+    uri: https://acm-uiuc.slack.com
+  - name: GitHub
+    uri: https://github.com/acm-uiuc
+  - name: Facebook Group
+    uri: https://www.facebook.com/groups/uiucacm

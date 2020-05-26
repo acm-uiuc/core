@@ -418,11 +418,13 @@ func (controller *SiteController) Intranet(ctx *context.Context) error {
 		Username      string
 		Roles         []string
 		Cards         []model.IntranetCard
+		Links         []model.IntranetLink
 	}{
 		Authenticated: ctx.LoggedIn,
 		Username:      ctx.Username,
 		Roles:         roles,
 		Cards:         cards,
+		Links:         intranet.Links,
 	}
 
 	return ctx.Render(http.StatusOK, "intranet", params)
