@@ -371,7 +371,7 @@ func (controller *SiteController) Intranet(ctx *context.Context) error {
 			)
 		}
 		if isMember {
-			roles = append(roles, "Top4")
+			roles = append(roles, committee)
 		}
 	}
 
