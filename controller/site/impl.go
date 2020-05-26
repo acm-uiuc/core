@@ -238,7 +238,7 @@ func (controller *SiteController) Join(ctx *context.Context) error {
 
 func (controller *SiteController) ResumeUpload(ctx *context.Context) error {
 	params := struct {
-		Authenticated    bool
+		Authenticated bool
 		model.ResumeOptions
 	}{
 		Authenticated: ctx.LoggedIn,
@@ -358,70 +358,66 @@ func (controller *SiteController) Intranet(ctx *context.Context) error {
 	}
 	roles = append(roles, markRole)
 
-	isTop4, err := controller.svc.Group.VerifyMembership(ctx.Username, model.GroupCommittees, model.GroupTop4)
+	committees := []string{model.GroupTop4, model.GroupCorporate}
+	for _, committee := range committees {
+		isMember, err := controller.svc.Group.VerifyMembership(ctx.Username, model.GroupCommittees, committee)
+		if err != nil {
+			return ctx.RenderError(
+				http.StatusBadRequest,
+				"Failed Membership Verification",
+				fmt.Sprintf("could not verify if user was a member of %s", committee),
+				err,
+			)
+		}
+		if isMember {
+			roles = append(roles, "Top4")
+		}
+	}
+
+	intranetUri, err := config.GetConfigValue("INTRANET_URI")
 	if err != nil {
 		return ctx.RenderError(
 			http.StatusBadRequest,
-			"Failed Membership Verification",
-			"could not verify if user was a member of Top4",
+			"Failed Getting Intranet Data",
+			"could not get intranet data uri",
 			err,
 		)
 	}
-	if isTop4 {
-		roles = append(roles, "Top4")
+
+	intranet := model.Intranet{}
+	err = controller.svc.Store.ParseInto(intranetUri, &intranet)
+	if err != nil {
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Intranet Data",
+			"could not parse intranet data",
+			err,
+		)
 	}
 
-	cards := []struct {
-		Title       string
-		Description string
-		Uri         string
-	}{}
-
-	if isTop4 {
-		cards = append(cards, struct {
-			Title       string
-			Description string
-			Uri         string
-		}{
-			Title:       "User Manager",
-			Description: "Manage ACM@UIUC's users",
-			Uri:         "/intranet/usermanager",
-		})
-	}
-
-	if isTop4 {
-		cards = append(cards, struct {
-			Title       string
-			Description string
-			Uri         string
-		}{
-			Title:       "Recruiter Manager",
-			Description: "Manage ACM@UIUC's recruiters",
-			Uri:         "/intranet/recruitermanager",
-		})
-	}
-
-	if isTop4 {
-		cards = append(cards, struct {
-			Title       string
-			Description string
-			Uri         string
-		}{
-			Title:       "Resume Manager",
-			Description: "Manage ACM@UIUC's resumes",
-			Uri:         "/intranet/resumemanager",
-		})
+	cards := []model.IntranetCard{}
+	for _, card := range intranet.Cards {
+		for _, group := range card.Groups {
+			isMember, err := controller.svc.Group.VerifyMembership(ctx.Username, model.GroupCommittees, group)
+			if err != nil {
+				return ctx.RenderError(
+					http.StatusBadRequest,
+					"Failed Membership Verification",
+					fmt.Sprintf("could not verify if user was a member of %s", group),
+					err,
+				)
+			}
+			if isMember {
+				cards = append(cards, card)
+			}
+		}
 	}
 
 	params := struct {
 		Authenticated bool
 		Username      string
 		Roles         []string
-		Cards         []struct {
-			Title       string
-			Description string
-			Uri         string
-		}
+		Cards         []model.IntranetCard
 	}{
 		Authenticated: ctx.LoggedIn,
 		Username:      ctx.Username,
@@ -442,7 +438,7 @@ func (controller *SiteController) ResumeBook(ctx *context.Context) error {
 			err,
 		)
 	}
-	
+
 	approvedResumes := []model.Resume{}
 	for _, resume := range resumes {
 		if resume.Approved {

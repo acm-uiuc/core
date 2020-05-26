@@ -22,5 +22,6 @@ const (
 	GroupCommittees = "committees"
 	GroupSIGs       = "sigs"
 
-	GroupTop4 = "Top4"
+	GroupTop4      = "Top4"
+	GroupCorporate = "Corporate"
 )

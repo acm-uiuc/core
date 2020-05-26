@@ -14,6 +14,7 @@ var defaultConfig = map[string]string{
 	"GROUP_URI":                   "groups.yaml",
 	"HACKILLINOIS_URI":            "hackillinois.yaml",
 	"REFLECTIONSPROJECTIONS_URI":  "reflectionsprojections.yaml",
+	"INTRANET_URI":                "intranet.yaml",
 	"IS_TEST":                     "false",
 	"IS_DEV":                      "false",
 	"TEMPLATE_SRCS":               "template/*.html",
