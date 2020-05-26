@@ -21,6 +21,8 @@ core:
 .PHONY: test-migration
 test-migration:
 	@echo 'Migrating ACM@UIUC Core Test Database'
+	@mysql --host=127.0.0.1 --port=3306 --user=devuser --password=devpass -e 'DROP DATABASE IF EXISTS `core-test`;'
+	@mysql --host=127.0.0.1 --port=3306 --user=devuser --password=devpass -e 'CREATE DATABASE `core-test`;'
 	@IS_TEST=true DB_NAME=core-test $(REPO_ROOT)/bin/core -migration all
 
 # Runs all tests
