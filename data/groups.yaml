@@ -38,16 +38,16 @@ committees:
       - username: cding20
   - name: Events
     description: The events team runs Reflections | Projections and HackIllinois
-    chairs: Arnav Sankaran
+    chairs: Cecilia Ding
     email: events-l@acm.illinois.edu
     members:
       - role: Director of HackIllinois
-        username: myc2
-        displayName: Melissa Chen
+        username: megharm2
+        displayName: Megha Mattikalli
         email: contact@hackillinois.org
       - role: Director of HackIllinois
-        username: sathwik2
-        displayName: Sathwik Pochampally
+        username: rishinp2
+        displayName: Rishin Pandit
         email: contact@hackillinois.org
       - role: Director of Reflections | Projections
         username: sspal2
