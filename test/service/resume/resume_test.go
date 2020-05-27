@@ -218,7 +218,7 @@ func TestCreateAndGetFilteredResumes(t *testing.T) {
 	t.Run("filter by string values", func(t *testing.T) {
 		filters := map[string][]string{
 			"seeking": {"Internship"},
-			"major": {"Computer Engineering"},
+			"major":   {"Computer Engineering"},
 		}
 
 		resumes, err := svc.GetFilteredResumes(filters)
