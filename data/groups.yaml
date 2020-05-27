@@ -28,6 +28,7 @@ committees:
     members:
       - username: evanw3
       - username: rishipd2
+      - username: arnavs3
   - name: Corporate
     description: >
       The corporate team handles communication with ACM@UIUC's sponsors
