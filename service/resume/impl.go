@@ -11,6 +11,10 @@ import (
 	"github.com/acm-uiuc/core/service/resume/provider"
 )
 
+const (
+	signerParallelism = 8
+)
+
 type resumeImpl struct {
 	db *sqlx.DB
 }
@@ -101,18 +105,45 @@ func (service *resumeImpl) getFilteredResumes(filterStrings map[string][]string)
 			return nil, fmt.Errorf("failed to decode row from database: %w", err)
 		}
 
-		uri, err := service.getSignedUri(result.BlobKey, "GET")
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate signed uri for resume: %w", err)
-		}
-		result.BlobKey = uri
-
 		results = append(results, result)
 	}
 
 	err = rows.Err()
 	if err != nil {
 		return nil, fmt.Errorf("failed reading rows from database: %w", err)
+	}
+
+	signerInputs := make(chan int, len(results))
+	signerOutputs := make(chan error, len(results))
+
+	signerWorker := func(inputs <-chan int, outputs chan<- error) {
+		for input := range inputs {
+			uri, err := service.getSignedUri(results[input].BlobKey, "GET")
+			results[input].BlobKey = uri
+			outputs <- err
+		}
+	}
+
+	for i := 0; i < signerParallelism; i++ {
+		go signerWorker(signerInputs, signerOutputs)
+	}
+
+	for i := 0; i < len(results); i++ {
+		signerInputs <- i
+	}
+	close(signerInputs)
+
+	var firstError error
+	for i := 0; i < len(results); i++ {
+		err := <-signerOutputs
+		if firstError == nil && err != nil {
+			firstError = err
+		}
+	}
+	close(signerOutputs)
+
+	if firstError != nil {
+		return nil, fmt.Errorf("failed to generate signed uri for resume: %w", err)
 	}
 
 	return results, nil
