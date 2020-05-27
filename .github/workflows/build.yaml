@@ -1,14 +1,16 @@
+---
 name: build
-on: [push]
+on:
+  - push
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-    - name: go-setup
-      uses: actions/setup-go@v1
-      with:
-        go-version: '1.14'
-    - name: build
-      run: make all
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: go-setup
+        uses: actions/setup-go@v1
+        with:
+          go-version: '1.14'
+      - name: build
+        run: make all
