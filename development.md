@@ -15,3 +15,5 @@ A make target is provided to reset the development environment and setup the dat
 
 ## Running Core in Development Mode
 Before running Core in development mode, you should build the latest changes. Building the latest changes can be done by running `make all` from the root of the repository. Once built, Core can be run in development mode. A make target is provided to run Core in development mode and can be invoked by running `make dev-run` from the root of the repository. This will start Core's webserver and bind it to `localhost:8000`. All endpoint and web site endpoints described in `design.md` can now be accessed.
+
+Running in development mode sets some environment variables including, `OAUTH_FAKE_USER="arnavs3@illinois.edu"`, which makes the site work as if you this user. This variable can be modified in `scripts/run-dev.sh` if needed. When filling out the join form in development mode you should use the netid: `arnavs3`.
