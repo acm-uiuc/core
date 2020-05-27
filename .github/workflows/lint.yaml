@@ -1,0 +1,16 @@
+name: lint
+on: [push]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+    - name: go-setup
+      uses: actions/setup-go@v1
+      with:
+        go-version: '1.14'
+    - name: go-lint
+      run: make fmt && git diff --quiet
+    - name: yaml-lint
+      uses: karancode/yamllint-github-action@v2.0.0
