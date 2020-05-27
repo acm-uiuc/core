@@ -143,7 +143,7 @@ func (service *resumeImpl) getFilteredResumes(filterStrings map[string][]string)
 	close(signerOutputs)
 
 	if firstError != nil {
-		return nil, fmt.Errorf("failed to generate signed uri for resume: %w", err)
+		return nil, fmt.Errorf("failed to generate signed uri for resume: %w", firstError)
 	}
 
 	return results, nil
