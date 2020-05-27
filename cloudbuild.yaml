@@ -5,7 +5,8 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/core:prod']
   - name: 'gcr.io/cloud-builders/gcloud'
-    args: ['run', 'deploy', 'core',
+    args: [
+      'run', 'deploy', 'core',
       '--image', 'gcr.io/$PROJECT_ID/core:prod',
       '--region', 'us-central1',
       '--platform', 'managed'
