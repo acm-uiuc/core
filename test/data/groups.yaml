@@ -1,7 +1,7 @@
 ---
 committees:
   - name: Top4
-    description: The leadership team for ACM
+    description: The leadership team for ACM@UIUC
     chairs: Arnav Sankaran
     email: acm@illinois.edu
     members:
@@ -29,7 +29,8 @@ committees:
       - username: evanw3
       - username: rishipd2
   - name: Corporate
-    description: The corporate team handles communication with ACM@UIUC's sponsors
+    description: >
+      The corporate team handles communication with ACM@UIUC's sponsors
     chairs: Cecilia Ding
     email: corporate@acm.illinois.edu
     members:

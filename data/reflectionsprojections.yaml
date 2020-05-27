@@ -1,9 +1,15 @@
 ---
 description: >
-  Reflections | Projections, founded in 1995, is a technology conference operated by students in ACM@UIUC. Striving to cater to our community of students, alumni, and professionals, we provide a forum to share and learn about current advancements in computer science and its applications.
-  We have tech talks from across the industry and academia, workshops and puzzle-solving events for attendees, Mechmania (our annual artificial intelligence programming competition), and Diversity × Tech (a day of events celebrating diversity in tech).
-  The entire conference is completely free for anyone to attend, regardless of age, major, or affiliation with UIUC.
-  This year, Reflections | Projections will occur September 16th - September 21st.
+  Reflections | Projections, founded in 1995, is a technology conference
+  operated by students in ACM@UIUC. Striving to cater to our community of
+  students, alumni, and professionals, we provide a forum to share and learn
+  about current advancements in computer science and its applications. We have
+  tech talks from across the industry and academia, workshops and
+  puzzle-solving events for attendees, Mechmania (our annual artificial
+  intelligence programming competition), and Diversity × Tech (a day of events
+  celebrating diversity in tech). The entire conference is completely free for
+  anyone to attend, regardless of age, major, or affiliation with UIUC. This
+  year, Reflections | Projections will occur September 16th - September 21st.
 website: http://reflectionsprojections.org
 websiteArchive:
   - year: 2020
