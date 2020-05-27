@@ -26,3 +26,7 @@ const (
 	GroupAdmin     = "Admin"
 	GroupCorporate = "Corporate"
 )
+
+var (
+	GroupValidCommittees = []string{GroupTop4, GroupAdmin, GroupCorporate}
+)

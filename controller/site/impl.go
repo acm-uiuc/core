@@ -358,8 +358,7 @@ func (controller *SiteController) Intranet(ctx *context.Context) error {
 	}
 	roles = append(roles, markRole)
 
-	committees := []string{model.GroupTop4, model.GroupCorporate}
-	for _, committee := range committees {
+	for _, committee := range model.GroupValidCommittees {
 		isMember, err := controller.svc.Group.VerifyMembership(ctx.Username, model.GroupCommittees, committee)
 		if err != nil {
 			return ctx.RenderError(
