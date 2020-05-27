@@ -31,7 +31,7 @@ func TestGetGroups(t *testing.T) {
 
 	expected := model.Group{
 		Name:        "Top4",
-		Description: "The leadership team for ACM",
+		Description: "The leadership team for ACM@UIUC",
 		Chairs:      "Arnav Sankaran",
 		Email:       "acm@illinois.edu",
 		Members: []model.GroupMember{
