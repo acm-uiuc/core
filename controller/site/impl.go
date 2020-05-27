@@ -330,17 +330,21 @@ func (controller *SiteController) RecruiterManager(ctx *context.Context) error {
 }
 
 func (controller *SiteController) Intranet(ctx *context.Context) error {
+	if !ctx.LoggedIn {
+		return ctx.Redirect(http.StatusFound, "/login")
+	}
+
+	user, err := controller.svc.User.GetUser(ctx.Username)
+	if err != nil {
+		return fmt.Errorf("intranet error: %s, redirect error: %w ", err.Error(), ctx.Redirect(http.StatusFound, "/join"))
+	}
+
 	roles := []string{}
 
 	marksToRole := map[string]string{
 		model.UserMarkBasic:     "Basic Member",
 		model.UserMarkPaid:      "Paid Member",
 		model.UserMarkRecruiter: "Recruiter",
-	}
-
-	user, err := controller.svc.User.GetUser(ctx.Username)
-	if err != nil {
-		return fmt.Errorf("intranet error: %s, join error: %w ", err.Error(), controller.Join(ctx))
 	}
 
 	markRole, ok := marksToRole[user.Mark]
