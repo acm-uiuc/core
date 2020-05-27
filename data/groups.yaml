@@ -29,7 +29,7 @@ committees:
       - username: evanw3
       - username: rishipd2
   - name: Corporate
-    description: > 
+    description: >
       The corporate team handles communication with ACM@UIUC's sponsors
     chairs: Cecilia Ding
     email: corporate@acm.illinois.edu
