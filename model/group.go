@@ -23,5 +23,6 @@ const (
 	GroupSIGs       = "sigs"
 
 	GroupTop4      = "Top4"
+	GroupAdmin     = "Admin"
 	GroupCorporate = "Corporate"
 )

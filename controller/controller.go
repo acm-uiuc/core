@@ -94,7 +94,7 @@ func New(svc *service.Service) (*Controller, error) {
 		Chain(userController.GetUsers, middleware.AuthorizeMatchAnyAPI(
 			controller.svc, middleware.AuthorizeMatchParameters{
 				Marks:      []string{model.UserMarkRecruiter},
-				Committees: []string{model.GroupTop4},
+				Committees: []string{model.GroupTop4, model.GroupAdmin},
 			},
 		)),
 	)
@@ -102,7 +102,7 @@ func New(svc *service.Service) (*Controller, error) {
 		"/api/user/mark",
 		Chain(userController.MarkUser, middleware.AuthorizeMatchAnyAPI(
 			controller.svc, middleware.AuthorizeMatchParameters{
-				Committees: []string{model.GroupTop4},
+				Committees: []string{model.GroupTop4, model.GroupAdmin},
 			},
 		)),
 	)
@@ -110,7 +110,7 @@ func New(svc *service.Service) (*Controller, error) {
 		"/api/user",
 		Chain(userController.DeleteUser, middleware.AuthorizeMatchAnyAPI(
 			controller.svc, middleware.AuthorizeMatchParameters{
-				Committees: []string{model.GroupTop4},
+				Committees: []string{model.GroupTop4, model.GroupAdmin},
 			},
 		)),
 	)
@@ -133,7 +133,7 @@ func New(svc *service.Service) (*Controller, error) {
 		Chain(resumeController.GetResumes, middleware.AuthorizeMatchAnyAPI(
 			controller.svc, middleware.AuthorizeMatchParameters{
 				Marks:      []string{model.UserMarkRecruiter},
-				Committees: []string{model.GroupTop4},
+				Committees: []string{model.GroupTop4, model.GroupCorporate, model.GroupAdmin},
 			},
 		)),
 	)
@@ -141,7 +141,7 @@ func New(svc *service.Service) (*Controller, error) {
 		"/api/resume/approve",
 		Chain(resumeController.ApproveResume, middleware.AuthorizeMatchAnyAPI(
 			controller.svc, middleware.AuthorizeMatchParameters{
-				Committees: []string{model.GroupTop4},
+				Committees: []string{model.GroupTop4, model.GroupCorporate, model.GroupAdmin},
 			},
 		)),
 	)
@@ -206,7 +206,7 @@ func New(svc *service.Service) (*Controller, error) {
 		Chain(siteController.ResumeBook, middleware.AuthorizeMatchAnyWebPage(
 			controller.svc, middleware.AuthorizeMatchParameters{
 				Marks:      []string{model.UserMarkRecruiter},
-				Committees: []string{model.GroupTop4},
+				Committees: []string{model.GroupTop4, model.GroupCorporate, model.GroupAdmin},
 			},
 		)),
 	)
@@ -220,7 +220,7 @@ func New(svc *service.Service) (*Controller, error) {
 		"/intranet/usermanager",
 		Chain(siteController.UserManager, middleware.AuthorizeMatchAnyWebPage(
 			controller.svc, middleware.AuthorizeMatchParameters{
-				Committees: []string{model.GroupTop4},
+				Committees: []string{model.GroupTop4, model.GroupAdmin},
 			},
 		)),
 	)
@@ -229,7 +229,7 @@ func New(svc *service.Service) (*Controller, error) {
 		"/intranet/recruitercreator",
 		Chain(siteController.RecruiterCreator, middleware.AuthorizeMatchAnyWebPage(
 			controller.svc, middleware.AuthorizeMatchParameters{
-				Committees: []string{model.GroupTop4},
+				Committees: []string{model.GroupTop4, model.GroupCorporate, model.GroupAdmin},
 			},
 		)),
 	)
@@ -238,7 +238,7 @@ func New(svc *service.Service) (*Controller, error) {
 		"/intranet/recruitermanager",
 		Chain(siteController.RecruiterManager, middleware.AuthorizeMatchAnyWebPage(
 			controller.svc, middleware.AuthorizeMatchParameters{
-				Committees: []string{model.GroupTop4},
+				Committees: []string{model.GroupTop4, model.GroupCorporate, model.GroupAdmin},
 			},
 		)),
 	)
@@ -247,7 +247,7 @@ func New(svc *service.Service) (*Controller, error) {
 		"/intranet/resumemanager",
 		Chain(siteController.ResumeManager, middleware.AuthorizeMatchAnyWebPage(
 			controller.svc, middleware.AuthorizeMatchParameters{
-				Committees: []string{model.GroupTop4},
+				Committees: []string{model.GroupTop4, model.GroupCorporate, model.GroupAdmin},
 			},
 		)),
 	)
