@@ -19,7 +19,7 @@ committees:
         email: treasurer@acm.illinois.edu
       - role: Secretary
         username: bangaru2
-        displayName: Shresta Bangaru 
+        displayName: Shresta Bangaru
         email: secretary@acm.illinois.edu
   - name: Admin
     description: The admin team build and maintains ACM@UIUC's infrastructure
