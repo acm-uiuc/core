@@ -70,8 +70,6 @@ func (service *resumeImpl) validateResume(resume *model.Resume) error {
 		return fmt.Errorf("resume blob key should be the username: %s", resume.BlobKey)
 	}
 
-	// TODO: Enforce more validation on resumes
-
 	return nil
 }
 
