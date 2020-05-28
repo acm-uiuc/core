@@ -41,7 +41,7 @@ func (service *userImpl) CreateUser(user model.User) error {
 }
 
 func (service *userImpl) GetUsers() ([]model.User, error) {
-	users, err := service.getFilteredUsers(map[string][]string{}) 
+	users, err := service.getFilteredUsers(map[string][]string{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get infos: %w", err)
 	}
@@ -140,7 +140,6 @@ func (service *userImpl) getUser(username string) (*model.User, error) {
 
 	return result, nil
 }
-
 
 func (service *userImpl) getFilteredUsers(filterStrings map[string][]string) ([]model.User, error) {
 	query, args, err := querybuilder.FilterQuery("SELECT * FROM users", filterStrings, model.User{})

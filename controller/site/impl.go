@@ -281,7 +281,7 @@ func (controller *SiteController) UserManager(ctx *context.Context) error {
 			model.User
 			HumanTimestamp string
 		}
-		MarkOptions    []string
+		MarkOptions []string
 	}{
 		Authenticated: ctx.LoggedIn,
 		Users:         extendedUsers,

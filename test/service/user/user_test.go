@@ -280,4 +280,24 @@ func TestCreateAndGetFilteredUsers(t *testing.T) {
 			t.Fatalf("Wrong user returned: expected '%+v', got '%+v'", expectedUser2, users[0])
 		}
 	})
+
+	t.Run("filter by username", func(t *testing.T) {
+		filters := map[string][]string{
+			"username": {expectedUser2.Username},
+		}
+
+		users, err := svc.GetFilteredUsers(filters)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectedUserCount := 1
+		if len(users) != expectedUserCount {
+			t.Fatalf("Filter user by username test failed: expected '%d', got '%d'", expectedUserCount, len(users))
+		}
+
+		if users[0].FirstName != expectedUser2.FirstName {
+			t.Fatalf("Wrong user returned: expected '%+v', got '%+v'", expectedUser2, users[0])
+		}
+	})
 }
