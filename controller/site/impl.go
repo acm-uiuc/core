@@ -141,10 +141,33 @@ func (controller *SiteController) HackIllinois(ctx *context.Context) error {
 }
 
 func (controller *SiteController) Sponsors(ctx *context.Context) error {
+	sponsorsUri, err := config.GetConfigValue("SPONSORS_URI")
+	if err != nil {
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Sponsor Data",
+			"could not get sponsor data uri",
+			err,
+		)
+	}
+
+	sponsors := model.Sponsors{}
+	err = controller.svc.Store.ParseInto(sponsorsUri, &sponsors)
+	if err != nil {
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Sponsor Data",
+			"could not parse sponsor data",
+			err,
+		)
+	}
+
 	params := struct {
 		Authenticated bool
+		Sponsors      model.Sponsors
 	}{
 		Authenticated: ctx.LoggedIn,
+		Sponsors:      sponsors,
 	}
 
 	return ctx.Render(http.StatusOK, "sponsors", params)

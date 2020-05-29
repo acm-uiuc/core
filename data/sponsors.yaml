@@ -1,0 +1,31 @@
+---
+packages:
+  - name: Platinum Sponsor
+    price: Contact for Pricing
+    items:
+      - Please contact us at corporate@acm.illinois.edu
+  - name: Diamond Sponsor
+    price: $5000
+    items:
+      - Sponsor an ACM core project<
+      - Co-Host an ACM signature event
+      - Host two ACM member events
+      - Logo on ACM@UIUC Sponsorship page as Diamond sponsor
+      - Logo added to the ACM@UIUC Electronic Display Board as a sponsor
+      - 1 year subscription to the ACM@UIUC resume book
+      - Send us company swag
+  - name: Gold Sponsor
+    price: $2500
+    items:
+      - Host an ACM member event
+      - Logo on ACM@UIUC Sponsorship page as Gold sponsor
+      - Logo added to the ACM@UIUC Electronic Display Board as a sponsor
+      - 1 year subscription to the ACM@UIUC resume book
+      - Send us company swag
+  - name: Silver Sponsor
+    price: $2000
+    items:
+      - Logo on ACM Sponsorship page as Silver sponsor
+      - Logo added to the ACM@UIUC Electronic Display Board as a sponsor
+      - 1 year subscription to the ACM@UIUC resume book
+      - Send us company swag
