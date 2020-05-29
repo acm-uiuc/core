@@ -17,6 +17,7 @@ var defaultConfig = map[string]string{
 	"INTRANET_URI":                "intranet.yaml",
 	"SPONSORS_URI":                "sponsors.yaml",
 	"ABOUT_URI":                   "about.yaml",
+	"HOME_URI":                    "home.yaml",
 	"IS_TEST":                     "false",
 	"IS_DEV":                      "false",
 	"TEMPLATE_SRCS":               "template/*.html",

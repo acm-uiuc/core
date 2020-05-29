@@ -1,0 +1,32 @@
+---
+entries:
+  - title: Welcome to ACM@UIUC
+    body: >
+      The Association for Computing Machinery (ACM) has been around for over
+      50 years and is a student group consisting of a variety of people with
+      diverse backgrounds who share a common interest in computers.
+    link:
+      name: More About ACM@UIUC's History
+      uri: /about/history
+  - title: Reflections | Projections
+    body: >
+      One of the largest student tech conferences in the midwest, Reflections |
+      Projections is an annual event that includes speakers from the tech
+      community, a career fair, a startup fair, and a programming competition.
+    link:
+      name: Check Out Reflections | Projections
+      uri: https://reflectionsprojections.org
+  - title: HackIllinois
+    body: >
+      One of the largest college hackathons and the first college open source
+      hackathon in the nation, HackIllinois draws over a 1000 students to
+      Champaign-Urbana to take part in improving Free and Open Source Software
+      with members of the open source community.
+    link:
+      name: Check Out HackIllinois
+      uri: https://hackillinois.org
+  - title: ACM@UIUC Open House
+    body: >
+      Held at the beginning of Spring and Fall semesters, this is a great
+      opportunity to learn more about ACM@UIUC and its various Special Interest
+      Groups (SIGs).

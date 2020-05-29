@@ -23,10 +23,33 @@ func New(svc *service.Service) *SiteController {
 }
 
 func (controller *SiteController) Home(ctx *context.Context) error {
+	homeUri, err := config.GetConfigValue("HOME_URI")
+	if err != nil {
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Home Data",
+			"could not get about home uri",
+			err,
+		)
+	}
+
+	home := model.Home{}
+	err = controller.svc.Store.ParseInto(homeUri, &home)
+	if err != nil {
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting Home Data",
+			"could not parse home data",
+			err,
+		)
+	}
+
 	params := struct {
 		Authenticated bool
+		Home          model.Home
 	}{
 		Authenticated: ctx.LoggedIn,
+		Home:          home,
 	}
 
 	return ctx.Render(http.StatusOK, "home", params)

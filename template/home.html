@@ -13,19 +13,13 @@
 </div>
   <div id="main-container" class="small-12 medium-12 large-9 columns">
     <div id="main-feed" class="row">
-        <h4>Welcome to ACM@UIUC</h4>
-        <p>The Association for Computing Machinery (ACM) has been around for over 50 years and is a student group consisting of a variety of people with diverse backgrounds who share a common interest in computers.</p>
-        <a href="/about/history"><button id="history" class="button">More About ACM@UIUC's History</button></a>
-        <br>
-        <h4>Reflections|Projections</h4>
-        <p>One of the largest student tech conferences in the midwest, Reflections|Projections is an annual event that includes speakers from the tech community, a career fair, a startup fair, and a programming competition.</p>
-        <a href="https://reflectionsprojections.org/#/"><button id="history" class="button">Check Out R|P</button></a>
-        <h4>HackIllinois</h4>
-        <p>One of the largest college hackathons and the first college open source hackathon in the nation, HackIllinois draws over a 1000 students to Champaign-Urbana to take part in improving Free and Open Source Software with members of the open source community.</p>
-        <a href="https://hackillinois.org"><button id="history" class="button">Check Out HackIllinois</button></a>
-        <h4>ACM Open House</h4>
-        <p>Held at the beginning of Spring and Fall semesters, this is a great opportunity to learn more about ACM and its various Special Interest Groups (SIGs).</p>
-      </p>
+        {{range .Home.Entries}}
+          <h4>{{.Title}}</h4>
+          <p>{{.Body}}</p>
+          {{if ne .Link.Name ""}}
+            <a href="{{.Link.Uri}}"><button class="button">{{.Link.Name}}</button></a>
+          {{end}}
+        {{end}}
     </div>
     <div id="involvement" class="row">
       <div id="main-left" class="small-12 medium-12 large-4 columns">
