@@ -1,4 +1,13 @@
 ---
+pitch: >
+  ACM members at the University of Illinois are some of the most skillful,
+  dedicated Computer Science and Engineering students in the world. The
+  Corporate Committee makes it easy for employers and sponsors to interact
+  with ACM members. ACM@UIUC would not be able to fund projects and events
+  without the support of the CS department and generous sponsors. Funding
+  from sponsorships goes into creating technical projects, building the
+  infrastructure to support our members, and holding events for the
+  CS@Illinois and broader campus community.
 packages:
   - name: Platinum Sponsor
     price: Contact for Pricing
@@ -7,7 +16,7 @@ packages:
   - name: Diamond Sponsor
     price: $5000
     items:
-      - Sponsor an ACM core project<
+      - Sponsor an ACM core project
       - Co-Host an ACM signature event
       - Host two ACM member events
       - Logo on ACM@UIUC Sponsorship page as Diamond sponsor
