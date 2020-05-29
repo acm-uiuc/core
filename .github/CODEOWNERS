@@ -1,0 +1,6 @@
+# By default changes require approval from the core-infra team.
+*        @acm-uiuc/core-infra @ASankaran
+
+# Changes to data require approval from Top4. Changes in this
+# directory can modify permissions and access to user data.
+data/    @acm-uiuc/top4
