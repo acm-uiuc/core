@@ -16,6 +16,7 @@ var defaultConfig = map[string]string{
 	"REFLECTIONSPROJECTIONS_URI":  "reflectionsprojections.yaml",
 	"INTRANET_URI":                "intranet.yaml",
 	"SPONSORS_URI":                "sponsors.yaml",
+	"ABOUT_URI":                   "about.yaml",
 	"IS_TEST":                     "false",
 	"IS_DEV":                      "false",
 	"TEMPLATE_SRCS":               "template/*.html",
