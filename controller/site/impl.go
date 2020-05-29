@@ -53,12 +53,35 @@ func (controller *SiteController) About(ctx *context.Context) error {
 		)
 	}
 
+	aboutUri, err := config.GetConfigValue("ABOUT_URI")
+	if err != nil {
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting About Data",
+			"could not get about data uri",
+			err,
+		)
+	}
+
+	about := model.About{}
+	err = controller.svc.Store.ParseInto(aboutUri, &about)
+	if err != nil {
+		return ctx.RenderError(
+			http.StatusBadRequest,
+			"Failed Getting About Data",
+			"could not parse about data",
+			err,
+		)
+	}
+
 	params := struct {
 		Authenticated bool
 		Committees    []model.Group
+		About         model.About
 	}{
 		Authenticated: ctx.LoggedIn,
 		Committees:    committees,
+		About:         about,
 	}
 
 	return ctx.Render(http.StatusOK, "about", params)

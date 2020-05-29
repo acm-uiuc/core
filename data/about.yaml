@@ -1,4 +1,32 @@
 ---
+facilites:
+  - location: 1104 Siebel
+    name: The ACM Office
+    description: >
+      The ACM@UIUC office is located in room 1104 of the Thomas M.
+      Siebel Center for Computer Science along the main hallway. ACM's office
+      space includes 3 rooms and limited access to the student projects and
+      embedded real-time systems labs, all thanks to the Computer Science
+      Department. The ACM Office is open from 9 AM to 5 PM most schooldays, and
+      is manned by members of the Exec Board. Although our official hours are 9
+      to 5, members (especially the sysadmins) have been known to haunt the
+      office until the wee hours of the morning. Stop in and join the ACM Up
+      All Night Crew.
+  - location: 1106 Siebel
+    name: ACM Computer Lab
+    description: >
+      While there are computers in both 1104 and 1110, 1106 is home
+      to the majority of the ACM Cluster. 1106 is frequently used for SIG dev
+      sessions and tutorials. 1106 is also home to Merch, ACM's own networked
+      soda machine (thanks to SIGBot and Corporate Committee).
+  - location: 1110 Siebel
+    name: ACM Electronics and Robotics Lab
+    description: >
+      1110 is ACM's electronics and robotics lab. It is home to many
+      hardware-intensive SIGs which need extra space and gear to work on their
+      projects. Among the groups that use 1110 frequently are SIGBot and
+      SIGMusic. Access to 1110 is generally restricted due to the nature of the
+      lab, and permitted where project work requires use of the lab.
 history:
   events:
     - year: 1965
