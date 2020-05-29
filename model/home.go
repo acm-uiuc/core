@@ -1,10 +1,11 @@
 package model
 
 type Home struct {
-	Entries []HomeEntry `yaml:"entries"`
+	Entries []HomeItem `yaml:"entries"`
+	Cards   []HomeItem `yaml:"cards"`
 }
 
-type HomeEntry struct {
+type HomeItem struct {
 	Title string   `yaml:"title"`
 	Body  string   `yaml:"body"`
 	Link  HomeLink `yaml:"link"`

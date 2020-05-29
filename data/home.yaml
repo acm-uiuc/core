@@ -30,3 +30,26 @@ entries:
       Held at the beginning of Spring and Fall semesters, this is a great
       opportunity to learn more about ACM@UIUC and its various Special Interest
       Groups (SIGs).
+cards:
+  - title: Join ACM
+    body: >
+      As an ACM member you get access to our compute cluster, free black and
+      white printing, Concert, Merch, and many other member perks.
+    link:
+      name: Join Us
+      uri: /join
+  - title: Special Interest Groups
+    body: >
+      ACM has many Special Interest Groups (SIGs) that work on projects in a
+      wide variety of areas. All SIGs are open to all students, no previous
+      knowledge required!
+    link:
+      name: Learn More
+      uri: /sigs
+  - title: Sponsors
+    body: >
+      The best way to get involved with ACM@UIUC is to become a part of our
+      corporate sponsorship program!
+    link:
+      name: Get Involved
+      uri: /sponsors
