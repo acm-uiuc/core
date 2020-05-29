@@ -27,35 +27,14 @@
         The Corporate Committee is ACM's central point of contact for all corporate relations activities.
         </p>
         <h3> Sponsorship Tiers </h3>
-        <h5>Platinum Sponsor</h5>
-        <ul class="dashed">
-            <p> - Please contact us at <a href="mailto:corporate@acm.illinois.edu">corporate@acm.illinois.edu</a> </p>
-        </ul>
-        <h5>Diamond Sponsor - $5000</h5>
-        <ul class="dashed">
-            <p1> - Sponsor an ACM core project</p1> <br>
-            <p1> - Co-Host ACM signature event</p1> <br>
-            <p1> - Host two ACM member events. </p1> <br>
-            <p1> - Logo on ACM@UIUC Sponsorship page as Diamond sponsor</p1> <br>
-            <p1> - Logo added to the ACM@UIUC Electronic Display Board as a sponsor</p1> <br>
-            <p1> - 1 year subscription to the ACM@UIUC resume book</p1> <br>
-            <p1> - Send us company swag </p1> <br>
-        </ul><br>
-        <h5>Gold Sponsor - $2500</h5>
-        <ul class="dashed">
-            <p1> - Host an ACM member event. </p1> <br>
-            <p1> - Logo on ACM@UIUC Sponsorship page as Gold sponsor</p1> <br>
-            <p1> - Logo added to the ACM@UIUC Electronic Display Board as a sponsor</p1> <br>
-            <p1> - 1 year subscription to the ACM@UIUC resume book</p1> <br>
-            <p1> - Send us company swag </p1><br>
-        </ul><br>
-        <h5>Silver Sponsor - $1500</h5>
-        <ul class="dashed">
-            <p1> - Logo on ACM Sponsorship page as Silver sponsor</p1><br>
-            <p1> - Logo added to the ACM@UIUC Electronic Display Board as a sponsor</p1><br>
-            <p1> - 1 year subscription to the ACM@UIUC resume book</p1> <br>
-            <p1> - Send us company swag </p1><br>
-        </ul>
+        {{range .Sponsors.Packages}}
+            <h5>{{.Name}} - {{.Price}}</h5>
+            <ul class="dashed">
+                {{range .Items}}
+                    <p1> - {{.}}</p1><br>
+                {{end}}
+            </ul><br>
+        {{end}}
     </div><br/>
     <div class="row">
         <h3>Resume Book</h3>
