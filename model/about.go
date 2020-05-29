@@ -1,8 +1,9 @@
 package model
 
 type About struct {
-	History   AboutHistory `yaml:"history"`
+	Content   []string     `yaml:"content"`
 	Facilites []Facility   `yaml:"facilites"`
+	History   AboutHistory `yaml:"history"`
 }
 
 type Facility struct {
