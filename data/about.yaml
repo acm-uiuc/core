@@ -62,6 +62,15 @@ facilites:
       projects. Among the groups that use 1110 frequently are SIGBot and
       SIGMusic. Access to 1110 is generally restricted due to the nature of the
       lab, and permitted where project work requires use of the lab.
+links:
+  - name: The Association for Computing Machinery<
+    uri: https://acm.org
+  - name: Department of Computer Science
+    uri: https://cs.illinois.edu
+  - name: Department of Electrical and Computer Engineeering
+    uri: https://ece.illinois.edu
+  - name: College of Engineering
+    uri: https://grainger.illinois.edu/
 history:
   events:
     - year: 1965

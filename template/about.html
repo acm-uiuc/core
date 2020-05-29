@@ -68,10 +68,9 @@
         <p>If you have general questions about ACM, you can email us at <a href="mailto:acm@illinois.edu">acm@illinois.edu</a>.</p>
         <h4>Useful Links</h4>
         <ul class="dashed">
-            <li><a href="https://acm.org">The Association for Computing Machinery</a></li>
-            <li><a href="https://cs.illinois.edu">Department of Computer Science</a></li>
-            <li><a href="https://ece.illinois.edu">Department of Electrical and Computer Engineeering</a></li>
-            <li><a href="https://engr.illinois.edu">College of Engineering</a></li>
+            {{range .About.Links}}
+                <li><a href="{{.Uri}}">{{.Name}}</a></li>
+            {{end}}
         </ul>
         </div>
     </div>

@@ -4,12 +4,18 @@ type About struct {
 	Content   []string     `yaml:"content"`
 	Facilites []Facility   `yaml:"facilites"`
 	History   AboutHistory `yaml:"history"`
+	Links     []AboutLink  `yaml:"links"`
 }
 
 type Facility struct {
 	Location    string `yaml:"location"`
 	Name        string `yaml:"name"`
 	Description string `yaml:"description"`
+}
+
+type AboutLink struct {
+	Name string `yaml:"name"`
+	Uri  string `yaml:"uri"`
 }
 
 type AboutHistory struct {
