@@ -320,10 +320,20 @@ func (controller *SiteController) Logout(ctx *context.Context) error {
 }
 
 func (controller *SiteController) Join(ctx *context.Context) error {
+	accountExists := false
+	if ctx.LoggedIn {
+		_, err := controller.svc.User.GetUser(ctx.Username)
+		if err == nil {
+			accountExists = true
+		}
+	}
+
 	params := struct {
 		Authenticated bool
+		AccountExists bool
 	}{
 		Authenticated: ctx.LoggedIn,
+		AccountExists: accountExists,
 	}
 
 	return ctx.Render(http.StatusOK, "join", params)
