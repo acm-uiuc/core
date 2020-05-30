@@ -1,15 +1,15 @@
-{{define "reflectionsprojections"}}
+{{define "event"}}
 {{template "header" .}}
 
 <div class="conference-container">
     <div class="row">
-        <div class="img-container small-12 medium-12 large-12 column col-centered" id="rp-header"><img class="center_img" src="/static/images/rp-logo.svg"/></div>
+        <div class="img-container small-12 medium-12 large-12 column col-centered" id="rp-header"><img class="center_img" width="200px" src="{{.Event.LogoUri}}"/></div>
     </div>
     <div class="row">
         <p>{{.Event.Description}}</p>
         <p>For more information, please visit the website: <a href="{{.Event.Website}}">{{.Event.Website}}</a>.</p>
     </div>
-    <div class="row title"><span>R|P Website Archives:</span></div>
+    <div class="row title"><span>{{.Event.Name}} Website Archives:</span></div>
     <div>
         <div class="top-bar nav">
             <ul id="conference-editions" class="h-list">

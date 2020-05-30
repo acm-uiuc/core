@@ -173,7 +173,7 @@ func (controller *SiteController) ReflectionsProjections(ctx *context.Context) e
 		Event:         event,
 	}
 
-	return ctx.Render(http.StatusOK, "reflectionsprojections", params)
+	return ctx.Render(http.StatusOK, "event", params)
 }
 
 func (controller *SiteController) HackIllinois(ctx *context.Context) error {
@@ -206,7 +206,7 @@ func (controller *SiteController) HackIllinois(ctx *context.Context) error {
 		Event:         event,
 	}
 
-	return ctx.Render(http.StatusOK, "hackillinois", params)
+	return ctx.Render(http.StatusOK, "event", params)
 }
 
 func (controller *SiteController) Sponsors(ctx *context.Context) error {

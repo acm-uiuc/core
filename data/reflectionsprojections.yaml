@@ -1,4 +1,5 @@
 ---
+name: Reflections | Projections
 description: >
   Reflections | Projections, founded in 1995, is a technology conference
   operated by students in ACM@UIUC. Striving to cater to our community of
@@ -10,6 +11,7 @@ description: >
   celebrating diversity in tech). The entire conference is completely free for
   anyone to attend, regardless of age, major, or affiliation with UIUC. This
   year, Reflections | Projections will occur September 16th - September 21st.
+logoUri: /static/images/rp-logo.svg
 website: http://reflectionsprojections.org
 websiteArchive:
   - year: 2020

@@ -1,4 +1,5 @@
 ---
+name: HackIllinois
 description: >
   Established in 2014, HackIllinois is the premier collegiate open source
   hackathon. With over 1000 attendees and 50 open source mentors in 2019,
@@ -6,6 +7,7 @@ description: >
   in the nation. This year, we're proud to welcome you to the 7th annual
   HackIllinois from February 28 - March 1, 2020, on the Urbana-Champaign
   campus.
+logoUri: /static/images/hack-logo.svg
 website: https://hackillinois.org
 websiteArchive:
   - year: 2020
