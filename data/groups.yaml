@@ -120,7 +120,7 @@ sigs:
     email: jeffrey5@illinois.edu
   - name: SIGGRAPH
     description: Special Interest Group for Graphics
-    chairs: Sahil Bhatt
+    chairs: Sahil Patel
     meetingTime: 'Monday 6:00 PM - 7:00 PM'
     meetingLocation: Siebel 3401
     website: https://acm-uiuc.github.io/siggraph/
