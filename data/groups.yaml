@@ -92,14 +92,14 @@ sigs:
     email: adityab2@illinois.edu
   - name: GLUG
     description: GNU/Linux Users Group
-    chairs: Jav Mohamed
+    chairs: Chinmaya Mahesh
     meetingTime: 'Thursday 5:00 PM - 6:00 PM'
     meetingLocation: Siebel 1109
     website: http://gnulug.org
     email: glug@acm.illinois.org
   - name: ICPC
     description: Competitive programming skill development and competitions
-    chairs: Vivek Gupta, Eric Wang
+    chairs: Nikil Ravi, Yen-Hsiang Chang
     meetingTime: 'Tuesday 7:00 PM - 9:00 PM'
     meetingLocation: Siebel 1109
     website: http://icpc.cs.illinois.edu/
@@ -120,7 +120,7 @@ sigs:
     email: jeffrey5@illinois.edu
   - name: SIGGRAPH
     description: Special Interest Group for Graphics
-    chairs: Chen Qian
+    chairs: Sahil Bhatt
     meetingTime: 'Monday 6:00 PM - 7:00 PM'
     meetingLocation: Siebel 3401
     website: https://acm-uiuc.github.io/siggraph/
@@ -148,11 +148,11 @@ sigs:
     email: anshul2@illinois.edu
   - name: SIGMobile
     description: Special Interest Group for Mobile Development
-    chairs: Patrick Feltes
+    chairs: Matt Geimer
     meetingTime: 'Tuesday 5:00 PM - 6:00 PM'
     meetingLocation: Siebel 1214
     website: http://github.com/SIGMobileUIUC
-    email: pfeltes2@illinois.edu
+    email: mgeimer2@illinois.edu
   - name: SIGMusic
     description: Special Interest Group for Music
     chairs: Melissa Chen, Sahil Patel
@@ -176,11 +176,11 @@ sigs:
     email: jmaldo2@illinois.edu
   - name: SIGNLL
     description: Special Interest Group for Natural Language Learning
-    chairs: Jackie Oh, Jason Xia
+    chairs: Jack Nash, Nishant Balepur
     meetingTime: 'Wednesday 5:30 PM - 6:30 PM'
     meetingLocation: Siebel 1214
     website: https://www.facebook.com/groups/uiucsignll
-    email: jmoh3@illinois.edu
+    email: balepur2@illinois.edu
   - name: SIGArch
     description: Special Interest Group for Architecture
     chairs: Kris Koepcke
