@@ -10,7 +10,7 @@ var defaultConfig = map[string]string{
 	"DB_PASS":                     "devpass",
 	"DB_HOST":                     "(localhost:3306)",
 	"DB_NAME":                     "core",
-	"GITSTORE_BASE_URI":           "https://raw.githubusercontent.com/ASankaran/core/master/data/",
+	"GITSTORE_BASE_URI":           "https://raw.githubusercontent.com/acm-uiuc/core/master/data/",
 	"GROUP_URI":                   "groups.yaml",
 	"HACKILLINOIS_URI":            "hackillinois.yaml",
 	"REFLECTIONSPROJECTIONS_URI":  "reflectionsprojections.yaml",
