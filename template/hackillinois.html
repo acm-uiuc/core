@@ -1,4 +1,4 @@
-{{define "event"}}
+{{define "hackillinois"}}
 {{template "header" .}}
 
 <div class="conference-container">
@@ -21,6 +21,25 @@
             </ul>
         </div>
     </div>
+
+    <div class="row">
+        <h4>HackThis</h4>
+        <p>{{.Event2.Description}}</p>
+        <p>Register now at <a href="{{.Event2.Website}}">{{.Event2.Website}}</a> and feel free to reach out to contact@hackillinois.org with any questions.</p>
+    </div>
+
+    <!--<div class="row title"><span>HackThis Website Archives:</span></div>
+   <div>
+       <div class="top-bar nav">
+       <ul class="h-list">
+           {{range .Event2.WebsiteArchive}}
+           <li class="nav-loc">
+               <a href="{{.Uri}}"> | {{.Year}} | </a>
+           </li>
+           {{end}}
+       </ul>
+       </div>
+   </div>-->
 </div>
 
 {{template "footer" .}}
