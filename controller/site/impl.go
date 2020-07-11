@@ -222,11 +222,11 @@ func (controller *SiteController) HackIllinois(ctx *context.Context) error {
 	params := struct {
 		Authenticated bool
 		Event         model.Event
-		Event2		  model.Event
+		Event2        model.Event
 	}{
 		Authenticated: ctx.LoggedIn,
 		Event:         event,
-		Event2: 	   event2,
+		Event2:        event2,
 	}
 
 	return ctx.Render(http.StatusOK, "hackillinois", params)

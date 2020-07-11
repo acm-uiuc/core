@@ -13,7 +13,7 @@ var defaultConfig = map[string]string{
 	"GITSTORE_BASE_URI":           "https://raw.githubusercontent.com/acm-uiuc/core/master/data/",
 	"GROUP_URI":                   "groups.yaml",
 	"HACKILLINOIS_URI":            "hackillinois.yaml",
-	"HACKTHIS_URI":				   "hackthis.yaml",
+	"HACKTHIS_URI":                "hackthis.yaml",
 	"REFLECTIONSPROJECTIONS_URI":  "reflectionsprojections.yaml",
 	"INTRANET_URI":                "intranet.yaml",
 	"SPONSORS_URI":                "sponsors.yaml",
