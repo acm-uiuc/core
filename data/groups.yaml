@@ -83,7 +83,9 @@ committees:
         displayName: Raghav Saini
         email: ''
   - name: CS Mental Health Committee
-    description: CSMHC is a student-run organization whose goal is to further mental wellness and advance the dialogue around mental health within Computer Science at Illinois. We host a variety of events and programs for students within the CS community and work on mental health policy initiatives and tools.
+    description: >
+      Furthering mental wellness and advancing the dialogue 
+      around mental health within Computer Science at Illinois.
     chairs: Ananya Cleetus, Nikash Walia
     members:
       - role: Co-Chair of CSMHC
