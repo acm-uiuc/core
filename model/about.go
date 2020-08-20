@@ -1,10 +1,10 @@
 package model
 
 type About struct {
-	Content   []string     `yaml:"content"`
-	Facilites []Facility   `yaml:"facilites"`
-	History   AboutHistory `yaml:"history"`
-	Links     []AboutLink  `yaml:"links"`
+	Content    []string     `yaml:"content"`
+	Facilities []Facility   `yaml:"facilites"`
+	History    AboutHistory `yaml:"history"`
+	Links      []AboutLink  `yaml:"links"`
 }
 
 type Facility struct {
