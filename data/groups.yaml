@@ -218,3 +218,10 @@ sigs:
     meetingLocation: TDB
     website: ''
     email: kishore4@illinois.edu
+  - name: SIGHPC
+    description: Special Interest Group for High-Performance Computing
+    chairs: Jonathan Nativ
+    meetingTime: TBD
+    meetingLocation: TBD
+    website: ''
+    email: jnativ2@illinois.edu
