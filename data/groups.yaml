@@ -22,7 +22,7 @@ committees:
         displayName: Suchita Joshi
         email: secretary@acm.illinois.edu
   - name: Infrastructure
-    description: The infrastructure team builds, administrates, and maintains ACM@UIUC's infrastructure
+    description: The infra team builds and maintains ACM@UIUC's infrastructure
     chairs: Christian Sparks
     email: admin-l@acm.illinois.edu
     members:
