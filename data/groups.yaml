@@ -2,30 +2,32 @@
 committees:
   - name: Top4
     description: The leadership team for ACM@UIUC
-    chairs: Cecilia Ding
+    chairs: Marcin Pitera
     email: acm@illinois.edu
     members:
       - role: Chair
-        username: cding20
-        displayName: Cecilia Ding
+        username: mpiter2
+        displayName: Marcin Pitera
         email: acm@illinois.edu
       - role: Vice Chair
-        username: svarma4
-        displayName: Shagun Varma
+        username: mx9
+        displayName: Michael Xiang
         email: vice-chair@acm.illinois.edu
       - role: Treasurer
         username: marzukr2
         displayName: Marzuk Rashid
         email: treasurer@acm.illinois.edu
       - role: Secretary
-        username: bangaru2
-        displayName: Shresta Bangaru
+        username: suchita3
+        displayName: Suchita Joshi
         email: secretary@acm.illinois.edu
-  - name: Admin
-    description: The admin team build and maintains ACM@UIUC's infrastructure
-    chairs: Evan Widloski
+  - name: Infrastructure
+    description: The infrastructure team builds, administrates, and maintains ACM@UIUC's infrastructure
+    chairs: Christian Sparks
     email: admin-l@acm.illinois.edu
     members:
+      - username: csparks3
+      - username: grantlg2
       - username: evanw3
       - username: rishipd2
       - username: arnavs3
