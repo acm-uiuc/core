@@ -1,6 +1,6 @@
 ---
 committees:
-  - name: Top4
+  - name: Officers
     description: The leadership team for ACM@UIUC
     chairs: Marcin Pitera
     email: acm@illinois.edu
@@ -14,8 +14,8 @@ committees:
         displayName: Michael Xiang
         email: vice-chair@acm.illinois.edu
       - role: Treasurer
-        username: marzukr2
-        displayName: Marzuk Rashid
+        username: csood2
+        displayName: Chaitanya Sood
         email: treasurer@acm.illinois.edu
       - role: Secretary
         username: suchita3
@@ -53,24 +53,24 @@ committees:
     email: events-l@acm.illinois.edu
     members:
       - role: Director of HackIllinois
-        username: megharm2
-        displayName: Megha Mattikalli
+        username: raghav3
+        displayName: Raghav Saini
         email: contact@hackillinois.org
       - role: Director of HackIllinois
-        username: rishinp2
-        displayName: Rishin Pandit
+        username: ysho2
+        displayName: Yi Shian Ho
         email: contact@hackillinois.org
       - role: Director of Reflections | Projections
-        username: sspal2
-        displayName: Sam Pal
+        username: svarma4
+        displayName: Shagun Varma
         email: conference@acm.illinois.edu
       - role: Director of Reflections | Projections
-        username: aaron2
-        displayName: Aaron Aftab
+        username: jasneet2
+        displayName: Jasneet Thukral
         email: conference@acm.illinois.edu
   - name: Projects
     description: The project team manages the engineering efforts of ACM@UIUC
-    chairs: Rishi Desai
+    chairs: Annabelle Ju, Sreyas Agarwal
     members:
       - role: Director of Projects
         username: rishipd2
@@ -78,11 +78,11 @@ committees:
         email: projects-l@acm.illinois.edu
   - name: Social
     description: The social team organizes fun events for ACM@UIUC
-    chairs: Marcin Pitera
+    chairs: Beth Fineberg
     members:
       - role: Director of Social
-        username: mpiter2
-        displayName: Marcin Pitera
+        username: erf3
+        displayName: Beth Fineberg
         email: social-l@acm.illinois.edu
   - name: Outreach
     description:
@@ -110,66 +110,66 @@ committees:
       - username: myc2
 sigs:
   - name: Gamebuilders
-    description: Anything and everything related to game development
-    chairs: Aditya Bawankule
+    description: Community of people related to any aspect of game development.
+    chairs: Ruben Dorian Serrano
     meetings:
       - topic: General Meeting
-        meetingTime: 'Monday 7:00 PM - 8:30 PM'
-        meetingLocation: Siebel 3405
+        meetingTime: Tuesdays 8 P.M. CST.
+        meetingLocation: https://discord.gg/g8VCGmm
     website: http://gamebuilders.acm.illinois.edu/
-    email: adityab2@illinois.edu
+    email: 'Discord: dorianisnairod#1241, Email: rubends2@illinois.edu'
   - name: GLUG
-    description: GNU/Linux Users Group
+    description: We are the GNU/Linux Users' group at the University of Illinois at Urbana-Champaign. We are a group of people passionate about free software and making things.
     chairs: Chinmaya Mahesh
     meetings:
       - topic: General Meeting
-        meetingTime: 'Thursday 5:00 PM - 6:00 PM'
-        meetingLocation: Siebel 1109
+        meetingTime: 'Thursdays 6-7 PM'
+        meetingLocation: We meet on Jitsi Meet, link to be shared on chat 10 minutes before starting
     website: http://lug.acm.illinois.edu
-    email: glug@acm.illinois.org
+    email: '#uiuclug:matrix.org on matrix, #uiuclug on libera chat, #glug on ACM@UIUC slack (all are bridged together and act as the same room)'
   - name: ICPC
-    description: Competitive programming skill development and competitions
-    chairs: Nikil Ravi, Yen-Hsiang Chang
+    description: This SIG focuses on competitive programming skill-development and competitions.
+    chairs: Leo Yang and Yipeng Yang
     meetings:
       - topic: General Meeting
-        meetingTime: 'Tuesday 7:00 PM - 9:00 PM'
-        meetingLocation: Siebel 1109
+        meetingTime: TBD
+        meetingLocation: 'Campuswire forum: https://campuswire.com/p/GACF2E8B2 (Code: 4080)'
     website: http://icpc.cs.illinois.edu/
     email: icpc@cs.illinois.edu
-  - name: SIGBot
-    description: Special Interest Group for Robotics
-    chairs: Ananmay Jain
-    meetings:
-      - topic: General Meeting
-        meetingTime: 'Saturday & Sunday 12:00 PM - 2:00 PM'
-        meetingLocation: Siebel 1104
-    website: http://illinoisauv.com/
-    email: ananmay3@illinois.edu
+  # - name: SIGBot
+  #   description: Special Interest Group for Robotics
+  #   chairs: Ananmay Jain
+  #   meetings:
+  #     - topic: General Meeting
+  #       meetingTime: 'Saturday & Sunday 12:00 PM - 2:00 PM'
+  #       meetingLocation: Siebel 1104
+  #   website: http://illinoisauv.com/
+  #   email: ananmay3@illinois.edu
   - name: SIGCHI
     description: Special Interest Group for Human-Computer Interaction
-    chairs: Jeffrey Tsai
+    chairs: Mitchell Bifeld, Swathi Ram, Abhimanyu Thosar
     meetings:
       - topic: General Meeting
-        meetingTime: 'Tuesday 5:00 PM - 7:00 PM'
-        meetingLocation: Siebel 1304
+        meetingTime: 'Tuesday 6:00 PM - 7:00 PM'
+        meetingLocation: https://discord.gg/zuFB7qMAeb
     website: http://sigchi.acm.illinois.edu/
     email: jeffrey5@illinois.edu
   - name: SIGGRAPH
-    description: Special Interest Group for Graphics
-    chairs: Sahil Patel
+    description: Special Interest Group for Graphics -  We focus on computer graphics technology including 3D modeling, animation, virtual reality, rendering and more.
+    chairs: Sahil Patel, Stacy Zheng, Michael Korenchan
     meetings:
       - topic: General Meeting
-        meetingTime: 'Monday 6:00 PM - 7:00 PM'
-        meetingLocation: Siebel 3401
+        meetingTime: TBD
+        meetingLocation: https://discord.gg/gbZMxcUZmv
     website: https://acm-uiuc.github.io/siggraph/
     email: siggraphuiuc@gmail.com
   - name: AIDA
-    description: Artificial Intelligence and Data Analytics
-    chairs: Jeffrey Lai, Arjun Gupta, Shaw Kagawa
+    description: Artificial Intelligence and Data Analytics - We seek to educate UIUC students on the fundamentals and state of the art topics in machine learning and data science. We hope to present topics in an accessible and engaging way so that everyone can take part in the exciting data revolution.
+    chairs: Ajay Arasanipalai, Jatin Mathur, Shaw Kagawa, Shrirang Bagdi, John Li, Araaish Paul
     meetings:
       - topic: General Meeting
-        meetingTime: 'Sunday 1:00 PM - 4:00 PM'
-        meetingLocation: Siebel 1105
+        meetingTime: TBD
+        meetingLocation: https://discord.gg/GEMh8umbe7
     website: https://aida.acm.illinois.edu
     email: sig-aida-request@lists.illinois.edu
   - name: QUIUC
@@ -192,22 +192,22 @@ sigs:
     email: anshul2@illinois.edu
   - name: SIGMobile
     description: Special Interest Group for Mobile Development
-    chairs: Matt Geimer
+    chairs: Matt Geimer, Rahul Shamkuwar
     meetings:
       - topic: General Meeting
-        meetingTime: 'Tuesday 5:00 PM - 6:00 PM'
-        meetingLocation: Siebel 1214
+        meetingTime: 'Thursdays 9:30pm CDT'
+        meetingLocation: https://discord.gg/WN7pRp5PmW
     website: http://github.com/SIGMobileUIUC
     email: mgeimer2@illinois.edu
   - name: SIGMusic
-    description: Special Interest Group for Music
-    chairs: Melissa Chen, Sahil Patel
+    description: SIGMusic is a project based SIG all about the intersection between computer science, music, and everything in between! People of all skill levels and disciplines are welcome.
+    chairs: Billy Walters and Andrew Orals
     meetings:
       - topic: General Meeting
         meetingTime: 'Thursday 6:00 PM - 7:00 PM'
-        meetingLocation: Siebel 1109
+        meetingLocation: https://discord.gg/zMtv6Qz
     website: http://sigmusic.acm.illinois.edu
-    email: myc2@illinois.edu
+    email: DM Chairs or message in Slack/Discord
   - name: SIGPwny
     description: Special Interest Group for Security
     chairs: Thomas Quig, Joseph Ravichandran
@@ -227,47 +227,47 @@ sigs:
     website: ''
     email: jmaldo2@illinois.edu
   - name: SIGNLL
-    description: Special Interest Group for Natural Language Learning
-    chairs: Jack Nash, Nishant Balepur
+    description: 'The special interest group for natural language learning, open to all students regardless of background and prior experience. Some of our NLP popular projects include: sentiment analysis, chatbots, summarization, and more!'
+    chairs: Nishant Balepur, Jack Nash
     meetings:
       - topic: General Meeting
-        meetingTime: 'Wednesday 5:30 PM - 6:30 PM'
-        meetingLocation: Siebel 1214
+        meetingTime: TBA
+        meetingLocation: https://discord.gg/hVeuPNX4MY
     website: https://www.facebook.com/groups/uiucsignll
     email: balepur2@illinois.edu
-  - name: SIGArch
-    description: Special Interest Group for Architecture
-    chairs: Kris Koepcke
-    meetings:
-      - topic: General Meeting
-        meetingTime: 'Tuesday 6:00 PM - 7:00 PM'
-        meetingLocation: Siebel 1214
-    website: ''
-    email: koepcke2@illinois.edu
-  - name: SIGPlan
-    description: Special Interest Group for Programming Languages
-    chairs: Reed Oei
-    meetings:
-      - topic: General Meeting
-        meetingTime: 'Sunday 4:00 PM - 5:00 PM'
-        meetingLocation: Siebel 2407
-    website: ''
-    email: reedoei2@illinois.edu
-  - name: SIGCloud
-    description: Special Interest Group for Cloud Computing
-    chairs: Shreyas Kishore
-    meetings:
-      - topic: General Meeting
-        meetingTime: TBD
-        meetingLocation: TDB
-    website: ''
-    email: kishore4@illinois.edu
+  # - name: SIGArch
+  #   description: Special Interest Group for Architecture
+  #   chairs: Kris Koepcke
+  #   meetings:
+  #     - topic: General Meeting
+  #       meetingTime: 'Tuesday 6:00 PM - 7:00 PM'
+  #       meetingLocation: Siebel 1214
+  #   website: ''
+  #   email: koepcke2@illinois.edu
+  # - name: SIGPlan
+  #   description: Special Interest Group for Programming Languages
+  #   chairs: Reed Oei
+  #   meetings:
+  #     - topic: General Meeting
+  #       meetingTime: 'Sunday 4:00 PM - 5:00 PM'
+  #       meetingLocation: Siebel 2407
+  #   website: ''
+  #   email: reedoei2@illinois.edu
+  # - name: SIGCloud
+  #   description: Special Interest Group for Cloud Computing
+  #   chairs: Shreyas Kishore
+  #   meetings:
+  #     - topic: General Meeting
+  #       meetingTime: TBD
+  #       meetingLocation: TDB
+  #   website: ''
+  #   email: kishore4@illinois.edu
   - name: SIGHPC
-    description: Special Interest Group for High-Performance Computing
-    chairs: Jonathan Nativ
+    description: Special Interest Group for High-Performance Computing - SIGHPC's goal is to introduce students to the core technologies and tools in High Performance Computing like OpenMPI, SLURM, and CUDA and give practical examples of how applications use them. SIGHPC also serves as the primary recruiting organization for the Student Cluster Competition where a team of 6 will attend the Supercomputing conference and participate in a HPC-based week-long competition.
+    chairs: Pranshu Chaturvedi
     meetings:
       - topic: General Meeting
-        meetingTime: TBD
-        meetingLocation: TBD
-    website: ''
+        meetingTime: Once a month (dates TBD)
+        meetingLocation: https://illinois.zoom.us/skype/6091410020
+    website: http://uiucscc16.slack.com/
     email: jnativ2@illinois.edu
