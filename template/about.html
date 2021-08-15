@@ -25,7 +25,7 @@
         <h3>Contacts</h3>
         <div class="small-12 medium-6 large-6 columns">
         {{range .Committees}}
-            {{if eq .Name "Top4" "Events"}}
+            {{if eq .Name "Officer Board" "Events"}}
                 <div class="group-info">
                     <h4> {{.Name}} </h4>
                     {{range .Members}}
@@ -75,7 +75,7 @@
         </div>
     </div>
   </div>
-  
+
 
 {{template "footer" .}}
 {{end}}

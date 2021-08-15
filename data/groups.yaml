@@ -85,22 +85,6 @@ committees:
         username: raghav3
         displayName: Raghav Saini
         email: ''
-  # - name: CS Mental Health Committee
-  #   description: >
-  #     Furthering mental wellness and advancing the dialogue
-  #     around mental health within Computer Science at Illinois.
-  #   chairs: Ananya Cleetus, Nikash Walia
-  #   members:
-  #     - role: Co-Chair of CSMHC
-  #       username: cleetus2
-  #       displayName: Ananya Cleetus
-  #       email: cleetus@illinois.edu
-  #     - role: Co-Chair of CSMHC
-  #       username: nikashw2
-  #       displayName: Nikash Walia
-  #       email: nikashw2@illinois.edu
-  #     - username: mkhan259
-  #     - username: myc2
 sigs:
   - name: Gamebuilders
     description: Anything and everything related to game development
@@ -117,7 +101,7 @@ sigs:
     meetings:
       - topic: General Meeting
         meetingTime: 'Thursday 6:00 PM - 7:00 PM'
-        meetingLocation: "#glug" on ACM@UIUC slack
+        meetingLocation: glug on ACM@UIUC slack
     website: http://lug.acm.illinois.edu
     email: glug@acm.illinois.org
   - name: ICPC
