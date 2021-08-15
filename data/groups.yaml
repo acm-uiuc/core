@@ -1,26 +1,26 @@
 ---
 committees:
-  - name: Top4
+  - name: Officer Board
     description: The leadership team for ACM@UIUC
-    chairs: Marcin Pitera
+    chair: Marcin Pitera
     email: acm@illinois.edu
     members:
       - role: Chair
         username: mpiter2
         displayName: Marcin Pitera
-        email: acm@illinois.edu
+        email: mpiter2@illinois.edu
       - role: Vice Chair
         username: mx9
         displayName: Michael Xiang
-        email: vice-chair@acm.illinois.edu
+        email: mx9@illinois.edu
       - role: Treasurer
-        username: marzukr2
-        displayName: Marzuk Rashid
-        email: treasurer@acm.illinois.edu
+        username: csood2
+        displayName: Chaitanya Sood
+        email: csood2@illinois.edu
       - role: Secretary
         username: suchita3
         displayName: Suchita Joshi
-        email: secretary@acm.illinois.edu
+        email: suchita3@illinois.edu
   - name: Infrastructure
     description: The infra team builds and maintains ACM@UIUC's infrastructure
     chairs: Christian Sparks
@@ -32,20 +32,13 @@ committees:
       - username: rishipd2
       - username: arnavs3
       - username: cding20
+      - username: csood2
   - name: Corporate
-    description: >
-      The corporate team handles communication with ACM@UIUC's sponsors
-    chairs: Chaitanya Sood
-    email: corporate@acm.illinois.edu
+    description: The corporate team handles communication with ACM@UIUC's sponsors
+    chairs: Drshika Asher
+    email: drshika2@illinois.edu
     members:
-      - username: varunsn2
-      - username: adithcn2
-      - username: tejeshb2
-      - username: minaoka2
-      - username: mmavila3
-      - username: riyaj3
-      - username: megharm2
-      - username: podar2
+      - username: drshika2
       - username: csood2
   - name: Events
     description: The events team runs Reflections | Projections and HackIllinois
@@ -78,12 +71,12 @@ committees:
         email: projects-l@acm.illinois.edu
   - name: Social
     description: The social team organizes fun events for ACM@UIUC
-    chairs: Marcin Pitera
+    chairs: Beth Fineberg
     members:
       - role: Director of Social
-        username: mpiter2
-        displayName: Marcin Pitera
-        email: social-l@acm.illinois.edu
+        username: erf3@illinois.edu
+        displayName: Beth Finberg
+        email: erf3@illinois.edu
   - name: Outreach
     description:
     chairs: Raghav Saini
@@ -92,39 +85,39 @@ committees:
         username: raghav3
         displayName: Raghav Saini
         email: ''
-  - name: CS Mental Health Committee
-    description: >
-      Furthering mental wellness and advancing the dialogue
-      around mental health within Computer Science at Illinois.
-    chairs: Ananya Cleetus, Nikash Walia
-    members:
-      - role: Co-Chair of CSMHC
-        username: cleetus2
-        displayName: Ananya Cleetus
-        email: cleetus@illinois.edu
-      - role: Co-Chair of CSMHC
-        username: nikashw2
-        displayName: Nikash Walia
-        email: nikashw2@illinois.edu
-      - username: mkhan259
-      - username: myc2
+  # - name: CS Mental Health Committee
+  #   description: >
+  #     Furthering mental wellness and advancing the dialogue
+  #     around mental health within Computer Science at Illinois.
+  #   chairs: Ananya Cleetus, Nikash Walia
+  #   members:
+  #     - role: Co-Chair of CSMHC
+  #       username: cleetus2
+  #       displayName: Ananya Cleetus
+  #       email: cleetus@illinois.edu
+  #     - role: Co-Chair of CSMHC
+  #       username: nikashw2
+  #       displayName: Nikash Walia
+  #       email: nikashw2@illinois.edu
+  #     - username: mkhan259
+  #     - username: myc2
 sigs:
   - name: Gamebuilders
     description: Anything and everything related to game development
-    chairs: Aditya Bawankule
+    chairs: Ruben Dorian Serrano
     meetings:
       - topic: General Meeting
-        meetingTime: 'Monday 7:00 PM - 8:30 PM'
-        meetingLocation: Siebel 3405
+        meetingTime: 'Tuesday 8:00 PM CST'
+        meetingLocation: https://discord.gg/g8VCGmm
     website: http://gamebuilders.acm.illinois.edu/
-    email: adityab2@illinois.edu
+    email: rubends2@illinois.edu
   - name: GLUG
     description: GNU/Linux Users Group
     chairs: Chinmaya Mahesh
     meetings:
       - topic: General Meeting
-        meetingTime: 'Thursday 5:00 PM - 6:00 PM'
-        meetingLocation: Siebel 1109
+        meetingTime: 'Thursday 6:00 PM - 7:00 PM'
+        meetingLocation: "#glug" on ACM@UIUC slack
     website: http://lug.acm.illinois.edu
     email: glug@acm.illinois.org
   - name: ICPC
