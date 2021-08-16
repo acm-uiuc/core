@@ -34,7 +34,7 @@ committees:
       - username: cding20
       - username: csood2
   - name: Corporate
-    description: The team handles communication with ACM@UIUC's sponsors
+    description: The corporate team handles communication with ACM@UIUC's sponsors
     chairs: Drshika Asher
     email: drshika2@illinois.edu
     members:
