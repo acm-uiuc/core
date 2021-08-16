@@ -17,7 +17,8 @@
         <h4 class='feed-title'>{{.Title}}</h4>
         <p>{{.Body}}</p>
         {{if ne .Link.Name ""}}
-          <a href="{{.Link.Uri}}"><button class="button">{{.Link.Name}}</button></a>
+          <a href="{{.Link.Uri}}"><button class="button">{{.Link.Name}}</button>
+          </a>
         {{end}}
       {{end}}
   </div>
@@ -26,12 +27,14 @@
       <div id="main-center" class="small-12 medium-12 large-4 columns">
         <h3>{{.Title}}</h3>
         <p>{{.Body}}</p>
-        <a href="{{.Link.Uri}}"><button class="button">{{.Link.Name}}</button></a>
+        <a href="{{.Link.Uri}}"><button class="button">{{.Link.Name}}</button>
+        </a>
       </div>
     {{end}}
-    <center><iframe src="https://calendar.google.com/calendar/embed?height=600&wkst=1&bgcolor=%23dbdbdb&ctz=America%2FChicago&src=Y19vamYwazVtZ3Fxdjk0NXM4NTZ2dWgwMzIyb0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t&color=%234285F4&title=ACM%40UIUC%20Calendar" style="border:solid 1px #777"width="800" height="600" frameborder="0" scrolling="no"></iframe></center>
   </div>
 </div>
+<center><iframe src="https://calendar.google.com/calendar/embed?height=600&wkst=1&bgcolor=%23dbdbdb&ctz=America%2FChicago&src=Y19vamYwazVtZ3Fxdjk0NXM4NTZ2dWgwMzIyb0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t&color=%234285F4&title=ACM%40UIUC%20Calendar" style="border:solid 1px #777" width="800" height="600" frameborder="0" scrolling="no">
+</iframe></center>
 </div>
 <div class="footer_padding">
 </div>
