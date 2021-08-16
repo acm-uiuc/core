@@ -34,7 +34,7 @@ committees:
       - username: cding20
       - username: csood2
   - name: Corporate
-    description: The corporate team handles communication with ACM@UIUC's sponsors
+    description: The team handles communication with ACM@UIUC's sponsors
     chairs: Drshika Asher
     email: drshika2@illinois.edu
     members:
@@ -47,23 +47,24 @@ committees:
     members:
       - role: Director of HackIllinois
         username: megharm2
-        displayName: Megha Mattikalli
+        displayName: Raghav Saini
         email: contact@hackillinois.org
       - role: Director of HackIllinois
         username: rishinp2
-        displayName: Rishin Pandit
+        displayName: Yi Shian Ho
         email: contact@hackillinois.org
       - role: Director of Reflections | Projections
         username: sspal2
-        displayName: Sam Pal
+        displayName: Shagun Varma
         email: conference@acm.illinois.edu
       - role: Director of Reflections | Projections
         username: aaron2
-        displayName: Aaron Aftab
+        displayName: Jasneet Thukral
         email: conference@acm.illinois.edu
   - name: Projects
     description: The project team manages the engineering efforts of ACM@UIUC
-    chairs: Rishi Desai
+    chairs: Annabelle Ju, Sreyas Agarwal
+    email:
     members:
       - role: Director of Projects
         username: rishipd2
@@ -72,6 +73,7 @@ committees:
   - name: Social
     description: The social team organizes fun events for ACM@UIUC
     chairs: Beth Fineberg
+    email: erf3@illinois.edu
     members:
       - role: Director of Social
         username: erf3@illinois.edu
@@ -80,6 +82,7 @@ committees:
   - name: Outreach
     description:
     chairs: Raghav Saini
+    email:
     members:
       - role: Director of Outreach
         username: raghav3
@@ -106,7 +109,7 @@ sigs:
     email: glug@acm.illinois.org
   - name: ICPC
     description: Competitive programming skill development and competitions
-    chairs: Nikil Ravi, Yen-Hsiang Chang
+    chairs: Leo Yang and Yipeng Yang
     meetings:
       - topic: General Meeting
         meetingTime: 'Tuesday 7:00 PM - 9:00 PM'
@@ -124,40 +127,40 @@ sigs:
     email: ananmay3@illinois.edu
   - name: SIGCHI
     description: Special Interest Group for Human-Computer Interaction
-    chairs: Jeffrey Tsai
+    chairs: Mitchell Bifeld, Swathi Ram, Abhimanyu Thosar
     meetings:
       - topic: General Meeting
-        meetingTime: 'Tuesday 5:00 PM - 7:00 PM'
-        meetingLocation: Siebel 1304
+        meetingTime: 'Tuesday 6:00 PM - 7:00 PM'
+        meetingLocation: https://discord.gg/zuFB7qMAeb
     website: http://sigchi.acm.illinois.edu/
-    email: jeffrey5@illinois.edu
+    email: mbifeld2@illinois.edu
   - name: SIGGRAPH
     description: Special Interest Group for Graphics
-    chairs: Sahil Patel
+    chairs: Sahil Patel, Stacy Zheng, Michael Korenchan
     meetings:
       - topic: General Meeting
         meetingTime: 'Monday 6:00 PM - 7:00 PM'
-        meetingLocation: Siebel 3401
+        meetingLocation: siggraph-general on ACM Discord
     website: https://acm-uiuc.github.io/siggraph/
     email: siggraphuiuc@gmail.com
   - name: AIDA
     description: Artificial Intelligence and Data Analytics
-    chairs: Jeffrey Lai, Arjun Gupta, Shaw Kagawa
+    chairs: Ajay Arasanipalai, Jatin Mathur, Shaw Kagawa, Shrirang Bagdi
     meetings:
       - topic: General Meeting
         meetingTime: 'Sunday 1:00 PM - 4:00 PM'
-        meetingLocation: Siebel 1105
+        meetingLocation: https://discord.gg/GEMh8umbe7
     website: https://aida.acm.illinois.edu
     email: sig-aida-request@lists.illinois.edu
   - name: QUIUC
     description: Special Interest Group for Quantum Computing
-    chairs: Bailey Tincher, Graeme Jacobson
+    chairs: Akshunna Vaishnav
     meetings:
       - topic: General Meeting
         meetingTime: 'Sunday 2:00 PM - 3:00 PM'
-        meetingLocation: Siebel 1103
+        meetingLocation: https://discord.gg/PmaXeHPaFs
     website: https://www.quiuc.org
-    email: info@quiuc.org
+    email: av16@illinois.edu
   - name: SIGOPS
     description: Special Interest Group for Operating Systems
     chairs: Anshul Sanamvenkata, Chinmaya Mahesh, Kapil Kanwar
@@ -169,25 +172,25 @@ sigs:
     email: anshul2@illinois.edu
   - name: SIGMobile
     description: Special Interest Group for Mobile Development
-    chairs: Matt Geimer
+    chairs: Matt Geimer, Rahul Shamkuwar
     meetings:
       - topic: General Meeting
-        meetingTime: 'Tuesday 5:00 PM - 6:00 PM'
-        meetingLocation: Siebel 1214
+        meetingTime: 'Thursday 9:30 PM'
+        meetingLocation: https://discord.gg/WN7pRp5PmW
     website: http://github.com/SIGMobileUIUC
     email: mgeimer2@illinois.edu
   - name: SIGMusic
     description: Special Interest Group for Music
-    chairs: Melissa Chen, Sahil Patel
+    chairs: Billy Walters, Andrew Orals
     meetings:
       - topic: General Meeting
         meetingTime: 'Thursday 6:00 PM - 7:00 PM'
-        meetingLocation: Siebel 1109
+        meetingLocation: https://discord.gg/zMtv6Qz
     website: http://sigmusic.acm.illinois.edu
-    email: myc2@illinois.edu
+    email: Message Chairs on ACM Slack/Discord
   - name: SIGPwny
     description: Special Interest Group for Security
-    chairs: Thomas Quig, Joseph Ravichandran
+    chairs: Thomas Quig
     meetings:
       - topic: General Meeting
         meetingTime: 'Thursday 6:00 PM - 7:00 PM'
@@ -241,10 +244,10 @@ sigs:
     email: kishore4@illinois.edu
   - name: SIGHPC
     description: Special Interest Group for High-Performance Computing
-    chairs: Jonathan Nativ
+    chairs: Pranshu Chaturvedi
     meetings:
       - topic: General Meeting
         meetingTime: TBD
-        meetingLocation: TBD
-    website: ''
+        meetingLocation: https://illinois.zoom.us/skype/6091410020
+    website: http://uiucscc16.slack.com/
     email: jnativ2@illinois.edu
