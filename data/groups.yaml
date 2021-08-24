@@ -89,7 +89,7 @@ committees:
         displayName: Raghav Saini
         email: ''
 sigs:
-  - name: Gamebuilders
+  - name: SIGGamebuilders
     description: Anything and everything related to game development
     chairs: Ruben Dorian Serrano
     meetings:
@@ -98,7 +98,7 @@ sigs:
         meetingLocation: https://discord.gg/g8VCGmm
     website: http://gamebuilders.acm.illinois.edu/
     email: rubends2@illinois.edu
-  - name: GLUG
+  - name: SIGGLUG
     description: GNU/Linux Users Group
     chairs: Chinmaya Mahesh
     meetings:
@@ -107,7 +107,7 @@ sigs:
         meetingLocation: glug on ACM@UIUC slack
     website: http://lug.acm.illinois.edu
     email: glug@acm.illinois.org
-  - name: ICPC
+  - name: SIGICPC
     description: Competitive programming skill development and competitions
     chairs: Leo Yang and Yipeng Yang
     meetings:
@@ -116,15 +116,6 @@ sigs:
         meetingLocation: Siebel 1109
     website: http://icpc.cs.illinois.edu/
     email: icpc@cs.illinois.edu
-  - name: SIGBot
-    description: Special Interest Group for Robotics
-    chairs: Ananmay Jain
-    meetings:
-      - topic: General Meeting
-        meetingTime: 'Saturday & Sunday 12:00 PM - 2:00 PM'
-        meetingLocation: Siebel 1104
-    website: http://illinoisauv.com/
-    email: ananmay3@illinois.edu
   - name: SIGCHI
     description: Special Interest Group for Human-Computer Interaction
     chairs: Mitchell Bifeld, Swathi Ram, Abhimanyu Thosar
@@ -143,7 +134,7 @@ sigs:
         meetingLocation: siggraph-general on ACM Discord
     website: https://acm-uiuc.github.io/siggraph/
     email: siggraphuiuc@gmail.com
-  - name: AIDA
+  - name: SIGAIDA
     description: Artificial Intelligence and Data Analytics
     chairs: Ajay Arasanipalai, Jatin Mathur, Shaw Kagawa, Shrirang Bagdi
     meetings:
@@ -152,7 +143,7 @@ sigs:
         meetingLocation: https://discord.gg/GEMh8umbe7
     website: https://aida.acm.illinois.edu
     email: sig-aida-request@lists.illinois.edu
-  - name: QUIUC
+  - name: SIGQUIUC
     description: Special Interest Group for Quantum Computing
     chairs: Akshunna Vaishnav
     meetings:
@@ -161,15 +152,6 @@ sigs:
         meetingLocation: https://discord.gg/PmaXeHPaFs
     website: https://www.quiuc.org
     email: av16@illinois.edu
-  - name: SIGOPS
-    description: Special Interest Group for Operating Systems
-    chairs: Anshul Sanamvenkata, Chinmaya Mahesh, Kapil Kanwar
-    meetings:
-      - topic: General Meeting
-        meetingTime: 'Saturday 12:00 PM - 2:00 PM'
-        meetingLocation: Siebel 1302
-    website: http://sigops.acm.illinois.edu
-    email: anshul2@illinois.edu
   - name: SIGMobile
     description: Special Interest Group for Mobile Development
     chairs: Matt Geimer, Rahul Shamkuwar
@@ -197,15 +179,6 @@ sigs:
         meetingLocation: https://sigpwny.com/discord
     website: https://sigpwny.com
     email: tquig2@illinois.edu
-  - name: SIGBlockchain
-    description: Special Interest Group for Blockchain Technologies
-    chairs: Jason Maldonado
-    meetings:
-      - topic: General Meeting
-        meetingTime: 'Wednesday 5:00 PM - 6:00 PM'
-        meetingLocation: Siebel 1302
-    website: ''
-    email: jmaldo2@illinois.edu
   - name: SIGNLL
     description: Special Interest Group for Natural Language Learning
     chairs: Jack Nash, Nishant Balepur
@@ -215,33 +188,6 @@ sigs:
         meetingLocation: Siebel 1214
     website: https://www.facebook.com/groups/uiucsignll
     email: balepur2@illinois.edu
-  - name: SIGArch
-    description: Special Interest Group for Architecture
-    chairs: Kris Koepcke
-    meetings:
-      - topic: General Meeting
-        meetingTime: 'Tuesday 6:00 PM - 7:00 PM'
-        meetingLocation: Siebel 1214
-    website: ''
-    email: koepcke2@illinois.edu
-  - name: SIGPlan
-    description: Special Interest Group for Programming Languages
-    chairs: Reed Oei
-    meetings:
-      - topic: General Meeting
-        meetingTime: 'Sunday 4:00 PM - 5:00 PM'
-        meetingLocation: Siebel 2407
-    website: ''
-    email: reedoei2@illinois.edu
-  - name: SIGCloud
-    description: Special Interest Group for Cloud Computing
-    chairs: Shreyas Kishore
-    meetings:
-      - topic: General Meeting
-        meetingTime: TBD
-        meetingLocation: TDB
-    website: ''
-    email: kishore4@illinois.edu
   - name: SIGHPC
     description: Special Interest Group for High-Performance Computing
     chairs: Pranshu Chaturvedi
