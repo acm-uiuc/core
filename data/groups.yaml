@@ -130,8 +130,8 @@ sigs:
     chairs: Sahil Patel, Stacy Zheng, Michael Korenchan
     meetings:
       - topic: General Meeting
-        meetingTime: 'Monday 6:00 PM - 7:00 PM'
-        meetingLocation: siggraph-general on ACM Discord
+        meetingTime: 'Monday 4:00 PM - 5:00 PM'
+        meetingLocation: "Siebel Center for CS #1103"
     website: https://acm-uiuc.github.io/siggraph/
     email: siggraphuiuc@gmail.com
   - name: SIGAIDA
