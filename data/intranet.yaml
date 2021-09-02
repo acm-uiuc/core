@@ -5,23 +5,27 @@ cards:
     uri: /intranet/usermanager
     groups:
       - Top4
+      - Admin
   - title: Recruiter Manager
     description: Manage ACM@UIUC's recruiters
     uri: /intranet/recruitermanager
     groups:
       - Top4
+      - Admin
       - Corporate
   - title: Resume Manager
     description: Manage ACM@UIUC's resumes
     uri: /intranet/resumemanager
     groups:
       - Top4
+      - Admin
       - Corporate
   - title: Resume Book
     description: View ACM@UIUC's resumes
     uri: /resumebook
     groups:
       - Top4
+      - Admin
       - Corporate
     marks:
       - Recruiter
