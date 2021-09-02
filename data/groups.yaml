@@ -21,7 +21,7 @@ committees:
         username: suchita3
         displayName: Suchita Joshi
         email: suchita3@illinois.edu
-  - name: Infrastructure
+  - name: Admin
     description: The infra team builds and maintains ACM@UIUC's infrastructure
     chairs: Christian Sparks
     email: admin-l@acm.illinois.edu
@@ -56,15 +56,15 @@ committees:
       - role: Director of Reflections | Projections
         username: sspal2
         displayName: Shagun Varma
-        email: conference@acm.illinois.edu
+        email: contact@reflectionsprojections.org
       - role: Director of Reflections | Projections
         username: aaron2
         displayName: Jasneet Thukral
-        email: conference@acm.illinois.edu
+        email: contact@reflectionsprojections.org
   - name: Projects
     description: The project team manages the engineering efforts of ACM@UIUC
-    chairs: Annabelle Ju, Sreyas Agarwal
-    email:
+    chairs: Annabelle Ju, Sreyas Agarwal, Matthew Tang
+    email: aju3@illinois.edu, mhtang2@illinois.edu, sreyasa2@illinois.edu
     members:
       - role: Director of Projects
         username: rishipd2
@@ -79,15 +79,6 @@ committees:
         username: erf3@illinois.edu
         displayName: Beth Finberg
         email: erf3@illinois.edu
-  - name: Outreach
-    description:
-    chairs: Raghav Saini
-    email:
-    members:
-      - role: Director of Outreach
-        username: raghav3
-        displayName: Raghav Saini
-        email: ''
 sigs:
   - name: SIGGamebuilders
     description: Anything and everything related to game development
