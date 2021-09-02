@@ -22,9 +22,9 @@ committees:
         displayName: Suchita Joshi
         email: suchita3@illinois.edu
   - name: Admin
-    description: The infra team builds and maintains ACM@UIUC's infrastructure
-    chairs: Christian Sparks
-    email: admin-l@acm.illinois.edu
+    description: The admin/infra team maintains ACM@UIUC's infrastructure
+    chairs: It could be you!
+    email:
     members:
       - username: csparks3
       - username: grantlg2
