@@ -9,9 +9,11 @@
     <div class="row">
         <h1>Sponsor Us</h1>
         <p>{{.Sponsors.Pitch}}</p>
+
     </div>
     <div class="row">
         <h3>Get Involved</h3>
+        <a href={{.Sponsors.Email}}><p>{{.Sponsors.Contact}}</p></a>
         <p>{{.Sponsors.GetInvolved}}</p>
         <h3>Sponsorship Tiers</h3>
         {{range .Sponsors.Packages}}
