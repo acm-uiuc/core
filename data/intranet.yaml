@@ -36,6 +36,8 @@ cards:
       - Basic
       - Paid
 links:
+  - name: LinkTree
+    uri: https://linktr.ee/acmuiuc
   - name: Slack
     uri: https://acm-uiuc.slack.com
   - name: Discord
