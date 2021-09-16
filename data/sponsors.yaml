@@ -8,16 +8,20 @@ pitch: >
   from sponsorships goes into creating technical projects, building the
   infrastructure to support our members, and holding events for the
   CS@Illinois and broader campus community.
+contact: >
+  Contact us!
+email: >
+  mailto:drshika2@illinois.edu
 getInvolved: >
   The best way for companies to get involved with ACM@UIUC is to become a part
   of our corporate sponsorship program. If you have any questions please e-mail
-  us at corporate@acm.illinois.edu. The Corporate Committee is ACM's central
+  us at drshika2@illinois.edu or click the link above. The Corporate Committee is ACM's central
   point of contact for all corporate relations activities.
 packages:
   - name: Platinum Sponsor
     price: Contact for Pricing
     items:
-      - Please contact us at corporate@acm.illinois.edu
+      - Please contact us at drshika2@illinois.edu
   - name: Diamond Sponsor
     price: $5000
     items:
