@@ -63,7 +63,9 @@ facilities:
       SIGMusic. Access to 1110 is generally restricted due to the nature of the
       lab, and permitted where project work requires use of the lab.
 links:
-  - name: The Association for Computing Machinery<
+  - name: "ACM@UIUC Resources: LinkTree"
+    uri: https://linktr.ee/acmuiuc
+  - name: The Association for Computing Machinery
     uri: https://acm.org
   - name: Department of Computer Science
     uri: https://cs.illinois.edu
@@ -71,6 +73,7 @@ links:
     uri: https://ece.illinois.edu
   - name: College of Engineering
     uri: https://grainger.illinois.edu/
+
 history:
   events:
     - year: 1965
