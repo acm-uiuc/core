@@ -23,7 +23,7 @@ committees:
         email: suchita3@illinois.edu
   - name: Admin
     description: The admin/infra team maintains ACM@UIUC's infrastructure
-    chairs: It could be you!
+    chairs: Steven Gao, Aidan Glickman
     email:
     members:
       - username: csparks3
@@ -91,7 +91,7 @@ sigs:
     email: rubends2@illinois.edu
   - name: SIGGLUG
     description: GNU/Linux Users Group
-    chairs: Chinmaya Mahesh
+    chairs: Harsh Deep, Dinesh Kumar
     meetings:
       - topic: General Meeting
         meetingTime: 'Thursday 6:00 PM - 7:00 PM'
