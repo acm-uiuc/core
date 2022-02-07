@@ -136,7 +136,7 @@ sigs:
     email: sig-aida-request@lists.illinois.edu
   - name: SIGQUIUC
     description: Special Interest Group for Quantum Computing
-    chairs: Akshunna Vaishnav
+    chairs: Akshunna Vaishnav, Shreyaans Jain
     meetings:
       - topic: General Meeting
         meetingTime: 'Sunday 2:00 PM - 3:00 PM'
@@ -163,7 +163,7 @@ sigs:
     email: Message Chairs on ACM Slack/Discord
   - name: SIGPwny
     description: Special Interest Group for Security
-    chairs: Thomas Quig
+    chairs: Thomas Quig, Nathan Farlow
     meetings:
       - topic: General Meeting
         meetingTime: 'Thursday 6:00 PM - 7:00 PM'
