@@ -6,21 +6,21 @@ committees:
     email: acm@illinois.edu
     members:
       - role: Chair
-        username: mpiter2
-        displayName: Marcin Pitera
-        email: mpiter2@illinois.edu
+        username: mgeimer2
+        displayName: Matt Geimer
+        email: mgeimer2@illinois.edu
       - role: Vice Chair
-        username: mx9
-        displayName: Michael Xiang
-        email: mx9@illinois.edu
+        username: nsunkad2
+        displayName: Nitya Sunkad
+        email: nsunkad2@illinois.edu
       - role: Treasurer
-        username: csood2
-        displayName: Chaitanya Sood
-        email: csood2@illinois.edu
+        username: evanmm3
+        displayName: Evan Matthews
+        email: evanmm3@illinois.edu
       - role: Secretary
-        username: suchita3
-        displayName: Suchita Joshi
-        email: suchita3@illinois.edu
+        username: emilyc7
+        displayName: Emily Crawford
+        email: emilyc7@illinois.edu
   - name: Admin
     description: The admin/infra team maintains ACM@UIUC's infrastructure
     chairs: Steven Gao, Aidan Glickman
