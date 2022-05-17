@@ -21,64 +21,44 @@ committees:
         username: emilyc7
         displayName: Emily Crawford
         email: emilyc7@illinois.edu
-  - name: Admin
-    description: The admin/infra team maintains ACM@UIUC's infrastructure
-    chairs: Steven Gao, Aidan Glickman
-    email:
+  - name: Infrastructure
+    description: The infra team maintains ACM@UIUC's infrastructure and engineering efforts
+    chairs: Steven Gao
+    email: hongyig3@illinois.edu
     members:
-      - username: csparks3
-      - username: grantlg2
-      - username: evanw3
-      - username: rishipd2
-      - username: arnavs3
-      - username: cding20
-      - username: csood2
+      - username: hongyig3
   - name: Corporate
     description: The corporate team handles communication with ACM@UIUC's sponsors
-    chairs: Drshika Asher
-    email: drshika2@illinois.edu
+    chairs: Yipeng Yang
+    email: yipengy2@illinois.edu
     members:
-      - username: drshika2
-      - username: csood2
-  - name: Events
-    description: The events team runs Reflections | Projections and HackIllinois
-    chairs: Cecilia Ding
-    email: events-l@acm.illinois.edu
-    members:
-      - role: Director of HackIllinois
-        username: megharm2
-        displayName: Raghav Saini
-        email: contact@hackillinois.org
-      - role: Director of HackIllinois
-        username: rishinp2
-        displayName: Yi Shian Ho
-        email: contact@hackillinois.org
-      - role: Director of Reflections | Projections
-        username: sspal2
-        displayName: Shagun Varma
-        email: contact@reflectionsprojections.org
-      - role: Director of Reflections | Projections
-        username: aaron2
-        displayName: Jasneet Thukral
-        email: contact@reflectionsprojections.org
-  - name: Projects
-    description: The project team manages the engineering efforts of ACM@UIUC
-    chairs: Annabelle Ju, Sreyas Agarwal, Matthew Tang
-    email: aju3@illinois.edu, mhtang2@illinois.edu, sreyasa2@illinois.edu
-    members:
-      - role: Director of Projects
-        username: rishipd2
-        displayName: Rishi Desai
-        email: projects-l@acm.illinois.edu
+      - username: yipengy2
   - name: Social
     description: The social team organizes fun events for ACM@UIUC
-    chairs: Beth Fineberg
-    email: erf3@illinois.edu
+    chairs: Akul Joshi, Nora Batko
+    email: akulj2@illinois.edu, noranb2@illinois.edu
+  - name: Events
     members:
-      - role: Director of Social
-        username: erf3@illinois.edu
-        displayName: Beth Finberg
-        email: erf3@illinois.edu
+      - role: Director of HackIllinois
+        username: deeyaab2
+        displayName: Deeya Bodas
+        email: contact@hackillinois.org
+      - role: Director of HackIllinois
+        username: jg48
+        displayName: Jonathan Gao
+        email: contact@hackillinois.org
+      - role: Director of Reflections | Projections
+        username: garimas2
+        displayName: Garima Sharma
+        email: reflectionsprojections@gmail.com
+      - role: Director of Reflections | Projections
+        username: sumedhv2
+        displayName: Sumedh Vaidyanathan
+        email: reflectionsprojections@gmail.com
+  - name: Marketing
+    description: The marketing team organizes social media and branding for ACM@UIUC
+    chairs: This could be you! Email us to apply!
+    email: acmuiuc-officers-group@office365.illinois.edu
 sigs:
   - name: SIGGamebuilders
     description: Anything and everything related to game development
