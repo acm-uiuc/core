@@ -325,6 +325,8 @@ func (controller *SiteController) Join(ctx *context.Context) error {
 		_, err := controller.svc.User.GetUser(ctx.Username)
 		if err == nil {
 			accountExists = true
+		} else {
+			fmt.Sprintf("account does not exist for logged in user %s", ctx.Username),
 		}
 	}
 
