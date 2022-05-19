@@ -21,7 +21,7 @@ committees:
         username: emilyc7
         displayName: Emily Crawford
         email: emilyc7@illinois.edu
-  - name: Infrastructure
+  - name: Admin
     description: The infra team maintains ACM@UIUC's infrastructure and engineering efforts
     chairs: Steven Gao
     email: hongyig3@illinois.edu
