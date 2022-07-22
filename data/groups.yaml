@@ -107,13 +107,13 @@ sigs:
     email: siggraphuiuc@gmail.com
   - name: SIGAIDA
     description: Artificial Intelligence and Data Analytics
-    chairs: Ajay Arasanipalai, Jatin Mathur, Shaw Kagawa, Shrirang Bagdi
+    chairs: Jeffrey Tang and Jacob Levine
     meetings:
       - topic: General Meeting
         meetingTime: 'Sunday 1:00 PM - 4:00 PM'
         meetingLocation: https://discord.gg/GEMh8umbe7
     website: https://aida.acm.illinois.edu
-    email: sig-aida-request@lists.illinois.edu
+    email: jt37@illinois.edu and jlevine18@illinois.edu
   - name: SIGQUIUC
     description: Special Interest Group for Quantum Computing
     chairs: Akshunna Vaishnav, Shreyaans Jain
