@@ -27,7 +27,7 @@ jobs:
   deploy-dev:
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.event.repository.name }}-dev
+      group: ${{ github.event.repository.name }}-dev-aws
       cancel-in-progress: false
     environment: "AWS DEV"
     name: Deploy to AWS DEV
@@ -59,7 +59,7 @@ jobs:
   deploy-cf-pages-dev:
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.event.repository.name }}-dev
+      group: ${{ github.event.repository.name }}-dev-cf
       cancel-in-progress: false
     permissions:
       contents: read

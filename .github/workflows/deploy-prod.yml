@@ -27,7 +27,7 @@ jobs:
   deploy-dev:
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.event.repository.name }}-dev
+      group: ${{ github.event.repository.name }}-dev-aws
       cancel-in-progress: false
     environment: "AWS DEV"
     name: Deploy to AWS DEV
@@ -59,7 +59,7 @@ jobs:
   deploy-cf-pages-dev:
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.event.repository.name }}-dev
+      group: ${{ github.event.repository.name }}-dev-cf
       cancel-in-progress: false
     permissions:
       contents: read
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Deploy to AWS PROD
     concurrency:
-      group: ${{ github.event.repository.name }}-prod
+      group: ${{ github.event.repository.name }}-prod-aws
       cancel-in-progress: false
     needs:
       - test
@@ -150,7 +150,7 @@ jobs:
       contents: read
       deployments: write
     concurrency:
-      group: ${{ github.event.repository.name }}-prod
+      group: ${{ github.event.repository.name }}-prod-cf
       cancel-in-progress: false
     name: Deploy to Cloudflare Pages Prod
     environment: "Cloudflare Pages"
