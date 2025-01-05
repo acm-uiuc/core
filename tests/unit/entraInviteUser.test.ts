@@ -49,7 +49,9 @@ describe("Test Microsoft Entra ID user invitation", () => {
       .send({
         emails: ["someone@testing.acmuiuc.org"],
       });
-    expect(response.statusCode).toBe(500);
+    expect(response.statusCode).toBe(202);
+    expect(response.body.success.length).toEqual(0);
+    expect(response.body.failure.length).toEqual(1);
     expect(getEntraIdToken).toHaveBeenCalled();
     expect(addToTenant).toHaveBeenCalled();
   });
@@ -66,7 +68,7 @@ describe("Test Microsoft Entra ID user invitation", () => {
       .send({
         emails: ["someone@illinois.edu"],
       });
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode).toBe(202);
     expect(getEntraIdToken).toHaveBeenCalled();
     expect(addToTenant).toHaveBeenCalled();
   });
@@ -83,7 +85,7 @@ describe("Test Microsoft Entra ID user invitation", () => {
       .send({
         emails: ["someone@illinois.edu"],
       });
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode).toBe(202);
     expect(getEntraIdToken).toHaveBeenCalled();
     expect(addToTenant).toHaveBeenCalled();
   });
