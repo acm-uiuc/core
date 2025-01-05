@@ -1369,7 +1369,7 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@mantine/core@^7.15.2":
+"@mantine/core@^7.12.0":
   version "7.15.2"
   resolved "https://registry.yarnpkg.com/@mantine/core/-/core-7.15.2.tgz#9c21d5afe5e43fe0a58fb4b1166ded0a67fa1eae"
   integrity sha512-640ns0L/HZAXYjz3+FRffr8UNcH1fU7ENUVxKLzqNA311Dcx0qS3byVKTY/IVJYln6AkjoEfIJMiixT9fCZBiQ==
@@ -1381,14 +1381,14 @@
     react-textarea-autosize "8.5.6"
     type-fest "^4.27.0"
 
-"@mantine/dates@^7.15.2":
+"@mantine/dates@^7.12.0":
   version "7.15.2"
   resolved "https://registry.yarnpkg.com/@mantine/dates/-/dates-7.15.2.tgz#2ac38861327a9191f96fb06baaf362bccbcdf365"
   integrity sha512-WeJ+a16bZC+7k9Fr6jiC5NrdZi23Hp28xGBa3kKYk0Nanz/lTgg2DTBgFB537+4MVD1kOmqso+7z1VO9uLeaEw==
   dependencies:
     clsx "^2.1.1"
 
-"@mantine/form@^7.15.2":
+"@mantine/form@^7.12.0":
   version "7.15.2"
   resolved "https://registry.yarnpkg.com/@mantine/form/-/form-7.15.2.tgz#0f243ecef13aea6d7a6a5adf9a96280e5bd4644d"
   integrity sha512-ADXLw/e0/ddNIj9EtJb5aes2VEpoR7GIVgKnzFhq8DXMfOZqaMn4rSVY8LmVOAtcMyocPR7hk8uQQ3ihmpzFaw==
@@ -1396,12 +1396,12 @@
     fast-deep-equal "^3.1.3"
     klona "^2.0.6"
 
-"@mantine/hooks@^7.15.2":
+"@mantine/hooks@^7.12.0":
   version "7.15.2"
   resolved "https://registry.yarnpkg.com/@mantine/hooks/-/hooks-7.15.2.tgz#f583ecfb7b92cad17c67f7825f20f23b72e6d7ff"
   integrity sha512-p8dsW0fdJxzYhULbm1noFYRHuBvJHleYviC0BlwbkVySC8AsvFI8AmC3sMssWV3dQ3yQ/SidYo9U+K/czpDpZw==
 
-"@mantine/notifications@^7.15.2":
+"@mantine/notifications@^7.12.0":
   version "7.15.2"
   resolved "https://registry.yarnpkg.com/@mantine/notifications/-/notifications-7.15.2.tgz#4e5be05eec507e76c8b11c4d20c92ecc73d6a82b"
   integrity sha512-SZYUJV+BMakyoURj1is5aKXyM6pHpwl3V28FVx7nExyXcHJyzmPmqaSPumo0ZjFo+ysQ8/0P9UnYP0kNRwrjdQ==
@@ -6416,7 +6416,7 @@ pathval@^2.0.0:
   resolved "https://registry.yarnpkg.com/pathval/-/pathval-2.0.0.tgz#7e2550b422601d4f6b8e26f1301bc8f15a741a25"
   integrity sha512-vE7JKRyES09KiunauX7nd2Q9/L7lhok4smP9RZTDeD4MVs72Dp2qNFVz39Nz5a0FVEW0BJR6C0DYrq6unoziZA==
 
-pdfjs-dist@4.8.69, pdfjs-dist@^4.6.82, pdfjs-dist@^4.8.69:
+pdfjs-dist@4.8.69, pdfjs-dist@^4.5.136, pdfjs-dist@^4.6.82, pdfjs-dist@^4.8.69:
   version "4.10.38"
   resolved "https://registry.yarnpkg.com/pdfjs-dist/-/pdfjs-dist-4.10.38.tgz#3ee698003790dc266cc8b55c0e662ccb9ae18f53"
   integrity sha512-/Y3fcFrXEAsMjJXeL9J8+ZG9U01LbuWaYypvDW2ycW1jL269L3js3DVBjDJ0Up9Np1uqDXsDrRihHANhZOlwdQ==
