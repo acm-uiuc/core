@@ -92,6 +92,7 @@ jobs:
     name: Run Live Integration Tests
     needs:
       - deploy-dev
+      - deploy-cf-pages-dev
     concurrency:
       group: ${{ github.event.repository.name }}-dev
       cancel-in-progress: false
