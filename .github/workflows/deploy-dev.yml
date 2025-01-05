@@ -87,6 +87,7 @@ jobs:
           projectName: management-ui-dev
           directory: dist/ui/
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
   test:
     runs-on: ubuntu-latest
     name: Run Live Integration Tests

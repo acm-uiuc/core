@@ -173,6 +173,7 @@ jobs:
           projectName: management-ui-prod
           directory: dist/ui/
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
   health-check-prod:
     runs-on: ubuntu-latest
     name: Confirm services healthy
