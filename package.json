@@ -55,7 +55,7 @@
         "jwks-rsa": "^3.1.0",
         "moment": "^2.30.1",
         "moment-timezone": "^0.5.45",
-        "pdfjs-dist": "^4.5.136",
+        "pdfjs-dist": "^4.8.69",
         "pluralize": "^8.0.0",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
@@ -131,6 +131,6 @@
         "yarn-upgrade-all": "^0.7.4"
     },
     "resolutions": {
-        "pdfjs-dist": "4.5.136"
+        "pdfjs-dist": "^4.8.69"
     }
 }
