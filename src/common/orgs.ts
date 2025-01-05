@@ -28,5 +28,3 @@ export const CommitteeList = [
   "Marketing Committee",
 ] as const;
 export const OrganizationList = ["ACM", ...SIGList, ...CommitteeList];
-
-//. thing

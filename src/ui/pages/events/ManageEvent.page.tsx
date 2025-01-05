@@ -6,11 +6,10 @@ import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { z } from 'zod';
-
-import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { AuthGuard } from '@ui/components/AuthGuard';
 import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
+import { OrganizationList as orgList } from '@common/orgs';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -50,7 +49,6 @@ const requestBodySchema = baseBodySchema
 type EventPostRequest = z.infer<typeof requestBodySchema>;
 
 export const ManageEventPage: React.FC = () => {
-  const [orgList, setOrgList] = useState<null | string[]>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigate = useNavigate();
   const api = useApi('core');
@@ -58,14 +56,6 @@ export const ManageEventPage: React.FC = () => {
   const { eventId } = useParams();
 
   const isEditing = eventId !== undefined;
-
-  useEffect(() => {
-    const getOrgs = async () => {
-      const response = await api.get('/api/v1/organizations');
-      setOrgList(response.data);
-    };
-    getOrgs();
-  }, []);
 
   useEffect(() => {
     if (!isEditing) {
@@ -161,10 +151,6 @@ export const ManageEventPage: React.FC = () => {
       });
     }
   };
-
-  if (orgList === null) {
-    return <FullScreenLoader />;
-  }
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: ['manage:events'] }}>
