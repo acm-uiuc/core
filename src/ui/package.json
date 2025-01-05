@@ -1,0 +1,20 @@
+{
+  "name": "infra-core-ui",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "cross-env VITE_RUN_ENVIRONMENT=local-dev vite",
+    "dev:aws": "cross-env VITE_RUN_ENVIRONMENT=dev vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": " eslint . --ext .ts,.tsx --cache",
+    "prettier": "prettier --check \"**/*.{ts,tsx}\"",
+    "prettier:write": "prettier --write \"**/*.{ts,tsx}\"",
+    "vitest": "vitest run",
+    "vitest:watch": "vitest",
+    "test": "npm run typecheck && npm run prettier && npm run lint && npm run vitest && npm run build",
+    "storybook": "storybook dev -p 6006",
+    "storybook:build": "storybook build"
+  }
+}

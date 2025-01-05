@@ -27,7 +27,7 @@ jobs:
   deploy-dev:
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.event.repository.name }}-dev
+      group: ${{ github.event.repository.name }}-dev-aws
       cancel-in-progress: false
     environment: "AWS DEV"
     name: Deploy to AWS DEV
@@ -56,11 +56,43 @@ jobs:
       - run: make deploy_dev
         env:
           HUSKY: "0"
+  deploy-cf-pages-dev:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.event.repository.name }}-dev-cf
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      deployments: write
+    needs:
+      - test-unit
+    name: Deploy to Cloudflare Pages DEV
+    environment: "Cloudflare Pages"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Node LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build
+        run: corepack enable && yarn && yarn run build
+        env:
+          VITE_RUN_ENVIRONMENT: dev
+      - name: Publish
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: management-ui-dev
+          directory: dist/ui/
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
   test:
     runs-on: ubuntu-latest
     name: Run Live Integration Tests
     needs:
       - deploy-dev
+      - deploy-cf-pages-dev
     concurrency:
       group: ${{ github.event.repository.name }}-dev
       cancel-in-progress: false
@@ -82,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Deploy to AWS PROD
     concurrency:
-      group: ${{ github.event.repository.name }}-prod
+      group: ${{ github.event.repository.name }}-prod-aws
       cancel-in-progress: false
     needs:
       - test
@@ -110,6 +142,38 @@ jobs:
       - run: make deploy_prod
         env:
           HUSKY: "0"
+  deploy-cf-pages-prod:
+    runs-on: ubuntu-latest
+    needs:
+      - test
+    permissions:
+      contents: read
+      deployments: write
+    concurrency:
+      group: ${{ github.event.repository.name }}-prod-cf
+      cancel-in-progress: false
+    name: Deploy to Cloudflare Pages Prod
+    environment: "Cloudflare Pages"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Node LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build
+        run: corepack enable && yarn && yarn run build
+        env:
+          VITE_RUN_ENVIRONMENT: prod
+      - name: Publish
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: management-ui-prod
+          directory: dist/ui/
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
   health-check-prod:
     runs-on: ubuntu-latest
     name: Confirm services healthy

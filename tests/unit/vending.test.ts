@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import init from "../../src/index.js";
+import init from "../../src/api/index.js";
 
 const app = await init();
 test("Test getting events", async () => {

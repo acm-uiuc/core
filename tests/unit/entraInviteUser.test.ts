@@ -1,6 +1,6 @@
 import { afterAll, expect, test, beforeEach, vi } from "vitest";
 import { mockClient } from "aws-sdk-client-mock";
-import init from "../../src/index.js";
+import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
 import { secretJson, secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
@@ -10,20 +10,23 @@ import {
   SecretsManagerClient,
 } from "@aws-sdk/client-secrets-manager";
 
-vi.mock("../../src/functions/entraId.js", () => {
+vi.mock("../../src/api/functions/entraId.js", () => {
   return {
-    ...vi.importActual("../../src/functions/entraId.js"),
+    ...vi.importActual("../../src/api/functions/entraId.js"),
     getEntraIdToken: vi.fn().mockImplementation(async () => {
       return "ey.test.token";
     }),
-    addToTenant: vi.fn().mockImplementation(async (email) => {
+    addToTenant: vi.fn().mockImplementation(async (_) => {
       return { success: true, email: "testing@illinois.edu" };
     }),
   };
 });
 
-import { addToTenant, getEntraIdToken } from "../../src/functions/entraId.js";
-import { EntraInvitationError } from "../../src/errors/index.js";
+import {
+  addToTenant,
+  getEntraIdToken,
+} from "../../src/api/functions/entraId.js";
+import { EntraInvitationError } from "../../src/common/errors/index.js";
 
 const smMock = mockClient(SecretsManagerClient);
 const jwt_secret = secretObject["jwt_key"];
@@ -41,7 +44,7 @@ describe("Test Microsoft Entra ID user invitation", () => {
     await app.ready();
 
     const response = await supertest(app.server)
-      .post("/api/v1/sso/inviteUsers")
+      .post("/api/v1/iam/inviteUsers")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
         emails: ["someone@testing.acmuiuc.org"],
@@ -58,7 +61,7 @@ describe("Test Microsoft Entra ID user invitation", () => {
     await app.ready();
 
     const response = await supertest(app.server)
-      .post("/api/v1/sso/inviteUsers")
+      .post("/api/v1/iam/inviteUsers")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
         emails: ["someone@illinois.edu"],
@@ -75,7 +78,7 @@ describe("Test Microsoft Entra ID user invitation", () => {
     await app.ready();
 
     const response = await supertest(app.server)
-      .post("/api/v1/sso/inviteUsers")
+      .post("/api/v1/iam/inviteUsers")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
         emails: ["someone@illinois.edu"],

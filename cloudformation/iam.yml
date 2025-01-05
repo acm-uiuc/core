@@ -73,6 +73,10 @@ Resources:
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-events-ticketing-metadata
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-metadata/*
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-metadata
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-userroles
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-userroles/*
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles/*
 
         PolicyName: lambda-dynamo
 Outputs:

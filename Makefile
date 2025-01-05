@@ -42,12 +42,13 @@ check_account_dev:
 clean:
 	rm -rf .aws-sam
 	rm -rf node_modules/
-	rm -rf src/dist/
-	rm -rf src/build/
+	rm -rf src/api/node_modules/
+	rm -rf src/ui/node_modules/
+	rm -rf dist/
 
 build: src/ cloudformation/ docs/
 	yarn -D
-	yarn build:lambda
+	yarn build
 	sam build --template-file cloudformation/main.yml
 
 local:

@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
-import { InternalServerError } from "../../src/errors/index.js";
+import { InternalServerError } from "../../src/common/errors/index.js";
 import { describe } from "node:test";
-import { OrganizationList } from "../../src/orgs.js";
+import { OrganizationList } from "../../src/common/orgs.js";
 import ical from "node-ical";
 
 const appKey = process.env.APPLICATION_KEY;
