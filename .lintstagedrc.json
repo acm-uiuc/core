@@ -1,6 +1,1 @@
-{
-    "*.ts": [
-      "yarn run prettier:write",
-      "yarn run lint --fix"
-    ]
-  }
+{ "src/**/*.{ts,js}": ["yarn run lint --fix", "yarn run prettier:write"] }
