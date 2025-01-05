@@ -56,6 +56,37 @@ jobs:
       - run: make deploy_dev
         env:
           HUSKY: "0"
+  deploy-cf-pages-dev:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.event.repository.name }}-dev
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      deployments: write
+    needs:
+      - test-unit
+    name: Deploy to Cloudflare Pages DEV
+    environment: "Cloudflare Pages"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Node LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build
+        run: corepack enable && yarn && yarn run build
+        env:
+          VITE_RUN_ENVIRONMENT: dev
+      - name: Publish
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ${{ github.event.repository.name }}-dev
+          directory: dist/
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
   test:
     runs-on: ubuntu-latest
     name: Run Live Integration Tests

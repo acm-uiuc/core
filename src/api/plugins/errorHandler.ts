@@ -5,7 +5,7 @@ import {
   InternalServerError,
   NotFoundError,
   ValidationError,
-} from "../../errors/index.js";
+} from "../../common/errors/index.js";
 
 const errorHandlerPlugin = fp(async (fastify) => {
   fastify.setErrorHandler(

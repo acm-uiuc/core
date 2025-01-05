@@ -5,12 +5,12 @@ import FastifyAuthProvider from "@fastify/auth";
 import fastifyAuthPlugin from "./plugins/auth.js";
 import protectedRoute from "./routes/protected.js";
 import errorHandlerPlugin from "./plugins/errorHandler.js";
-import { RunEnvironment, runEnvironments } from "../roles.js";
-import { InternalServerError } from "../errors/index.js";
+import { RunEnvironment, runEnvironments } from "../common/roles.js";
+import { InternalServerError } from "../common/errors/index.js";
 import eventsPlugin from "./routes/events.js";
 import cors from "@fastify/cors";
 import fastifyZodValidationPlugin from "./plugins/validate.js";
-import { environmentConfig } from "../config.js";
+import { environmentConfig } from "../common/config.js";
 import organizationsPlugin from "./routes/organizations.js";
 import icalPlugin from "./routes/ics.js";
 import vendingPlugin from "./routes/vending.js";
@@ -48,7 +48,8 @@ async function init() {
     });
   }
   app.runEnvironment = process.env.RunEnvironment as RunEnvironment;
-  app.environmentConfig = environmentConfig[app.runEnvironment];
+  app.environmentConfig =
+    environmentConfig[app.runEnvironment as RunEnvironment];
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     req.log.info({ url: req.raw.url }, "received request");

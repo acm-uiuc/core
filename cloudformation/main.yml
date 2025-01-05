@@ -81,7 +81,7 @@ Resources:
     DependsOn:
       - AppLogGroups
     Properties:
-      CodeUri: ../dist/src/
+      CodeUri: ../dist
       AutoPublishAlias: live
       Runtime: nodejs20.x
       Description: !Sub "${ApplicationFriendlyName} API Lambda"

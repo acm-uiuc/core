@@ -6,14 +6,14 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
-import { AppRoles } from "../../roles.js";
+import { AppRoles } from "../../common/roles.js";
 import {
   BaseError,
   InternalServerError,
   UnauthenticatedError,
   UnauthorizedError,
-} from "../../errors/index.js";
-import { genericConfig, SecretConfig } from "../../config.js";
+} from "../../common/errors/index.js";
+import { genericConfig, SecretConfig } from "../../common/config.js";
 
 function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();

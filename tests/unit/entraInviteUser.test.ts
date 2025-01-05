@@ -26,7 +26,7 @@ import {
   addToTenant,
   getEntraIdToken,
 } from "../../src/api/functions/entraId.js";
-import { EntraInvitationError } from "../../src/errors/index.js";
+import { EntraInvitationError } from "../../src/common/errors/index.js";
 
 const smMock = mockClient(SecretsManagerClient);
 const jwt_secret = secretObject["jwt_key"];

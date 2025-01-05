@@ -12,7 +12,7 @@ import {
   jwtPayloadNoGroups,
 } from "./secret.testdata.js";
 import jwt from "jsonwebtoken";
-import { allAppRoles, AppRoles } from "../../src/roles.js";
+import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 
 const ddbMock = mockClient(SecretsManagerClient);
 

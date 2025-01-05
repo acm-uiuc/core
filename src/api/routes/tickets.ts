@@ -6,7 +6,7 @@ import {
   ScanCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../../config.js";
+import { genericConfig } from "../../common/config.js";
 import {
   BaseError,
   DatabaseFetchError,
@@ -16,10 +16,10 @@ import {
   TicketNotValidError,
   UnauthenticatedError,
   ValidationError,
-} from "../../errors/index.js";
+} from "../../common/errors/index.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { validateEmail } from "../functions/validation.js";
-import { AppRoles } from "../../roles.js";
+import { AppRoles } from "../../common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 const postMerchSchema = z.object({

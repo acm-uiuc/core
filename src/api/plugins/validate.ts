@@ -1,6 +1,9 @@
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
-import { InternalServerError, ValidationError } from "../../errors/index.js";
+import {
+  InternalServerError,
+  ValidationError,
+} from "../../common/errors/index.js";
 import { z, ZodError } from "zod";
 import { fromError } from "zod-validation-error";
 

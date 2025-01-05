@@ -12,9 +12,9 @@ import { type EventPostRequest } from "../routes/events.js";
 import moment from "moment-timezone";
 
 import { FastifyBaseLogger } from "fastify";
-import { DiscordEventError } from "../../errors/index.js";
+import { DiscordEventError } from "../../common/errors/index.js";
 import { getSecretValue } from "../plugins/auth.js";
-import { genericConfig } from "../../config.js";
+import { genericConfig } from "../../common/config.js";
 
 // https://stackoverflow.com/a/3809435/5684541
 // https://calendar-buff.acmuiuc.pages.dev/calendar?id=dd7af73a-3df6-4e12-b228-0d2dac34fda7&date=2024-08-30
