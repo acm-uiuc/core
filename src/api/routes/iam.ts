@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
-import { AppRoles } from "../roles.js";
+import { AppRoles } from "../../roles.js";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { addToTenant, getEntraIdToken } from "../functions/entraId.js";
@@ -10,13 +10,13 @@ import {
   EntraInvitationError,
   InternalServerError,
   NotFoundError,
-} from "../errors/index.js";
+} from "../../errors/index.js";
 import {
   DynamoDBClient,
   GetItemCommand,
   PutItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../config.js";
+import { genericConfig } from "../../config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
 const invitePostRequestSchema = z.object({

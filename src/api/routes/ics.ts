@@ -5,9 +5,9 @@ import {
   QueryCommandInput,
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../config.js";
+import { genericConfig } from "../../config.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { NotFoundError, ValidationError } from "../errors/index.js";
+import { NotFoundError, ValidationError } from "../../errors/index.js";
 import ical, {
   ICalCalendarMethod,
   ICalEventJSONRepeatingData,
@@ -15,7 +15,7 @@ import ical, {
 } from "ical-generator";
 import moment from "moment";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
-import { OrganizationList } from "../orgs.js";
+import { OrganizationList } from "../../orgs.js";
 import { EventRepeatOptions } from "./events.js";
 
 const dynamoClient = new DynamoDBClient({

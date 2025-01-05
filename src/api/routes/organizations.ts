@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
-import { OrganizationList } from "../orgs.js";
+import { OrganizationList } from "../../orgs.js";
 import fastifyCaching from "@fastify/caching";
 
 const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {

@@ -1,8 +1,8 @@
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
-import { AppRoles } from "../roles.js";
+import { AppRoles } from "../../roles.js";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { OrganizationList } from "../orgs.js";
+import { OrganizationList } from "../../orgs.js";
 import {
   DeleteItemCommand,
   DynamoDBClient,
@@ -11,7 +11,7 @@ import {
   QueryCommand,
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../config.js";
+import { genericConfig } from "../../config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import {
   BaseError,
@@ -19,7 +19,7 @@ import {
   DatabaseInsertError,
   DiscordEventError,
   ValidationError,
-} from "../errors/index.js";
+} from "../../errors/index.js";
 import { randomUUID } from "crypto";
 import moment from "moment-timezone";
 import { IUpdateDiscord, updateDiscord } from "../functions/discord.js";

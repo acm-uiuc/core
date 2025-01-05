@@ -1,5 +1,8 @@
-import { genericConfig } from "../config.js";
-import { EntraInvitationError, InternalServerError } from "../errors/index.js";
+import { genericConfig } from "../../config.js";
+import {
+  EntraInvitationError,
+  InternalServerError,
+} from "../../errors/index.js";
 import { getSecretValue } from "../plugins/auth.js";
 import { ConfidentialClientApplication } from "@azure/msal-node";
 import { getItemFromCache, insertItemIntoCache } from "./cache.js";

@@ -3,7 +3,7 @@ import {
   PutItemCommand,
   QueryCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../config.js";
+import { genericConfig } from "../../config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
 const dynamoClient = new DynamoDBClient({

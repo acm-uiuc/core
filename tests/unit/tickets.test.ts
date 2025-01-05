@@ -7,7 +7,7 @@ import {
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
-import init from "../../src/index.js";
+import init from "../../src/api/index.js";
 import { secretObject } from "./secret.testdata.js";
 import {
   dynamoTableData,
@@ -101,7 +101,6 @@ describe("Test getting ticketing + merch metadata", async () => {
       .get("/api/v1/tickets")
       .set("authorization", `Bearer ${testJwt}`);
     const responseDataJson = response.body;
-    console.log(responseDataJson);
     expect(response.statusCode).toEqual(200);
     expect(responseDataJson).toEqual({
       merch: [

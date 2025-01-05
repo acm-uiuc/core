@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { InternalServerError } from "../../src/errors/index.js";
-import { EventsGetResponse } from "../../src/routes/events.js";
+import { EventsGetResponse } from "../../src/api/routes/events.js";
 
 const appKey = process.env.APPLICATION_KEY;
 if (!appKey) {
