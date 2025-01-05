@@ -18,6 +18,8 @@ import { z } from 'zod';
 import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { AuthGuard } from '@ui/components/AuthGuard';
 import { useApi } from '@ui/util/api';
+import { AppRoles } from '@common/roles';
+import App from '@ui/App';
 
 const baseItemMetadata = z.object({
   itemId: z.string().min(1),
@@ -180,11 +182,19 @@ const SelectTicketsPage: React.FC = () => {
   const sortedTickets = sortItems(items.tickets);
 
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: ['manage:tickets', 'scan:tickets'] }}>
+    <AuthGuard
+      resourceDef={{
+        service: 'core',
+        validRoles: [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
+      }}
+    >
       <Title order={2} mb="md">
         Tickets & Merchandise
       </Title>
-      <AuthGuard isAppShell={false} resourceDef={{ service: 'core', validRoles: ['scan:tickets'] }}>
+      <AuthGuard
+        isAppShell={false}
+        resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_SCANNER] }}
+      >
         <Button
           variant="primary"
           onClick={() => handleScanClick()}
@@ -240,7 +250,7 @@ const SelectTicketsPage: React.FC = () => {
                     <Group>
                       <AuthGuard
                         isAppShell={false}
-                        resourceDef={{ service: 'core', validRoles: ['manage:tickets'] }}
+                        resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}
                       >
                         <Button
                           variant="outline"
@@ -318,7 +328,7 @@ const SelectTicketsPage: React.FC = () => {
                     <Group>
                       <AuthGuard
                         isAppShell={false}
-                        resourceDef={{ service: 'core', validRoles: ['manage:tickets'] }}
+                        resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}
                       >
                         <Button
                           variant="outline"

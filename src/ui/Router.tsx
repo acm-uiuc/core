@@ -16,6 +16,7 @@ import { ViewEventsPage } from './pages/events/ViewEvents.page';
 import { ScanTicketsPage } from './pages/tickets/ScanTickets.page';
 import { SelectTicketsPage } from './pages/tickets/SelectEventId.page';
 import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
+import { ManageIamPage } from './pages/iam/ManageIam.page';
 
 // Component to handle redirects to login with return path
 const LoginRedirect: React.FC = () => {
@@ -109,6 +110,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/tickets',
     element: <SelectTicketsPage />,
+  },
+  {
+    path: '/iam',
+    element: <ManageIamPage />,
   },
   {
     path: '/tickets/manage/:eventId',

@@ -15,6 +15,7 @@ import {
   IconFileDollar,
   IconPizza,
   IconTicket,
+  IconLock,
 } from '@tabler/icons-react';
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -42,6 +43,12 @@ export const navItems = [
     link: '/tickets',
     name: 'Ticketing/Merch',
     icon: IconTicket,
+    description: null,
+  },
+  {
+    link: '/iam',
+    name: 'IAM',
+    icon: IconLock,
     description: null,
   },
 ];

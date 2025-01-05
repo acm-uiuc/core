@@ -5,6 +5,7 @@ import { AcmAppShell } from '@ui/components/AppShell';
 import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { getRunEnvironmentConfig, ValidService } from '@ui/config';
 import { useApi } from '@ui/util/api';
+import { AppRoles } from '@common/roles';
 
 export const CACHE_KEY_PREFIX = 'auth_response_cache_';
 const CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
@@ -16,7 +17,7 @@ type CacheData = {
 
 export type ResourceDefinition = {
   service: ValidService;
-  validRoles: string[];
+  validRoles: AppRoles[];
 };
 
 const getAuthCacheKey = (service: ValidService, route: string) =>

@@ -10,6 +10,7 @@ import { AuthGuard } from '@ui/components/AuthGuard';
 import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
+import { AppRoles } from '@common/roles';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -153,7 +154,7 @@ export const ManageEventPage: React.FC = () => {
   };
 
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: ['manage:events'] }}>
+    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
       <Title order={2}>{isEditing ? `Edit` : `Add`} Event</Title>
       <Box maw={400} mx="auto" mt="xl">
         <form onSubmit={form.onSubmit(handleSubmit)}>

@@ -1,6 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
 import { AppRoles } from "../../common/roles.js";
-import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { addToTenant, getEntraIdToken } from "../functions/entraId.js";
 import {
@@ -18,33 +17,13 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
-
-const invitePostRequestSchema = z.object({
-  emails: z.array(z.string()),
-});
-export type InviteUserPostRequest = z.infer<typeof invitePostRequestSchema>;
-
-const groupMappingCreatePostSchema = z.object({
-  roles: z
-    .array(z.nativeEnum(AppRoles))
-    .min(1)
-    .refine((items) => new Set(items).size === items.length, {
-      message: "All roles must be unique, no duplicate values allowed",
-    }),
-});
-
-export type GroupMappingCreatePostRequest = z.infer<
-  typeof groupMappingCreatePostSchema
->;
-
-const invitePostResponseSchema = zodToJsonSchema(
-  z.object({
-    success: z.array(z.object({ email: z.string() })).optional(),
-    failure: z
-      .array(z.object({ email: z.string(), message: z.string() }))
-      .optional(),
-  }),
-);
+import {
+  InviteUserPostRequest,
+  invitePostRequestSchema,
+  GroupMappingCreatePostRequest,
+  groupMappingCreatePostSchema,
+  invitePostResponseSchema,
+} from "../../common/types/iam.js";
 
 const dynamoClient = new DynamoDBClient({
   region: genericConfig.AwsRegion,
@@ -155,13 +134,13 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/inviteUsers",
     {
       schema: {
-        response: { 200: invitePostResponseSchema },
+        response: { 200: zodToJsonSchema(invitePostResponseSchema) },
       },
       preValidation: async (request, reply) => {
         await fastify.zodValidateBody(request, reply, invitePostRequestSchema);
       },
       onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.SSO_INVITE_USER]);
+        await fastify.authorize(request, reply, [AppRoles.IAM_INVITE_ONLY]);
       },
     },
     async (request, reply) => {
@@ -194,11 +173,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
       }
-      let statusCode = 201;
-      if (response.success.length === 0) {
-        statusCode = 500;
-      }
-      reply.status(statusCode).send(response);
+      reply.status(202).send(response);
     },
   );
 };

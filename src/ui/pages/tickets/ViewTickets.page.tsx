@@ -8,6 +8,7 @@ import { z } from 'zod';
 import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { AuthGuard } from '@ui/components/AuthGuard';
 import { useApi } from '@ui/util/api';
+import { AppRoles } from '@common/roles';
 
 // Define the schemas
 const purchaseSchema = z.object({
@@ -116,7 +117,7 @@ const ViewTicketsPage: React.FC = () => {
   const endIndex = startIndex + parseInt(pageSize);
   const currentTickets = allTickets.slice(startIndex, endIndex);
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: ['manage:tickets'] }}>
+    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}>
       <Title order={2}>View Tickets/Merch Sales</Title>
       <div>
         <br />
@@ -147,7 +148,7 @@ const ViewTicketsPage: React.FC = () => {
                   <Table.Td>
                     {!(ticket.fulfilled || ticket.refunded) && (
                       <AuthGuard
-                        resourceDef={{ service: 'core', validRoles: ['scan:tickets'] }}
+                        resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_SCANNER] }}
                         isAppShell={false}
                       >
                         <Button

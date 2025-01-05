@@ -18,6 +18,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { AuthGuard } from '@ui/components/AuthGuard';
 import { useApi } from '@ui/util/api';
+import { AppRoles } from '@common/roles';
 
 interface QRDataMerch {
   type: string;
@@ -305,7 +306,7 @@ export const ScanTicketsPage: React.FC = () => {
   }
 
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: ['scan:tickets'] }}>
+    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_SCANNER] }}>
       <Box p="md">
         <Title order={2}>Scan Tickets</Title>
         <Paper shadow="sm" p="md" withBorder maw={600} mx="auto" w="100%">

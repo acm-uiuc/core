@@ -11,6 +11,7 @@ export default defineConfig({
     tsconfigPaths(),
   ],
   resolve: {
+    preserveSymlinks: true,
     alias: {
       '@ui': path.resolve(__dirname, './'),
       '@common': path.resolve(__dirname, '../common/'),

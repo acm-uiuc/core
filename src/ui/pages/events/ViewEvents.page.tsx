@@ -11,6 +11,7 @@ import { capitalizeFirstLetter } from './ManageEvent.page.js';
 import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { AuthGuard } from '@ui/components/AuthGuard';
 import { useApi } from '@ui/util/api';
+import { AppRoles } from '@common/roles.js';
 
 const repeatOptions = ['weekly', 'biweekly'] as const;
 
@@ -129,7 +130,7 @@ export const ViewEventsPage: React.FC = () => {
   }
 
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: ['manage:events'] }}>
+    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
       {deleteCandidate && (
         <Modal
           opened={opened}

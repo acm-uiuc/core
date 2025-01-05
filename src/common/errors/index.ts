@@ -141,7 +141,7 @@ export class EntraInvitationError extends BaseError<"EntraInvitationError"> {
       name: "EntraInvitationError",
       id: 108,
       message: message || "Could not invite user to Entra ID.",
-      httpStatusCode: 500,
+      httpStatusCode: 400,
     });
     this.email = email;
   }

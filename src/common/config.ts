@@ -80,7 +80,7 @@ const environmentConfig: EnvironmentConfigType = {
       "ff49e948-4587-416b-8224-65147540d5fc": allAppRoles, // Officers
       "ad81254b-4eeb-4c96-8191-3acdce9194b1": [
         AppRoles.EVENTS_MANAGER,
-        AppRoles.SSO_INVITE_USER,
+        AppRoles.IAM_INVITE_ONLY,
       ], // Exec
     },
     UserRoleMapping: {
