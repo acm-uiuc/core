@@ -12,7 +12,6 @@
         "prettier": "yarn workspaces run prettier && prettier --check tests/**/*.ts",
         "prettier:write": "yarn workspaces run prettier:write && prettier --write tests/**/*.ts",
         "lint": "yarn workspaces run lint",
-        "lint-staged": "lint-staged",
         "prepare": "node .husky/install.mjs || true",
         "typecheck": "yarn workspaces run typecheck",
         "test:unit": "cross-env APPLICATION_KEY=infra-core-api vitest run tests/unit",
