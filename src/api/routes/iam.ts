@@ -32,6 +32,7 @@ import {
   groupModificationPatchSchema,
   GroupModificationPatchRequest,
   EntraGroupActions,
+  entraGroupMembershipListResponse,
 } from "../../common/types/iam.js";
 
 const dynamoClient = new DynamoDBClient({
@@ -143,7 +144,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/inviteUsers",
     {
       schema: {
-        response: { 200: zodToJsonSchema(entraActionResponseSchema) },
+        response: { 202: zodToJsonSchema(entraActionResponseSchema) },
       },
       preValidation: async (request, reply) => {
         await fastify.zodValidateBody(request, reply, invitePostRequestSchema);
@@ -289,6 +290,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/groups/:groupId",
     {
       schema: {
+        response: { 200: zodToJsonSchema(entraGroupMembershipListResponse) },
         querystring: {
           type: "object",
           properties: {

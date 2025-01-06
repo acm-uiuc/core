@@ -51,3 +51,14 @@ export const groupModificationPatchSchema = z.object({
 export type GroupModificationPatchRequest = z.infer<
   typeof groupModificationPatchSchema
 >;
+
+export const entraGroupMembershipListResponse = z.array(
+  z.object({
+    name: z.string(),
+    email: z.string(),
+  }),
+);
+
+export type GroupMemberGetResponse = z.infer<
+  typeof entraGroupMembershipListResponse
+>;
