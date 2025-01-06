@@ -115,7 +115,7 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
           <List>
             {members.map((member) => (
               <ListItem key={member.email}>
-                <Group position="apart">
+                <Group justify="space-between">
                   <Text size="sm">{member.email}</Text>
                   <ActionIcon
                     color="red"
@@ -129,19 +129,6 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
             ))}
           </List>
         </ScrollArea>
-      </Box>
-
-      {/* Add Member */}
-      <Box mb="md">
-        <TextInput
-          value={email}
-          onChange={(event) => setEmail(event.currentTarget.value)}
-          placeholder="Enter email to add"
-          disabled={isLoading}
-        />
-        <Button mt="sm" onClick={handleAddMember} disabled={!email.trim() || isLoading}>
-          Add Member
-        </Button>
       </Box>
 
       {/* Save Changes Button */}
@@ -195,7 +182,7 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
               </ScrollArea>
             </Box>
           )}
-          <Group position="center" mt="lg">
+          <Group justify="center" mt="lg">
             <Button onClick={handleSaveChanges} loading={isLoading} color="blue">
               Confirm and Save
             </Button>
@@ -209,70 +196,6 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
           </Group>
         </Box>
       </Modal>
-
-      {/* Results */}
-      {results.length > 0 && (
-        <Box mt="md">
-          <Text fw={500} size="sm" mb="xs">
-            Results
-          </Text>
-          <List>
-            {results.map(({ email, status, message }) => (
-              <ListItem key={email}>
-                <Group position="apart">
-                  <Text size="sm">{email}</Text>
-                  <Group>
-                    <Badge color={status === 'success' ? 'green' : 'red'}>
-                      {status === 'success' ? 'Success' : 'Failure'}
-                    </Badge>
-                    {status === 'failure' && (
-                      <Button
-                        variant="subtle"
-                        size="xs"
-                        onClick={() => handleViewErrorDetails(email, message || 'Unknown error')}
-                      >
-                        View Details
-                      </Button>
-                    )}
-                  </Group>
-                </Group>
-              </ListItem>
-            ))}
-          </List>
-        </Box>
-      )}
-
-      {/* Error Modal */}
-      <Modal
-        opened={errorModal.open}
-        onClose={() => setErrorModal({ open: false, email: '', message: '' })}
-        title="Error Details"
-      >
-        <Box>
-          <Text fw={500} size="sm" mb={2}>
-            Email:
-          </Text>
-          <Text size="sm" mb="md">
-            {errorModal.email}
-          </Text>
-          <Text fw={500} size="sm" mb={2}>
-            Error Message:
-          </Text>
-          <Text size="sm" mb="md">
-            {errorModal.message}
-          </Text>
-          <Button fullWidth onClick={() => setErrorModal({ open: false, email: '', message: '' })}>
-            Close
-          </Button>
-        </Box>
-      </Modal>
-
-      {/* Notifications for Feedback */}
-      {isLoading && (
-        <Alert color="blue" title="Processing Changes" mt="md">
-          Please wait while the changes are being processed.
-        </Alert>
-      )}
     </Box>
   );
 };

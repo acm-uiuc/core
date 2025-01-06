@@ -1,10 +1,10 @@
 import { Box, Button, Textarea, Text, Modal, Alert, Group, List, ListItem } from '@mantine/core';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
 import React, { useState } from 'react';
-import { InvitePostResponse } from '@common/types/iam';
+import { EntraActionResponse } from '@common/types/iam';
 
 interface UserInvitePanelProps {
-  onSubmit: (emails: string[]) => Promise<InvitePostResponse>;
+  onSubmit: (emails: string[]) => Promise<EntraActionResponse>;
 }
 
 interface ErrorModalState {
@@ -16,7 +16,7 @@ interface ErrorModalState {
 export const UserInvitePanel: React.FC<UserInvitePanelProps> = ({ onSubmit }) => {
   const [emails, setEmails] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [results, setResults] = useState<InvitePostResponse | null>(null);
+  const [results, setResults] = useState<EntraActionResponse | null>(null);
   const [errorModal, setErrorModal] = useState<ErrorModalState>({
     open: false,
     email: '',

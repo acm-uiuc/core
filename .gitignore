@@ -133,6 +133,7 @@ dist
 .aws-sam/
 build/
 dist/
+dist_ui/
 
 *.pyc
 __pycache__
