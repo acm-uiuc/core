@@ -85,7 +85,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: management-ui-dev
-          directory: dist/ui/
+          directory: dist_ui/
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           branch: main
   test:

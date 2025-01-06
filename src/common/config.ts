@@ -30,11 +30,16 @@ type GenericConfigType = {
   TicketMetadataTableName: string;
   MerchStoreMetadataTableName: string;
   IAMTablePrefix: string;
+  ProtectedEntraIDGroups: string[]; // these groups are too privileged to be modified via this portal and must be modified directly in Entra ID.
 };
 
 type EnvironmentConfigType = {
   [env in RunEnvironment]: ConfigType;
 };
+
+export const infraChairsGroupId = "48591dbc-cdcb-4544-9f63-e6b92b067e33";
+export const officersGroupId = "ff49e948-4587-416b-8224-65147540d5fc";
+export const execCouncilGroupId = "ad81254b-4eeb-4c96-8191-3acdce9194b1";
 
 const genericConfig: GenericConfigType = {
   EventsDynamoTableName: "infra-core-api-events",
@@ -48,12 +53,13 @@ const genericConfig: GenericConfigType = {
   TicketPurchasesTableName: "infra-events-tickets",
   TicketMetadataTableName: "infra-events-ticketing-metadata",
   IAMTablePrefix: "infra-core-api-iam",
+  ProtectedEntraIDGroups: [infraChairsGroupId, officersGroupId],
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
   dev: {
     GroupRoleMapping: {
-      "48591dbc-cdcb-4544-9f63-e6b92b067e33": allAppRoles, // Infra Chairs
+      [infraChairsGroupId]: allAppRoles, // Infra Chairs
       "940e4f9e-6891-4e28-9e29-148798495cdb": allAppRoles, // ACM Infra Team
       "f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6": allAppRoles, // Infra Leads
       "0": allAppRoles, // Dummy Group for development only
@@ -76,12 +82,9 @@ const environmentConfig: EnvironmentConfigType = {
   },
   prod: {
     GroupRoleMapping: {
-      "48591dbc-cdcb-4544-9f63-e6b92b067e33": allAppRoles, // Infra Chairs
-      "ff49e948-4587-416b-8224-65147540d5fc": allAppRoles, // Officers
-      "ad81254b-4eeb-4c96-8191-3acdce9194b1": [
-        AppRoles.EVENTS_MANAGER,
-        AppRoles.IAM_INVITE_ONLY,
-      ], // Exec
+      [infraChairsGroupId]: allAppRoles, // Infra Chairs
+      [officersGroupId]: allAppRoles, // Officers
+      [execCouncilGroupId]: [AppRoles.EVENTS_MANAGER, AppRoles.IAM_INVITE_ONLY], // Exec
     },
     UserRoleMapping: {
       "jlevine4@illinois.edu": allAppRoles,

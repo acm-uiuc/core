@@ -179,3 +179,25 @@ export class NotSupportedError extends BaseError<"NotSupportedError"> {
     });
   }
 }
+
+export class EntraGroupError extends BaseError<"EntraGroupError"> {
+  group: string;
+  constructor({
+    code,
+    message,
+    group,
+  }: {
+    code?: number;
+    message?: string;
+    group: string;
+  }) {
+    super({
+      name: "EntraGroupError",
+      id: 308,
+      message:
+        message || `Could not modify the group membership for group ${group}.`,
+      httpStatusCode: code || 500,
+    });
+    this.group = group;
+  }
+}
