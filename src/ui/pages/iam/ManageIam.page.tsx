@@ -70,7 +70,12 @@ export const ManageIamPage = () => {
       <Title order={2}>Manage Authentication</Title>
       <SimpleGrid cols={2}>
         <UserInvitePanel onSubmit={handleInviteSubmit} />
-        <GroupMemberManagement fetchMembers={getExecMembers} updateMembers={updateExecMembers} />
+        <AuthGuard
+          resourceDef={{ service: 'core', validRoles: [AppRoles.IAM_ADMIN] }}
+          isAppShell={false}
+        >
+          <GroupMemberManagement fetchMembers={getExecMembers} updateMembers={updateExecMembers} />
+        </AuthGuard>
         {/* For future panels, make sure to add an auth guard if not every IAM role can see it. */}
       </SimpleGrid>
     </AuthGuard>

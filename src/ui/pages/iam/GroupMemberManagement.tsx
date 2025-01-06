@@ -8,12 +8,11 @@ import {
   Modal,
   List,
   ListItem,
-  Alert,
-  ActionIcon,
   ScrollArea,
   Badge,
+  ActionIcon,
 } from '@mantine/core';
-import { IconTrash, IconCheck, IconX } from '@tabler/icons-react';
+import { IconTrash, IconUserPlus } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { GroupMemberGetResponse, EntraActionResponse } from '@common/types/iam';
 
@@ -29,17 +28,9 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
   const [members, setMembers] = useState<GroupMemberGetResponse>([]);
   const [toAdd, setToAdd] = useState<string[]>([]);
   const [toRemove, setToRemove] = useState<string[]>([]);
-  const [results, setResults] = useState<
-    { email: string; status: 'success' | 'failure'; message?: string }[]
-  >([]);
-  const [email, setEmail] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [confirmationModal, setConfirmationModal] = useState<boolean>(false);
-  const [errorModal, setErrorModal] = useState<{ open: boolean; email: string; message: string }>({
-    open: false,
-    email: '',
-    message: '',
-  });
+  const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [confirmationModal, setConfirmationModal] = useState(false);
 
   useEffect(() => {
     const loadMembers = async () => {
@@ -61,9 +52,14 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
     if (email && !members.some((member) => member.email === email) && !toAdd.includes(email)) {
       setToAdd((prev) => [...prev, email]);
       setEmail('');
+    } else {
+      notifications.show({
+        title: 'Invalid Input',
+        message: 'Email is missing or the user already exists.',
+        color: 'orange',
+      });
     }
   };
-
   const handleRemoveMember = (email: string) => {
     if (!toRemove.includes(email)) {
       setToRemove((prev) => [...prev, email]);
@@ -72,23 +68,27 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
 
   const handleSaveChanges = async () => {
     setIsLoading(true);
-    const newResults: { email: string; status: 'success' | 'failure'; message?: string }[] = [];
-
     try {
       const response = await updateMembers(toAdd, toRemove);
-      response.success?.forEach(({ email }) => {
-        newResults.push({ email, status: 'success' });
+      if (response.success) {
+        setMembers((prev) =>
+          prev
+            .filter((member) => !toRemove.includes(member.email))
+            .concat(toAdd.map((email) => ({ name: '', email })))
+        );
+        setToAdd([]);
+        setToRemove([]);
+      }
+
+      notifications.show({
+        title: 'Success',
+        message: 'Changes saved successfully!',
+        color: 'green',
       });
-      response.failure?.forEach(({ email, message }) => {
-        newResults.push({ email, status: 'failure', message });
-      });
-      setResults(newResults);
-      setToAdd([]);
-      setToRemove([]);
     } catch (error) {
       notifications.show({
         title: 'Error',
-        message: 'An error occurred while saving changes.',
+        message: 'Failed to save changes.',
         color: 'red',
       });
     } finally {
@@ -96,14 +96,10 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
     }
   };
 
-  const handleViewErrorDetails = (email: string, message: string) => {
-    setErrorModal({ open: true, email, message });
-  };
-
   return (
     <Box p="md">
       <Text fw={500} mb={4}>
-        Group Member Management
+        Exec Group Management
       </Text>
 
       {/* Member List */}
@@ -111,12 +107,21 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
         <Text size="sm" fw={500} mb="xs">
           Current Members
         </Text>
-        <ScrollArea style={{ height: 200 }}>
-          <List>
+        <ScrollArea style={{ height: 250 }}>
+          <List spacing="sm">
             {members.map((member) => (
               <ListItem key={member.email}>
                 <Group justify="space-between">
-                  <Text size="sm">{member.email}</Text>
+                  <Box>
+                    <Text size="sm">
+                      {member.name} ({member.email})
+                    </Text>
+                    {toRemove.includes(member.email) && (
+                      <Badge color="green" size="sm">
+                        Queued for removal
+                      </Badge>
+                    )}
+                  </Box>
                   <ActionIcon
                     color="red"
                     variant="light"
@@ -127,14 +132,45 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
                 </Group>
               </ListItem>
             ))}
+            {toAdd.map((member) => (
+              <ListItem key={member}>
+                <Group justify="space-between">
+                  <Box>
+                    <Text size="sm">{member}</Text>
+                    <Badge color="red" size="sm">
+                      Queued for addition
+                    </Badge>
+                  </Box>
+                </Group>
+              </ListItem>
+            ))}
           </List>
         </ScrollArea>
+      </Box>
+
+      {/* Add Member */}
+      <Box mb="md">
+        <TextInput
+          value={email}
+          onChange={(e) => setEmail(e.currentTarget.value)}
+          placeholder="Enter email"
+          label="Add Member"
+        />
+        <Button
+          mt="sm"
+          leftSection={<IconUserPlus size={16} />}
+          onClick={handleAddMember}
+          disabled={isLoading}
+        >
+          Add Member
+        </Button>
       </Box>
 
       {/* Save Changes Button */}
       <Button
         fullWidth
         color="blue"
+        mt="md"
         onClick={() => setConfirmationModal(true)}
         disabled={!toAdd.length && !toRemove.length}
         loading={isLoading}
@@ -147,7 +183,6 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
         opened={confirmationModal}
         onClose={() => setConfirmationModal(false)}
         title="Confirm Changes"
-        size="md"
       >
         <Box>
           {toAdd.length > 0 && (
@@ -155,15 +190,11 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
               <Text fw={500} size="sm">
                 Members to Add:
               </Text>
-              <ScrollArea style={{ height: 100 }}>
-                <List>
-                  {toAdd.map((email) => (
-                    <ListItem key={email}>
-                      <Text size="sm">{email}</Text>
-                    </ListItem>
-                  ))}
-                </List>
-              </ScrollArea>
+              <List spacing="sm">
+                {toAdd.map((email) => (
+                  <ListItem key={email}>{email}</ListItem>
+                ))}
+              </List>
             </Box>
           )}
           {toRemove.length > 0 && (
@@ -171,19 +202,22 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
               <Text fw={500} size="sm">
                 Members to Remove:
               </Text>
-              <ScrollArea style={{ height: 100 }}>
-                <List>
-                  {toRemove.map((email) => (
-                    <ListItem key={email}>
-                      <Text size="sm">{email}</Text>
-                    </ListItem>
-                  ))}
-                </List>
-              </ScrollArea>
+              <List spacing="sm">
+                {toRemove.map((email) => (
+                  <ListItem key={email}>{email}</ListItem>
+                ))}
+              </List>
             </Box>
           )}
           <Group justify="center" mt="lg">
-            <Button onClick={handleSaveChanges} loading={isLoading} color="blue">
+            <Button
+              onClick={() => {
+                handleSaveChanges();
+                setConfirmationModal(false);
+              }}
+              loading={isLoading}
+              color="blue"
+            >
               Confirm and Save
             </Button>
             <Button
