@@ -4,6 +4,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   addToTenant,
   getEntraIdToken,
+  listGroupMembers,
   modifyGroup,
 } from "../functions/entraId.js";
 import {
@@ -188,7 +189,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     Body: GroupModificationPatchRequest;
     Querystring: { groupId: string };
   }>(
-    "/groupMembership/:groupId",
+    "/groups/:groupId",
     {
       schema: {
         querystring: {
@@ -222,7 +223,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         throw new EntraGroupError({
           code: 403,
           message:
-            "This group is protected and may not be modified by this service. You must log into Entra ID directly to modify this group.",
+            "This group is protected and cannot be modified by this service. You must log into Entra ID directly to modify this group.",
           group: groupId,
         });
       }
@@ -280,6 +281,47 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }
       }
       reply.status(202).send(response);
+    },
+  );
+  fastify.get<{
+    Querystring: { groupId: string };
+  }>(
+    "/groups/:groupId",
+    {
+      schema: {
+        querystring: {
+          type: "object",
+          properties: {
+            groupId: {
+              type: "string",
+            },
+          },
+        },
+      },
+      onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
+      },
+    },
+    async (request, reply) => {
+      const groupId = (request.params as Record<string, string>).groupId;
+      if (!groupId || groupId === "") {
+        throw new NotFoundError({
+          endpointName: request.url,
+        });
+      }
+      if (genericConfig.ProtectedEntraIDGroups.includes(groupId)) {
+        throw new EntraGroupError({
+          code: 403,
+          message:
+            "This group is protected and cannot be read by this service. You must log into Entra ID directly to read this group.",
+          group: groupId,
+        });
+      }
+      const entraIdToken = await getEntraIdToken(
+        fastify.environmentConfig.AadValidClientId,
+      );
+      const response = await listGroupMembers(entraIdToken, groupId);
+      reply.status(200).send(response);
     },
   );
 };

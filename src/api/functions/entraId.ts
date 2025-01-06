@@ -233,3 +233,60 @@ export async function modifyGroup(
     });
   }
 }
+
+/**
+ * Lists all members of an Entra ID group.
+ * @param token - Entra ID token authorized to take this action.
+ * @param group - The group ID to fetch members for.
+ * @throws {EntraGroupError} If the group action fails.
+ * @returns {Promise<Array<{ name: string; email: string }>>} List of members with name and email.
+ */
+export async function listGroupMembers(
+  token: string,
+  group: string,
+): Promise<Array<{ name: string; email: string }>> {
+  try {
+    const url = `https://graph.microsoft.com/v1.0/groups/${group}/members`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as {
+        error?: { message?: string };
+      };
+      throw new EntraGroupError({
+        message: errorData?.error?.message ?? response.statusText,
+        group,
+      });
+    }
+
+    const data = (await response.json()) as {
+      value: Array<{
+        displayName?: string;
+        mail?: string;
+      }>;
+    };
+
+    // Map the response to the desired format
+    const members = data.value.map((member) => ({
+      name: member.displayName ?? "",
+      email: member.mail ?? "",
+    }));
+
+    return members;
+  } catch (error) {
+    if (error instanceof EntraGroupError) {
+      throw error;
+    }
+
+    throw new EntraGroupError({
+      message: error instanceof Error ? error.message : String(error),
+      group,
+    });
+  }
+}
