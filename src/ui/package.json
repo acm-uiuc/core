@@ -6,7 +6,7 @@
     "dev": "cross-env VITE_RUN_ENVIRONMENT=local-dev vite",
     "dev:aws": "cross-env VITE_RUN_ENVIRONMENT=dev vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
+    "preview": "cross-env VITE_RUN_ENVIRONMENT=local-dev yarn build && cross-env VITE_RUN_ENVIRONMENT=local-dev serve -l 5173 -s ../../dist_ui/",
     "typecheck": "tsc --noEmit",
     "lint": " eslint . --ext .ts,.tsx --cache",
     "prettier": "prettier --check \"**/*.{ts,tsx}\"",
@@ -17,7 +17,7 @@
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"
   },
-"dependencies": {
+  "dependencies": {
     "@azure/msal-browser": "^3.20.0",
     "@azure/msal-react": "^2.0.22",
     "@mantine/core": "^7.12.0",
@@ -75,6 +75,7 @@
     "postcss-simple-vars": "^7.0.1",
     "prettier": "^3.3.3",
     "prop-types": "^15.8.1",
+    "serve": "^14.2.4",
     "storybook": "^8.2.8",
     "storybook-dark-mode": "^4.0.2",
     "stylelint": "^16.8.1",
