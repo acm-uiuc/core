@@ -1,6 +1,20 @@
 import { AppRoles } from "../roles.js";
 import { z } from "zod";
 
+export enum EntraGroupActions {
+  ADD,
+  REMOVE,
+}
+
+export interface EntraInvitationResponse {
+  status: number;
+  data?: Record<string, string>;
+  error?: {
+    message: string;
+    code?: string;
+  };
+}
+
 export const invitePostRequestSchema = z.object({
   emails: z.array(z.string()),
 });
@@ -20,11 +34,20 @@ export type GroupMappingCreatePostRequest = z.infer<
   typeof groupMappingCreatePostSchema
 >;
 
-export const invitePostResponseSchema = z.object({
+export const entraActionResponseSchema = z.object({
   success: z.array(z.object({ email: z.string() })).optional(),
   failure: z
     .array(z.object({ email: z.string(), message: z.string() }))
     .optional(),
 });
 
-export type InvitePostResponse = z.infer<typeof invitePostResponseSchema>;
+export type EntraActionResponse = z.infer<typeof entraActionResponseSchema>;
+
+export const groupModificationPatchSchema = z.object({
+  add: z.array(z.string()),
+  remove: z.array(z.string()),
+});
+
+export type GroupModificationPatchRequest = z.infer<
+  typeof groupModificationPatchSchema
+>;
