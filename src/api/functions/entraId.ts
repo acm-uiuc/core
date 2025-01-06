@@ -12,6 +12,11 @@ import {
   EntraInvitationResponse,
 } from "../../common/types/iam.js";
 
+function validateGroupId(groupId: string): boolean {
+  const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
+  return groupIdPattern.test(groupId);
+}
+
 export async function getEntraIdToken(
   clientId: string,
   scopes: string[] = ["https://graph.microsoft.com/.default"],
@@ -245,6 +250,12 @@ export async function listGroupMembers(
   token: string,
   group: string,
 ): Promise<Array<{ name: string; email: string }>> {
+  if (!validateGroupId(group)) {
+    throw new EntraGroupError({
+      message: "Invalid group ID format",
+      group,
+    });
+  }
   try {
     const url = `https://graph.microsoft.com/v1.0/groups/${group}/members`;
     const response = await fetch(url, {
