@@ -26,7 +26,7 @@ export default defineConfig({
     historyApiFallback: true,
   },
   build: {
-    outDir: "../../dist/ui",
+    outDir: '../../dist_ui',
     emptyOutDir: true,
     rollupOptions: {
       output: {
