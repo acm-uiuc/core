@@ -46,7 +46,7 @@ const genericConfig: GenericConfigType = {
   CacheDynamoTableName: "infra-core-api-cache",
   ConfigSecretName: "infra-core-api-config",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
-  AwsRegion: (typeof process !== "undefined" && process.env?.AWS_REGION) || "us-east-1",
+  AwsRegion: process.env.AWS_REGION || "us-east-1",
   EntraTenantId: "c8d9148f-9a59-4db3-827d-42ea0c2b6e2e",
   MerchStorePurchasesTableName: "infra-merchstore-purchase-history",
   MerchStoreMetadataTableName: "infra-merchstore-metadata",
