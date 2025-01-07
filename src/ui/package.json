@@ -3,8 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "cross-env VITE_RUN_ENVIRONMENT=local-dev AWS_REGION=us-east-1 vite",
-    "dev:aws": "cross-env VITE_RUN_ENVIRONMENT=dev AWS_REGION=us-east-1 vite",
+    "dev": "dotenv -e ../../.env cross-env VITE_RUN_ENVIRONMENT=local-dev vite",
+    "dev:aws": "dotenv -e ../../.env cross-env VITE_RUN_ENVIRONMENT=dev vite",
     "build": "tsc && vite build",
     "preview": "cross-env VITE_RUN_ENVIRONMENT=local-dev yarn build && cross-env VITE_RUN_ENVIRONMENT=local-dev serve -l 5173 -s ../../dist_ui/",
     "typecheck": "tsc --noEmit",
@@ -30,6 +30,7 @@
     "axios": "^1.7.3",
     "dayjs": "^1.11.12",
     "dotenv": "^16.4.5",
+    "dotenv-cli": "^8.0.0",
     "html5-qrcode": "^2.3.8",
     "jsqr": "^1.4.0",
     "pdfjs-dist": "^4.5.136",

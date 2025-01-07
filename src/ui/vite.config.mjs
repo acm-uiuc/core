@@ -4,6 +4,7 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 import 'dotenv/config';
 import path from 'path';
 
+
 export default defineConfig({
   define:{'process.env': process.env},
   plugins: [react(), tsconfigPaths()],
