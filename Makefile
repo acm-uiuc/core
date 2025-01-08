@@ -45,6 +45,7 @@ clean:
 	rm -rf src/api/node_modules/
 	rm -rf src/ui/node_modules/
 	rm -rf dist/
+  rm -rf dist_ui/
 
 build: src/ cloudformation/ docs/
 	yarn -D
