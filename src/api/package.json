@@ -8,7 +8,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "touch .env && tsx watch index.ts",
+    "dev": "tsx watch index.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts --cache",
     "prettier": "prettier --check *.ts **/*.ts",
