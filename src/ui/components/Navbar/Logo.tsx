@@ -12,7 +12,7 @@ interface LogoBadgeProps {
   showText?: boolean;
 }
 
-const LogoBadge: React.FC<LogoBadgeProps> = ({ size, linkTo, showText }) => {
+export const LogoBadge: React.FC<LogoBadgeProps> = ({ size, linkTo, showText }) => {
   const isNonProd = import.meta.env.VITE_RUN_ENVIRONMENT !== 'prod';
   if (!showText) {
     showText = true;
@@ -25,6 +25,7 @@ const LogoBadge: React.FC<LogoBadgeProps> = ({ size, linkTo, showText }) => {
     key: 'acm-manage-color-scheme',
     defaultValue: preferredColorScheme,
   });
+  const runEnv = import.meta.env.VITE_RUN_ENVIRONMENT;
   return (
     <b>
       <Link
@@ -43,8 +44,8 @@ const LogoBadge: React.FC<LogoBadgeProps> = ({ size, linkTo, showText }) => {
           style={{ height: '3em', marginRight: '0.5em' }}
         />
         {showText
-          ? isNonProd
-            ? `Management Portal ${import.meta.env.VITE_RUN_ENVIRONMENT.toUpperCase()} ENV`
+          ? isNonProd && runEnv
+            ? `Management Portal ${runEnv.toUpperCase()} ENV`
             : 'Management Portal'
           : null}
       </Link>
