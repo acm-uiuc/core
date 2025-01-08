@@ -30,7 +30,7 @@ jobs:
       group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
     environment: "AWS DEV"
-    name: Deploy to AWS DEV
+    name: Deploy to DEV
     needs:
       - test-unit
     steps:
