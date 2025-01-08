@@ -4,12 +4,8 @@ import { describe } from "node:test";
 import { OrganizationList } from "../../src/common/orgs.js";
 import ical from "node-ical";
 
-const appKey = process.env.APPLICATION_KEY;
-if (!appKey) {
-  throw new InternalServerError({ message: "No application key found" });
-}
+const baseEndpoint = `https://infra-core-api.aws.qa.acmuiuc.org`;
 
-const baseEndpoint = `https://${appKey}.aws.qa.acmuiuc.org`;
 test("getting all events", async () => {
   const response = await fetch(`${baseEndpoint}/api/v1/ical`);
   expect(response.status).toBe(200);

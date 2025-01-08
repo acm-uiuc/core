@@ -54,7 +54,7 @@ build: src/ cloudformation/ docs/
 local:
 	yarn run dev
 
-deploy_prod: check_account_prod build 
+deploy_prod: check_account_prod build
 	aws sts get-caller-identity --query Account --output text
 	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)"
 
