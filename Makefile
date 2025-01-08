@@ -16,10 +16,10 @@ region="us-east-1"
 
 # DO NOT CHANGE
 common_params = --no-confirm-changeset \
-                --no-fail-on-empty-changeset \
-                --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-                --region $(region) \
-                --stack-name $(application_key) \
+								--no-fail-on-empty-changeset \
+								--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+								--region $(region) \
+								--stack-name $(application_key) \
 				--tags "project=$(application_key)" "techlead=$(techlead)" \
 				--s3-prefix $(application_key) \
 				--resolve-s3
@@ -45,7 +45,7 @@ clean:
 	rm -rf src/api/node_modules/
 	rm -rf src/ui/node_modules/
 	rm -rf dist/
-  rm -rf dist_ui/
+	rm -rf dist_ui/
 
 build: src/ cloudformation/ docs/
 	yarn -D
