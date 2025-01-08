@@ -53,11 +53,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - run: make deploy_dev
+      - name: Publish to AWS
+        run: make deploy_dev
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
-      - name: Publish
+      - name: Publish to Cloudflare
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
