@@ -19,6 +19,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './vitest.setup.mjs',
+    env: {
+      VITE_RUN_ENVIRONMENT: 'dev'
+    },
   },
   server: {
     historyApiFallback: true,

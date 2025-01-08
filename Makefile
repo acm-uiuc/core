@@ -16,10 +16,10 @@ region="us-east-1"
 
 # DO NOT CHANGE
 common_params = --no-confirm-changeset \
-                --no-fail-on-empty-changeset \
-                --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-                --region $(region) \
-                --stack-name $(application_key) \
+								--no-fail-on-empty-changeset \
+								--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+								--region $(region) \
+								--stack-name $(application_key) \
 				--tags "project=$(application_key)" "techlead=$(techlead)" \
 				--s3-prefix $(application_key) \
 				--resolve-s3
@@ -45,6 +45,7 @@ clean:
 	rm -rf src/api/node_modules/
 	rm -rf src/ui/node_modules/
 	rm -rf dist/
+	rm -rf dist_ui/
 
 build: src/ cloudformation/ docs/
 	yarn -D
@@ -54,7 +55,7 @@ build: src/ cloudformation/ docs/
 local:
 	yarn run dev
 
-deploy_prod: check_account_prod build 
+deploy_prod: check_account_prod build
 	aws sts get-caller-identity --query Account --output text
 	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)"
 
@@ -74,7 +75,7 @@ test_unit: install_test_deps
 	yarn test:unit
 
 dev_health_check:
-	curl -f https://$(application_key).aws.qa.acmuiuc.org/api/v1/healthz
+	curl -f https://$(application_key).aws.qa.acmuiuc.org/api/v1/healthz && curl -f https://manage.qa.acmuiuc.org
 
 prod_health_check:
-	curl -f https://$(application_key).aws.acmuiuc.org/api/v1/healthz
+	curl -f https://$(application_key).aws.acmuiuc.org/api/v1/healthz && curl -f https://manage.acm.illinois.edu

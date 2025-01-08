@@ -27,10 +27,10 @@ jobs:
   deploy-dev:
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.event.repository.name }}-dev-aws
+      group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
     environment: "AWS DEV"
-    name: Deploy to AWS DEV
+    name: Deploy to DEV
     needs:
       - test-unit
     steps:
@@ -53,33 +53,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - run: make deploy_dev
+      - name: Publish to AWS
+        run: make deploy_dev
         env:
           HUSKY: "0"
-  deploy-cf-pages-dev:
-    runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.event.repository.name }}-dev-cf
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      deployments: write
-    needs:
-      - test-unit
-    name: Deploy to Cloudflare Pages DEV
-    environment: "Cloudflare Pages"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Setup Node LTS
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Build
-        run: corepack enable && yarn && yarn run build
-        env:
           VITE_RUN_ENVIRONMENT: dev
-      - name: Publish
+      - name: Publish to Cloudflare
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -88,14 +67,14 @@ jobs:
           directory: dist_ui/
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           branch: main
-  test:
+
+  test-dev:
     runs-on: ubuntu-latest
     name: Run Live Integration Tests
     needs:
       - deploy-dev
-      - deploy-cf-pages-dev
     concurrency:
-      group: ${{ github.event.repository.name }}-dev
+      group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
     steps:
       - name: Set up Node
