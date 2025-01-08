@@ -74,7 +74,7 @@ test_unit: install_test_deps
 	yarn test:unit
 
 dev_health_check:
-	curl -f https://$(application_key).aws.qa.acmuiuc.org/api/v1/healthz
+	curl -f https://$(application_key).aws.qa.acmuiuc.org/api/v1/healthz && curl -f https://manage.qa.acmuiuc.org
 
 prod_health_check:
-	curl -f https://$(application_key).aws.acmuiuc.org/api/v1/healthz
+	curl -f https://$(application_key).aws.acmuiuc.org/api/v1/healthz && curl -f https://manage.acm.illinois.edu
