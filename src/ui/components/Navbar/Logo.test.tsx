@@ -19,7 +19,7 @@ describe('Logo basic tests', () => {
     expect(logo).toBeInTheDocument();
     const logoSrc = logo.getAttribute('src');
     expect(logo).toHaveStyle('height: 3em');
-    expect(logoSrc).toEqual('/banner-blue.png')
+    expect(logoSrc).toEqual('/banner-blue.png');
   });
 
   it('renders the red text "Management Portal DEV ENV" in the dev env', () => {
