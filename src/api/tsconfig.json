@@ -1,0 +1,20 @@
+{
+  "extends": "@tsconfig/node20/tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "rootDir": "../",
+    "outDir": "../../dist",
+    "baseUrl": "../",
+  },
+  "ts-node": {
+    "esm": true
+  },
+  "include": [
+    "../api/**/*.ts",
+    "../common/**/*.ts"
+  ],
+  "exclude": [
+    "../../node_modules",
+    "../../dist"
+  ]
+}

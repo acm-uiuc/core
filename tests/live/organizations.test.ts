@@ -1,12 +1,7 @@
 import { expect, test } from "vitest";
-import { InternalServerError } from "../../src/errors/index.js";
+import { InternalServerError } from "../../src/common/errors/index.js";
 
-const appKey = process.env.APPLICATION_KEY;
-if (!appKey) {
-  throw new InternalServerError({ message: "No application key found" });
-}
-
-const baseEndpoint = `https://${appKey}.aws.qa.acmuiuc.org`;
+const baseEndpoint = `https://infra-core-api.aws.qa.acmuiuc.org`;
 
 test("getting organizations", async () => {
   const response = await fetch(`${baseEndpoint}/api/v1/organizations`);

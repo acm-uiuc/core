@@ -1,4 +1,4 @@
-import { SecretConfig } from "../../src/config.js";
+import { SecretConfig } from "../../src/common/config.js";
 
 const secretObject = {
   jwt_key: "somethingreallysecret",

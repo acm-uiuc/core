@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Run Unit Tests
     steps:
-      - name: Set up Node for testing
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
@@ -30,7 +30,7 @@ jobs:
       group: ${{ github.event.repository.name }}-dev
       cancel-in-progress: false
     environment: "AWS DEV"
-    name: Deploy to AWS DEV
+    name: Deploy to DEV
     needs:
       - test-unit
     steps:
@@ -53,10 +53,22 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - run: make deploy_dev
+      - name: Publish to AWS
+        run: make deploy_dev
         env:
           HUSKY: "0"
-  test:
+          VITE_RUN_ENVIRONMENT: dev
+      - name: Publish to Cloudflare
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: management-ui-dev
+          directory: dist_ui/
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+
+  test-dev:
     runs-on: ubuntu-latest
     name: Run Live Integration Tests
     needs:
@@ -65,22 +77,23 @@ jobs:
       group: ${{ github.event.repository.name }}-dev
       cancel-in-progress: false
     steps:
-      - name: Set up Node for testing
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
       - uses: actions/checkout@v4
         env:
-          HUSKY: "0"      
+          HUSKY: "0"
       - name: Set up Python 3.11 for testing
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
       - name: Run live testing
         run: make test_live_integration
-  deploy-aws-prod:
+
+  deploy-prod:
     runs-on: ubuntu-latest
-    name: Deploy to AWS PROD
+    name: Deploy to Prod
     concurrency:
       group: ${{ github.event.repository.name }}-prod
       cancel-in-progress: false
@@ -94,7 +107,7 @@ jobs:
           node-version: 20.x
       - uses: actions/checkout@v4
         env:
-          HUSKY: "0"     
+          HUSKY: "0"
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
@@ -107,14 +120,26 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - run: make deploy_prod
+      - name: Publish to AWS
+        run: make deploy_prod
         env:
           HUSKY: "0"
+          VITE_RUN_ENVIRONMENT: prod
+      - name: Publish to Cloudflare
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: management-ui-prod
+          directory: dist_ui/
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+
   health-check-prod:
     runs-on: ubuntu-latest
     name: Confirm services healthy
     needs:
-      - deploy-aws-prod
+      - deploy-prod
     concurrency:
       group: ${{ github.event.repository.name }}-prod
       cancel-in-progress: false
@@ -125,6 +150,6 @@ jobs:
           node-version: 20.x
       - uses: actions/checkout@v4
         env:
-          HUSKY: "0"     
+          HUSKY: "0"
       - name: Call the health check script
         run: make prod_health_check

@@ -1,7 +1,7 @@
 import { afterAll, expect, test, beforeEach, vi, Mock } from "vitest";
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
-import init from "../../src/index.js";
+import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
 import { secretJson, secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
@@ -10,7 +10,7 @@ import {
   GetSecretValueCommand,
   SecretsManagerClient,
 } from "@aws-sdk/client-secrets-manager";
-import { updateDiscord } from "../../src/functions/discord.js";
+import { updateDiscord } from "../../src/api/functions/discord.js";
 
 const ddbMock = mockClient(DynamoDBClient);
 const smMock = mockClient(SecretsManagerClient);
@@ -18,9 +18,9 @@ const smMock = mockClient(SecretsManagerClient);
 const jwt_secret = secretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
-vi.mock("../../src/functions/discord.js", () => {
+vi.mock("../../src/api/functions/discord.js", () => {
   return {
-    ...vi.importActual("../../src/functions/discord.js"),
+    ...vi.importActual("../../src/api/functions/discord.js"),
     updateDiscord: vi.fn(() => {
       console.log("Updated discord event.");
     }),

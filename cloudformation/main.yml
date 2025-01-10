@@ -81,12 +81,12 @@ Resources:
     DependsOn:
       - AppLogGroups
     Properties:
-      CodeUri: ../dist/src/
+      CodeUri: ../dist
       AutoPublishAlias: live
       Runtime: nodejs20.x
       Description: !Sub "${ApplicationFriendlyName} API Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-lambda
-      Handler: lambda.handler
+      Handler: api/lambda.handler
       MemorySize: 512
       Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
       Timeout: 60
@@ -104,6 +104,38 @@ Resources:
             RestApiId: !Ref AppApiGateway
             Path: /{proxy+}
             Method: ANY
+
+  IamGroupRolesTable:
+    Type: 'AWS::DynamoDB::Table'
+    DeletionPolicy: "Retain"  
+    Properties:
+      BillingMode: 'PAY_PER_REQUEST'
+      TableName: infra-core-api-iam-grouproles
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      AttributeDefinitions:
+        - AttributeName: groupUuid
+          AttributeType: S
+      KeySchema:
+        - AttributeName: groupUuid
+          KeyType: HASH
+
+  IamUserRolesTable:
+    Type: 'AWS::DynamoDB::Table'
+    DeletionPolicy: "Retain"  
+    Properties:
+      BillingMode: 'PAY_PER_REQUEST'
+      TableName: infra-core-api-iam-userroles
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      AttributeDefinitions:
+        - AttributeName: userEmail
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userEmail
+          KeyType: HASH
 
   EventRecordsTable:
     Type: 'AWS::DynamoDB::Table'

@@ -5,7 +5,7 @@ import {
   QueryCommand,
 } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
-import init from "../../src/index.js";
+import init from "../../src/api/index.js";
 import {
   dynamoTableData,
   dynamoTableDataUnmarshalled,

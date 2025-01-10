@@ -27,10 +27,10 @@ jobs:
   deploy-dev:
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.event.repository.name }}-dev
+      group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
     environment: "AWS DEV"
-    name: Deploy to AWS DEV
+    name: Deploy to DEV
     needs:
       - test-unit
     steps:
@@ -53,16 +53,28 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - run: make deploy_dev
+      - name: Publish to AWS
+        run: make deploy_dev
         env:
           HUSKY: "0"
-  test:
+          VITE_RUN_ENVIRONMENT: dev
+      - name: Publish to Cloudflare
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: management-ui-dev
+          directory: dist_ui/
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+
+  test-dev:
     runs-on: ubuntu-latest
     name: Run Live Integration Tests
     needs:
       - deploy-dev
     concurrency:
-      group: ${{ github.event.repository.name }}-dev
+      group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
     steps:
       - name: Set up Node

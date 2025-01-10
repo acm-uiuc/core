@@ -1,0 +1,17 @@
+{
+  "name": "infra-core-api",
+  "version": "1.0.0",
+  "description": "ACM@UIUC Infra - Sample AWS Lambda in Node",
+  "main": "index.js",
+  "author": "ACM@UIUC",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts --cache",
+    "prettier": "prettier --check *.ts **/*.ts",
+    "prettier:write": "prettier --write *.ts **/*.ts"
+  }
+}

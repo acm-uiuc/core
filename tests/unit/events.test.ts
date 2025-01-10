@@ -1,8 +1,8 @@
 import { afterAll, expect, test, beforeEach, vi } from "vitest";
 import { ScanCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
-import init from "../../src/index.js";
-import { EventGetResponse } from "../../src/routes/events.js";
+import init from "../../src/api/index.js";
+import { EventGetResponse } from "../../src/api/routes/events.js";
 import {
   dynamoTableData,
   dynamoTableDataUnmarshalled,

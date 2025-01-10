@@ -1,8 +1,10 @@
 {
-  "extends": ["plugin:prettier/recommended", "plugin:@typescript-eslint/recommended"],
+  "extends": [
+    "plugin:prettier/recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
   "plugins": ["import"],
   "rules": {
-    // turn on errors for missing imports
     "import/no-unresolved": "error",
     "import/extensions": [
       "error",
@@ -13,18 +15,20 @@
         "ts": "never",
         "tsx": "never"
       }
-   ],
-   "no-unused-vars": "off",
-   "max-classes-per-file": "off",
-   "func-names": "off",
-   "@typescript-eslint/no-unused-vars": [
-     "warn", // or "error"
-     {
-       "argsIgnorePattern": "^_",
-       "varsIgnorePattern": "^_",
-       "caughtErrorsIgnorePattern": "^_"
-     }
-   ]
+    ],
+    "no-unused-vars": "off",
+    "max-classes-per-file": "off",
+    "func-names": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/explicit-module-boundary-types": "off"
   },
   "settings": {
     "import/parsers": {
@@ -32,7 +36,11 @@
     },
     "import/resolver": {
       "typescript": {
-        "alwaysTryTypes": true
+        "alwaysTryTypes": true,
+        "project": [
+          "src/api/tsconfig.json", // Path to tsconfig.json in src/api
+          "src/ui/tsconfig.json"   // Path to tsconfig.json in src/ui
+        ]
       }
     }
   },
@@ -41,6 +49,13 @@
       "files": ["*.test.ts", "*.testdata.ts"],
       "rules": {
         "@typescript-eslint/no-explicit-any": "off"
+      }
+    },
+    {
+      "files": ["src/ui/*", "src/ui/**/*"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unused-vars": "off"
       }
     }
   ]

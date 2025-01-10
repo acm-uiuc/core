@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from "vitest";
-import init from "../../src/index.js";
-import { EventGetResponse } from "../../src/routes/events.js";
+import init from "../../src/api/index.js";
+import { EventGetResponse } from "../../src/api/routes/events.js";
 
 const app = await init();
 test("Test getting events", async () => {
