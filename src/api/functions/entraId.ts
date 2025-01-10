@@ -1,4 +1,10 @@
-import { execCouncilGroupId, execCouncilTestingGroupId, genericConfig, officersGroupId, officersGroupTestingId } from "../../common/config.js";
+import {
+  execCouncilGroupId,
+  execCouncilTestingGroupId,
+  genericConfig,
+  officersGroupId,
+  officersGroupTestingId,
+} from "../../common/config.js";
 import {
   BaseError,
   EntraGroupError,
@@ -192,16 +198,29 @@ export async function modifyGroup(
     });
   }
   // if adding to exec group, check that all exec members we want to add are paid members
-  const paidMemberRequiredGroups = [execCouncilGroupId, execCouncilTestingGroupId, officersGroupId, officersGroupTestingId]
-  if (paidMemberRequiredGroups.includes(group) && action === EntraGroupActions.ADD) {
+  const paidMemberRequiredGroups = [
+    execCouncilGroupId,
+    execCouncilTestingGroupId,
+    officersGroupId,
+    officersGroupTestingId,
+  ];
+  if (
+    paidMemberRequiredGroups.includes(group) &&
+    action === EntraGroupActions.ADD
+  ) {
     const netId = email.split("@")[0];
-    const response = await fetch(`https://membership.acm.illinois.edu/api/v1/checkMembership?netId=${netId}`);
-    const membershipStatus = await response.json() as { netId: string, isPaidMember: boolean };
-    if (!membershipStatus['isPaidMember']) {
+    const response = await fetch(
+      `https://membership.acm.illinois.edu/api/v1/checkMembership?netId=${netId}`,
+    );
+    const membershipStatus = (await response.json()) as {
+      netId: string;
+      isPaidMember: boolean;
+    };
+    if (!membershipStatus["isPaidMember"]) {
       throw new EntraGroupError({
         message: `${netId} is not a paid member. This group requires that all members are paid members.`,
-        group
-      })
+        group,
+      });
     }
   }
   try {
@@ -233,7 +252,10 @@ export async function modifyGroup(
       const errorData = (await response.json()) as {
         error?: { message?: string };
       };
-      if (errorData?.error?.message === "One or more added object references already exist for the following modified properties: 'members'.") {
+      if (
+        errorData?.error?.message ===
+        "One or more added object references already exist for the following modified properties: 'members'."
+      ) {
         return true;
       }
       throw new EntraGroupError({
