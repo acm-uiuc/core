@@ -90,6 +90,11 @@ jobs:
           python-version: 3.11
       - name: Run live testing
         run: make test_live_integration
+      - name: Run E2E testing
+        run: make test_e2e
+        env:
+          PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME }}
+          PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD }}
 
   deploy-prod:
     runs-on: ubuntu-latest
