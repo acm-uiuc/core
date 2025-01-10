@@ -10,20 +10,24 @@ import { InternalServerError } from "../common/errors/index.js";
 import eventsPlugin from "./routes/events.js";
 import cors from "@fastify/cors";
 import fastifyZodValidationPlugin from "./plugins/validate.js";
-import { environmentConfig } from "../common/config.js";
+import { environmentConfig, genericConfig } from "../common/config.js";
 import organizationsPlugin from "./routes/organizations.js";
 import icalPlugin from "./routes/ics.js";
 import vendingPlugin from "./routes/vending.js";
 import * as dotenv from "dotenv";
 import iamRoutes from "./routes/iam.js";
 import ticketsPlugin from "./routes/tickets.js";
+import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
+
 dotenv.config();
 
 const now = () => Date.now();
 
 async function init() {
   const app: FastifyInstance = fastify({
-    logger: true,
+    logger: {
+      level: process.env.LOG_LEVEL || "info",
+    },
     disableRequestLogging: true,
     genReqId: (request) => {
       const header = request.headers["x-apigateway-event"];
@@ -90,12 +94,22 @@ async function init() {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  // local development
+  console.log(`Logging level set to ${process.env.LOG_LEVEL || "info"}`);
+  const client = new STSClient({ region: genericConfig.AwsRegion });
+  const command = new GetCallerIdentityCommand({});
+  try {
+    const data = await client.send(command);
+    console.log(`Logged in to AWS as ${data.Arn} on account ${data.Account}.`);
+  } catch {
+    console.error(
+      `Could not get AWS STS credentials: are you logged in to AWS? Run "aws configure sso" to log in.`,
+    );
+    process.exit(1);
+  }
   const app = await init();
-  app.listen({ port: 8080 }, (err) => {
+  app.listen({ port: 8080 }, async (err) => {
     /* eslint no-console: ["error", {"allow": ["log", "error"]}] */
     if (err) console.error(err);
-    console.log("Server listening on 8080");
   });
 }
 export default init;
