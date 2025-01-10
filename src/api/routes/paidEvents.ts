@@ -8,12 +8,12 @@ import {
   PutItemCommand,
   DeleteItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../config.js";
+import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
-import { DatabaseFetchError } from "../errors/index.js";
+import { DatabaseFetchError } from "../../common/errors/index.js";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { AppRoles } from "../roles.js";
+import { AppRoles } from "../../common/roles.js";
 
 const dynamoclient = new DynamoDBClient({
   region: genericConfig.AwsRegion,
