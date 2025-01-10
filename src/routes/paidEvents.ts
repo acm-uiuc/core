@@ -37,22 +37,36 @@ type EventDeleteRequest = {
   Body: undefined;
 };
 
-export const postTicketSchema = z.object({
+const TicketPostSchema = z.object({
   event_id: z.string(),
   event_name: z.string(),
-  eventCost: z.record(z.number()),
-  eventDetails: z.optional(z.string()),
-  eventImage: z.optional(z.string()),
-  eventProps: z.optional(z.record(z.string(), z.string())),
+  eventCost: z.optional(z.record(z.number())),
+  eventDetails: z.string(),
+  eventImage: z.string(),
   event_capacity: z.number(),
-  event_sales_active_utc: z.string(),
+  event_sales_active_utc: z.number(),
   event_time: z.number(),
   member_price: z.optional(z.string()),
   nonmember_price: z.optional(z.string()),
   tickets_sold: z.number(),
 });
 
-type TicketPostSchema = z.infer<typeof postTicketSchema>;
+const MerchPostSchema = z.object({
+  item_id: z.string(),
+  item_email_desc: z.string(),
+  item_image: z.string(),
+  item_name: z.string(),
+  item_price: z.optional(z.record(z.string(), z.number())),
+  item_sales_active_utc: z.number(),
+  limit_per_person: z.number(),
+  member_price: z.string(),
+  nonmember_price: z.string(),
+  ready_for_pickup: z.boolean(),
+  sizes: z.optional(z.array(z.string())),
+  total_avail: z.optional(z.record(z.string(), z.string())),
+});
+
+type TicketPostSchema = z.infer<typeof TicketPostSchema>;
 
 const responseJsonSchema = zodToJsonSchema(
   z.object({
@@ -300,7 +314,7 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         response: { 200: responseJsonSchema },
       },
       preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, postTicketSchema);
+        await fastify.zodValidateBody(request, reply, TicketPostSchema);
       },
       /*onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
@@ -324,6 +338,8 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         }
         const entry = {
           ...request.body,
+          member_price: "Send to stripe API",
+          nonmember_price: "Send to stripe API",
         };
         await dynamoclient.send(
           new PutItemCommand({
