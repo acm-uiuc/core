@@ -70,7 +70,7 @@ jobs:
 
   test-dev:
     runs-on: ubuntu-latest
-    name: Run Live Integration Tests
+    name: Run Live Tests
     needs:
       - deploy-dev
     concurrency:
@@ -88,5 +88,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
+      - name: Run health check
+        run: make dev_health_check
       - name: Run live testing
         run: make test_live_integration
+      - name: Run E2E testing
+        run: make test_e2e
+        env:
+          PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME }}
+          PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD }}
