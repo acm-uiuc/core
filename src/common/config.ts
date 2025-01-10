@@ -70,6 +70,7 @@ const environmentConfig: EnvironmentConfigType = {
     },
     UserRoleMapping: {
       "infra-unit-test-nogrp@acm.illinois.edu": [AppRoles.TICKETS_SCANNER],
+      "kLkvWTYwNnJfBkIK7mBi4niXXHYNR7ygbV8utlvFxjw": allAppRoles
     },
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
