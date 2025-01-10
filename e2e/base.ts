@@ -27,7 +27,7 @@ export const getSecretValue = async (
 async function getSecrets() {
   let response = { PLAYWRIGHT_USERNAME: '', PLAYWRIGHT_PASSWORD: '' }
   let keyData;
-  if (!process.env.PLAYWRIGHT_USERNAME || !process.env.PLAYWRIGHT_PASSWORD || !process.env.JwtSigningKey) {
+  if (!process.env.PLAYWRIGHT_USERNAME || !process.env.PLAYWRIGHT_PASSWORD) {
     keyData = await getSecretValue('infra-core-api-config')
   }
   response['PLAYWRIGHT_USERNAME'] = process.env.PLAYWRIGHT_USERNAME || keyData ? keyData['playwright_username'] : '';
