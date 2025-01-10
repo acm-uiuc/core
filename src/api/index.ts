@@ -26,7 +26,7 @@ const now = () => Date.now();
 async function init() {
   const app: FastifyInstance = fastify({
     logger: {
-      level: process.env.LOG_LEVEL || 'info'
+      level: process.env.LOG_LEVEL || "info",
     },
     disableRequestLogging: true,
     genReqId: (request) => {
@@ -94,14 +94,16 @@ async function init() {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log(`Logging level set to ${process.env.LOG_LEVEL || 'info'}`);
+  console.log(`Logging level set to ${process.env.LOG_LEVEL || "info"}`);
   const client = new STSClient({ region: genericConfig.AwsRegion });
   const command = new GetCallerIdentityCommand({});
   try {
     const data = await client.send(command);
-    console.log(`Logged in to AWS as ${data.Arn} on account ${data.Account}.`)
+    console.log(`Logged in to AWS as ${data.Arn} on account ${data.Account}.`);
   } catch {
-    console.error(`Could not get AWS STS credentials: are you logged in to AWS? Run "aws configure sso" to log in.`)
+    console.error(
+      `Could not get AWS STS credentials: are you logged in to AWS? Run "aws configure sso" to log in.`,
+    );
     process.exit(1);
   }
   const app = await init();

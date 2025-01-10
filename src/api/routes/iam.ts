@@ -15,13 +15,14 @@ import {
   EntraInvitationError,
   InternalServerError,
   NotFoundError,
+  ValidationError,
 } from "../../common/errors/index.js";
 import {
   DynamoDBClient,
   GetItemCommand,
   PutItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../../common/config.js";
+import { execCouncilGroupId, execCouncilTestingGroupId, genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import {
   InviteUserPostRequest,
