@@ -75,6 +75,7 @@ test_unit: install_test_deps
 	yarn test:unit
 
 test_e2e: install_test_deps
+	yarn playwright install
 	yarn test:e2e
 
 dev_health_check:
