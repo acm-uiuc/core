@@ -70,7 +70,7 @@ jobs:
 
   test-dev:
     runs-on: ubuntu-latest
-    name: Run Live Integration Tests
+    name: Run Live Tests
     needs:
       - deploy-dev
     concurrency:
