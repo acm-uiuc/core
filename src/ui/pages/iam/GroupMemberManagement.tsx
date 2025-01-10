@@ -163,6 +163,7 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
                     color="red"
                     variant="light"
                     onClick={() => handleRemoveMember(member.email)}
+                    data-testid={`remove-exec-member-${member.email}`}
                   >
                     <IconTrash size={16} />
                   </ActionIcon>
