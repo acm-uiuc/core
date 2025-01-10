@@ -9,9 +9,6 @@ type ValueOrArray<T> = T | ArrayOfValueOrArray<T>;
 type GroupRoleMapping = Record<string, readonly AppRoles[]>;
 type AzureRoleMapping = Record<string, readonly AppRoles[]>;
 type UserRoleMapping = Record<string, readonly AppRoles[]>;
-type KnownGroupMappings = {
-  Exec: string;
-}
 
 export type ConfigType = {
   GroupRoleMapping: GroupRoleMapping;

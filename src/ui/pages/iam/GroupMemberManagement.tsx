@@ -70,25 +70,62 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
     setIsLoading(true);
     try {
       const response = await updateMembers(toAdd, toRemove);
-      if (response.success) {
-        setMembers((prev) =>
-          prev
-            .filter((member) => !toRemove.includes(member.email))
-            .concat(toAdd.map((email) => ({ name: '', email })))
-        );
-        setToAdd([]);
-        setToRemove([]);
+      let { success, failure } = response;
+      if (!success) {
+        success = [];
+      }
+      if (!failure) {
+        failure = [];
       }
 
-      notifications.show({
-        title: 'Success',
-        message: 'Changes saved successfully!',
-        color: 'green',
-      });
+      const successfulAdds = success.filter((entry) => toAdd.includes(entry.email));
+      const successfulRemoves = success.filter((entry) => toRemove.includes(entry.email));
+      const failedAdds = failure.filter(({ email }) => toAdd.includes(email));
+      const failedRemoves = failure.filter(({ email }) => toRemove.includes(email));
+
+      setMembers((prev) =>
+        prev
+          .filter((member) => !successfulRemoves.some((remove) => remove.email === member.email))
+          .concat(successfulAdds.map(({ email }) => ({ name: email.split('@')[0], email })))
+      );
+
+      setToAdd([]);
+      setToRemove([]);
+
+      if (failure.length === 0) {
+        notifications.show({
+          title: 'Success',
+          message: 'All changes processed successfully!',
+          color: 'green',
+        });
+      } else {
+        failedAdds.forEach(({ email, message }) => {
+          notifications.show({
+            title: `Error adding ${email}`,
+            message,
+            color: 'red',
+          });
+        });
+
+        failedRemoves.forEach(({ email, message }) => {
+          notifications.show({
+            title: `Error removing ${email}`,
+            message,
+            color: 'red',
+          });
+        });
+        const allSuccess = successfulAdds.concat(successfulRemoves);
+        allSuccess.forEach(({ email }) => {
+          notifications.show({
+            message: `Successfully modified ${email}`,
+            color: 'green',
+          });
+        });
+      }
     } catch (error) {
       notifications.show({
         title: 'Error',
-        message: 'Failed to save changes.',
+        message: 'Failed to save changes due to an unexpected error.',
         color: 'red',
       });
     } finally {
@@ -99,7 +136,7 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
   return (
     <Box p="md">
       <Text fw={500} mb={4}>
-        Exec Group Management
+        Exec Council Group Management
       </Text>
 
       {/* Member List */}
@@ -117,7 +154,7 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
                       {member.name} ({member.email})
                     </Text>
                     {toRemove.includes(member.email) && (
-                      <Badge color="green" size="sm">
+                      <Badge color="red" size="sm">
                         Queued for removal
                       </Badge>
                     )}
@@ -137,7 +174,7 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
                 <Group justify="space-between">
                   <Box>
                     <Text size="sm">{member}</Text>
-                    <Badge color="red" size="sm">
+                    <Badge color="green" size="sm">
                       Queued for addition
                     </Badge>
                   </Box>
