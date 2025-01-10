@@ -17,6 +17,7 @@ import vendingPlugin from "./routes/vending.js";
 import * as dotenv from "dotenv";
 import iamRoutes from "./routes/iam.js";
 import ticketsPlugin from "./routes/tickets.js";
+import membershipPlugin from "./routes/membership.js";
 dotenv.config();
 
 const now = () => Date.now();
@@ -75,6 +76,7 @@ async function init() {
       api.register(organizationsPlugin, { prefix: "/organizations" });
       api.register(icalPlugin, { prefix: "/ical" });
       api.register(iamRoutes, { prefix: "/iam" });
+      api.register(membershipPlugin, { prefix: "/membership" });
       api.register(ticketsPlugin, { prefix: "/tickets" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });

@@ -16,6 +16,7 @@ export type ConfigType = {
   UserRoleMapping: UserRoleMapping;
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
+  PaidMemberGroupId: string;
 };
 
 type GenericConfigType = {
@@ -79,6 +80,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
+    PaidMemberGroupId: "9222451f-b354-4e64-ba28-c0f367a277c2"
   },
   prod: {
     GroupRoleMapping: {
@@ -109,6 +111,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
+    PaidMemberGroupId: "172fd9ee-69f0-4384-9786-41ff1a43cf8e"
   },
 };
 
