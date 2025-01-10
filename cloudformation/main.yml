@@ -93,7 +93,7 @@ Resources:
       Environment:
         Variables:
           RunEnvironment: !Ref RunEnvironment
-      VpcConfig: 
+      VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SecurityGroupIds], !Ref AWS::NoValue]
         SubnetIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds], !Ref AWS::NoValue]
@@ -107,7 +107,7 @@ Resources:
 
   IamGroupRolesTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-iam-grouproles
@@ -123,7 +123,7 @@ Resources:
 
   IamUserRolesTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-iam-userroles
@@ -139,7 +139,7 @@ Resources:
 
   EventRecordsTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-events
@@ -162,9 +162,25 @@ Resources:
         Projection:
           ProjectionType: ALL
 
+  MembershipRecordsTable:
+    Type: 'AWS::DynamoDB::Table'
+    DeletionPolicy: "Retain"
+    Properties:
+      BillingMode: 'PAY_PER_REQUEST'
+      TableName: infra-core-api-membership-logs
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+
   CacheRecordsTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-cache
@@ -183,7 +199,7 @@ Resources:
 
   AppApiGateway:
     Type: AWS::Serverless::Api
-    DependsOn: 
+    DependsOn:
       - AppApiLambdaFunction
     Properties:
       Name: !Sub ${ApplicationPrefix}-gateway
@@ -194,7 +210,7 @@ Resources:
           Name: AWS::Include
           Parameters:
             Location: ./phony-swagger.yml
-      Domain: 
+      Domain:
         DomainName: !Sub
           - "${ApplicationPrefix}.${BaseDomainName}"
           - BaseDomainName: !FindInMap
