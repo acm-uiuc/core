@@ -30,8 +30,8 @@ async function getSecrets() {
   if (!process.env.PLAYWRIGHT_USERNAME || !process.env.PLAYWRIGHT_PASSWORD) {
     keyData = await getSecretValue('infra-core-api-config')
   }
-  response['PLAYWRIGHT_USERNAME'] = process.env.PLAYWRIGHT_USERNAME || keyData ? keyData['playwright_username'] : '';
-  response['PLAYWRIGHT_PASSWORD'] = process.env.PLAYWRIGHT_PASSWORD || keyData ? keyData['playwright_password'] : '';
+  response['PLAYWRIGHT_USERNAME'] = process.env.PLAYWRIGHT_USERNAME || (keyData ? keyData['playwright_username'] : '');
+  response['PLAYWRIGHT_PASSWORD'] = process.env.PLAYWRIGHT_PASSWORD || (keyData ? keyData['playwright_password'] : '');
   return response;
 }
 
