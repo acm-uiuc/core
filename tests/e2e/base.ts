@@ -57,8 +57,22 @@ async function becomeUser(page) {
   await page.getByRole("button", { name: "No" }).click();
 }
 
+export async function getUpcomingEvents() {
+  const data = await fetch('https://infra-core-api.aws.qa.acmuiuc.org/api/v1/events?upcomingOnly=true');
+  return await data.json() as Record<string, string>[];
+}
+
+export async function getAllEvents() {
+  const data = await fetch('https://infra-core-api.aws.qa.acmuiuc.org/api/v1/events');
+  return await data.json() as Record<string, string>[];
+}
+
+export function capitalizeFirstLetter(string: string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
 export const test = base.extend<{ becomeUser: (page) => Promise<void> }>({
-  becomeUser: async ({}, use) => {
+  becomeUser: async ({ }, use) => {
     use(becomeUser);
   },
 });
