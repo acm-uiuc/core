@@ -41,6 +41,10 @@ async function getSecrets() {
 
 const secrets = await getSecrets();
 
+export function capitalizeFirstLetter(string: string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
 async function becomeUser(page) {
   await page.goto("https://manage.qa.acmuiuc.org/login");
   await page
@@ -58,21 +62,21 @@ async function becomeUser(page) {
 }
 
 export async function getUpcomingEvents() {
-  const data = await fetch('https://infra-core-api.aws.qa.acmuiuc.org/api/v1/events?upcomingOnly=true');
-  return await data.json() as Record<string, string>[];
+  const data = await fetch(
+    "https://infra-core-api.aws.qa.acmuiuc.org/api/v1/events?upcomingOnly=true",
+  );
+  return (await data.json()) as Record<string, string>[];
 }
 
 export async function getAllEvents() {
-  const data = await fetch('https://infra-core-api.aws.qa.acmuiuc.org/api/v1/events');
-  return await data.json() as Record<string, string>[];
-}
-
-export function capitalizeFirstLetter(string: string) {
-  return string.charAt(0).toUpperCase() + string.slice(1);
+  const data = await fetch(
+    "https://infra-core-api.aws.qa.acmuiuc.org/api/v1/events",
+  );
+  return (await data.json()) as Record<string, string>[];
 }
 
 export const test = base.extend<{ becomeUser: (page) => Promise<void> }>({
-  becomeUser: async ({ }, use) => {
+  becomeUser: async ({}, use) => {
     use(becomeUser);
   },
 });
