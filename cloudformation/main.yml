@@ -47,7 +47,7 @@ Mappings:
       HostedZoneId: Z05246633460N5MEB9DBF
       ApiDomainName: "aws.acmuiuc.org"
       LinkryApiDomainName: "acm.illinois.edu"
-      LinkryApiCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/a902d70d-1991-400e-8be9-65befa8fa324
+      LinkryApiCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/aeb93d9e-b0b7-4272-9c12-24ca5058c77e
   EnvironmentToCidr:
     dev:
       SecurityGroupIds:
@@ -339,6 +339,35 @@ Resources:
     Properties:
       DomainName: !Sub
         - "go.${BaseDomainName}"
+        - BaseDomainName: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiDomainName
+      ApiId: !Ref AppApiGateway
+      Stage: default
+
+  IcalCustomDomainName:
+    Type: AWS::ApiGateway::DomainName
+    Condition: IsProd
+    Properties:
+      RegionalCertificateArn: !FindInMap [ApiGwConfig, !Ref RunEnvironment, LinkryApiCertificateArn]
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      DomainName: !Sub
+        - "ical.${BaseDomainName}"
+        - BaseDomainName: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiDomainName
+      SecurityPolicy: TLS_1_2
+
+  IcalApiMapping:
+    Type: 'AWS::ApiGatewayV2::ApiMapping'
+    Condition: IsProd
+    Properties:
+      DomainName: !Sub
+        - "ical.${BaseDomainName}"
         - BaseDomainName: !FindInMap
             - ApiGwConfig
             - !Ref RunEnvironment
