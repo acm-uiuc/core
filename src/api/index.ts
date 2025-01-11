@@ -87,6 +87,7 @@ async function init() {
     );
     done();
   });
+  app.get("/", (_, reply) => reply.send("Welcome to the ACM @ UIUC Core API!"));
   app.get("/api/v1/healthz", (_, reply) => reply.send({ message: "UP" }));
   await app.register(
     async (api, _options) => {
