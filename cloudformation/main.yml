@@ -25,6 +25,7 @@ Parameters:
 
 Conditions:
   IsProd: !Equals [!Ref RunEnvironment, 'prod']
+  IsDev: !Equals [!Ref RunEnvironment, 'dev']
   ShouldAttachVpc:
     !Equals [true, !Ref VpcRequired]
 
@@ -39,10 +40,14 @@ Mappings:
       ApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
       HostedZoneId: Z04502822NVIA85WM2SML
       ApiDomainName: "aws.qa.acmuiuc.org"
+      LinkryApiDomainName: "aws.qa.acmuiuc.org"
+      LinkryApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
     prod:
       ApiCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/6142a0e2-d62f-478e-bf15-5bdb616fe705
       HostedZoneId: Z05246633460N5MEB9DBF
-      ApiDomainName: "aws.acmuiuc.org" # CHANGE ME
+      ApiDomainName: "aws.acmuiuc.org"
+      LinkryApiDomainName: "acm.illinois.edu"
+      LinkryApiCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/a902d70d-1991-400e-8be9-65befa8fa324
   EnvironmentToCidr:
     dev:
       SecurityGroupIds:
@@ -93,7 +98,7 @@ Resources:
       Environment:
         Variables:
           RunEnvironment: !Ref RunEnvironment
-      VpcConfig: 
+      VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SecurityGroupIds], !Ref AWS::NoValue]
         SubnetIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds], !Ref AWS::NoValue]
@@ -107,7 +112,7 @@ Resources:
 
   IamGroupRolesTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-iam-grouproles
@@ -123,7 +128,7 @@ Resources:
 
   IamUserRolesTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-iam-userroles
@@ -139,7 +144,7 @@ Resources:
 
   EventRecordsTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-events
@@ -164,7 +169,7 @@ Resources:
 
   CacheRecordsTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-cache
@@ -183,7 +188,7 @@ Resources:
 
   AppApiGateway:
     Type: AWS::Serverless::Api
-    DependsOn: 
+    DependsOn:
       - AppApiLambdaFunction
     Properties:
       Name: !Sub ${ApplicationPrefix}-gateway
@@ -194,7 +199,7 @@ Resources:
           Name: AWS::Include
           Parameters:
             Location: ./phony-swagger.yml
-      Domain: 
+      Domain:
         DomainName: !Sub
           - "${ApplicationPrefix}.${BaseDomainName}"
           - BaseDomainName: !FindInMap
@@ -297,3 +302,31 @@ Resources:
           - ":"
           - !Ref AppApiGateway
           - "/*/*/*"
+
+  LinkryCustomDomainName:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      CertificateArn: !FindInMap [ApiGwConfig, !Ref RunEnvironment, LinkryApiCertificateArn]
+      DomainName: !Sub
+        - "go.${BaseDomainName}"
+        - BaseDomainName: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiDomainName
+      SecurityPolicy: TLS_1_2
+
+  LinkryRoute53RecordSetDev:
+    Condition: IsDev
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Sub
+        - "go.${BaseDomainName}"
+        - BaseDomainName: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiDomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt LinkryCustomDomainNameDev.RegionalDomainName
+        HostedZoneId: !GetAtt LinkryCustomDomainNameDev.RegionalHostedZoneId
