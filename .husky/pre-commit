@@ -5,7 +5,7 @@ if [ -n "$STAGED_FILES" ]; then
   echo "Running lint with fix on staged files..."
   # Run lint on all files (modifies files in the working directory)
   yarn lint --fix
-  yarn prettier:write
+  npx prettier --write $STAGED_FILES || true # skip files that don't have valid parsers
 
   echo "Re-adding originally staged files to the staging area..."
   # Re-add only the originally staged files
