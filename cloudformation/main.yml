@@ -306,7 +306,10 @@ Resources:
   LinkryCustomDomainName:
     Type: AWS::ApiGateway::DomainName
     Properties:
-      CertificateArn: !FindInMap [ApiGwConfig, !Ref RunEnvironment, LinkryApiCertificateArn]
+      RegionalCertificateArn: !FindInMap [ApiGwConfig, !Ref RunEnvironment, LinkryApiCertificateArn]
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
       DomainName: !Sub
         - "go.${BaseDomainName}"
         - BaseDomainName: !FindInMap
@@ -328,5 +331,17 @@ Resources:
             - LinkryApiDomainName
       Type: A
       AliasTarget:
-        DNSName: !GetAtt LinkryCustomDomainNameDev.RegionalDomainName
-        HostedZoneId: !GetAtt LinkryCustomDomainNameDev.RegionalHostedZoneId
+        DNSName: !GetAtt LinkryCustomDomainName.RegionalDomainName
+        HostedZoneId: !GetAtt LinkryCustomDomainName.RegionalHostedZoneId
+
+  LinkryApiMapping:
+    Type: 'AWS::ApiGatewayV2::ApiMapping'
+    Properties:
+      DomainName: !Sub
+        - "go.${BaseDomainName}"
+        - BaseDomainName: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiDomainName
+      ApiId: !Ref AppApiGateway
+      Stage: default
