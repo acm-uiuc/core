@@ -81,6 +81,42 @@ Resources:
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
         LogRetentionDays: !FindInMap [General, !Ref RunEnvironment, LogRetentionDays]
 
+  IcalDomainProxy:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./custom-domain.yml
+      Parameters:
+        RunEnvironment: !Ref RunEnvironment
+        RecordName: ical
+        GWBaseDomainName: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiDomainName
+        GWCertArn: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiCertificateArn
+        GWApiId: !Ref AppApiGateway
+        GWHostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+
+  LinkryDomainProxy:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./custom-domain.yml
+      Parameters:
+        RunEnvironment: !Ref RunEnvironment
+        RecordName: go
+        GWBaseDomainName: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiDomainName
+        GWCertArn: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiCertificateArn
+        GWApiId: !Ref AppApiGateway
+        GWHostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+
   AppApiLambdaFunction:
     Type: AWS::Serverless::Function
     DependsOn:
@@ -302,75 +338,3 @@ Resources:
           - ":"
           - !Ref AppApiGateway
           - "/*/*/*"
-
-  LinkryCustomDomainName:
-    Type: AWS::ApiGateway::DomainName
-    Properties:
-      RegionalCertificateArn: !FindInMap [ApiGwConfig, !Ref RunEnvironment, LinkryApiCertificateArn]
-      EndpointConfiguration:
-        Types:
-          - REGIONAL
-      DomainName: !Sub
-        - "go.${BaseDomainName}"
-        - BaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - LinkryApiDomainName
-      SecurityPolicy: TLS_1_2
-
-  LinkryRoute53RecordSetDev:
-    Condition: IsDev
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-      Name: !Sub
-        - "go.${BaseDomainName}"
-        - BaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - LinkryApiDomainName
-      Type: A
-      AliasTarget:
-        DNSName: !GetAtt LinkryCustomDomainName.RegionalDomainName
-        HostedZoneId: !GetAtt LinkryCustomDomainName.RegionalHostedZoneId
-
-  LinkryApiMapping:
-    Type: 'AWS::ApiGatewayV2::ApiMapping'
-    Properties:
-      DomainName: !Sub
-        - "go.${BaseDomainName}"
-        - BaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - LinkryApiDomainName
-      ApiId: !Ref AppApiGateway
-      Stage: default
-
-  IcalCustomDomainName:
-    Type: AWS::ApiGateway::DomainName
-    Condition: IsProd
-    Properties:
-      RegionalCertificateArn: !FindInMap [ApiGwConfig, !Ref RunEnvironment, LinkryApiCertificateArn]
-      EndpointConfiguration:
-        Types:
-          - REGIONAL
-      DomainName: !Sub
-        - "ical.${BaseDomainName}"
-        - BaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - LinkryApiDomainName
-      SecurityPolicy: TLS_1_2
-
-  IcalApiMapping:
-    Type: 'AWS::ApiGatewayV2::ApiMapping'
-    Condition: IsProd
-    Properties:
-      DomainName: !Sub
-        - "ical.${BaseDomainName}"
-        - BaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - LinkryApiDomainName
-      ApiId: !Ref AppApiGateway
-      Stage: default

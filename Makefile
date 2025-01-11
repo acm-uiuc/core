@@ -11,7 +11,7 @@ integration_test_directory_root = tests/live_integration/
 # CHANGE ME (as needed)
 application_key=infra-core-api
 application_name="InfraCoreApi"
-techlead="dsingh14@illinois.edu"
+techlead="tarasha2@illinois.edu"
 region="us-east-1"
 
 # DO NOT CHANGE

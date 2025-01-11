@@ -28,6 +28,20 @@ async function init() {
     logger: {
       level: process.env.LOG_LEVEL || "info",
     },
+    rewriteUrl: (req) => {
+      const url = req.url;
+      const hostname = req.headers.host || "";
+      const customDomainBaseMappers: Record<string, string> = {
+        "ical.acm.illinois.edu": `/api/v1/ical${url}`,
+        "ical.aws.qa.acmuiuc.org": `/api/v1/ical${url}`,
+        "go.acm.illinois.edu": `/api/v1/linkry/redir${url}`,
+        "go.aws.qa.acmuiuc.org": `/api/v1/linkry/redir${url}`,
+      };
+      if (hostname in customDomainBaseMappers) {
+        return customDomainBaseMappers[hostname];
+      }
+      return url || "/";
+    },
     disableRequestLogging: true,
     genReqId: (request) => {
       const header = request.headers["x-apigateway-event"];
@@ -56,7 +70,9 @@ async function init() {
     environmentConfig[app.runEnvironment as RunEnvironment];
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
-    req.log.info({ url: req.raw.url }, "received request");
+    const hostname = req.hostname;
+    const url = req.raw.url;
+    req.log.info({ hostname, url }, "received request");
     done();
   });
 
