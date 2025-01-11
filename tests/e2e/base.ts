@@ -1,4 +1,4 @@
-import { test as base } from '@playwright/test';
+import { test as base } from "@playwright/test";
 import {
   SecretsManagerClient,
   GetSecretValueCommand,
@@ -25,32 +25,40 @@ export const getSecretValue = async (
 };
 
 async function getSecrets() {
-  let response = { PLAYWRIGHT_USERNAME: '', PLAYWRIGHT_PASSWORD: '' }
+  let response = { PLAYWRIGHT_USERNAME: "", PLAYWRIGHT_PASSWORD: "" };
   let keyData;
   if (!process.env.PLAYWRIGHT_USERNAME || !process.env.PLAYWRIGHT_PASSWORD) {
-    keyData = await getSecretValue('infra-core-api-config')
+    keyData = await getSecretValue("infra-core-api-config");
   }
-  response['PLAYWRIGHT_USERNAME'] = process.env.PLAYWRIGHT_USERNAME || (keyData ? keyData['playwright_username'] : '');
-  response['PLAYWRIGHT_PASSWORD'] = process.env.PLAYWRIGHT_PASSWORD || (keyData ? keyData['playwright_password'] : '');
+  response["PLAYWRIGHT_USERNAME"] =
+    process.env.PLAYWRIGHT_USERNAME ||
+    (keyData ? keyData["playwright_username"] : "");
+  response["PLAYWRIGHT_PASSWORD"] =
+    process.env.PLAYWRIGHT_PASSWORD ||
+    (keyData ? keyData["playwright_password"] : "");
   return response;
 }
 
 const secrets = await getSecrets();
 
 async function becomeUser(page) {
-  await page.goto('https://manage.qa.acmuiuc.org/login');
-  await page.getByRole('button', { name: 'Sign in with Illinois NetID' }).click();
-  await page.getByPlaceholder('NetID@illinois.edu').click();
-  await page.getByPlaceholder('NetID@illinois.edu').fill(secrets['PLAYWRIGHT_USERNAME']);
-  await page.getByPlaceholder('NetID@illinois.edu').press('Enter');
-  await page.getByPlaceholder('Password').click();
-  await page.getByPlaceholder('Password').fill(secrets['PLAYWRIGHT_PASSWORD']);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.getByRole('button', { name: 'No' }).click();
+  await page.goto("https://manage.qa.acmuiuc.org/login");
+  await page
+    .getByRole("button", { name: "Sign in with Illinois NetID" })
+    .click();
+  await page.getByPlaceholder("NetID@illinois.edu").click();
+  await page
+    .getByPlaceholder("NetID@illinois.edu")
+    .fill(secrets["PLAYWRIGHT_USERNAME"]);
+  await page.getByPlaceholder("NetID@illinois.edu").press("Enter");
+  await page.getByPlaceholder("Password").click();
+  await page.getByPlaceholder("Password").fill(secrets["PLAYWRIGHT_PASSWORD"]);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "No" }).click();
 }
 
 export const test = base.extend<{ becomeUser: (page) => Promise<void> }>({
-  becomeUser: async ({ }, use) => {
-    use(becomeUser)
+  becomeUser: async ({}, use) => {
+    use(becomeUser);
   },
 });
