@@ -24,6 +24,8 @@ common_params = --no-confirm-changeset \
 				--s3-prefix $(application_key) \
 				--resolve-s3
 
+GIT_HASH := $(shell git rev-parse --short HEAD)
+
 .PHONY: build clean
 
 check_account_prod:
@@ -49,11 +51,11 @@ clean:
 
 build: src/ cloudformation/ docs/
 	yarn -D
-	yarn build
+	VITE_BUILD_HASH=$(GIT_HASH) yarn build
 	sam build --template-file cloudformation/main.yml
 
 local:
-	yarn run dev
+	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
 
 deploy_prod: check_account_prod build
 	aws sts get-caller-identity --query Account --output text
@@ -62,19 +64,19 @@ deploy_prod: check_account_prod build
 deploy_dev: check_account_dev build
 	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)"
 
-install_test_deps:
+install:
 	yarn -D
 
-test_live_integration: install_test_deps
+test_live_integration: install
 	yarn test:live
 
-test_unit: install_test_deps
+test_unit: install
 	yarn typecheck
 	yarn lint
 	yarn prettier
 	yarn test:unit
 
-test_e2e: install_test_deps
+test_e2e: install
 	yarn playwright install
 	yarn test:e2e
 

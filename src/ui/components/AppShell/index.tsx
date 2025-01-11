@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext/index.js';
 import { HeaderNavbar } from '../Navbar/index.js';
 import { AuthenticatedProfileDropdown } from '../ProfileDropdown/index.js';
+import { getCurrentRevision } from '@ui/util/revision.js';
 
 interface AcmAppShellProps {
   children: ReactNode;
@@ -172,14 +173,24 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
         <HeaderNavbar />
       </AppShell.Header>
       <AppShell.Navbar p="sm">
-        <SidebarNavItems items={navItems} visible={showSidebar} active={active} />
-        <br />
-        <Divider label="Other Services" />
-        <SidebarNavItems items={extLinks} visible={showSidebar} active={active} />
-        <Group hiddenFrom="sm">
-          <Divider />
-          <AuthenticatedProfileDropdown userData={userData || {}} />
-        </Group>
+        <AppShell.Section grow>
+          <SidebarNavItems items={navItems} visible={showSidebar} active={active} />
+          <br />
+          <Divider label="Other Services" />
+          <SidebarNavItems items={extLinks} visible={showSidebar} active={active} />
+          <Group hiddenFrom="sm">
+            <Divider />
+            <AuthenticatedProfileDropdown userData={userData || {}} />
+          </Group>
+        </AppShell.Section>
+        <AppShell.Section>
+          <Text size="xs" fw={500}>
+            &copy; {new Date().getFullYear()} ACM @ UIUC
+          </Text>
+          <Text size="xs" fw={500}>
+            Revision <code>{getCurrentRevision()}</code>
+          </Text>
+        </AppShell.Section>
       </AppShell.Navbar>
       <AppShell.Main>
         {showLoader ? (

@@ -6,7 +6,7 @@ import path from 'path';
 
 
 export default defineConfig({
-  define:{'process.env': process.env},
+  define: {'process.env': {AWS_REGION: process.env.AWS_REGION}},
   plugins: [react(), tsconfigPaths()],
   resolve: {
     preserveSymlinks: true,
