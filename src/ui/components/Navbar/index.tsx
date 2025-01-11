@@ -1,20 +1,31 @@
 'use client';
 
-import { Group, Divider, Box, Burger, Drawer, ScrollArea, rem } from '@mantine/core';
+import {
+  Group,
+  Divider,
+  Box,
+  Burger,
+  Drawer,
+  ScrollArea,
+  rem,
+  AppShell,
+  Text,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useNavigate } from 'react-router-dom';
 
 import { extLinks, navItems, renderNavItems } from '../AppShell/index.js';
-import { AuthContextData, useAuth } from '../AuthContext/index.js';
+import { useAuth } from '../AuthContext/index.js';
 import { DarkModeSwitch } from '../DarkModeSwitch/index.js';
 import { AuthenticatedProfileDropdown } from '../ProfileDropdown/index.js';
 
 import LogoBadge from './Logo.js';
 import classes from './index.module.css';
+import { getCurrentRevision } from '@ui/util/revision.js';
 
 const HeaderNavbar: React.FC = () => {
   const [drawerOpened, { toggle: toggleDrawer, close: closeDrawer }] = useDisclosure(false);
-  const { isLoggedIn, userData } = useAuth();
+  const { userData } = useAuth();
   const navigate = useNavigate();
   return (
     <Box>
@@ -46,6 +57,14 @@ const HeaderNavbar: React.FC = () => {
           {renderNavItems(extLinks, '', navigate)}
           <Divider my="sm" />
           {userData ? <AuthenticatedProfileDropdown userData={userData} /> : null}
+          <Box px={{ base: 'md' }}>
+            <Text size="xs" fw={500}>
+              &copy; {new Date().getFullYear()} ACM @ UIUC
+            </Text>
+            <Text size="xs" fw={500}>
+              Revision <code>{getCurrentRevision()}</code>
+            </Text>
+          </Box>
         </ScrollArea>
       </Drawer>
     </Box>
