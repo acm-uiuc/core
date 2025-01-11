@@ -103,7 +103,7 @@ jobs:
       group: ${{ github.event.repository.name }}-prod
       cancel-in-progress: false
     needs:
-      - test
+      - test-dev
     environment: "AWS PROD"
     steps:
       - name: Set up Node for testing
