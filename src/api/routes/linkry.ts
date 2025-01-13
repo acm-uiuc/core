@@ -10,7 +10,7 @@ import {
 import { intersection } from "../plugins/auth.js";
 import { NoDataRequest } from "../types.js";
 import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
-import { environmentConfig, genericConfig } from "common/config.js";
+import { genericConfig } from "../../common/config.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 
 type LinkrySlugOnlyRequest = {
