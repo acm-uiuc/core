@@ -72,7 +72,7 @@ async function init() {
     req.startTime = now();
     const hostname = req.hostname;
     const url = req.raw.url;
-    req.log.info({ hostname, url }, "received request");
+    req.log.info({ hostname, url, method: req.method }, "received request");
     done();
   });
 

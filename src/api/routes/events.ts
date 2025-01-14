@@ -134,7 +134,10 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             Item: marshall(entry),
           }),
         );
-
+        let verb = "created";
+        if (userProvidedId && userProvidedId === entryUUID) {
+          verb = "modified";
+        }
         try {
           if (request.body.featured && !request.body.repeats) {
             await updateDiscord(entry, false, request.log);
@@ -157,18 +160,21 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
 
           if (e instanceof Error) {
-            request.log.error(`Failed to publish event to Discord: ${e}`);
+            request.log.error(`Failed to publish event to Discord: ${e} `);
           }
           if (e instanceof BaseError) {
             throw e;
           }
           throw new DiscordEventError({});
         }
-
         reply.send({
           id: entryUUID,
           resource: `/api/v1/events/${entryUUID}`,
         });
+        request.log.info(
+          { type: "audit", actor: request.username, target: entryUUID },
+          `${verb} event "${entryUUID}"`,
+        );
       } catch (e: unknown) {
         if (e instanceof Error) {
           request.log.error("Failed to insert to DynamoDB: " + e.toString());
@@ -254,6 +260,10 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           message: "Failed to delete event from Dynamo table.",
         });
       }
+      request.log.info(
+        { type: "audit", actor: request.username, target: id },
+        `deleted event "${id}"`,
+      );
     },
   );
   type EventsGetRequest = {
@@ -306,7 +316,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               );
             } catch (e: unknown) {
               request.log.warn(
-                `Could not compute upcoming event status for event ${item.title}: ${e instanceof Error ? e.toString() : e}`,
+                `Could not compute upcoming event status for event ${item.title}: ${e instanceof Error ? e.toString() : e} `,
               );
               return false;
             }
@@ -322,7 +332,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         if (e instanceof Error) {
           request.log.error("Failed to get from DynamoDB: " + e.toString());
         } else {
-          request.log.error(`Failed to get from DynamoDB. ${e}`);
+          request.log.error(`Failed to get from DynamoDB.${e} `);
         }
         throw new DatabaseFetchError({
           message: "Failed to get events from Dynamo table.",

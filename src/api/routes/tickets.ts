@@ -438,6 +438,10 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
       await dynamoClient.send(command);
       reply.send(response);
+      request.log.info(
+        { type: "audit", actor: request.username, target: ticketId },
+        `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
+      );
     },
   );
 };
