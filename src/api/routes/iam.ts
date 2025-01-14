@@ -281,7 +281,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
               actor: request.username,
               target: request.body.add[i],
             },
-            `failed to add added target to group ID ${groupId}`,
+            `failed to add target to group ID ${groupId}`,
           );
           if (result.reason instanceof EntraGroupError) {
             response.failure.push({
@@ -300,7 +300,23 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const result = removeResults[i];
         if (result.status === "fulfilled") {
           response.success.push({ email: request.body.remove[i] });
+          request.log.info(
+            {
+              type: "audit",
+              actor: request.username,
+              target: request.body.add[i],
+            },
+            `removed target from group ID ${groupId}`,
+          );
         } else {
+          request.log.info(
+            {
+              type: "audit",
+              actor: request.username,
+              target: request.body.add[i],
+            },
+            `failed to remove target from group ID ${groupId}`,
+          );
           if (result.reason instanceof EntraGroupError) {
             response.failure.push({
               email: request.body.add[i],

@@ -222,10 +222,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           message: "Invalid token.",
         });
       }
-      request.log.info(
-        { type: "audit", actor: request.username },
-        "authenticated request",
-      );
+      request.log.info(`authenticated request from ${request.username}`);
       return userRoles;
     },
   );
