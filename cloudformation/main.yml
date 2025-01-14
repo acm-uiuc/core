@@ -34,7 +34,7 @@ Mappings:
     dev:
       LogRetentionDays: 7
     prod:
-      LogRetentionDays: 30
+      LogRetentionDays: 365
   ApiGwConfig:
     dev:
       ApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
