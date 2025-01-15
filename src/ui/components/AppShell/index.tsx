@@ -52,15 +52,15 @@ export const navItems = [
     icon: IconLock,
     description: null,
   },
-];
-
-export const extLinks = [
   {
-    link: 'https://go.acm.illinois.edu/create',
+    link: '/link-shortener',
     name: 'Link Shortener',
     icon: IconLink,
     description: null,
   },
+];
+
+export const extLinks = [
   {
     link: 'https://stripelinks.acm.illinois.edu/create',
     name: 'Stripe Link Creator',
