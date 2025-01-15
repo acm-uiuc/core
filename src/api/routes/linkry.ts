@@ -139,14 +139,14 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
   );
   fastify.get<NoDataRequest>(
     "/redir",
-    {
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [
-          AppRoles.LINKS_MANAGER,
-          AppRoles.LINKS_ADMIN,
-        ]);
-      },
-    },
+    // {
+    //   onRequest: async (request, reply) => {
+    //     await fastify.authorize(request, reply, [
+    //       AppRoles.LINKS_MANAGER,
+    //       AppRoles.LINKS_ADMIN,
+    //     ]);
+    //   },
+    // },
     async (request, reply) => {
       // if an admin, show all links
       // if a links manager, show all my links + links I can manage
@@ -156,14 +156,29 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           new ScanCommand({ TableName: genericConfig.LinkryDynamoTableName }),
         );
         const items = response.Items?.map((item) => unmarshall(item));
-        if (items?.length !== 1) {
-          throw new Error("Event not found");
+        console.log("Hello");
+        console.log(items);
+
+        // Sort items by createdAtUtc in ascending order, need to pass this to dyanmo instead of calcaulting here
+        const sortedItems = items?.sort(
+          (a, b) =>
+            new Date(b.createdAtUtc).getTime() -
+            new Date(a.createdAtUtc).getTime(),
+        );
+        console.log("World");
+        console.log(items);
+
+        // Check for the desired condition and respond
+        if (sortedItems?.length === 0) {
+          throw new Error("No Links Found");
         }
-        reply.send(items[0]);
-      } catch (e: unknown) {
+
+        reply.send(sortedItems);
+      } catch (e) {
         if (e instanceof Error) {
           request.log.error("Failed to get from DynamoDB: " + e.toString());
         }
+        console.log(e);
         throw new DatabaseFetchError({
           message: "Failed to get Links from Dynamo table.",
         });

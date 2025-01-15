@@ -16,63 +16,54 @@ import { AppRoles } from '@common/roles.js';
 const repeatOptions = ['weekly', 'biweekly'] as const;
 
 const baseSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().min(1),
-  start: z.string(),
-  end: z.optional(z.string()),
-  location: z.string(),
-  locationLink: z.optional(z.string().url()),
-  host: z.string(),
-  featured: z.boolean().default(false),
-  paidEventId: z.optional(z.string().min(1)),
+  slug: z.string().min(1).optional(),
+  access: z.string().min(1).optional(),
+  redirect: z.string().min(1).optional(),
+  createdAtUtc: z.number().optional(),
+  updatedAtUtc: z.number().optional(),
 });
 
-const requestSchema = baseSchema.extend({
-  repeats: z.optional(z.enum(repeatOptions)),
-  repeatEnds: z.string().optional(),
-});
+// const requestSchema = baseSchema.extend({
+//   repeats: z.optional(z.enum(repeatOptions)),
+//   repeatEnds: z.string().optional(),
+// });
 
-const getEventSchema = requestSchema.extend({
+const getLinkrySchema = baseSchema.extend({
   id: z.string(),
-  upcoming: z.boolean().optional(),
 });
 
-export type EventGetResponse = z.infer<typeof getEventSchema>;
-const getEventsSchema = z.array(getEventSchema);
-export type EventsGetResponse = z.infer<typeof getEventsSchema>;
+export type LinkryGetResponse = z.infer<typeof getLinkrySchema>;
+//const getLinksSchema = z.array(getLinkrySchema);
 
 export const LinkShortener: React.FC = () => {
-  const [eventList, setEventList] = useState<EventsGetResponse>([]);
+  const [linkList, setLinkList] = useState<LinkryGetResponse[]>([]);
   const api = useApi('core');
   const [opened, { open, close }] = useDisclosure(false);
   const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false); // Changed default to false
-  const [deleteCandidate, setDeleteCandidate] = useState<EventGetResponse | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<LinkryGetResponse | null>(null);
   const navigate = useNavigate();
 
-  const renderTableRow = (event: EventGetResponse) => {
-    const shouldShow = event.upcoming || (!event.upcoming && showPrevious);
+  const renderTableRow = (link: LinkryGetResponse) => {
+    const shouldShow = true;
 
     return (
       <Transition mounted={shouldShow} transition="fade" duration={400} timingFunction="ease">
         {(styles) => (
           <tr style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}>
-            <Table.Td>{event.title}</Table.Td>
-            <Table.Td>{dayjs(event.start).format('MMM D YYYY hh:mm')}</Table.Td>
-            <Table.Td>{event.end ? dayjs(event.end).format('MMM D YYYY hh:mm') : 'N/A'}</Table.Td>
-            <Table.Td>{event.location}</Table.Td>
-            <Table.Td>{event.description}</Table.Td>
-            <Table.Td>{event.host}</Table.Td>
-            <Table.Td>{event.featured ? 'Yes' : 'No'}</Table.Td>
-            <Table.Td>{capitalizeFirstLetter(event.repeats || 'Never')}</Table.Td>
+            <Table.Td>{link.slug}</Table.Td>
+            <Table.Td>{link.redirect}</Table.Td>
+            <Table.Td>{link.access}</Table.Td>
+            <Table.Td>{dayjs(link.createdAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>
+            <Table.Td>{dayjs(link.updatedAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>
             <Table.Td>
               <ButtonGroup>
-                <Button component="a" href={`/events/edit/${event.id}`}>
+                <Button component="a" href={`/linkry/edit/${link.id}`}>
                   Edit
                 </Button>
                 <Button
                   color="red"
                   onClick={() => {
-                    setDeleteCandidate(event);
+                    //setDeleteCandidate(event);
                     open();
                   }}
                 >
@@ -88,44 +79,44 @@ export const LinkShortener: React.FC = () => {
 
   useEffect(() => {
     const getEvents = async () => {
-      const response = await api.get('/api/v1/events');
-      const upcomingEvents = await api.get('/api/v1/events?upcomingOnly=true');
-      const upcomingEventsSet = new Set(upcomingEvents.data.map((x: EventGetResponse) => x.id));
+      const response = await api.get('/api/v1/linkry/redir');
+      //const upcomingEvents = await api.get('/api/v1/events?upcomingOnly=true');
+      //const upcomingEventsSet = new Set(upcomingEvents.data.map((x: EventGetResponse) => x.id));
       const events = response.data;
-      events.sort((a: EventGetResponse, b: EventGetResponse) => {
-        return a.start.localeCompare(b.start);
-      });
-      const enrichedResponse = response.data.map((item: EventGetResponse) => {
-        if (upcomingEventsSet.has(item.id)) {
-          return { ...item, upcoming: true };
-        }
-        return { ...item, upcoming: false };
-      });
-      setEventList(enrichedResponse);
+      // events.sort((a: EventGetResponse, b: EventGetResponse) => {
+      //   return a.start.localeCompare(b.start);
+      // });
+      // const enrichedResponse = response.data.map((item: EventGetResponse) => {
+      //   if (upcomingEventsSet.has(item.id)) {
+      //     return { ...item, upcoming: true };
+      //   }
+      //   return { ...item, upcoming: false };
+      // });
+      setLinkList(events);
     };
     getEvents();
   }, []);
 
   const deleteEvent = async (eventId: string) => {
-    try {
-      await api.delete(`/api/v1/events/${eventId}`);
-      setEventList((prevEvents) => prevEvents.filter((event) => event.id !== eventId));
-      notifications.show({
-        title: 'Event deleted',
-        message: 'The event was successfully deleted.',
-      });
-      close();
-    } catch (error) {
-      console.error(error);
-      notifications.show({
-        title: 'Error deleting event',
-        message: `${error}`,
-        color: 'red',
-      });
-    }
+    // try {
+    //   await api.delete(`/api/v1/events/${eventId}`);
+    //   setEventList((prevEvents) => prevEvents.filter((event) => event.id !== eventId));
+    //   notifications.show({
+    //     title: 'Event deleted',
+    //     message: 'The event was successfully deleted.',
+    //   });
+    //   close();
+    // } catch (error) {
+    //   console.error(error);
+    //   notifications.show({
+    //     title: 'Error deleting event',
+    //     message: `${error}`,
+    //     color: 'red',
+    //   });
+    // }
   };
 
-  if (eventList.length === 0) {
+  if (linkList.length === 0) {
     return <FullScreenLoader />;
   }
 
@@ -175,18 +166,14 @@ export const LinkShortener: React.FC = () => {
       <Table style={{ tableLayout: 'fixed', width: '100%' }}>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th>Title</Table.Th>
-            <Table.Th>Start</Table.Th>
-            <Table.Th>End</Table.Th>
-            <Table.Th>Location</Table.Th>
-            <Table.Th>Description</Table.Th>
-            <Table.Th>Host</Table.Th>
-            <Table.Th>Featured</Table.Th>
-            <Table.Th>Repeats</Table.Th>
-            <Table.Th>Actions</Table.Th>
+            <Table.Th>Slug</Table.Th>
+            <Table.Th>Redirect URL</Table.Th>
+            <Table.Th>Access Group</Table.Th>
+            <Table.Th>Created At</Table.Th>
+            <Table.Th>Updated At</Table.Th>
           </Table.Tr>
         </Table.Thead>
-        <Table.Tbody>{eventList.map(renderTableRow)}</Table.Tbody>
+        <Table.Tbody>{linkList.map(renderTableRow)}</Table.Tbody>
       </Table>
     </AuthGuard>
   );
