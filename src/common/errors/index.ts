@@ -180,6 +180,17 @@ export class NotSupportedError extends BaseError<"NotSupportedError"> {
   }
 }
 
+export class DatabaseDeleteError extends BaseError<"DatabaseDeleteError"> {
+  constructor({ message }: { message: string }) {
+    super({
+      name: "DatabaseDeleteError",
+      id: 111,
+      message,
+      httpStatusCode: 500,
+    });
+  }
+}
+
 export class EntraGroupError extends BaseError<"EntraGroupError"> {
   group: string;
   constructor({
@@ -201,3 +212,4 @@ export class EntraGroupError extends BaseError<"EntraGroupError"> {
     this.group = group;
   }
 }
+

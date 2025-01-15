@@ -15,6 +15,10 @@
     "prettier:write": "prettier --write *.ts **/*.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-sts": "^3.726.0"
+    "@aws-sdk/client-sts": "^3.726.0",
+    "@fastify/static": "^8.0.4"
+  },
+  "devDependencies": {
+    "@types/ejs": "^3.1.5"
   }
 }
