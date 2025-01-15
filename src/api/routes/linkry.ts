@@ -9,7 +9,11 @@ import {
 } from "../../common/errors/index.js";
 import { intersection } from "../plugins/auth.js";
 import { NoDataRequest } from "../types.js";
-import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBClient,
+  QueryCommand,
+  ScanCommand,
+} from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 
@@ -146,6 +150,25 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       // if an admin, show all links
       // if a links manager, show all my links + links I can manage
+
+      try {
+        const response = await dynamoClient.send(
+          new ScanCommand({ TableName: genericConfig.LinkryDynamoTableName }),
+        );
+        const items = response.Items?.map((item) => unmarshall(item));
+        if (items?.length !== 1) {
+          throw new Error("Event not found");
+        }
+        reply.send(items[0]);
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+          request.log.error("Failed to get from DynamoDB: " + e.toString());
+        }
+        throw new DatabaseFetchError({
+          message: "Failed to get Links from Dynamo table.",
+        });
+      }
+
       throw new NotImplementedError({});
     },
   );
