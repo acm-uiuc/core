@@ -21,6 +21,7 @@ export type ConfigType = {
 type GenericConfigType = {
   EventsDynamoTableName: string;
   CacheDynamoTableName: string;
+  LinkryDynamoTableName: string;
   ConfigSecretName: string;
   UpcomingEventThresholdSeconds: number;
   AwsRegion: string;
@@ -46,6 +47,7 @@ export const execCouncilTestingGroupId = "dbe18eb2-9675-46c4-b1ef-749a6db4fedd";
 const genericConfig: GenericConfigType = {
   EventsDynamoTableName: "infra-core-api-events",
   CacheDynamoTableName: "infra-core-api-cache",
+  LinkryDynamoTableName: "infra-core-api-linkry",
   ConfigSecretName: "infra-core-api-config",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
   AwsRegion: process.env.AWS_REGION || "us-east-1",

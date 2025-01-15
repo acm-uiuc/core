@@ -1,4 +1,3 @@
-/* eslint import/no-nodejs-modules: ["error", {"allow": ["crypto"]}] */
 import { randomUUID } from "crypto";
 import fastify, { FastifyInstance } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
@@ -18,6 +17,9 @@ import * as dotenv from "dotenv";
 import iamRoutes from "./routes/iam.js";
 import ticketsPlugin from "./routes/tickets.js";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
+import linkryRoutes from "./routes/linkry.js";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 dotenv.config();
 
@@ -53,6 +55,12 @@ async function init() {
       return event.requestContext.requestId;
     },
   });
+  const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
+  const __dirname = path.dirname(__filename);
+  await app.register(import("@fastify/static"), {
+    root: path.join(__dirname, "public"),
+  });
+
   await app.register(fastifyAuthPlugin);
   await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);
@@ -97,6 +105,7 @@ async function init() {
       api.register(icalPlugin, { prefix: "/ical" });
       api.register(iamRoutes, { prefix: "/iam" });
       api.register(ticketsPlugin, { prefix: "/tickets" });
+      api.register(linkryRoutes, { prefix: "/linkry" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }
