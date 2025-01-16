@@ -32,6 +32,12 @@ const getLinkrySchema = baseSchema.extend({
   id: z.string(),
 });
 
+const wrapTextStyle = {
+  wordWrap: 'break-word',
+  overflowWrap: 'break-word',
+  whiteSpace: 'normal',
+};
+
 export type LinkryGetResponse = z.infer<typeof getLinkrySchema>;
 //const getLinksSchema = z.array(getLinkrySchema);
 
@@ -50,16 +56,16 @@ export const LinkShortener: React.FC = () => {
       <Transition mounted={shouldShow} transition="fade" duration={400} timingFunction="ease">
         {(styles) => (
           <tr style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}>
-            <Table.Td>{link.slug}</Table.Td>
-            <Table.Td>{link.redirect}</Table.Td>
-            <Table.Td>{link.access}</Table.Td>
-            <Table.Td>{dayjs(link.createdAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>
-            <Table.Td>{dayjs(link.updatedAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>
+            <Table.Td style={wrapTextStyle}>{link.slug}</Table.Td>
+            <Table.Td style={wrapTextStyle}>{link.redirect}</Table.Td>
+            <Table.Td style={wrapTextStyle}>{link.access}</Table.Td>
+            {/* <Table.Td style={wrapTextStyle}>{dayjs(link.createdAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>
+            <Table.Td style={wrapTextStyle}>{dayjs(link.updatedAtUtc).format('MMM D YYYY hh:mm')}</Table.Td> */}
             <Table.Td>
               <ButtonGroup>
-                <Button component="a" href={`/linkry/edit/${link.id}`}>
+                {/* <Button component="a" href={`/linkry/edit/${link.id}`}>
                   Edit
-                </Button>
+                </Button> */}
                 <Button
                   color="red"
                   onClick={() => {
@@ -169,8 +175,8 @@ export const LinkShortener: React.FC = () => {
             <Table.Th>Slug</Table.Th>
             <Table.Th>Redirect URL</Table.Th>
             <Table.Th>Access Group</Table.Th>
-            <Table.Th>Created At</Table.Th>
-            <Table.Th>Updated At</Table.Th>
+            {/* <Table.Th>Created At</Table.Th>
+            <Table.Th>Updated At</Table.Th> */}
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>{linkList.map(renderTableRow)}</Table.Tbody>

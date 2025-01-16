@@ -19,35 +19,16 @@ export function capitalizeFirstLetter(string: string) {
 const repeatOptions = ['weekly', 'biweekly'] as const;
 
 const baseBodySchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().min(1, 'Description is required'),
-  start: z.date(),
-  end: z.optional(z.date()),
-  location: z.string().min(1, 'Location is required'),
-  locationLink: z.optional(z.string().url('Invalid URL')),
-  host: z.string().min(1, 'Host is required'),
-  featured: z.boolean().default(false),
-  paidEventId: z.string().min(1, 'Paid Event ID must be at least 1 character').optional(),
+  slug: z.string().min(1).optional(),
+  access: z.string().min(1).optional(),
+  redirect: z.string().min(1).optional(),
+  createdAtUtc: z.number().optional(),
+  updatedAtUtc: z.number().optional(),
 });
 
-const requestBodySchema = baseBodySchema
-  .extend({
-    repeats: z.optional(z.enum(repeatOptions)).nullable(),
-    repeatEnds: z.date().optional(),
-  })
-  .refine((data) => (data.repeatEnds ? data.repeats !== undefined : true), {
-    message: 'Repeat frequency is required when Repeat End is specified.',
-  })
-  .refine((data) => !data.end || data.end >= data.start, {
-    message: 'Event end date cannot be earlier than the start date.',
-    path: ['end'],
-  })
-  .refine((data) => !data.repeatEnds || data.repeatEnds >= data.start, {
-    message: 'Repeat end date cannot be earlier than the start date.',
-    path: ['repeatEnds'],
-  });
+const requestBodySchema = baseBodySchema;
 
-type EventPostRequest = z.infer<typeof requestBodySchema>;
+type LinkPostRequest = z.infer<typeof requestBodySchema>;
 
 export const ManageLinkPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -56,7 +37,7 @@ export const ManageLinkPage: React.FC = () => {
 
   const { eventId } = useParams();
 
-  const isEditing = eventId !== undefined;
+  const isEditing = false; //= eventId !== undefined;
 
   useEffect(() => {
     if (!isEditing) {
@@ -68,17 +49,9 @@ export const ManageLinkPage: React.FC = () => {
         const response = await api.get(`/api/v1/events/${eventId}`);
         const eventData = response.data;
         const formValues = {
-          title: eventData.title,
-          description: eventData.description,
-          start: new Date(eventData.start),
-          end: eventData.end ? new Date(eventData.end) : undefined,
-          location: eventData.location,
-          locationLink: eventData.locationLink,
-          host: eventData.host,
-          featured: eventData.featured,
-          repeats: eventData.repeats,
-          repeatEnds: eventData.repeatEnds ? new Date(eventData.repeatEnds) : undefined,
-          paidEventId: eventData.paidEventId,
+          slug: eventData.slug,
+          access: eventData.access,
+          redirect: eventData.redirects,
         };
         form.setValues(formValues);
       } catch (error) {
@@ -91,145 +64,86 @@ export const ManageLinkPage: React.FC = () => {
     getEvent();
   }, [eventId, isEditing]);
 
-  const form = useForm<EventPostRequest>({
+  const form = useForm<LinkPostRequest>({
     validate: zodResolver(requestBodySchema),
     initialValues: {
-      title: '',
-      description: '',
-      start: new Date(),
-      end: new Date(new Date().valueOf() + 3.6e6), // 1 hr later
-      location: 'ACM Room (Siebel CS 1104)',
-      locationLink: 'https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8',
-      host: 'ACM',
-      featured: false,
-      repeats: undefined,
-      repeatEnds: undefined,
-      paidEventId: undefined,
+      slug: '',
+      access: '',
+      redirect: '',
     },
   });
 
-  const checkPaidEventId = async (paidEventId: string) => {
-    try {
-      const merchEndpoint = getRunEnvironmentConfig().ServiceConfiguration.merch.baseEndpoint;
-      const ticketEndpoint = getRunEnvironmentConfig().ServiceConfiguration.tickets.baseEndpoint;
-      const paidEventHref = paidEventId.startsWith('merch:')
-        ? `${merchEndpoint}/api/v1/merch/details?itemid=${paidEventId.slice(6)}`
-        : `${ticketEndpoint}/api/v1/event/details?eventid=${paidEventId}`;
-      const response = await api.get(paidEventHref);
-      return Boolean(response.status < 299 && response.status >= 200);
-    } catch (error) {
-      console.error('Error validating paid event ID:', error);
-      return false;
-    }
-  };
+  // const checkPaidEventId = async (paidEventId: string) => {
+  //   try {
+  //     const merchEndpoint = getRunEnvironmentConfig().ServiceConfiguration.merch.baseEndpoint;
+  //     const ticketEndpoint = getRunEnvironmentConfig().ServiceConfiguration.tickets.baseEndpoint;
+  //     const paidEventHref = paidEventId.startsWith('merch:')
+  //       ? `${merchEndpoint}/api/v1/merch/details?itemid=${paidEventId.slice(6)}`
+  //       : `${ticketEndpoint}/api/v1/event/details?eventid=${paidEventId}`;
+  //     const response = await api.get(paidEventHref);
+  //     return Boolean(response.status < 299 && response.status >= 200);
+  //   } catch (error) {
+  //     console.error('Error validating paid event ID:', error);
+  //     return false;
+  //   }
+  // };
 
-  const handleSubmit = async (values: EventPostRequest) => {
+  const handleSubmit = async (values: LinkPostRequest) => {
     try {
       setIsSubmitting(true);
       const realValues = {
         ...values,
-        start: dayjs(values.start).format('YYYY-MM-DD[T]HH:mm:00'),
-        end: values.end ? dayjs(values.end).format('YYYY-MM-DD[T]HH:mm:00') : undefined,
-        repeatEnds:
-          values.repeatEnds && values.repeats
-            ? dayjs(values.repeatEnds).format('YYYY-MM-DD[T]HH:mm:00')
-            : undefined,
-        repeats: values.repeats ? values.repeats : undefined,
       };
 
-      const eventURL = isEditing ? `/api/v1/events/${eventId}` : '/api/v1/events';
-      const response = await api.post(eventURL, realValues);
+      const linkURL = isEditing ? `/api/v1/events/${eventId}` : '/api/v1/linkry/redir';
+      const response = await api.post(linkURL, realValues);
       notifications.show({
-        title: isEditing ? 'Event updated!' : 'Event created!',
-        message: isEditing ? undefined : `The event ID is "${response.data.id}".`,
+        title: isEditing ? 'Link updated!' : 'Link created!',
+        message: isEditing ? undefined : `The Link ID is "${response.data.id}".`,
       });
-      navigate('/events/manage');
+      navigate('/link-shortener');
     } catch (error) {
       setIsSubmitting(false);
-      console.error('Error creating/editing event:', error);
+      console.error('Error creating/editing link:', error);
       notifications.show({
-        message: 'Failed to create/edit event, please try again.',
+        message: 'Failed to create/edit link, please try again.',
       });
     }
   };
 
+  const handleFormClose = () => {
+    navigate('/link-shortener');
+  };
+
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
-      <Title order={2}>Add Link</Title>
+      <Box display="flex" ta="center" mt="1.5rem">
+        <Title order={2}>Add Link</Title>
+        <Button variant="subtle" ml="auto" onClick={handleFormClose}>
+          Close
+        </Button>
+      </Box>
       <Box maw={400} mx="auto" mt="xl">
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <TextInput
-            label="Event Title"
+            label="URL to Shorten"
             withAsterisk
-            placeholder="Event title"
-            {...form.getInputProps('title')}
-          />
-          <Textarea
-            label="Event Description"
-            withAsterisk
-            placeholder="Event description"
-            {...form.getInputProps('description')}
-          />
-          <DateTimePicker
-            label="Start Date"
-            withAsterisk
-            valueFormat="MM-DD-YYYY h:mm A [Urbana Time]"
-            placeholder="Pick start date"
-            {...form.getInputProps('start')}
-          />
-          <DateTimePicker
-            label="End Date"
-            withAsterisk
-            valueFormat="MM-DD-YYYY h:mm A [Urbana Time]"
-            placeholder="Pick end date (optional)"
-            {...form.getInputProps('end')}
+            placeholder="URl to shorten"
+            {...form.getInputProps('slug')}
           />
           <TextInput
-            label="Event Location"
+            label="Redirect/Shorten URL"
             withAsterisk
-            placeholder="ACM Room"
-            {...form.getInputProps('location')}
+            placeholder="Redirect/Shorten URL"
+            {...form.getInputProps('redirect')}
           />
           <TextInput
-            label="Location Link"
-            placeholder="Google Maps link for location"
-            {...form.getInputProps('locationLink')}
-          />
-          <Select
-            label="Host"
-            placeholder="Select host organization"
+            label="Access Group"
             withAsterisk
-            data={orgList.map((org) => ({ value: org, label: org }))}
-            {...form.getInputProps('host')}
+            placeholder="Access Group"
+            {...form.getInputProps('access')}
           />
-          <Switch
-            label={`Show on home page carousel${!form.values.repeats ? ' and Discord' : ''}?`}
-            style={{ paddingTop: '0.5em' }}
-            {...form.getInputProps('featured', { type: 'checkbox' })}
-          />
-          <Select
-            label="Repeats"
-            placeholder="Select repeat frequency"
-            data={repeatOptions.map((option) => ({
-              value: option,
-              label: capitalizeFirstLetter(option),
-            }))}
-            clearable
-            {...form.getInputProps('repeats')}
-          />
-          {form.values.repeats && (
-            <DateTimePicker
-              valueFormat="MM-DD-YYYY h:mm A [Urbana Time]"
-              label="Repeat Ends"
-              placeholder="Pick repeat end date"
-              {...form.getInputProps('repeatEnds')}
-            />
-          )}
-          <TextInput
-            label="Paid Event ID"
-            placeholder="Enter Ticketing ID or Merch ID prefixed with merch:"
-            {...form.getInputProps('paidEventId')}
-          />
+
           <Button type="submit" mt="md">
             {isSubmitting ? (
               <>

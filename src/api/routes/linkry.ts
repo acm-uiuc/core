@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
-import { z } from "zod";
+import { unknown, z } from "zod";
 import { AppRoles } from "../../common/roles.js";
 import {
   BaseError,
@@ -12,10 +12,12 @@ import { NoDataRequest } from "../types.js";
 import {
   DynamoDBClient,
   QueryCommand,
+  PutItemCommand,
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { randomUUID } from "crypto";
 
 type LinkrySlugOnlyRequest = {
   Params: { id: string };
@@ -90,13 +92,35 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         await fastify.zodValidateBody(request, reply, createRequest);
       },
       onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [
-          AppRoles.LINKS_MANAGER,
-          AppRoles.LINKS_ADMIN,
-        ]);
+        // await fastify.authorize(request, reply, [
+        //   AppRoles.LINKS_MANAGER,
+        //   AppRoles.LINKS_ADMIN,
+        // ]);
+        //send a request to database to add a new linkry record
       },
     },
     async (request, reply) => {
+      try {
+        const entry = {
+          slug: request.body.slug,
+          redirect: request.body.redirect,
+          access: "OWNER#testUser",
+          UpdatedAtUtc: Date.now(),
+          createdAtUtc: Date.now(),
+        };
+        await dynamoClient.send(
+          new PutItemCommand({
+            TableName: genericConfig.LinkryDynamoTableName,
+            Item: marshall(entry),
+          }),
+        );
+        reply.send({ message: "Record Created" });
+      } catch (e: unknown) {
+        console.log(e);
+        throw new DatabaseFetchError({
+          message: "Failed to create record in Dynamo table.",
+        });
+      }
       throw new NotImplementedError({});
     },
   );
@@ -148,6 +172,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     //   },
     // },
     async (request, reply) => {
+      // console.log("******#*#")
+      // console.log(request.headers)
       // if an admin, show all links
       // if a links manager, show all my links + links I can manage
 
@@ -156,8 +182,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           new ScanCommand({ TableName: genericConfig.LinkryDynamoTableName }),
         );
         const items = response.Items?.map((item) => unmarshall(item));
-        console.log("Hello");
-        console.log(items);
 
         // Sort items by createdAtUtc in ascending order, need to pass this to dyanmo instead of calcaulting here
         const sortedItems = items?.sort(
@@ -165,8 +189,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             new Date(b.createdAtUtc).getTime() -
             new Date(a.createdAtUtc).getTime(),
         );
-        console.log("World");
-        console.log(items);
 
         // Check for the desired condition and respond
         if (sortedItems?.length === 0) {
