@@ -32,9 +32,9 @@ const getLinkrySchema = baseSchema.extend({
   id: z.string(),
 });
 
-const wrapTextStyle = {
+const wrapTextStyle: React.CSSProperties = {
   wordWrap: 'break-word',
-  overflowWrap: 'break-word',
+  overflowWrap: 'break-word' as const,
   whiteSpace: 'normal',
 };
 
@@ -46,7 +46,7 @@ export const LinkShortener: React.FC = () => {
   const api = useApi('core');
   const [opened, { open, close }] = useDisclosure(false);
   const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false); // Changed default to false
-  const [deleteCandidate, setDeleteCandidate] = useState<LinkryGetResponse | null>(null);
+  const [deleteLinkCandidate, setDeleteLinkCandidate] = useState<LinkryGetResponse | null>(null);
   const navigate = useNavigate();
 
   const renderTableRow = (link: LinkryGetResponse) => {
@@ -69,7 +69,7 @@ export const LinkShortener: React.FC = () => {
                 <Button
                   color="red"
                   onClick={() => {
-                    //setDeleteCandidate(event);
+                    setDeleteLinkCandidate(link);
                     open();
                   }}
                 >
@@ -103,23 +103,23 @@ export const LinkShortener: React.FC = () => {
     getEvents();
   }, []);
 
-  const deleteEvent = async (eventId: string) => {
-    // try {
-    //   await api.delete(`/api/v1/events/${eventId}`);
-    //   setEventList((prevEvents) => prevEvents.filter((event) => event.id !== eventId));
-    //   notifications.show({
-    //     title: 'Event deleted',
-    //     message: 'The event was successfully deleted.',
-    //   });
-    //   close();
-    // } catch (error) {
-    //   console.error(error);
-    //   notifications.show({
-    //     title: 'Error deleting event',
-    //     message: `${error}`,
-    //     color: 'red',
-    //   });
-    // }
+  const deleteLink = async (slug: string) => {
+    try {
+      await api.delete(`/api/v1/linkry/redir/${slug}`);
+      setLinkList((prevEvents) => prevEvents.filter((link) => link.slug !== slug));
+      notifications.show({
+        title: 'Event deleted',
+        message: 'The event was successfully deleted.',
+      });
+      close();
+    } catch (error) {
+      console.error(error);
+      notifications.show({
+        title: 'Error deleting event',
+        message: `${error}`,
+        color: 'red',
+      });
+    }
   };
 
   if (linkList.length === 0) {
@@ -128,24 +128,26 @@ export const LinkShortener: React.FC = () => {
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
-      {deleteCandidate && (
+      {deleteLinkCandidate && (
         <Modal
           opened={opened}
           onClose={() => {
-            setDeleteCandidate(null);
+            setDeleteLinkCandidate(null);
             close();
           }}
           title="Confirm action"
         >
           <Text>
-            Are you sure you want to delete the event <i>{deleteCandidate?.title}</i>?
+            Are you sure you want to delete the link with slug <i>{deleteLinkCandidate?.slug}</i>?
           </Text>
           <hr />
           <Group>
             <Button
               leftSection={<IconTrash />}
               onClick={() => {
-                deleteEvent(deleteCandidate?.id);
+                if (deleteLinkCandidate?.slug) {
+                  deleteLink(deleteLinkCandidate.slug);
+                }
               }}
             >
               Delete

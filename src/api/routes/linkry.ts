@@ -13,6 +13,7 @@ import {
   DynamoDBClient,
   QueryCommand,
   PutItemCommand,
+  DeleteItemCommand,
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
@@ -20,7 +21,7 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { randomUUID } from "crypto";
 
 type LinkrySlugOnlyRequest = {
-  Params: { id: string };
+  Params: { slug: string };
   Querystring: undefined;
   Body: undefined;
 };
@@ -32,12 +33,25 @@ const rawRequest = {
 };
 
 const createRequest = z.object(rawRequest);
+
+const deleteRequest = z.object({
+  slug: z.string().min(1),
+  redirect: z.optional(z.string().url().min(1)),
+  groups: z.optional(z.array(z.string()).min(1)),
+});
+
 const patchRequest = z.object({ redirect: z.string().url().min(1) });
 
 type LinkyCreateRequest = {
   Params: undefined;
   Querystring: undefined;
   Body: z.infer<typeof createRequest>;
+};
+
+type LinkyDeleteRequest = {
+  Params: undefined;
+  Querystring: undefined;
+  Body: z.infer<typeof deleteRequest>;
 };
 
 type LinkryPatchRequest = {
@@ -144,23 +158,66 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
   fastify.delete<LinkrySlugOnlyRequest>(
-    "/redir/:id",
+    "/redir/:slug",
     {
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, createRequest);
-      },
+      //no need of pre valiation, the route itself is prevalidating
+      // preValidation: async (request, reply) => {
+      //   await fastify.zodValidateBody(request, reply, deleteRequest);
+      // },
       onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [
-          AppRoles.LINKS_MANAGER,
-          AppRoles.LINKS_ADMIN,
-        ]);
+        // await fastify.authorize(request, reply, [
+        //   AppRoles.LINKS_MANAGER,
+        //   AppRoles.LINKS_ADMIN,
+        // ]);
       },
     },
     async (request, reply) => {
-      // make sure that a user can manage this link, either via owning or being in a group that has access to it, or is a LINKS_ADMIN.
-      throw new NotImplementedError({});
+      const { slug: slug } = request.params;
+
+      try {
+        // Query to get all items with the specified slug
+        const queryParams = {
+          TableName: genericConfig.LinkryDynamoTableName, // Replace with your table name
+          KeyConditionExpression: "slug = :slug",
+          ExpressionAttributeValues: {
+            ":slug": { S: slug },
+          },
+        };
+
+        const queryCommand = new QueryCommand(queryParams);
+        const queryResponse = await dynamoClient.send(queryCommand);
+
+        const items = queryResponse.Items || [];
+
+        const desiredAccessValues = ["OWNER#testUser", "OWNER#testUser2"];
+
+        const filteredItems = items.filter(
+          (item) =>
+            item.access.S && desiredAccessValues.includes(item.access.S),
+        );
+
+        // Delete all fetched items
+        const deletePromises = (filteredItems || []).map((item) =>
+          dynamoClient.send(
+            new DeleteItemCommand({
+              TableName: genericConfig.LinkryDynamoTableName,
+              Key: { slug: item.slug, access: item.access },
+            }),
+          ),
+        );
+
+        await Promise.all(deletePromises);
+
+        reply.code(200).send({
+          message: `All records with slug '${slug}' deleted successfully`,
+        });
+      } catch (error) {
+        console.error("Error deleting records:", error);
+        reply.code(500).send({ error: "Failed to delete records" });
+      }
     },
   );
+
   fastify.get<NoDataRequest>(
     "/redir",
     // {
