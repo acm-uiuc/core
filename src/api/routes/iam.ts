@@ -304,7 +304,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             {
               type: "audit",
               actor: request.username,
-              target: request.body.add[i],
+              target: request.body.remove[i],
             },
             `removed target from group ID ${groupId}`,
           );
