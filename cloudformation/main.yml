@@ -303,12 +303,31 @@ Resources:
         - Name: 'ApiName'
           Value: !Sub ${ApplicationPrefix}-gateway
 
+AppApiGatewayNoRequestsAlarm:
+  Type: 'AWS::CloudWatch::Alarm'
+  Condition: IsProd
+  Properties:
+    AlarmName: !Sub ${ApplicationPrefix}-gateway-no-requests
+    AlarmDescription: 'No requests have been received in the past 5 minutes.'
+    Namespace: 'AWS/ApiGateway'
+    MetricName: 'Count'
+    Statistic: 'Sum'
+    Period: '300'
+    EvaluationPeriods: '1'
+    ComparisonOperator: 'LessThanThreshold'
+    Threshold: '1'
+    AlarmActions:
+      - !Ref AlertSNSArn
+    Dimensions:
+      - Name: 'ApiName'
+        Value: !Sub ${ApplicationPrefix}-gateway
+
   AppApiGateway5XXErrorAlarm:
     Type: 'AWS::CloudWatch::Alarm'
     Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-gateway-5xx
-      AlarmDescription: !Sub 'Alarm if ${ApplicationPrefix} API gateway 5XX errors are detected.'
+      AlarmDescription: 'More than 2 API gateway 5XX errors were detected.'
       Namespace: 'AWS/ApiGateway'
       MetricName: '5XXError'
       Statistic: 'Average'
