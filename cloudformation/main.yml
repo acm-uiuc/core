@@ -289,14 +289,14 @@ Resources:
     Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-gateway-latency-high
-      AlarmDescription: !Sub 'Alarm if ${ApplicationPrefix} API gateway latency is > 3s.'
+      AlarmDescription: 'Average API gateway latency is > 1.25s for 2 minutes.'
       Namespace: 'AWS/ApiGateway'
       MetricName: 'Latency'
       Statistic: 'Average'
-      Period: '60'
+      Period: '120'
       EvaluationPeriods: '1'
       ComparisonOperator: 'GreaterThanThreshold'
-      Threshold: '3000'
+      Threshold: '1250'
       AlarmActions:
         - !Ref AlertSNSArn
       Dimensions:
