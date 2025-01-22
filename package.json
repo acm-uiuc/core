@@ -17,7 +17,7 @@
     "lint": "yarn workspaces run lint",
     "prepare": "node .husky/install.mjs || true",
     "typecheck": "yarn workspaces run typecheck",
-    "test:unit": "vitest run tests/unit && yarn workspace infra-core-ui run test:unit",
+    "test:unit": "vitest run tests/unit --config tests/unit/vitest.config.ts && yarn workspace infra-core-ui run test:unit",
     "test:unit-ui": "yarn test:unit --ui",
     "test:unit-watch": "vitest tests/unit",
     "test:live": "vitest tests/live",

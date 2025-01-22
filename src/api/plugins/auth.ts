@@ -233,6 +233,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         }
         if (err instanceof Error) {
           request.log.error(`Failed to verify JWT: ${err.toString()} `);
+          throw err;
         }
         throw new UnauthenticatedError({
           message: "Invalid token.",
