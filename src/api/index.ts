@@ -18,6 +18,7 @@ import * as dotenv from "dotenv";
 import iamRoutes from "./routes/iam.js";
 import ticketsPlugin from "./routes/tickets.js";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
+import NodeCache from "node-cache";
 
 dotenv.config();
 
@@ -68,6 +69,7 @@ async function init() {
   app.runEnvironment = process.env.RunEnvironment as RunEnvironment;
   app.environmentConfig =
     environmentConfig[app.runEnvironment as RunEnvironment];
+  app.nodeCache = new NodeCache({ checkperiod: 30 });
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;

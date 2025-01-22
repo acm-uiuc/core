@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
-import { AppRoles } from "../../common/roles.js";
+import { allAppRoles, AppRoles } from "../../common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   addToTenant,
@@ -34,6 +34,10 @@ import {
   EntraGroupActions,
   entraGroupMembershipListResponse,
 } from "../../common/types/iam.js";
+import {
+  AUTH_DECISION_CACHE_SECONDS,
+  getGroupRoles,
+} from "../functions/authorization.js";
 
 const dynamoClient = new DynamoDBClient({
   region: genericConfig.AwsRegion,
@@ -44,7 +48,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     Body: undefined;
     Querystring: { groupId: string };
   }>(
-    "/groupRoles/:groupId",
+    "/groups/:groupId/roles",
     {
       schema: {
         querystring: {
@@ -61,19 +65,10 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
     },
     async (request, reply) => {
-      const groupId = (request.params as Record<string, string>).groupId;
       try {
-        const command = new GetItemCommand({
-          TableName: `${genericConfig.IAMTablePrefix}-grouproles`,
-          Key: { groupUuid: { S: groupId } },
-        });
-        const response = await dynamoClient.send(command);
-        if (!response.Item) {
-          throw new NotFoundError({
-            endpointName: `/api/v1/iam/groupRoles/${groupId}`,
-          });
-        }
-        reply.send(unmarshall(response.Item));
+        const groupId = (request.params as Record<string, string>).groupId;
+        const roles = await getGroupRoles(dynamoClient, fastify, groupId);
+        return reply.send(roles);
       } catch (e: unknown) {
         if (e instanceof BaseError) {
           throw e;
@@ -90,7 +85,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     Body: GroupMappingCreatePostRequest;
     Querystring: { groupId: string };
   }>(
-    "/groupRoles/:groupId",
+    "/groups/:groupId/roles",
     {
       schema: {
         querystring: {
@@ -125,9 +120,14 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createdAt: timestamp,
           }),
         });
-
         await dynamoClient.send(command);
+        fastify.nodeCache.set(
+          `grouproles-${groupId}`,
+          request.body.roles,
+          AUTH_DECISION_CACHE_SECONDS,
+        );
       } catch (e: unknown) {
+        fastify.nodeCache.del(`grouproles-${groupId}`);
         if (e instanceof BaseError) {
           throw e;
         }
@@ -140,7 +140,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       reply.send({ message: "OK" });
       request.log.info(
         { type: "audit", actor: request.username, target: groupId },
-        `set group ID roles to ${request.body.roles.toString()}`,
+        `set target roles to ${request.body.roles.toString()}`,
       );
     },
   );

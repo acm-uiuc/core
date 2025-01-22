@@ -95,7 +95,7 @@ describe("Test Microsoft Entra ID user invitation", () => {
   });
 
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
     vi.useFakeTimers();
     // Re-implement the mock
     (getEntraIdToken as any).mockImplementation(async () => {

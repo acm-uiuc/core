@@ -87,7 +87,7 @@ describe("Test Events <-> Discord integration", () => {
   beforeEach(() => {
     ddbMock.reset();
     smMock.reset();
-    vi.resetAllMocks();
+    vi.clearAllMocks();
     vi.useFakeTimers();
   });
 });
