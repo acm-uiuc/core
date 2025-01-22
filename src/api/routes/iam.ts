@@ -44,7 +44,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     Body: undefined;
     Querystring: { groupId: string };
   }>(
-    "/groupRoles/:groupId",
+    "/groups/:groupId/roles",
     {
       schema: {
         querystring: {
@@ -90,7 +90,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     Body: GroupMappingCreatePostRequest;
     Querystring: { groupId: string };
   }>(
-    "/groupRoles/:groupId",
+    "/groups/:groupId/roles",
     {
       schema: {
         querystring: {
@@ -140,7 +140,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       reply.send({ message: "OK" });
       request.log.info(
         { type: "audit", actor: request.username, target: groupId },
-        `set group ID roles to ${request.body.roles.toString()}`,
+        `set target roles to ${request.body.roles.toString()}`,
       );
     },
   );

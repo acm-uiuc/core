@@ -22,13 +22,16 @@ export const invitePostRequestSchema = z.object({
 export type InviteUserPostRequest = z.infer<typeof invitePostRequestSchema>;
 
 export const groupMappingCreatePostSchema = z.object({
-  roles: z
-    .array(z.nativeEnum(AppRoles))
-    .min(1)
-    .refine((items) => new Set(items).size === items.length, {
-      message: "All roles must be unique, no duplicate values allowed",
-    }),
+  roles: z.union([
+    z.array(z.nativeEnum(AppRoles))
+      .min(1)
+      .refine((items) => new Set(items).size === items.length, {
+        message: "All roles must be unique, no duplicate values allowed",
+      }),
+    z.tuple([z.literal("all")]),
+  ]),
 });
+
 
 export type GroupMappingCreatePostRequest = z.infer<
   typeof groupMappingCreatePostSchema
