@@ -37,7 +37,7 @@ import {
 import {
   AUTH_DECISION_CACHE_SECONDS,
   getGroupRoles,
-} from "api/functions/authorization.js";
+} from "../functions/authorization.js";
 
 const dynamoClient = new DynamoDBClient({
   region: genericConfig.AwsRegion,
