@@ -66,6 +66,7 @@ deploy_dev: check_account_dev build
 
 install:
 	yarn -D
+	pip install cfn-lint
 
 test_live_integration: install
 	yarn test:live
@@ -73,6 +74,7 @@ test_live_integration: install
 test_unit: install
 	yarn typecheck
 	yarn lint
+	cfn-lint cloudformation/**/* --ignore-templates cloudformation/phony-swagger.yml
 	yarn prettier
 	yarn test:unit
 

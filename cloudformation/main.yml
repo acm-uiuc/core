@@ -25,7 +25,6 @@ Parameters:
 
 Conditions:
   IsProd: !Equals [!Ref RunEnvironment, 'prod']
-  IsDev: !Equals [!Ref RunEnvironment, 'dev']
   ShouldAttachVpc:
     !Equals [true, !Ref VpcRequired]
 
@@ -149,6 +148,7 @@ Resources:
   IamGroupRolesTable:
     Type: 'AWS::DynamoDB::Table'
     DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-iam-grouproles
@@ -165,6 +165,7 @@ Resources:
   IamUserRolesTable:
     Type: 'AWS::DynamoDB::Table'
     DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-iam-userroles
@@ -181,6 +182,7 @@ Resources:
   EventRecordsTable:
     Type: 'AWS::DynamoDB::Table'
     DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-events
@@ -206,6 +208,7 @@ Resources:
   CacheRecordsTable:
     Type: 'AWS::DynamoDB::Table'
     DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-cache
