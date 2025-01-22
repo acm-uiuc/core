@@ -4,9 +4,9 @@ import {
   QueryCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { genericConfig } from "common/config.js";
-import { DatabaseFetchError } from "common/errors/index.js";
-import { allAppRoles, AppRoles } from "common/roles.js";
+import { genericConfig } from "../../common/config.js";
+import { DatabaseFetchError } from "../../common/errors/index.js";
+import { allAppRoles, AppRoles } from "../../common/roles.js";
 import { FastifyInstance } from "fastify";
 
 export const AUTH_DECISION_CACHE_SECONDS = 60;
