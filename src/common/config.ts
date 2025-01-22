@@ -103,6 +103,7 @@ const environmentConfig: EnvironmentConfigType = {
         AppRoles.TICKETS_SCANNER,
         AppRoles.TICKETS_MANAGER,
       ],
+      "tarasha2@illinois.edu": [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER]
     },
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
