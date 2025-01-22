@@ -68,27 +68,6 @@ const environmentConfig: EnvironmentConfigType = {
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
   },
   prod: {
-    // GroupRoleMapping: {
-    //   [infraChairsGroupId]: allAppRoles, // Infra Chairs
-    //   [officersGroupId]: allAppRoles, // Officers
-    //   [execCouncilGroupId]: [AppRoles.EVENTS_MANAGER, AppRoles.IAM_INVITE_ONLY], // Exec
-    // },
-    // UserRoleMapping: {
-    //   "jlevine4@illinois.edu": allAppRoles,
-    //   "kaavyam2@illinois.edu": [AppRoles.TICKETS_SCANNER],
-    //   "hazellu2@illinois.edu": [AppRoles.TICKETS_SCANNER],
-    //   "cnwos@illinois.edu": [AppRoles.TICKETS_SCANNER],
-    //   "alfan2@illinois.edu": [AppRoles.TICKETS_SCANNER],
-    //   "naomil4@illinois.edu": [
-    //     AppRoles.TICKETS_SCANNER,
-    //     AppRoles.TICKETS_MANAGER,
-    //   ],
-    //   "akori3@illinois.edu": [
-    //     AppRoles.TICKETS_SCANNER,
-    //     AppRoles.TICKETS_MANAGER,
-    //   ],
-    //   "tarasha2@illinois.edu": [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER]
-    // },
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
       "https://acm.illinois.edu",
