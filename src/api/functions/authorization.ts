@@ -9,7 +9,7 @@ import { DatabaseFetchError } from "../../common/errors/index.js";
 import { allAppRoles, AppRoles } from "../../common/roles.js";
 import { FastifyInstance } from "fastify";
 
-export const AUTH_DECISION_CACHE_SECONDS = 60;
+export const AUTH_DECISION_CACHE_SECONDS = 180;
 
 export async function getUserRoles(
   dynamoClient: DynamoDBClient,
@@ -72,10 +72,18 @@ export async function getGroupRoles(
     },
   });
   const response = await dynamoClient.send(command);
-  if (!response || !response.Item) {
+  if (!response) {
     throw new DatabaseFetchError({
       message: "Could not get group roles for user",
     });
+  }
+  if (!response.Item) {
+    fastifyApp.nodeCache.set(
+      `grouproles-${groupId}`,
+      [],
+      AUTH_DECISION_CACHE_SECONDS,
+    );
+    return [];
   }
   const items = unmarshall(response.Item) as { roles: AppRoles[] | ["all"] };
   if (!("roles" in items)) {
