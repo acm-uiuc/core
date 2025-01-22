@@ -29,10 +29,13 @@ export async function getUserRoles(
     },
   });
   const response = await dynamoClient.send(command);
-  if (!response || !response.Item) {
+  if (!response) {
     throw new DatabaseFetchError({
       message: "Could not get user roles",
     });
+  }
+  if (!response.Item) {
+    return [];
   }
   const items = unmarshall(response.Item) as { roles: AppRoles[] | ["all"] };
   if (!("roles" in items)) {
