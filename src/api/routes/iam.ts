@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
-import { allAppRoles, AppRoles } from "../../common/roles.js";
+import { AppRoles } from "../../common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   addToTenant,
@@ -16,13 +16,9 @@ import {
   InternalServerError,
   NotFoundError,
 } from "../../common/errors/index.js";
-import {
-  DynamoDBClient,
-  GetItemCommand,
-  PutItemCommand,
-} from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
-import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
 import {
   InviteUserPostRequest,
   invitePostRequestSchema,
@@ -33,6 +29,7 @@ import {
   GroupModificationPatchRequest,
   EntraGroupActions,
   entraGroupMembershipListResponse,
+  rolesListingSchema,
 } from "../../common/types/iam.js";
 import {
   AUTH_DECISION_CACHE_SECONDS,
@@ -59,6 +56,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             },
           },
         },
+        response: { 200: zodToJsonSchema(rolesListingSchema) },
       },
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
@@ -67,7 +65,12 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       try {
         const groupId = (request.params as Record<string, string>).groupId;
-        const roles = await getGroupRoles(dynamoClient, fastify, groupId);
+        const roles = await getGroupRoles(
+          dynamoClient,
+          fastify,
+          groupId,
+          false,
+        );
         return reply.send(roles);
       } catch (e: unknown) {
         if (e instanceof BaseError) {

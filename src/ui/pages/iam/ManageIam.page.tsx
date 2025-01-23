@@ -7,10 +7,14 @@ import UserInvitePanel from './UserInvitePanel';
 import GroupMemberManagement from './GroupMemberManagement';
 import {
   EntraActionResponse,
+  GroupMappingCreatePostRequest,
   GroupMemberGetResponse,
   GroupModificationPatchRequest,
+  OkResponse,
+  RolesGetResponse,
 } from '@common/types/iam';
 import { getRunEnvironmentConfig } from '@ui/config';
+import RoleManagement from './RoleManagement';
 
 export const ManageIamPage = () => {
   const api = useApi('core');
@@ -64,6 +68,28 @@ export const ManageIamPage = () => {
     }
   };
 
+  const fetchGroupPermissions = async (groupId: string) => {
+    const response = await api.get(`/api/v1/iam/groups/${groupId}/roles`);
+    return response.data as RolesGetResponse;
+  };
+
+  const fetchGroups = async () => {
+    // TODO: implement this.
+    return [{ groupId: '0' }, { groupId: '940e4f9e-6891-4e28-9e29-148798495cdb' }];
+  };
+
+  const setGroupPermissions = async (groupId: string, roles: AppRoles[] | ['all']) => {
+    try {
+      const response = await api.post(`/api/v1/iam/groups/${groupId}/roles`, {
+        roles,
+      } as GroupMappingCreatePostRequest);
+      return response.data as OkResponse;
+    } catch (e) {
+      console.error(`Failed to set group permissions: ${e}`);
+      throw e;
+    }
+  };
+
   return (
     <AuthGuard
       resourceDef={{ service: 'core', validRoles: [AppRoles.IAM_ADMIN, AppRoles.IAM_INVITE_ONLY] }}
@@ -77,7 +103,16 @@ export const ManageIamPage = () => {
         >
           <GroupMemberManagement fetchMembers={getExecMembers} updateMembers={updateExecMembers} />
         </AuthGuard>
-        {/* For future panels, make sure to add an auth guard if not every IAM role can see it. */}
+        <AuthGuard
+          resourceDef={{ service: 'core', validRoles: [AppRoles.IAM_ADMIN] }}
+          isAppShell={false}
+        >
+          <RoleManagement
+            fetchGroupPermissions={fetchGroupPermissions}
+            setGroupPermissions={setGroupPermissions}
+            fetchGroups={fetchGroups}
+          />
+        </AuthGuard>
       </SimpleGrid>
     </AuthGuard>
   );

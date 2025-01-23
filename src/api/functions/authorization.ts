@@ -15,10 +15,20 @@ export async function getUserRoles(
   dynamoClient: DynamoDBClient,
   fastifyApp: FastifyInstance,
   userId: string,
+  resolveAllPointer: boolean = true,
 ): Promise<AppRoles[]> {
-  const cachedValue = fastifyApp.nodeCache.get(`userroles-${userId}`);
+  const cachedValue = fastifyApp.nodeCache.get(`userroles-${userId}`) as
+    | AppRoles[]
+    | ["all"];
   if (cachedValue) {
     fastifyApp.log.info(`Returning cached auth decision for user ${userId}`);
+    if (
+      cachedValue.length === 1 &&
+      cachedValue[0] === "all" &&
+      resolveAllPointer
+    ) {
+      return allAppRoles;
+    }
     return cachedValue as AppRoles[];
   }
   const tableName = `${genericConfig["IAMTablePrefix"]}-userroles`;
@@ -41,19 +51,18 @@ export async function getUserRoles(
   if (!("roles" in items)) {
     return [];
   }
-  if (items["roles"][0] === "all") {
-    fastifyApp.nodeCache.set(
-      `userroles-${userId}`,
-      allAppRoles,
-      AUTH_DECISION_CACHE_SECONDS,
-    );
-    return allAppRoles;
-  }
   fastifyApp.nodeCache.set(
     `userroles-${userId}`,
     items["roles"],
     AUTH_DECISION_CACHE_SECONDS,
   );
+  if (
+    items["roles"].length === 1 &&
+    items["roles"][0] === "all" &&
+    resolveAllPointer
+  ) {
+    return allAppRoles;
+  }
   return items["roles"] as AppRoles[];
 }
 
@@ -61,12 +70,18 @@ export async function getGroupRoles(
   dynamoClient: DynamoDBClient,
   fastifyApp: FastifyInstance,
   groupId: string,
+  resolveAllPointer: boolean = true,
 ) {
-  const cachedValue = fastifyApp.nodeCache.get(`grouproles-${groupId}`);
-  if (cachedValue) {
-    fastifyApp.log.info(`Returning cached auth decision for group ${groupId}`);
-    return cachedValue as AppRoles[];
-  }
+  const cachedValue = fastifyApp.nodeCache.get(`grouproles-${groupId}`) as
+    | AppRoles[]
+    | ["all"];
+  // if (cachedValue) {
+  //   fastifyApp.log.info(`Returning cached auth decision for group ${groupId}`);
+  //   if (cachedValue.length === 1 && cachedValue[0] === "all" && resolveAllPointer) {
+  //     return allAppRoles;
+  //   }
+  //   return cachedValue as AppRoles[];
+  // }
   const tableName = `${genericConfig["IAMTablePrefix"]}-grouproles`;
   const command = new GetItemCommand({
     TableName: tableName,
@@ -97,18 +112,17 @@ export async function getGroupRoles(
     );
     return [];
   }
-  if (items["roles"][0] === "all") {
-    fastifyApp.nodeCache.set(
-      `grouproles-${groupId}`,
-      allAppRoles,
-      AUTH_DECISION_CACHE_SECONDS,
-    );
-    return allAppRoles;
-  }
   fastifyApp.nodeCache.set(
     `grouproles-${groupId}`,
     items["roles"],
     AUTH_DECISION_CACHE_SECONDS,
   );
+  if (
+    items["roles"].length === 1 &&
+    items["roles"][0] === "all" &&
+    resolveAllPointer
+  ) {
+    return allAppRoles;
+  }
   return items["roles"] as AppRoles[];
 }

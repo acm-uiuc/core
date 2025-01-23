@@ -65,3 +65,12 @@ export const entraGroupMembershipListResponse = z.array(
 export type GroupMemberGetResponse = z.infer<
   typeof entraGroupMembershipListResponse
 >;
+
+export const rolesListingSchema = z.union([
+  z.array(z.nativeEnum(AppRoles)).min(1),
+  z.tuple([z.literal("all")]),
+]);
+
+export type RolesGetResponse = z.infer<typeof rolesListingSchema>;
+
+export type OkResponse = { message: "OK" };
