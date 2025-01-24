@@ -17,6 +17,7 @@ import { ScanTicketsPage } from './pages/tickets/ScanTickets.page';
 import { SelectTicketsPage } from './pages/tickets/SelectEventId.page';
 import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
 import { ManageIamPage } from './pages/iam/ManageIam.page';
+import { ScreenPage } from './pages/screen/Screen.page';
 
 // Component to handle redirects to login with return path
 const LoginRedirect: React.FC = () => {
@@ -118,6 +119,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/tickets/manage/:eventId',
     element: <ViewTicketsPage />,
+  },
+  {
+    path: '/users',
+    element: <ScreenPage />,
   },
   // Catch-all route for authenticated users shows 404 page
   {
