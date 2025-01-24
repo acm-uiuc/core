@@ -59,14 +59,15 @@ const MerchPostSchema = z.object({
   item_price: z.optional(z.record(z.string(), z.number())),
   item_sales_active_utc: z.number(),
   limit_per_person: z.number(),
-  member_price: z.string(),
-  nonmember_price: z.string(),
+  member_price: z.optional(z.string()),
+  nonmember_price: z.optional(z.string()),
   ready_for_pickup: z.boolean(),
   sizes: z.optional(z.array(z.string())),
   total_avail: z.optional(z.record(z.string(), z.string())),
 });
 
 type TicketPostSchema = z.infer<typeof TicketPostSchema>;
+type MerchPostSchema = z.infer<typeof MerchPostSchema>;
 
 const responseJsonSchema = zodToJsonSchema(
   z.object({
@@ -76,9 +77,12 @@ const responseJsonSchema = zodToJsonSchema(
 );
 
 const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
+  //Healthz
   fastify.get("/", (request, reply) => {
     reply.send({ Status: "Up" });
   });
+
+  
   fastify.get("/ticketEvents", async (request, reply) => {
     try {
       const response = await dynamoclient.send(
@@ -104,6 +108,7 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       });
     }
   });
+
   fastify.get("/merchEvents", async (request, reply) => {
     try {
       const response = await dynamoclient.send(
@@ -130,7 +135,6 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     }
   });
 
-  //helper get no validation
   fastify.get<EventGetRequest>(
     "/ticketEvents/:id",
     async (request: FastifyRequest<EventGetRequest>, reply) => {
@@ -161,6 +165,7 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
 
+  //Get merchEvents by id
   fastify.get<EventGetRequest>(
     "/merchEvents/:id",
     async (request: FastifyRequest<EventGetRequest>, reply) => {
@@ -191,6 +196,7 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
 
+  //Update ticketEvents by id
   fastify.put<EventUpdateRequest>(
     "/ticketEvents/:id",
     {
@@ -249,6 +255,7 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
 
+  //Update merchEvents by id
   fastify.put<EventUpdateRequest>(
     "/merchEvents/:id",
     {
@@ -307,6 +314,7 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
 
+  //Post ticketEvents
   fastify.post<{ Body: TicketPostSchema }>(
     "/ticketEvents",
     {
@@ -361,6 +369,65 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
+
+
+  //Post merchEvents
+  fastify.post<{ Body: MerchPostSchema }>(
+    "/merchEvents",
+    {
+      schema: {
+        response: { 200: responseJsonSchema },
+      },
+      preValidation: async (request, reply) => {
+        await fastify.zodValidateBody(request, reply, MerchPostSchema);
+      },
+      /*onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
+      },*/ //validation taken off
+    },
+    async (request: FastifyRequest<{ Body: MerchPostSchema }>, reply) => {
+      const id = request.body.item_id;
+      try {
+        //Verify if item_id already exists
+        const response = await dynamoclient.send(
+          new QueryCommand({
+            TableName: genericConfig.TicketMetadataTableName,
+            KeyConditionExpression: "item_id = :id",
+            ExpressionAttributeValues: {
+              ":id": { S: id },
+            },
+          }),
+        );
+        if (response.Items?.length != 0) {
+          throw new Error("Item_id already exists");
+        }
+        const entry = {
+          ...request.body,
+          member_price: "Send to stripe API",
+          nonmember_price: "Send to stripe API",
+        };
+        await dynamoclient.send(
+          new PutItemCommand({
+            TableName: genericConfig.TicketMetadataTableName,
+            Item: marshall(entry),
+          }),
+        );
+        reply.send({
+          id: id,
+          resource: `/api/v1/paidEvents/merchEvents/${id}`,
+        });
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+          request.log.error("Failed to post to DynamoDB: " + e.toString());
+        }
+        throw new DatabaseFetchError({
+          message: "Failed to post event to Dynamo table.",
+        });
+      }
+    },
+  );
+
+
 
   fastify.delete<EventDeleteRequest>(
     "/ticketEvents/:id",
