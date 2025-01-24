@@ -76,22 +76,20 @@ export const ScreenPage: React.FC = () => {
             <Table.Td>{event.host}</Table.Td>
             <Table.Td>{event.featured ? 'Yes' : 'No'}</Table.Td> */}
             {/* <Table.Td>{capitalizeFirstLetter(event.repeats || 'Never')}</Table.Td> */}
-            {/* <Table.Td>
+            <Table.Td>
               <ButtonGroup>
-                <Button component="a" href={`/events/edit/${event.id}`}>
-                  Edit
-                </Button>
+                {/* <Button component="a">Edit</Button> */}
                 <Button
                   color="red"
                   onClick={() => {
-                    setDeleteCandidate(event);
+                    setRemoveUser(user);
                     open();
                   }}
                 >
-                  Delete
+                  Remove User
                 </Button>
               </ButtonGroup>
-            </Table.Td> */}
+            </Table.Td>
           </tr>
         )}
       </Transition>
@@ -220,6 +218,7 @@ export const ScreenPage: React.FC = () => {
             <Table.Th>Middle Name</Table.Th>
             <Table.Th>Last Name</Table.Th>
             <Table.Th>Affiliated Special Interest Group</Table.Th>
+            <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>{userList.map(renderTableRow)}</Table.Tbody>
