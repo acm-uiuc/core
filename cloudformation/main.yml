@@ -121,6 +121,7 @@ Resources:
     DependsOn:
       - AppLogGroups
     Properties:
+      Architectures: [arm64]
       CodeUri: ../dist
       AutoPublishAlias: live
       Runtime: nodejs20.x
