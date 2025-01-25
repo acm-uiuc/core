@@ -120,6 +120,19 @@ Resources:
     Type: AWS::Serverless::Function
     DependsOn:
       - AppLogGroups
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        Minify: true
+        OutExtension:
+          - .js=.js
+        Target: "node22"
+        Sourcemap: false
+        EntryPoints:
+          - api/lambda.js
+        External:
+          - aws-sdk
     Properties:
       Architectures: [arm64]
       CodeUri: ../dist
@@ -127,7 +140,7 @@ Resources:
       Runtime: nodejs22.x
       Description: !Sub "${ApplicationFriendlyName} API Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-lambda
-      Handler: api/lambda.handler
+      Handler: lambda.handler
       MemorySize: 512
       Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
       Timeout: 60
