@@ -42,6 +42,7 @@ const app = await init();
 
 describe("Test Modify Group and List Group Routes", () => {
   beforeEach(() => {
+    (app as any).nodeCache.flushAll();
     vi.clearAllMocks();
     smMock.on(GetSecretValueCommand).resolves({
       SecretString: JSON.stringify({ jwt_key: "test_jwt_key" }),
@@ -130,6 +131,7 @@ describe("Test Modify Group and List Group Routes", () => {
     await app.close();
   });
   beforeEach(() => {
+    (app as any).nodeCache.flushAll();
     vi.clearAllMocks();
     vi.useFakeTimers();
     (getEntraIdToken as any).mockImplementation(async () => {

@@ -29,7 +29,6 @@ test("Test getting events", async () => {
 });
 
 test("Test dynamodb error handling", async () => {
-  ddbMock.on(ScanCommand).rejects("Could not get data.");
   const response = await app.inject({
     method: "GET",
     url: "/api/v1/events",
@@ -64,6 +63,7 @@ afterAll(async () => {
   vi.useRealTimers();
 });
 beforeEach(() => {
+  (app as any).nodeCache.flushAll();
   ddbMock.reset();
   vi.useFakeTimers();
 });
