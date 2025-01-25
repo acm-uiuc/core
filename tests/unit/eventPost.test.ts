@@ -63,7 +63,7 @@ test("Sad path: Prevent empty body request", async () => {
     error: true,
     name: "ValidationError",
     id: 104,
-    message: "Required",
+    message: `Required at "title"; Required at "description"; Required at "start"; Required at "location"; Required at "host"`,
   });
 });
 test("Sad path: Prevent specifying repeatEnds on non-repeating events", async () => {

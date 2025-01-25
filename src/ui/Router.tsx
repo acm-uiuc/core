@@ -13,6 +13,8 @@ import { LoginPage } from './pages/Login.page';
 import { LogoutPage } from './pages/Logout.page';
 import { ManageEventPage } from './pages/events/ManageEvent.page';
 import { ViewEventsPage } from './pages/events/ViewEvents.page';
+import { LinkShortener } from './pages/link-shortener/LinkShortener.page';
+import { ManageLinkPage } from './pages/link-shortener/ManageLink.page';
 import { ScanTicketsPage } from './pages/tickets/ScanTickets.page';
 import { SelectTicketsPage } from './pages/tickets/SelectEventId.page';
 import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
@@ -102,6 +104,14 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/events/manage',
     element: <ViewEventsPage />,
+  },
+  {
+    path: '/link-shortener',
+    element: <LinkShortener />,
+  },
+  {
+    path: '/link/add',
+    element: <ManageLinkPage />,
   },
   {
     path: '/tickets/scan',

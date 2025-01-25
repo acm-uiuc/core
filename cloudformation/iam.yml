@@ -77,7 +77,8 @@ Resources:
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-userroles/*
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles/*
-
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-linkry
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-linkry/*
         PolicyName: lambda-dynamo
 Outputs:
   MainFunctionRoleArn:

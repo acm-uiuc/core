@@ -1,1 +1,15 @@
-yarn lint --fix
+# Get all staged files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -n "$STAGED_FILES" ]; then
+  echo "Running lint with fix on staged files..."
+  # Run lint on all files (modifies files in the working directory)
+  yarn lint --fix
+  yarn prettier:write
+
+  echo "Re-adding originally staged files to the staging area..."
+  # Re-add only the originally staged files
+  echo "$STAGED_FILES" | xargs git add
+else
+  echo "No staged files to process."
+fi

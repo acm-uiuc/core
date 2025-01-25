@@ -169,7 +169,7 @@ export const ViewEventsPage: React.FC = () => {
           {showPrevious ? 'Hide Previous Events' : 'Show Previous Events'}
         </Button>
       </div>
-      <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+      <Table style={{ tableLayout: 'fixed', width: '100%' }} data-testid="events-table">
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Title</Table.Th>

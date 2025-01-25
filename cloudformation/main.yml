@@ -25,6 +25,7 @@ Parameters:
 
 Conditions:
   IsProd: !Equals [!Ref RunEnvironment, 'prod']
+  IsDev: !Equals [!Ref RunEnvironment, 'dev']
   ShouldAttachVpc:
     !Equals [true, !Ref VpcRequired]
 
@@ -33,16 +34,20 @@ Mappings:
     dev:
       LogRetentionDays: 7
     prod:
-      LogRetentionDays: 30
+      LogRetentionDays: 365
   ApiGwConfig:
     dev:
       ApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
       HostedZoneId: Z04502822NVIA85WM2SML
       ApiDomainName: "aws.qa.acmuiuc.org"
+      LinkryApiDomainName: "aws.qa.acmuiuc.org"
+      LinkryApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
     prod:
       ApiCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/6142a0e2-d62f-478e-bf15-5bdb616fe705
       HostedZoneId: Z05246633460N5MEB9DBF
-      ApiDomainName: "aws.acmuiuc.org" # CHANGE ME
+      ApiDomainName: "aws.acmuiuc.org"
+      LinkryApiDomainName: "acm.illinois.edu"
+      LinkryApiCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/aeb93d9e-b0b7-4272-9c12-24ca5058c77e
   EnvironmentToCidr:
     dev:
       SecurityGroupIds:
@@ -76,6 +81,42 @@ Resources:
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
         LogRetentionDays: !FindInMap [General, !Ref RunEnvironment, LogRetentionDays]
 
+  IcalDomainProxy:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./custom-domain.yml
+      Parameters:
+        RunEnvironment: !Ref RunEnvironment
+        RecordName: ical
+        GWBaseDomainName: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiDomainName
+        GWCertArn: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiCertificateArn
+        GWApiId: !Ref AppApiGateway
+        GWHostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+
+  LinkryDomainProxy:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./custom-domain.yml
+      Parameters:
+        RunEnvironment: !Ref RunEnvironment
+        RecordName: go
+        GWBaseDomainName: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiDomainName
+        GWCertArn: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - LinkryApiCertificateArn
+        GWApiId: !Ref AppApiGateway
+        GWHostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+
   AppApiLambdaFunction:
     Type: AWS::Serverless::Function
     DependsOn:
@@ -93,7 +134,7 @@ Resources:
       Environment:
         Variables:
           RunEnvironment: !Ref RunEnvironment
-      VpcConfig: 
+      VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SecurityGroupIds], !Ref AWS::NoValue]
         SubnetIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds], !Ref AWS::NoValue]
@@ -107,7 +148,7 @@ Resources:
 
   IamGroupRolesTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-iam-grouproles
@@ -123,7 +164,7 @@ Resources:
 
   IamUserRolesTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-iam-userroles
@@ -139,7 +180,7 @@ Resources:
 
   EventRecordsTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-events
@@ -162,9 +203,37 @@ Resources:
         Projection:
           ProjectionType: ALL
 
+  LinkryRecordsTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: "infra-core-api-linkry"
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
+      AttributeDefinitions:
+        - AttributeName: "slug"
+          AttributeType: "S"
+        - AttributeName: "access"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "slug"
+          KeyType: "HASH"
+        - AttributeName: "access"
+          KeyType: "RANGE"
+      GlobalSecondaryIndexes:
+        - IndexName: "AccessIndex"
+          KeySchema:
+            - AttributeName: "access"
+              KeyType: "HASH"
+            - AttributeName: "slug"
+              KeyType: "RANGE"
+          Projection:
+            ProjectionType: "ALL"
+
   CacheRecordsTable:
     Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"  
+    DeletionPolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-cache
@@ -183,7 +252,7 @@ Resources:
 
   AppApiGateway:
     Type: AWS::Serverless::Api
-    DependsOn: 
+    DependsOn:
       - AppApiLambdaFunction
     Properties:
       Name: !Sub ${ApplicationPrefix}-gateway
@@ -194,7 +263,7 @@ Resources:
           Name: AWS::Include
           Parameters:
             Location: ./phony-swagger.yml
-      Domain: 
+      Domain:
         DomainName: !Sub
           - "${ApplicationPrefix}.${BaseDomainName}"
           - BaseDomainName: !FindInMap

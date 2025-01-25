@@ -21,6 +21,7 @@ export type ConfigType = {
 type GenericConfigType = {
   EventsDynamoTableName: string;
   CacheDynamoTableName: string;
+  LinkryDynamoTableName: string;
   ConfigSecretName: string;
   UpcomingEventThresholdSeconds: number;
   AwsRegion: string;
@@ -39,11 +40,14 @@ type EnvironmentConfigType = {
 
 export const infraChairsGroupId = "48591dbc-cdcb-4544-9f63-e6b92b067e33";
 export const officersGroupId = "ff49e948-4587-416b-8224-65147540d5fc";
+export const officersGroupTestingId = "0e6e9199-506f-4ede-9d1b-e73f6811c9e5";
 export const execCouncilGroupId = "ad81254b-4eeb-4c96-8191-3acdce9194b1";
+export const execCouncilTestingGroupId = "dbe18eb2-9675-46c4-b1ef-749a6db4fedd";
 
 const genericConfig: GenericConfigType = {
   EventsDynamoTableName: "infra-core-api-events",
   CacheDynamoTableName: "infra-core-api-cache",
+  LinkryDynamoTableName: "infra-core-api-linkry",
   ConfigSecretName: "infra-core-api-config",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
   AwsRegion: process.env.AWS_REGION || "us-east-1",
@@ -68,6 +72,7 @@ const environmentConfig: EnvironmentConfigType = {
     },
     UserRoleMapping: {
       "infra-unit-test-nogrp@acm.illinois.edu": [AppRoles.TICKETS_SCANNER],
+      "kLkvWTYwNnJfBkIK7mBi4niXXHYNR7ygbV8utlvFxjw": allAppRoles
     },
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
@@ -109,7 +114,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
-  },
+  }
 };
 
 export type SecretConfig = {

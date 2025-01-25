@@ -138,6 +138,10 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       reply.send({ message: "OK" });
+      request.log.info(
+        { type: "audit", actor: request.username, target: groupId },
+        `set group ID roles to ${request.body.roles.toString()}`,
+      );
     },
   );
   fastify.post<{ Body: InviteUserPostRequest }>(
@@ -173,12 +177,25 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         if (result.status === "fulfilled") {
+          request.log.info(
+            { type: "audit", actor: request.username, target: emails[i] },
+            "invited user to Entra ID tenant.",
+          );
           response.success.push({ email: emails[i] });
         } else {
+          request.log.info(
+            { type: "audit", actor: request.username, target: emails[i] },
+            "failed to invite user to Entra ID tenant.",
+          );
           if (result.reason instanceof EntraInvitationError) {
             response.failure.push({
               email: emails[i],
               message: result.reason.message,
+            });
+          } else {
+            response.failure.push({
+              email: emails[i],
+              message: "An unknown error occurred.",
             });
           }
         }
@@ -249,7 +266,23 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const result = addResults[i];
         if (result.status === "fulfilled") {
           response.success.push({ email: request.body.add[i] });
+          request.log.info(
+            {
+              type: "audit",
+              actor: request.username,
+              target: request.body.add[i],
+            },
+            `added target to group ID ${groupId}`,
+          );
         } else {
+          request.log.info(
+            {
+              type: "audit",
+              actor: request.username,
+              target: request.body.add[i],
+            },
+            `failed to add target to group ID ${groupId}`,
+          );
           if (result.reason instanceof EntraGroupError) {
             response.failure.push({
               email: request.body.add[i],
@@ -267,7 +300,23 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const result = removeResults[i];
         if (result.status === "fulfilled") {
           response.success.push({ email: request.body.remove[i] });
+          request.log.info(
+            {
+              type: "audit",
+              actor: request.username,
+              target: request.body.add[i],
+            },
+            `removed target from group ID ${groupId}`,
+          );
         } else {
+          request.log.info(
+            {
+              type: "audit",
+              actor: request.username,
+              target: request.body.add[i],
+            },
+            `failed to remove target from group ID ${groupId}`,
+          );
           if (result.reason instanceof EntraGroupError) {
             response.failure.push({
               email: request.body.add[i],

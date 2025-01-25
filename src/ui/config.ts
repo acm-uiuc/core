@@ -1,3 +1,5 @@
+import { execCouncilGroupId, execCouncilTestingGroupId } from '@common/config';
+
 export const runEnvironments = ['dev', 'prod', 'local-dev'] as const;
 // local dev should be used when you want to test against a local instance of the API
 
@@ -9,6 +11,9 @@ export type ValidService = ValidServices;
 export type ConfigType = {
   AadValidClientId: string;
   ServiceConfiguration: Record<ValidServices, ServiceConfiguration>;
+  KnownGroupMappings: {
+    Exec: string;
+  };
 };
 
 export type ServiceConfiguration = {
@@ -45,6 +50,9 @@ const environmentConfig: EnvironmentConfigType = {
         baseEndpoint: 'https://merchapi.acm.illinois.edu',
       },
     },
+    KnownGroupMappings: {
+      Exec: execCouncilTestingGroupId,
+    },
   },
   dev: {
     AadValidClientId: 'd1978c23-6455-426a-be4d-528b2d2e4026',
@@ -65,6 +73,9 @@ const environmentConfig: EnvironmentConfigType = {
         baseEndpoint: 'https://merchapi.acm.illinois.edu',
       },
     },
+    KnownGroupMappings: {
+      Exec: execCouncilTestingGroupId,
+    },
   },
   prod: {
     AadValidClientId: '43fee67e-e383-4071-9233-ef33110e9386',
@@ -84,6 +95,9 @@ const environmentConfig: EnvironmentConfigType = {
         friendlyName: 'Merch Sales Service',
         baseEndpoint: 'https://merchapi.acm.illinois.edu',
       },
+    },
+    KnownGroupMappings: {
+      Exec: execCouncilGroupId,
     },
   },
 } as const;

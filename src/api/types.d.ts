@@ -27,3 +27,9 @@ declare module "fastify" {
     tokenPayload?: AadToken;
   }
 }
+
+export type NoDataRequest = {
+  Params: undefined;
+  Querystring: undefined;
+  Body: undefined;
+};

@@ -5,15 +5,16 @@ import { useApi } from '@ui/util/api';
 import { AppRoles } from '@common/roles';
 import UserInvitePanel from './UserInvitePanel';
 import GroupMemberManagement from './GroupMemberManagement';
-import { execCouncilGroupId } from '@common/config';
 import {
   EntraActionResponse,
   GroupMemberGetResponse,
   GroupModificationPatchRequest,
 } from '@common/types/iam';
+import { getRunEnvironmentConfig } from '@ui/config';
 
 export const ManageIamPage = () => {
   const api = useApi('core');
+  const groupId = getRunEnvironmentConfig().KnownGroupMappings.Exec;
 
   const handleInviteSubmit = async (emailList: string[]) => {
     try {
@@ -35,7 +36,7 @@ export const ManageIamPage = () => {
 
   const getExecMembers = async () => {
     try {
-      const response = await api.get(`/api/v1/iam/groups/${execCouncilGroupId}`);
+      const response = await api.get(`/api/v1/iam/groups/${groupId}`);
       return response.data as GroupMemberGetResponse;
     } catch (error: any) {
       console.error('Failed to get users:', error);
@@ -46,7 +47,7 @@ export const ManageIamPage = () => {
   const updateExecMembers = async (toAdd: string[], toRemove: string[]) => {
     const allMembers = toAdd.concat(toRemove);
     try {
-      const response = await api.patch(`/api/v1/iam/groups/${execCouncilGroupId}`, {
+      const response = await api.patch(`/api/v1/iam/groups/${groupId}`, {
         remove: toRemove,
         add: toAdd,
       } as GroupModificationPatchRequest);

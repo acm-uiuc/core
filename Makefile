@@ -11,7 +11,7 @@ integration_test_directory_root = tests/live_integration/
 # CHANGE ME (as needed)
 application_key=infra-core-api
 application_name="InfraCoreApi"
-techlead="dsingh14@illinois.edu"
+techlead="tarasha2@illinois.edu"
 region="us-east-1"
 
 # DO NOT CHANGE
@@ -23,6 +23,8 @@ common_params = --no-confirm-changeset \
 				--tags "project=$(application_key)" "techlead=$(techlead)" \
 				--s3-prefix $(application_key) \
 				--resolve-s3
+
+GIT_HASH := $(shell git rev-parse --short HEAD)
 
 .PHONY: build clean
 
@@ -49,11 +51,11 @@ clean:
 
 build: src/ cloudformation/ docs/
 	yarn -D
-	yarn build
+	VITE_BUILD_HASH=$(GIT_HASH) yarn build
 	sam build --template-file cloudformation/main.yml
 
 local:
-	yarn run dev
+	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
 
 deploy_prod: check_account_prod build
 	aws sts get-caller-identity --query Account --output text
@@ -62,17 +64,21 @@ deploy_prod: check_account_prod build
 deploy_dev: check_account_dev build
 	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)"
 
-install_test_deps:
+install:
 	yarn -D
 
-test_live_integration: install_test_deps
+test_live_integration: install
 	yarn test:live
 
-test_unit: install_test_deps
+test_unit: install
 	yarn typecheck
 	yarn lint
 	yarn prettier
 	yarn test:unit
+
+test_e2e: install
+	yarn playwright install
+	yarn test:e2e
 
 dev_health_check:
 	curl -f https://$(application_key).aws.qa.acmuiuc.org/api/v1/healthz && curl -f https://manage.qa.acmuiuc.org

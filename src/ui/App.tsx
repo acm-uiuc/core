@@ -14,7 +14,6 @@ export default function App() {
     key: 'acm-manage-color-scheme',
     defaultValue: preferredColorScheme,
   });
-
   return (
     <ColorSchemeContext.Provider value={{ colorScheme, onChange: setColorScheme }}>
       <MantineProvider withGlobalClasses withCssVariables forceColorScheme={colorScheme}>

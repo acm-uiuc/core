@@ -8,10 +8,17 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch index.ts",
+    "dev": "cross-env LOG_LEVEL=debug tsx watch index.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts --cache",
     "prettier": "prettier --check *.ts **/*.ts",
     "prettier:write": "prettier --write *.ts **/*.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sts": "^3.726.0",
+    "@fastify/static": "^8.0.4"
+  },
+  "devDependencies": {
+    "@types/ejs": "^3.1.5"
   }
 }
