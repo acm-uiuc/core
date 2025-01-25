@@ -18,6 +18,7 @@ import {
   EntraGroupActions,
   EntraInvitationResponse,
 } from "../../common/types/iam.js";
+import { FastifyInstance } from "fastify";
 
 function validateGroupId(groupId: string): boolean {
   const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
@@ -25,11 +26,15 @@ function validateGroupId(groupId: string): boolean {
 }
 
 export async function getEntraIdToken(
+  fastify: FastifyInstance,
   clientId: string,
   scopes: string[] = ["https://graph.microsoft.com/.default"],
 ) {
   const secretApiConfig =
-    (await getSecretValue(genericConfig.ConfigSecretName)) || {};
+    (await getSecretValue(
+      fastify.secretsManagerClient,
+      genericConfig.ConfigSecretName,
+    )) || {};
   if (
     !secretApiConfig.entra_id_private_key ||
     !secretApiConfig.entra_id_thumbprint
@@ -42,7 +47,10 @@ export async function getEntraIdToken(
     secretApiConfig.entra_id_private_key as string,
     "base64",
   ).toString("utf8");
-  const cachedToken = await getItemFromCache("entra_id_access_token");
+  const cachedToken = await getItemFromCache(
+    fastify.dynamoClient,
+    "entra_id_access_token",
+  );
   if (cachedToken) {
     return cachedToken["token"] as string;
   }
@@ -70,6 +78,7 @@ export async function getEntraIdToken(
     date.setTime(date.getTime() - 30000);
     if (result?.accessToken) {
       await insertItemIntoCache(
+        fastify.dynamoClient,
         "entra_id_access_token",
         { token: result?.accessToken },
         date,

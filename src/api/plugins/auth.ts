@@ -53,15 +53,9 @@ export type AadToken = {
   ver: string;
   roles?: string[];
 };
-const smClient = new SecretsManagerClient({
-  region: genericConfig.AwsRegion,
-});
-
-const dynamoClient = new DynamoDBClient({
-  region: genericConfig.AwsRegion,
-});
 
 export const getSecretValue = async (
+  smClient: SecretsManagerClient,
   secretId: string,
 ): Promise<Record<string, string | number | boolean> | null | SecretConfig> => {
   const data = await smClient.send(
@@ -118,7 +112,10 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           signingKey =
             process.env.JwtSigningKey ||
             ((
-              (await getSecretValue(genericConfig.ConfigSecretName)) || {
+              (await getSecretValue(
+                fastify.secretsManagerClient,
+                genericConfig.ConfigSecretName,
+              )) || {
                 jwt_key: "",
               }
             ).jwt_key as string) ||
@@ -168,7 +165,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         if (verifiedTokenData.groups) {
           const groupRoles = await Promise.allSettled(
             verifiedTokenData.groups.map((x) =>
-              getGroupRoles(dynamoClient, fastify, x),
+              getGroupRoles(fastify.dynamoClient, fastify, x),
             ),
           );
           for (const result of groupRoles) {
@@ -201,7 +198,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         if (request.username) {
           try {
             const userAuth = await getUserRoles(
-              dynamoClient,
+              fastify.dynamoClient,
               fastify,
               request.username,
             );

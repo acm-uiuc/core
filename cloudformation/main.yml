@@ -120,14 +120,34 @@ Resources:
     Type: AWS::Serverless::Function
     DependsOn:
       - AppLogGroups
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        Minify: true
+        OutExtension:
+          - .js=.mjs
+        Target: "es2022"
+        Sourcemap: false
+        EntryPoints:
+          - api/lambda.js
+        External:
+          - aws-sdk
+        Banner:
+          - js=import path from 'path';
+            import { fileURLToPath } from 'url';
+            import { createRequire as topLevelCreateRequire } from 'module';
+            const require = topLevelCreateRequire(import.meta.url);
+            const __filename = fileURLToPath(import.meta.url);
+            const __dirname = path.dirname(__filename);
     Properties:
       Architectures: [arm64]
       CodeUri: ../dist
       AutoPublishAlias: live
-      Runtime: nodejs20.x
+      Runtime: nodejs22.x
       Description: !Sub "${ApplicationFriendlyName} API Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-lambda
-      Handler: api/lambda.handler
+      Handler: lambda.handler
       MemorySize: 512
       Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
       Timeout: 60

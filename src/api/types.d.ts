@@ -3,6 +3,8 @@ import { AppRoles, RunEnvironment } from "../common/roles.js";
 import { AadToken } from "./plugins/auth.js";
 import { ConfigType } from "../common/config.js";
 import NodeCache from "node-cache";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 declare module "fastify" {
   interface FastifyInstance {
     authenticate: (
@@ -22,6 +24,8 @@ declare module "fastify" {
     runEnvironment: RunEnvironment;
     environmentConfig: ConfigType;
     nodeCache: NodeCache;
+    dynamoClient: DynamoDBClient;
+    secretsManagerClient: SecretsManagerClient;
   }
   interface FastifyRequest {
     startTime: number;

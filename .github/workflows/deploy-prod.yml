@@ -14,7 +14,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 22.x
       - uses: actions/checkout@v4
         env:
           HUSKY: "0"
@@ -37,7 +37,7 @@ jobs:
       - name: Set up Node for testing
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 22.x
       - uses: actions/checkout@v4
         env:
           HUSKY: "0"
@@ -80,7 +80,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 22.x
       - uses: actions/checkout@v4
         env:
           HUSKY: "0"
@@ -109,7 +109,7 @@ jobs:
       - name: Set up Node for testing
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 22.x
       - uses: actions/checkout@v4
         env:
           HUSKY: "0"
@@ -152,7 +152,7 @@ jobs:
       - name: Set up Node for testing
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 22.x
       - uses: actions/checkout@v4
         env:
           HUSKY: "0"
