@@ -5,7 +5,6 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { OrganizationList } from "../../common/orgs.js";
 import {
   DeleteItemCommand,
-  DynamoDBClient,
   GetItemCommand,
   PutItemCommand,
   QueryCommand,
@@ -27,6 +26,7 @@ import { IUpdateDiscord, updateDiscord } from "../functions/discord.js";
 // POST
 
 const repeatOptions = ["weekly", "biweekly"] as const;
+const EVENT_CACHE_SECONDS = 90;
 export type EventRepeatOptions = (typeof repeatOptions)[number];
 
 const baseSchema = z.object({
@@ -80,10 +80,6 @@ const getEventsSchema = z.array(getEventSchema);
 export type EventsGetResponse = z.infer<typeof getEventsSchema>;
 type EventsGetQueryParams = { upcomingOnly?: boolean };
 
-const dynamoClient = new DynamoDBClient({
-  region: genericConfig.AwsRegion,
-});
-
 const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.post<{ Body: EventPostRequest }>(
     "/:id?",
@@ -106,7 +102,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         ).id;
         const entryUUID = userProvidedId || randomUUID();
         if (userProvidedId) {
-          const response = await dynamoClient.send(
+          const response = await fastify.dynamoClient.send(
             new GetItemCommand({
               TableName: genericConfig.EventsDynamoTableName,
               Key: { id: { S: userProvidedId } },
@@ -128,7 +124,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             : new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        await dynamoClient.send(
+        await fastify.dynamoClient.send(
           new PutItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
             Item: marshall(entry),
@@ -140,18 +136,23 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         }
         try {
           if (request.body.featured && !request.body.repeats) {
-            await updateDiscord(entry, false, request.log);
+            await updateDiscord(
+              fastify.secretsManagerClient,
+              entry,
+              false,
+              request.log,
+            );
           }
         } catch (e: unknown) {
           // restore original DB status if Discord fails.
-          await dynamoClient.send(
+          await fastify.dynamoClient.send(
             new DeleteItemCommand({
               TableName: genericConfig.EventsDynamoTableName,
               Key: { id: { S: entryUUID } },
             }),
           );
           if (userProvidedId) {
-            await dynamoClient.send(
+            await fastify.dynamoClient.send(
               new PutItemCommand({
                 TableName: genericConfig.EventsDynamoTableName,
                 Item: originalEvent,
@@ -198,7 +199,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     async (request: FastifyRequest<EventGetRequest>, reply) => {
       const id = request.params.id;
       try {
-        const response = await dynamoClient.send(
+        const response = await fastify.dynamoClient.send(
           new QueryCommand({
             TableName: genericConfig.EventsDynamoTableName,
             KeyConditionExpression: "#id = :id",
@@ -241,13 +242,18 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     async (request: FastifyRequest<EventDeleteRequest>, reply) => {
       const id = request.params.id;
       try {
-        await dynamoClient.send(
+        await fastify.dynamoClient.send(
           new DeleteItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
             Key: marshall({ id }),
           }),
         );
-        await updateDiscord({ id } as IUpdateDiscord, true, request.log);
+        await updateDiscord(
+          fastify.secretsManagerClient,
+          { id } as IUpdateDiscord,
+          true,
+          request.log,
+        );
         reply.send({
           id,
           resource: `/api/v1/events/${id}`,
@@ -285,8 +291,20 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request: FastifyRequest<EventsGetRequest>, reply) => {
       const upcomingOnly = request.query?.upcomingOnly || false;
+      const cachedResponse = fastify.nodeCache.get(
+        `events-upcoming_only=${upcomingOnly}`,
+      );
+      if (cachedResponse) {
+        reply
+          .header(
+            "cache-control",
+            "public, max-age=7200, stale-while-revalidate=900, stale-if-error=86400",
+          )
+          .header("acm-cache-status", "hit")
+          .send(cachedResponse);
+      }
       try {
-        const response = await dynamoClient.send(
+        const response = await fastify.dynamoClient.send(
           new ScanCommand({ TableName: genericConfig.EventsDynamoTableName }),
         );
         const items = response.Items?.map((item) => unmarshall(item));
@@ -322,11 +340,17 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             }
           });
         }
+        fastify.nodeCache.set(
+          `events-upcoming_only=${upcomingOnly}`,
+          parsedItems,
+          EVENT_CACHE_SECONDS,
+        );
         reply
           .header(
             "cache-control",
             "public, max-age=7200, stale-while-revalidate=900, stale-if-error=86400",
           )
+          .header("acm-cache-status", "miss")
           .send(parsedItems);
       } catch (e: unknown) {
         if (e instanceof Error) {

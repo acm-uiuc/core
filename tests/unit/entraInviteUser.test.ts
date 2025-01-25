@@ -95,6 +95,7 @@ describe("Test Microsoft Entra ID user invitation", () => {
   });
 
   beforeEach(() => {
+    (app as any).nodeCache.flushAll();
     vi.clearAllMocks();
     vi.useFakeTimers();
     // Re-implement the mock

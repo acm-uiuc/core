@@ -39,10 +39,6 @@ import {
   getGroupRoles,
 } from "../functions/authorization.js";
 
-const dynamoClient = new DynamoDBClient({
-  region: genericConfig.AwsRegion,
-});
-
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.get<{
     Body: undefined;
@@ -67,7 +63,11 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       try {
         const groupId = (request.params as Record<string, string>).groupId;
-        const roles = await getGroupRoles(dynamoClient, fastify, groupId);
+        const roles = await getGroupRoles(
+          fastify.dynamoClient,
+          fastify,
+          groupId,
+        );
         return reply.send(roles);
       } catch (e: unknown) {
         if (e instanceof BaseError) {
@@ -120,7 +120,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createdAt: timestamp,
           }),
         });
-        await dynamoClient.send(command);
+        await fastify.dynamoClient.send(command);
         fastify.nodeCache.set(
           `grouproles-${groupId}`,
           request.body.roles,
@@ -160,6 +160,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const emails = request.body.emails;
       const entraIdToken = await getEntraIdToken(
+        fastify,
         fastify.environmentConfig.AadValidClientId,
       );
       if (!entraIdToken) {
@@ -246,6 +247,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const entraIdToken = await getEntraIdToken(
+        fastify,
         fastify.environmentConfig.AadValidClientId,
       );
       const addResults = await Promise.allSettled(
@@ -369,6 +371,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const entraIdToken = await getEntraIdToken(
+        fastify,
         fastify.environmentConfig.AadValidClientId,
       );
       const response = await listGroupMembers(entraIdToken, groupId);
