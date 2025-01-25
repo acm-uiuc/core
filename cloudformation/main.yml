@@ -25,7 +25,6 @@ Parameters:
 
 Conditions:
   IsProd: !Equals [!Ref RunEnvironment, 'prod']
-  IsDev: !Equals [!Ref RunEnvironment, 'dev']
   ShouldAttachVpc:
     !Equals [true, !Ref VpcRequired]
 
@@ -34,7 +33,7 @@ Mappings:
     dev:
       LogRetentionDays: 7
     prod:
-      LogRetentionDays: 30
+      LogRetentionDays: 365
   ApiGwConfig:
     dev:
       ApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
@@ -121,13 +120,34 @@ Resources:
     Type: AWS::Serverless::Function
     DependsOn:
       - AppLogGroups
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        Minify: true
+        OutExtension:
+          - .js=.mjs
+        Target: "es2022"
+        Sourcemap: false
+        EntryPoints:
+          - api/lambda.js
+        External:
+          - aws-sdk
+        Banner:
+          - js=import path from 'path';
+            import { fileURLToPath } from 'url';
+            import { createRequire as topLevelCreateRequire } from 'module';
+            const require = topLevelCreateRequire(import.meta.url);
+            const __filename = fileURLToPath(import.meta.url);
+            const __dirname = path.dirname(__filename);
     Properties:
+      Architectures: [arm64]
       CodeUri: ../dist
       AutoPublishAlias: live
-      Runtime: nodejs20.x
+      Runtime: nodejs22.x
       Description: !Sub "${ApplicationFriendlyName} API Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-lambda
-      Handler: api/lambda.handler
+      Handler: lambda.handler
       MemorySize: 512
       Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
       Timeout: 60
@@ -149,6 +169,7 @@ Resources:
   IamGroupRolesTable:
     Type: 'AWS::DynamoDB::Table'
     DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-iam-grouproles
@@ -165,6 +186,7 @@ Resources:
   IamUserRolesTable:
     Type: 'AWS::DynamoDB::Table'
     DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-iam-userroles
@@ -181,6 +203,7 @@ Resources:
   EventRecordsTable:
     Type: 'AWS::DynamoDB::Table'
     DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-events
@@ -234,6 +257,7 @@ Resources:
   CacheRecordsTable:
     Type: 'AWS::DynamoDB::Table'
     DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
     Properties:
       BillingMode: 'PAY_PER_REQUEST'
       TableName: infra-core-api-cache
@@ -317,14 +341,33 @@ Resources:
     Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-gateway-latency-high
-      AlarmDescription: !Sub 'Alarm if ${ApplicationPrefix} API gateway latency is > 3s.'
+      AlarmDescription: 'Average API gateway latency is > 1.25s for 2 minutes.'
       Namespace: 'AWS/ApiGateway'
       MetricName: 'Latency'
       Statistic: 'Average'
-      Period: '60'
+      Period: '120'
       EvaluationPeriods: '1'
       ComparisonOperator: 'GreaterThanThreshold'
-      Threshold: '3000'
+      Threshold: '1250'
+      AlarmActions:
+        - !Ref AlertSNSArn
+      Dimensions:
+        - Name: 'ApiName'
+          Value: !Sub ${ApplicationPrefix}-gateway
+
+  AppApiGatewayNoRequestsAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub ${ApplicationPrefix}-gateway-no-requests
+      AlarmDescription: 'No requests have been received in the past 5 minutes.'
+      Namespace: 'AWS/ApiGateway'
+      MetricName: 'Count'
+      Statistic: 'Sum'
+      Period: '300'
+      EvaluationPeriods: '1'
+      ComparisonOperator: 'LessThanThreshold'
+      Threshold: '1'
       AlarmActions:
         - !Ref AlertSNSArn
       Dimensions:
@@ -336,7 +379,7 @@ Resources:
     Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-gateway-5xx
-      AlarmDescription: !Sub 'Alarm if ${ApplicationPrefix} API gateway 5XX errors are detected.'
+      AlarmDescription: 'More than 2 API gateway 5XX errors were detected.'
       Namespace: 'AWS/ApiGateway'
       MetricName: '5XXError'
       Statistic: 'Average'

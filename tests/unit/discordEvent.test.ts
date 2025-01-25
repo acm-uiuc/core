@@ -85,9 +85,10 @@ describe("Test Events <-> Discord integration", () => {
     vi.useRealTimers();
   });
   beforeEach(() => {
+    (app as any).nodeCache.flushAll();
     ddbMock.reset();
     smMock.reset();
-    vi.resetAllMocks();
+    vi.clearAllMocks();
     vi.useFakeTimers();
   });
 });

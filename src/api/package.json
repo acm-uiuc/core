@@ -15,10 +15,34 @@
     "prettier:write": "prettier --write *.ts **/*.ts"
   },
   "dependencies": {
+    "@fastify/static": "^8.0.4",
+    "@aws-sdk/client-dynamodb": "^3.624.0",
+    "@aws-sdk/client-secrets-manager": "^3.624.0",
     "@aws-sdk/client-sts": "^3.726.0",
-    "@fastify/static": "^8.0.4"
+    "@aws-sdk/util-dynamodb": "^3.624.0",
+    "@azure/msal-node": "^2.16.1",
+    "@fastify/auth": "^5.0.1",
+    "@fastify/aws-lambda": "^5.0.0",
+    "@fastify/caching": "^9.0.1",
+    "@fastify/cors": "^10.0.1",
+    "@touch4it/ical-timezones": "^1.9.0",
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "esbuild": "^0.24.2",
+    "fastify": "^5.1.0",
+    "fastify-plugin": "^4.5.1",
+    "ical-generator": "^7.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
+    "moment": "^2.30.1",
+    "moment-timezone": "^0.5.45",
+    "node-cache": "^5.1.2",
+    "pluralize": "^8.0.0",
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.23.2",
+    "zod-validation-error": "^3.3.1"
   },
   "devDependencies": {
-    "@types/ejs": "^3.1.5"
+    "@tsconfig/node22": "^22.0.0"
   }
 }

@@ -6,14 +6,10 @@ type ArrayOfValueOrArray<T> = Array<ValueOrArray<T>>;
 type OriginType = string | boolean | RegExp;
 type ValueOrArray<T> = T | ArrayOfValueOrArray<T>;
 
-type GroupRoleMapping = Record<string, readonly AppRoles[]>;
 type AzureRoleMapping = Record<string, readonly AppRoles[]>;
-type UserRoleMapping = Record<string, readonly AppRoles[]>;
 
 export type ConfigType = {
-  GroupRoleMapping: GroupRoleMapping;
   AzureRoleMapping: AzureRoleMapping;
-  UserRoleMapping: UserRoleMapping;
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
 };
@@ -62,18 +58,6 @@ const genericConfig: GenericConfigType = {
 
 const environmentConfig: EnvironmentConfigType = {
   dev: {
-    GroupRoleMapping: {
-      [infraChairsGroupId]: allAppRoles, // Infra Chairs
-      "940e4f9e-6891-4e28-9e29-148798495cdb": allAppRoles, // ACM Infra Team
-      "f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6": allAppRoles, // Infra Leads
-      "0": allAppRoles, // Dummy Group for development only
-      "1": [], // Dummy Group for development only
-      "scanner-only": [AppRoles.TICKETS_SCANNER],
-    },
-    UserRoleMapping: {
-      "infra-unit-test-nogrp@acm.illinois.edu": [AppRoles.TICKETS_SCANNER],
-      "kLkvWTYwNnJfBkIK7mBi4niXXHYNR7ygbV8utlvFxjw": allAppRoles
-    },
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
       "http://localhost:3000",
@@ -86,26 +70,6 @@ const environmentConfig: EnvironmentConfigType = {
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
   },
   prod: {
-    GroupRoleMapping: {
-      [infraChairsGroupId]: allAppRoles, // Infra Chairs
-      [officersGroupId]: allAppRoles, // Officers
-      [execCouncilGroupId]: [AppRoles.EVENTS_MANAGER, AppRoles.IAM_INVITE_ONLY], // Exec
-    },
-    UserRoleMapping: {
-      "jlevine4@illinois.edu": allAppRoles,
-      "kaavyam2@illinois.edu": [AppRoles.TICKETS_SCANNER],
-      "hazellu2@illinois.edu": [AppRoles.TICKETS_SCANNER],
-      "cnwos@illinois.edu": [AppRoles.TICKETS_SCANNER],
-      "alfan2@illinois.edu": [AppRoles.TICKETS_SCANNER],
-      "naomil4@illinois.edu": [
-        AppRoles.TICKETS_SCANNER,
-        AppRoles.TICKETS_MANAGER,
-      ],
-      "akori3@illinois.edu": [
-        AppRoles.TICKETS_SCANNER,
-        AppRoles.TICKETS_MANAGER,
-      ],
-    },
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
       "https://acm.illinois.edu",

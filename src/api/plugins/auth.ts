@@ -14,6 +14,8 @@ import {
   UnauthorizedError,
 } from "../../common/errors/index.js";
 import { genericConfig, SecretConfig } from "../../common/config.js";
+import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
 export function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();
@@ -51,11 +53,9 @@ export type AadToken = {
   ver: string;
   roles?: string[];
 };
-const smClient = new SecretsManagerClient({
-  region: genericConfig.AwsRegion,
-});
 
 export const getSecretValue = async (
+  smClient: SecretsManagerClient,
   secretId: string,
 ): Promise<Record<string, string | number | boolean> | null | SecretConfig> => {
   const data = await smClient.send(
@@ -112,7 +112,10 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           signingKey =
             process.env.JwtSigningKey ||
             ((
-              (await getSecretValue(genericConfig.ConfigSecretName)) || {
+              (await getSecretValue(
+                fastify.secretsManagerClient,
+                genericConfig.ConfigSecretName,
+              )) || {
                 jwt_key: "",
               }
             ).jwt_key as string) ||
@@ -159,17 +162,19 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         request.tokenPayload = verifiedTokenData;
         request.username = verifiedTokenData.email || verifiedTokenData.sub;
         const expectedRoles = new Set(validRoles);
-        if (
-          verifiedTokenData.groups &&
-          fastify.environmentConfig.GroupRoleMapping
-        ) {
-          for (const group of verifiedTokenData.groups) {
-            if (fastify.environmentConfig["GroupRoleMapping"][group]) {
-              for (const role of fastify.environmentConfig["GroupRoleMapping"][
-                group
-              ]) {
+        if (verifiedTokenData.groups) {
+          const groupRoles = await Promise.allSettled(
+            verifiedTokenData.groups.map((x) =>
+              getGroupRoles(fastify.dynamoClient, fastify, x),
+            ),
+          );
+          for (const result of groupRoles) {
+            if (result.status === "fulfilled") {
+              for (const role of result.value) {
                 userRoles.add(role);
               }
+            } else {
+              request.log.warn(`Failed to get group roles: ${result.reason}`);
             }
           }
         } else {
@@ -188,14 +193,22 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
             }
           }
         }
+
         // add user-specific role overrides
-        if (request.username && fastify.environmentConfig.UserRoleMapping) {
-          if (fastify.environmentConfig["UserRoleMapping"][request.username]) {
-            for (const role of fastify.environmentConfig["UserRoleMapping"][
-              request.username
-            ]) {
+        if (request.username) {
+          try {
+            const userAuth = await getUserRoles(
+              fastify.dynamoClient,
+              fastify,
+              request.username,
+            );
+            for (const role of userAuth) {
               userRoles.add(role);
             }
+          } catch (e) {
+            request.log.warn(
+              `Failed to get user role mapping for ${request.username}: ${e}`,
+            );
           }
         }
         if (
@@ -216,12 +229,14 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
         if (err instanceof Error) {
-          request.log.error(`Failed to verify JWT: ${err.toString()}`);
+          request.log.error(`Failed to verify JWT: ${err.toString()} `);
+          throw err;
         }
         throw new UnauthenticatedError({
           message: "Invalid token.",
         });
       }
+      request.log.info(`authenticated request from ${request.username} `);
       return userRoles;
     },
   );

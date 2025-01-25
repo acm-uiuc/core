@@ -20,12 +20,23 @@ import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import linkryRoutes from "./routes/linkry.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import NodeCache from "node-cache";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 
 dotenv.config();
 
 const now = () => Date.now();
 
 async function init() {
+  const dynamoClient = new DynamoDBClient({
+    region: genericConfig.AwsRegion,
+  });
+
+  const secretsManagerClient = new SecretsManagerClient({
+    region: genericConfig.AwsRegion,
+  });
+
   const app: FastifyInstance = fastify({
     logger: {
       level: process.env.LOG_LEVEL || "info",
@@ -76,11 +87,14 @@ async function init() {
   app.runEnvironment = process.env.RunEnvironment as RunEnvironment;
   app.environmentConfig =
     environmentConfig[app.runEnvironment as RunEnvironment];
+  app.nodeCache = new NodeCache({ checkperiod: 30 });
+  app.dynamoClient = dynamoClient;
+  app.secretsManagerClient = secretsManagerClient;
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;
     const url = req.raw.url;
-    req.log.info({ hostname, url }, "received request");
+    req.log.info({ hostname, url, method: req.method }, "received request");
     done();
   });
 
@@ -115,7 +129,7 @@ async function init() {
   await app.register(cors, {
     origin: app.environmentConfig.ValidCorsOrigins,
   });
-
+  app.log.info("Initialized new Fastify instance...");
   return app;
 }
 

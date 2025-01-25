@@ -375,4 +375,5 @@ afterAll(async () => {
 beforeEach(() => {
   ddbMock.reset();
   vi.useFakeTimers();
+  (app as any).nodeCache.flushAll();
 });
