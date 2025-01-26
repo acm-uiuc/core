@@ -30,12 +30,12 @@ export async function getEntraIdToken(
   clientId: string,
   scopes: string[] = ["https://graph.microsoft.com/.default"],
 ) {
-  const secretApiConfig =
-    (await getSecretValue(
-      fastify.secretsManagerClient,
-      genericConfig.ConfigSecretName,
-    )) || {};
+  const secretApiConfig = await getSecretValue(
+    fastify.secretsManagerClient,
+    genericConfig.ConfigSecretName,
+  );
   if (
+    !secretApiConfig ||
     !secretApiConfig.entra_id_private_key ||
     !secretApiConfig.entra_id_thumbprint
   ) {

@@ -12,6 +12,8 @@ export type ConfigType = {
   AzureRoleMapping: AzureRoleMapping;
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
+  PasskitIdentifier: string;
+  PasskitSerialNumber: string;
 };
 
 type GenericConfigType = {
@@ -66,6 +68,8 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
+    PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
+    PasskitSerialNumber: "0"
   },
   prod: {
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
@@ -76,6 +80,8 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
+    PasskitIdentifier: "pass.edu.illinois.acm.membership",
+    PasskitSerialNumber: "0"
   }
 };
 
@@ -85,6 +91,9 @@ export type SecretConfig = {
   discord_bot_token: string;
   entra_id_private_key: string;
   entra_id_thumbprint: string;
+  acm_passkit_signerCert_base64: string;
+  acm_passkit_signerKey_base64: string;
+  apple_signing_cert_base64: string;
 };
 
 export { genericConfig, environmentConfig };

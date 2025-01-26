@@ -57,7 +57,7 @@ export type AadToken = {
 export const getSecretValue = async (
   smClient: SecretsManagerClient,
   secretId: string,
-): Promise<Record<string, string | number | boolean> | null | SecretConfig> => {
+): Promise<null | SecretConfig> => {
   const data = await smClient.send(
     new GetSecretValueCommand({ SecretId: secretId }),
   );
@@ -65,10 +65,7 @@ export const getSecretValue = async (
     return null;
   }
   try {
-    return JSON.parse(data.SecretString) as Record<
-      string,
-      string | number | boolean
-    >;
+    return JSON.parse(data.SecretString) as SecretConfig;
   } catch {
     return null;
   }

@@ -26,6 +26,7 @@ declare module "fastify" {
     nodeCache: NodeCache;
     dynamoClient: DynamoDBClient;
     secretsManagerClient: SecretsManagerClient;
+    secretsManagerData: Record<string, string> | null;
   }
   interface FastifyRequest {
     startTime: number;

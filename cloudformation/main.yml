@@ -127,6 +127,10 @@ Resources:
         Minify: true
         OutExtension:
           - .js=.mjs
+        Loader:
+          - .png=file
+          - .pkpass=file
+          - .json=file
         Target: "es2022"
         Sourcemap: false
         EntryPoints:

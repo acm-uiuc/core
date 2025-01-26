@@ -12,7 +12,10 @@ import { type EventPostRequest } from "../routes/events.js";
 import moment from "moment-timezone";
 
 import { FastifyBaseLogger } from "fastify";
-import { DiscordEventError } from "../../common/errors/index.js";
+import {
+  DiscordEventError,
+  InternalServerError,
+} from "../../common/errors/index.js";
 import { getSecretValue } from "../plugins/auth.js";
 import { genericConfig } from "../../common/config.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
@@ -30,8 +33,15 @@ export const updateDiscord = async (
   isDelete: boolean = false,
   logger: FastifyBaseLogger,
 ): Promise<null | GuildScheduledEventCreateOptions> => {
-  const secretApiConfig =
-    (await getSecretValue(smClient, genericConfig.ConfigSecretName)) || {};
+  const secretApiConfig = await getSecretValue(
+    smClient,
+    genericConfig.ConfigSecretName,
+  );
+  if (!secretApiConfig) {
+    throw new InternalServerError({
+      message: "Could not find credentials for Discord.",
+    });
+  }
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
   let payload: GuildScheduledEventCreateOptions | null = null;
 
