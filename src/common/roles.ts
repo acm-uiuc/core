@@ -7,7 +7,6 @@ export enum AppRoles {
   TICKETS_MANAGER = "manage:tickets",
   IAM_ADMIN = "admin:iam",
   IAM_INVITE_ONLY = "invite:iam",
-  USERS_ADMIN = "admin:users",
 }
 export const allAppRoles = Object.values(AppRoles).filter(
   (value) => typeof value === "string",

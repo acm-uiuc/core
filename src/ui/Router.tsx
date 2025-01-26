@@ -121,7 +121,7 @@ const authenticatedRouter = createBrowserRouter([
     element: <ViewTicketsPage />,
   },
   {
-    path: '/users',
+    path: '/iam/leads',
     element: <ScreenPage />,
   },
   // Catch-all route for authenticated users shows 404 page

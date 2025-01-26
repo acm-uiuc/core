@@ -12,36 +12,10 @@ import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { AuthGuard } from '@ui/components/AuthGuard';
 import { useApi } from '@ui/util/api';
 import { AppRoles } from '@common/roles.js';
+import { OrganizationList } from '@common/orgs';
+import { User, UserNames, UserOrgs, Users } from '@common/types/iam';
 
 // const repeatOptions = ['weekly', 'biweekly'] as const;
-
-const userSchema = z.object({
-  netid: z.string().min(1),
-  firstName: z.string().min(1),
-  middleName: z.string().optional(),
-  lastName: z.string().min(1),
-  sig: z.string(),
-  // location: z.string(),
-  // locationLink: z.optional(z.string().url()),
-  // host: z.string(),
-  // featured: z.boolean().default(false),
-  // paidEventId: z.optional(z.string().min(1)),
-});
-
-const usersSchema = z.array(userSchema);
-
-// const requestSchema = baseSchema.extend({
-//   repeats: z.optional(z.enum(repeatOptions)),
-//   repeatEnds: z.string().optional(),
-// });
-
-// const getEventSchema = requestSchema.extend({
-//   id: z.string(),
-//   upcoming: z.boolean().optional(),
-// });
-
-export type User = z.infer<typeof userSchema>;
-export type Users = z.infer<typeof usersSchema>;
 
 // export type EventGetResponse = z.infer<typeof getEventSchema>;
 // const getEventsSchema = z.array(getEventSchema);
@@ -68,7 +42,7 @@ export const ScreenPage: React.FC = () => {
             <Table.Td>{user.firstName}</Table.Td>
             <Table.Td>{user.middleName}</Table.Td>
             <Table.Td>{user.lastName}</Table.Td>
-            <Table.Td>{user.sig}</Table.Td>
+            <Table.Td>{user.org}</Table.Td>
             {/* <Table.Td>{dayjs(event.start).format('MMM D YYYY hh:mm')}</Table.Td>
             <Table.Td>{event.end ? dayjs(event.end).format('MMM D YYYY hh:mm') : 'N/A'}</Table.Td>
             <Table.Td>{event.location}</Table.Td>
@@ -112,36 +86,74 @@ export const ScreenPage: React.FC = () => {
       //   return { ...item, upcoming: false };
       // });
 
-      // prettier-ignore
-      const mockUserResponse: Users = [
-        { netid: "ethanc12", firstName: "Ethan", middleName:"Yuting", lastName: "Chang", sig: "Infra"},
-        { netid: "johnd01", firstName: "John", lastName: "Doe", sig: "SIGMusic" },
-        { netid: "sarahg23", firstName: "Sarah", middleName: "Grace", lastName: "Gonzalez", sig: "SIGQuantum" },
-        { netid: "miker44", firstName: "Michael", lastName: "Roberts", sig: "SIGPlan" },
-        { netid: "annaw02", firstName: "Anna", middleName: "Marie", lastName: "Williams", sig: "SIGMobile" },
-        { netid: "chrisb19", firstName: "Christopher", lastName: "Brown", sig: "SIGCHI" },
-        { netid: "laurenp87", firstName: "Lauren", middleName: "Patricia", lastName: "Perez", sig: "SIGPwny" },
-        { netid: "ethanw12", firstName: "Ethan", lastName: "Wong", sig: "SIGEcom" },
-        { netid: "emilyh54", firstName: "Emily", lastName: "Hernandez", sig: "SIGRobotics" },
-        { netid: "kevink11", firstName: "Kevin", middleName: "Lee", lastName: "Kim", sig: "Infra" },
-        { netid: "juliel08", firstName: "Julie", lastName: "Lopez", sig: "SIGGRAPH" },
-        { netid: "mattt92", firstName: "Matthew", middleName: "Thomas", lastName: "Taylor", sig: "SIGtricity" },
-        { netid: "rachelb03", firstName: "Rachel", lastName: "Bell", sig: "SIGSYS" },
-        { netid: "stephenj45", firstName: "Stephen", middleName: "James", lastName: "Johnson", sig: "SIGAIDA" },
-        { netid: "ashleyc28", firstName: "Ashley", lastName: "Clark", sig: "SIGNLL" },
-        { netid: "briand77", firstName: "Brian", lastName: "Davis", sig: "SIGMA" },
-        { netid: "meganf65", firstName: "Megan", lastName: "Flores", sig: "SIGPolicy" },
-        { netid: "danielh04", firstName: "Daniel", lastName: "Hughes", sig: "SIGARCH" },
-        { netid: "victorc16", firstName: "Victor", middleName: "Charles", lastName: "Carter", sig: "SIGGLUG" },
-        { netid: "lindam29", firstName: "Linda", lastName: "Martinez", sig: "SIGMobile" },
-        { netid: "paulf31", firstName: "Paul", lastName: "Fisher", sig: "SIGMusic" },
-        { netid: "susana80", firstName: "Susan", middleName: "Ann", lastName: "Anderson", sig: "SIGPwny" },
-        { netid: "markl13", firstName: "Mark", lastName: "Lewis", sig: "SIGCHI" },
-        { netid: "carolynb59", firstName: "Carolyn", lastName: "Barnes", sig: "SIGSYS" },
-        { netid: "patrickh37", firstName: "Patrick", middleName: "Henry", lastName: "Hill", sig: "SIGQuantum" },
-        { netid: "nataliep71", firstName: "Natalie", lastName: "Price", sig: "SIGPolicy" },
+      // get request for user orgs
+      const userOrgsResponse: UserOrgs = [
+        { netid: 'johnd01', org: 'SIGMusic' },
+        { netid: 'miker44', org: 'SIGPLAN' },
+        { netid: 'chrisb19', org: 'SIGCHI' },
+        { netid: 'ethanw12', org: 'SIGecom' },
+        { netid: 'emilyh54', org: 'SIGRobotics' },
+        { netid: 'juliel08', org: 'SIGGRAPH' },
+        { netid: 'rachelb03', org: 'GameBuilders' },
+        { netid: 'ashleyc28', org: 'SIGNLL' },
+        { netid: 'briand77', org: 'SIGma' },
+        { netid: 'meganf65', org: 'SIGPolicy' },
+        { netid: 'danielh04', org: 'SIGARCH' },
+        { netid: 'lindam29', org: 'SIGMobile' },
+        { netid: 'paulf31', org: 'SIGMusic' },
+        { netid: 'markl13', org: 'SIGCHI' },
+        { netid: 'carolynb59', org: 'ACM' },
+        { netid: 'nataliep71', org: 'SIGPolicy' },
+
+        { netid: 'ethanc12', org: 'Infrastructure Committee' },
+        { netid: 'sarahg23', org: 'SIGQuantum' },
+        { netid: 'annaw02', org: 'SIGMobile' },
+        { netid: 'laurenp87', org: 'SIGPwny' },
+        { netid: 'kevink11', org: 'Infrastructure Committee' },
+        { netid: 'mattt92', org: 'SIGtricity' },
+        { netid: 'stephenj45', org: 'SIGAIDA' },
+        { netid: 'victorc16', org: 'GLUG' },
+        { netid: 'susana80', org: 'SIGPwny' },
+        { netid: 'patrickh37', org: 'SIGQuantum' },
       ];
-      setUserList(mockUserResponse);
+
+      // retrieve from azure active directory (aad)
+      const userNamesResponse: UserNames = [
+        { netid: 'johnd01', firstName: 'John', lastName: 'Doe' },
+        { netid: 'miker44', firstName: 'Michael', lastName: 'Roberts' },
+        { netid: 'chrisb19', firstName: 'Christopher', lastName: 'Brown' },
+        { netid: 'ethanw12', firstName: 'Ethan', lastName: 'Wong' },
+        { netid: 'emilyh54', firstName: 'Emily', lastName: 'Hernandez' },
+        { netid: 'juliel08', firstName: 'Julie', lastName: 'Lopez' },
+        { netid: 'rachelb03', firstName: 'Rachel', lastName: 'Bell' },
+        { netid: 'ashleyc28', firstName: 'Ashley', lastName: 'Clark' },
+        { netid: 'briand77', firstName: 'Brian', lastName: 'Davis' },
+        { netid: 'meganf65', firstName: 'Megan', lastName: 'Flores' },
+        { netid: 'danielh04', firstName: 'Daniel', lastName: 'Hughes' },
+        { netid: 'lindam29', firstName: 'Linda', lastName: 'Martinez' },
+        { netid: 'paulf31', firstName: 'Paul', lastName: 'Fisher' },
+        { netid: 'markl13', firstName: 'Mark', lastName: 'Lewis' },
+        { netid: 'carolynb59', firstName: 'Carolyn', lastName: 'Barnes' },
+        { netid: 'nataliep71', firstName: 'Natalie', lastName: 'Price' },
+
+        { netid: 'ethanc12', firstName: 'Ethan', middleName: 'Yuting', lastName: 'Chang' },
+        { netid: 'sarahg23', firstName: 'Sarah', middleName: 'Grace', lastName: 'Gonzalez' },
+        { netid: 'annaw02', firstName: 'Anna', middleName: 'Marie', lastName: 'Williams' },
+        { netid: 'laurenp87', firstName: 'Lauren', middleName: 'Patricia', lastName: 'Perez' },
+        { netid: 'kevink11', firstName: 'Kevin', middleName: 'Lee', lastName: 'Kim' },
+        { netid: 'mattt92', firstName: 'Matthew', middleName: 'Thomas', lastName: 'Taylor' },
+        { netid: 'stephenj45', firstName: 'Stephen', middleName: 'James', lastName: 'Johnson' },
+        { netid: 'victorc16', firstName: 'Victor', middleName: 'Charles', lastName: 'Carter' },
+        { netid: 'susana80', firstName: 'Susan', middleName: 'Ann', lastName: 'Anderson' },
+        { netid: 'patrickh37', firstName: 'Patrick', middleName: 'Henry', lastName: 'Hill' },
+      ];
+
+      const mergedResponse: Users = userOrgsResponse.map((orgObj) => {
+        const nameObj = userNamesResponse.find((name) => name.netid === orgObj.netid);
+        return { ...orgObj, ...nameObj } as User;
+      });
+
+      setUserList(mergedResponse);
     };
     getUsers();
   }, []);
@@ -170,7 +182,6 @@ export const ScreenPage: React.FC = () => {
   }
 
   return (
-    // <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.USERS_ADMIN] }}>
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.IAM_ADMIN] }}>
       {userRemoved && (
         <Modal
@@ -217,7 +228,7 @@ export const ScreenPage: React.FC = () => {
             <Table.Th>First Name</Table.Th>
             <Table.Th>Middle Name</Table.Th>
             <Table.Th>Last Name</Table.Th>
-            <Table.Th>Affiliated Special Interest Group</Table.Th>
+            <Table.Th>Organization</Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
