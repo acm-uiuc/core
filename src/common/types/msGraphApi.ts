@@ -1,13 +1,12 @@
-export interface UserProfileData {
-  id?: string;
+export interface UserProfileDataBase {
   userPrincipalName: string;
   displayName?: string;
   givenName?: string;
   surname?: string;
   mail?: string;
-  jobTitle?: string;
-  mobilePhone?: string;
-  officeLocation?: string;
-  preferredLanguage?: string;
-  businessPhones?: string[];
+  otherMails?: string[]
+}
+
+export interface UserProfileData extends UserProfileDataBase {
+  discordUsername?: string;
 }

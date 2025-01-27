@@ -82,6 +82,10 @@ export const AuthGuard: React.FC<
           setIsAuthenticated(true);
           return;
         }
+        if (validRoles.length === 0) {
+          setIsAuthenticated(true);
+          return;
+        }
 
         // Check for cached response first
         const cachedData = getCachedResponse(service, authCheckRoute);
