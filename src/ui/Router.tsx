@@ -17,6 +17,7 @@ import { ScanTicketsPage } from './pages/tickets/ScanTickets.page';
 import { SelectTicketsPage } from './pages/tickets/SelectEventId.page';
 import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
 import { ManageIamPage } from './pages/iam/ManageIam.page';
+import { ManageProfilePage } from './pages/profile/ManageProfile.page';
 
 // Component to handle redirects to login with return path
 const LoginRedirect: React.FC = () => {
@@ -86,6 +87,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/logout',
     element: <LogoutPage />,
+  },
+  {
+    path: '/profile',
+    element: <ManageProfilePage />,
   },
   {
     path: '/home',

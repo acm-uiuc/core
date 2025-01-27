@@ -1,4 +1,4 @@
-import { Text, Button, Table, Modal, Group, Transition, ButtonGroup } from '@mantine/core';
+import { Text, Button, Table, Modal, Group, Transition, ButtonGroup, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
@@ -131,6 +131,9 @@ export const ViewEventsPage: React.FC = () => {
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
+      <Title order={1} mb={'md'}>
+        Event Management
+      </Title>
       {deleteCandidate && (
         <Modal
           opened={opened}
