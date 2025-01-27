@@ -4,10 +4,13 @@ import { AuthGuard } from '@ui/components/AuthGuard';
 import { useApi } from '@ui/util/api';
 import { UserProfileData, UserProfileDataBase } from '@common/types/msGraphApi';
 import { ManageProfileComponent } from './ManageProfileComponent';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@ui/components/AuthContext';
 
 export const ManageProfilePage: React.FC = () => {
   const api = useApi('msGraphApi');
+  const { setLoginStatus } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo') || undefined;
   const firstTime = searchParams.get('firstTime') === 'true' || false;
@@ -33,7 +36,14 @@ export const ManageProfilePage: React.FC = () => {
     }
     data.otherMails = newOtherEmails;
     delete data.discordUsername;
-    return (await api.patch('/v1.0/me', data)).data;
+    const response = await api.patch('/v1.0/me', data);
+    if (response.status < 299 && firstTime) {
+      setLoginStatus(true);
+    }
+    if (returnTo) {
+      return navigate(returnTo);
+    }
+    return response.data;
   };
 
   return (
@@ -44,7 +54,6 @@ export const ManageProfilePage: React.FC = () => {
           getProfile={getProfile}
           setProfile={setProfile}
           firstTime={firstTime}
-          returnTo={returnTo}
         />
       </Container>
     </AuthGuard>

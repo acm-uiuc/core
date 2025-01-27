@@ -1,25 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { TextInput, Button, Group, Box, LoadingOverlay, Alert } from '@mantine/core';
 import { UserProfileData } from '@common/types/msGraphApi';
-import { useAuth } from '@ui/components/AuthContext';
 import { notifications } from '@mantine/notifications';
 import { useNavigate } from 'react-router-dom';
-import { IconMoodSmileBeam, IconQuestionMark } from '@tabler/icons-react';
+import { IconMoodSmileBeam } from '@tabler/icons-react';
 
 interface ManageProfileComponentProps {
   getProfile: () => Promise<UserProfileData>;
   setProfile: (data: UserProfileData) => Promise<any>;
   firstTime: boolean;
-  returnTo?: string;
 }
 
 export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
   getProfile,
   setProfile,
   firstTime,
-  returnTo,
 }) => {
-  const { userData, setLoginStatus } = useAuth();
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<undefined | null | UserProfileData>(undefined);
   const [loading, setLoading] = useState(false);
@@ -53,10 +49,6 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
         title: 'Profile updated successfully',
         message: 'Changes may take some time to reflect.',
       });
-      setLoginStatus(true);
-      if (returnTo) {
-        return navigate(returnTo);
-      }
       await fetchProfile();
     } catch (e) {
       console.error(e);
@@ -97,7 +89,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             onChange={(e) =>
               setUserProfile((prev) => prev && { ...prev, displayName: e.target.value })
             }
-            placeholder={userData?.name}
+            placeholder={userProfile?.displayName}
             required
           />
           <TextInput
@@ -120,8 +112,9 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             label="Email"
             value={userProfile?.mail || ''}
             onChange={(e) => setUserProfile((prev) => prev && { ...prev, mail: e.target.value })}
-            placeholder={userData?.email}
+            placeholder={userProfile?.mail}
             required
+            disabled
           />
 
           <TextInput
