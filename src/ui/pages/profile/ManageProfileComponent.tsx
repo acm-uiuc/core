@@ -126,7 +126,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
           />
 
           <Group mt="md">
-            <Button type="submit" loading={loading}>
+            <Button type="submit" loading={loading} disabled={loading || !userProfile}>
               Save
             </Button>
           </Group>
