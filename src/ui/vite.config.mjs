@@ -21,11 +21,13 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './vitest.setup.mjs',
     env: {
-      VITE_RUN_ENVIRONMENT: 'dev'
+      VITE_RUN_ENVIRONMENT: 'dev',
     },
   },
   server: {
     historyApiFallback: true,
+    host: '127.0.0.1',
+    port: 5173
   },
   build: {
     outDir: '../../dist_ui',
