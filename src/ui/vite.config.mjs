@@ -13,6 +13,7 @@ export default defineConfig({
     alias: {
       '@ui': path.resolve(__dirname, './'),
       '@common': path.resolve(__dirname, '../common/'),
+      '@tabler/icons-react': '@tabler/icons-react/dist/esm/icons/index.mjs',
     },
   },
   test: {

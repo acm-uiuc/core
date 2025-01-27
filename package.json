@@ -74,7 +74,6 @@
     "tsx": "^4.16.5",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.0.1",
-    "vite": "^5.4.0",
     "vite-tsconfig-paths": "^5.0.1",
     "vitest": "^2.0.5",
     "yarn-upgrade-all": "^0.7.4"
