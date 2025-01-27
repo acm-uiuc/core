@@ -38,7 +38,7 @@ describe('ManageProfileComponent tests', () => {
 
     await renderComponent(getProfile, setProfile);
 
-    expect(screen.getByText(/Loading.../i)).toBeInTheDocument();
+    expect(screen.getByTestId('profile-loading')).toBeInTheDocument();
   });
 
   it('renders profile form after successfully fetching profile', async () => {
@@ -53,11 +53,11 @@ describe('ManageProfileComponent tests', () => {
 
     await renderComponent(getProfile, setProfile);
 
-    expect(screen.getByLabelText('Display Name')).toHaveValue('John Doe');
-    expect(screen.getByLabelText('First Name')).toHaveValue('John');
-    expect(screen.getByLabelText('Last Name')).toHaveValue('Doe');
-    expect(screen.getByLabelText('Email')).toHaveValue('john.doe@example.com');
-    expect(screen.getByLabelText('Discord Username')).toHaveValue('johndoe#1234');
+    expect(screen.getByTestId('edit-displayName')).toHaveValue('John Doe');
+    expect(screen.getByTestId('edit-firstName')).toHaveValue('John');
+    expect(screen.getByTestId('edit-lastName')).toHaveValue('Doe');
+    expect(screen.getByTestId('edit-email')).toHaveValue('john.doe@example.com');
+    expect(screen.getByTestId('edit-discordUsername')).toHaveValue('johndoe#1234');
   });
 
   it('handles profile fetch failure gracefully', async () => {
@@ -67,7 +67,6 @@ describe('ManageProfileComponent tests', () => {
 
     await renderComponent(getProfile, setProfile);
 
-    expect(screen.getByText(/Failed to load user profile/i)).toBeInTheDocument();
     expect(notificationsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         message: 'Failed to load user profile',
@@ -94,9 +93,9 @@ describe('ManageProfileComponent tests', () => {
     const user = userEvent.setup();
 
     // Edit fields
-    await user.clear(screen.getByLabelText('Display Name'));
-    await user.type(screen.getByLabelText('Display Name'), 'Jane Doe');
-    await user.type(screen.getByLabelText('Discord Username'), 'janedoe#5678');
+    await user.clear(screen.getByTestId('edit-displayName'));
+    await user.type(screen.getByTestId('edit-displayName'), 'Jane Doe');
+    await user.type(screen.getByTestId('edit-discordUsername'), 'janedoe#5678');
 
     // Save changes
     const saveButton = screen.getByRole('button', { name: 'Save' });

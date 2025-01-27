@@ -201,7 +201,6 @@ const ErrorBoundary: React.FC<ErrorBoundaryProps> = ({ children }) => {
 
 export const Router: React.FC = () => {
   const { isLoggedIn } = useAuth();
-  console.log(isLoggedIn);
   const router = isLoggedIn
     ? authenticatedRouter
     : isLoggedIn === null

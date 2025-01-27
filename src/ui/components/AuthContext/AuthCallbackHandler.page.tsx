@@ -34,11 +34,6 @@ export const AuthCallback: React.FC = () => {
     setTimeout(() => {
       handleCallback();
     }, 100);
-
-    // Cleanup function
-    return () => {
-      console.log('Callback component unmounting'); // Debug log 8
-    };
   }, [instance, navigate]);
 
   return <FullScreenLoader />;

@@ -62,7 +62,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
   };
 
   if (userProfile === undefined) {
-    return <LoadingOverlay visible={true} />;
+    return <LoadingOverlay visible={true} data-testId="profile-loading" />;
   }
 
   return (
@@ -91,6 +91,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             }
             placeholder={userProfile?.displayName}
             required
+            data-testId="edit-displayName"
           />
           <TextInput
             label="First Name"
@@ -100,6 +101,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             }
             placeholder={userProfile?.givenName}
             required
+            data-testId="edit-firstName"
           />
           <TextInput
             label="Last Name"
@@ -107,6 +109,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             onChange={(e) => setUserProfile((prev) => prev && { ...prev, surname: e.target.value })}
             placeholder={userProfile?.surname}
             required
+            data-testId="edit-lastName"
           />
           <TextInput
             label="Email"
@@ -115,6 +118,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             placeholder={userProfile?.mail}
             required
             disabled
+            data-testId="edit-email"
           />
 
           <TextInput
@@ -123,6 +127,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             onChange={(e) =>
               setUserProfile((prev) => prev && { ...prev, discordUsername: e.target.value })
             }
+            data-testId="edit-discordUsername"
           />
 
           <Group mt="md">
