@@ -3,8 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "dotenv -e ../../.env cross-env VITE_RUN_ENVIRONMENT=local-dev vite",
-    "dev:aws": "dotenv -e ../../.env cross-env VITE_RUN_ENVIRONMENT=dev vite",
+    "dev": "VITE_RUN_ENVIRONMENT=local-dev vite",
+    "dev:aws": "cross-env VITE_RUN_ENVIRONMENT=dev vite",
     "build": "tsc && vite build",
     "preview": "cross-env VITE_RUN_ENVIRONMENT=local-dev yarn build && cross-env VITE_RUN_ENVIRONMENT=local-dev serve -l 5173 -s ../../dist_ui/",
     "typecheck": "tsc --noEmit",
