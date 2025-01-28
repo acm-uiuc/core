@@ -6,9 +6,10 @@
 	"image": "mcr.microsoft.com/devcontainers/base:jammy",
 	"features": {
 		"ghcr.io/devcontainers/features/node:1": {},
-    	"ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
 		"ghcr.io/jungaretti/features/make:1": {},
-    "ghcr.io/customink/codespaces-features/sam-cli:1": {}
+	  "ghcr.io/customink/codespaces-features/sam-cli:1": {},
+	  "ghcr.io/devcontainers/features/python:1": {}
 	},
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
