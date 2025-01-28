@@ -10,6 +10,7 @@ import {
   GroupMemberGetResponse,
   GroupModificationPatchRequest,
 } from '@common/types/iam';
+import { transformCommaSeperatedName } from '@common/utils';
 import { getRunEnvironmentConfig } from '@ui/config';
 
 export const ManageIamPage = () => {
@@ -37,7 +38,13 @@ export const ManageIamPage = () => {
   const getExecMembers = async () => {
     try {
       const response = await api.get(`/api/v1/iam/groups/${groupId}`);
-      return response.data as GroupMemberGetResponse;
+      const responseMapped = response.data
+        .map((x: any) => ({
+          ...x,
+          name: transformCommaSeperatedName(x.name),
+        }))
+        .sort((x: any, y: any) => (x.name > y.name ? 1 : x.name < y.name ? -1 : 0));
+      return responseMapped as GroupMemberGetResponse;
     } catch (error: any) {
       console.error('Failed to get users:', error);
       return [];

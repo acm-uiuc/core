@@ -1,7 +1,7 @@
 import { Card, Text, Title } from '@mantine/core';
 import React, { ReactNode, useEffect, useState } from 'react';
 
-import { AcmAppShell } from '@ui/components/AppShell';
+import { AcmAppShell, AcmAppShellProps } from '@ui/components/AppShell';
 import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { getRunEnvironmentConfig, ValidService } from '@ui/config';
 import { useApi } from '@ui/util/api';
@@ -60,11 +60,13 @@ export const clearAuthCache = () => {
   }
 };
 
-export const AuthGuard: React.FC<{
-  resourceDef: ResourceDefinition;
-  children: ReactNode;
-  isAppShell?: boolean;
-}> = ({ resourceDef, children, isAppShell = true }) => {
+export const AuthGuard: React.FC<
+  {
+    resourceDef: ResourceDefinition;
+    children: ReactNode;
+    isAppShell?: boolean;
+  } & AcmAppShellProps
+> = ({ resourceDef, children, isAppShell = true, ...appShellProps }) => {
   const { service, validRoles } = resourceDef;
   const { baseEndpoint, authCheckRoute, friendlyName } =
     getRunEnvironmentConfig().ServiceConfiguration[service];
@@ -77,6 +79,10 @@ export const AuthGuard: React.FC<{
     async function getAuth() {
       try {
         if (!authCheckRoute) {
+          setIsAuthenticated(true);
+          return;
+        }
+        if (validRoles.length === 0) {
           setIsAuthenticated(true);
           return;
         }
@@ -163,12 +169,7 @@ export const AuthGuard: React.FC<{
   }
 
   if (isAppShell) {
-    return (
-      <AcmAppShell>
-        <Title order={1}>{friendlyName}</Title>
-        {children}
-      </AcmAppShell>
-    );
+    return <AcmAppShell {...appShellProps}>{children}</AcmAppShell>;
   }
 
   return <>{children}</>;

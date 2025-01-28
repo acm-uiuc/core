@@ -9,9 +9,7 @@ describe("Events tests", () => {
   }) => {
     await becomeUser(page);
     await page.locator("a").filter({ hasText: "Events" }).click();
-    await expect(page.getByRole("heading")).toContainText(
-      "Core Management Service (NonProd)",
-    );
+    await expect(page.getByRole("heading")).toContainText("Event Management");
     await expect(
       page.getByRole("button", { name: "New Calendar Event" }),
     ).toBeVisible();
