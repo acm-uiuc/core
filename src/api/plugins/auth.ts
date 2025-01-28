@@ -17,7 +17,7 @@ import { genericConfig, SecretConfig } from "../../common/config.js";
 import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
-function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
+export function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();
   for (const elem of setB) {
     if (setA.has(elem)) {

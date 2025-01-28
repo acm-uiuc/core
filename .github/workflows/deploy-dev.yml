@@ -6,8 +6,11 @@ on:
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened, ready_for_review]
+
 jobs:
   test-unit:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     name: Run Unit Tests
     steps:
@@ -25,6 +28,7 @@ jobs:
       - name: Run unit testing
         run: make test_unit
   deploy-dev:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.event.repository.name }}-dev-env
@@ -69,6 +73,7 @@ jobs:
           branch: main
 
   test-dev:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     name: Run Live Tests
     needs:
