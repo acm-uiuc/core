@@ -45,6 +45,7 @@
     "zod-validation-error": "^3.3.1"
   },
   "devDependencies": {
-    "@tsconfig/node22": "^22.0.0"
+    "@tsconfig/node22": "^22.0.0",
+    "nodemon": "^3.1.9"
   }
 }

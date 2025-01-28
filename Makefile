@@ -52,6 +52,7 @@ clean:
 build: src/ cloudformation/ docs/
 	yarn -D
 	VITE_BUILD_HASH=$(GIT_HASH) yarn build
+	cp -r src/api/resources/ dist/api/resources
 	sam build --template-file cloudformation/main.yml
 
 local:

@@ -127,7 +127,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Format: esm
-        Minify: true
+        Minify: !Equals [!Ref RunEnvironment, 'prod']
         OutExtension:
           - .js=.mjs
         Loader:
@@ -135,7 +135,7 @@ Resources:
           - .pkpass=file
           - .json=file
         Target: "es2022"
-        Sourcemap: false
+        Sourcemap: !Not [!Equals [!Ref RunEnvironment, 'prod']]
         EntryPoints:
           - api/lambda.js
         External:
