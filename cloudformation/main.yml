@@ -32,8 +32,10 @@ Mappings:
   General:
     dev:
       LogRetentionDays: 7
+      SesDomain: "aws.qa.acmuiuc.org"
     prod:
       LogRetentionDays: 365
+      SesDomain: "acm.illinois.edu"
   ApiGwConfig:
     dev:
       ApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
@@ -71,6 +73,7 @@ Resources:
       Parameters:
         RunEnvironment: !Ref RunEnvironment
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
+        SesEmailDomain: !FindInMap [General, !Ref RunEnvironment, SesDomain]
 
   AppLogGroups:
     Type: AWS::Serverless::Application
@@ -127,6 +130,10 @@ Resources:
         Minify: true
         OutExtension:
           - .js=.mjs
+        Loader:
+          - .png=file
+          - .pkpass=file
+          - .json=file
         Target: "es2022"
         Sourcemap: false
         EntryPoints:

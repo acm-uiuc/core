@@ -8,7 +8,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "cross-env LOG_LEVEL=debug tsx watch index.ts",
+    "dev": "cross-env LOG_LEVEL=debug concurrently --names 'esbuild,server' 'node esbuild.config.js --watch' 'cd ../../dist_devel && nodemon index.js'",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts --cache",
     "prettier": "prettier --check *.ts **/*.ts",
