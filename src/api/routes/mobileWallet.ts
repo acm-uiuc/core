@@ -1,13 +1,15 @@
 import { FastifyPluginAsync } from "fastify";
 import { issueAppleWalletMembershipCard } from "../functions/mobileWallet.js";
 import {
+  EntraFetchError,
   UnauthenticatedError,
   UnauthorizedError,
   ValidationError,
 } from "../../common/errors/index.js";
-import { generateMembershipEmailCommand } from "api/functions/ses.js";
+import { generateMembershipEmailCommand } from "../functions/ses.js";
 import { z } from "zod";
-import { getEntraIdToken, getUserProfile } from "api/functions/entraId.js";
+import { getEntraIdToken, getUserProfile } from "../functions/entraId.js";
+import { checkPaidMembership } from "../functions/membership.js";
 
 const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
   fastify.get<{ Querystring: { email: string } }>(
@@ -41,32 +43,26 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
           message: "Email query parameter is not a valid email",
         });
       }
-
-      const membershipApiPayload = (await (
-        await fetch(
-          `${fastify.environmentConfig.MembershipApiEndpoint}?netId=${request.query.email.replace("@illinois.edu", "")}`,
-        )
-      ).json()) as { netId: string; isPaidMember: boolean };
-      try {
-        if (!membershipApiPayload["isPaidMember"]) {
-          throw new UnauthorizedError({
-            message: "User is not a paid member.",
-          });
-        }
-      } catch (e: any) {
-        request.log.error(
-          `Failed to get response from membership API: ${e.toString()}`,
-        );
-        throw e;
+      const isPaidMember = await checkPaidMembership(
+        fastify.environmentConfig.MembershipApiEndpoint,
+        request.log,
+        request.query.email.replace("@illinois.edu", ""),
+      );
+      if (!isPaidMember) {
+        throw new UnauthenticatedError({
+          message: `${request.query.email} is not a paid member.`,
+        });
       }
       const entraIdToken = await getEntraIdToken(
         fastify,
         fastify.environmentConfig.AadValidClientId,
       );
+
       const userProfile = await getUserProfile(
         entraIdToken,
         request.query.email,
       );
+
       const item = await issueAppleWalletMembershipCard(
         fastify,
         request,

@@ -180,7 +180,7 @@ export async function resolveEmailToOid(
   };
 
   if (!data.value || data.value.length === 0) {
-    throw new Error(`No user found with email: ${email}`);
+    throw new EntraFetchError({ message: "No user found with email", email });
   }
 
   return data.value[0].id;

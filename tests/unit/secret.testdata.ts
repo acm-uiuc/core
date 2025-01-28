@@ -6,6 +6,9 @@ const secretObject = {
   discord_bot_token: "12345",
   entra_id_private_key: "",
   entra_id_thumbprint: "",
+  acm_passkit_signerCert_base64: "",
+  acm_passkit_signerKey_base64: "",
+  apple_signing_cert_base64: "",
 } as SecretConfig & { jwt_key: string };
 
 const secretJson = JSON.stringify(secretObject);
