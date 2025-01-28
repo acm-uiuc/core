@@ -18,6 +18,7 @@ import { useState } from 'react';
 
 import { AuthContextData, useAuth } from '../AuthContext/index.js';
 import classes from '../Navbar/index.module.css';
+import { useNavigate } from 'react-router-dom';
 
 interface ProfileDropdownProps {
   userData?: AuthContextData;
@@ -26,6 +27,7 @@ interface ProfileDropdownProps {
 const AuthenticatedProfileDropdown: React.FC<ProfileDropdownProps> = ({ userData }) => {
   const [opened, setOpened] = useState(false);
   const theme = useMantineTheme();
+  const navigate = useNavigate();
   const { logout } = useAuth();
   if (!userData) {
     return null;
@@ -111,6 +113,16 @@ const AuthenticatedProfileDropdown: React.FC<ProfileDropdownProps> = ({ userData
             </Group>
           </UnstyledButton>
           <Divider my="sm" />
+          <Button
+            variant="primary"
+            mb="sm"
+            fullWidth
+            onClick={() => {
+              navigate('/profile');
+            }}
+          >
+            Edit Profile
+          </Button>
           <Button
             variant="outline"
             fullWidth

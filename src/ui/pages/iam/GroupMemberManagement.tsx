@@ -1,18 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Button,
-  Text,
-  TextInput,
-  Group,
-  Modal,
-  List,
-  ListItem,
-  ScrollArea,
-  Badge,
-  ActionIcon,
-} from '@mantine/core';
-import { IconTrash, IconUserPlus } from '@tabler/icons-react';
+import { Avatar, Badge, Group, Table, Text, Button, TextInput, Modal, Select } from '@mantine/core';
+import { IconUserPlus, IconTrash } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { GroupMemberGetResponse, EntraActionResponse } from '@common/types/iam';
 import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
@@ -22,7 +10,7 @@ interface GroupMemberManagementProps {
   updateMembers: (toAdd: string[], toRemove: string[]) => Promise<EntraActionResponse>;
 }
 
-export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
+const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
   fetchMembers,
   updateMembers,
 }) => {
@@ -32,22 +20,23 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [confirmationModal, setConfirmationModal] = useState(false);
+  const loadMembers = async () => {
+    try {
+      const memberList = await fetchMembers();
+      setMembers(memberList);
+    } catch (error) {
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to retrieve members.',
+        color: 'red',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadMembers = async () => {
-      try {
-        const memberList = await fetchMembers();
-        setMembers(memberList);
-      } catch (error) {
-        notifications.show({
-          title: 'Error',
-          message: 'Failed to retrieve members.',
-          color: 'red',
-        });
-      }
-    };
     loadMembers();
-    setIsLoading(false);
   }, [fetchMembers]);
 
   const handleAddMember = () => {
@@ -62,6 +51,7 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
       });
     }
   };
+
   const handleRemoveMember = (email: string) => {
     if (!toRemove.includes(email)) {
       setToRemove((prev) => [...prev, email]);
@@ -72,25 +62,17 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
     setIsLoading(true);
     try {
       const response = await updateMembers(toAdd, toRemove);
-      let { success, failure } = response;
-      if (!success) {
-        success = [];
-      }
-      if (!failure) {
-        failure = [];
-      }
+      const { success = [], failure = [] } = response;
 
       const successfulAdds = success.filter((entry) => toAdd.includes(entry.email));
       const successfulRemoves = success.filter((entry) => toRemove.includes(entry.email));
-      const failedAdds = failure.filter(({ email }) => toAdd.includes(email));
-      const failedRemoves = failure.filter(({ email }) => toRemove.includes(email));
 
       setMembers((prev) =>
         prev
           .filter((member) => !successfulRemoves.some((remove) => remove.email === member.email))
           .concat(successfulAdds.map(({ email }) => ({ name: email.split('@')[0], email })))
       );
-
+      loadMembers();
       setToAdd([]);
       setToRemove([]);
 
@@ -101,114 +83,137 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
           color: 'green',
         });
       } else {
-        failedAdds.forEach(({ email, message }) => {
+        failure.forEach(({ email, message }) => {
           notifications.show({
-            title: `Error adding ${email}`,
+            title: `Error with ${email}`,
             message,
             color: 'red',
-          });
-        });
-
-        failedRemoves.forEach(({ email, message }) => {
-          notifications.show({
-            title: `Error removing ${email}`,
-            message,
-            color: 'red',
-          });
-        });
-        const allSuccess = successfulAdds.concat(successfulRemoves);
-        allSuccess.forEach(({ email }) => {
-          notifications.show({
-            message: `Successfully modified ${email}`,
-            color: 'green',
           });
         });
       }
     } catch (error) {
       notifications.show({
         title: 'Error',
-        message: 'Failed to save changes due to an unexpected error.',
+        message: 'Failed to save changes.',
         color: 'red',
       });
     } finally {
       setIsLoading(false);
     }
   };
+
+  const rows = [
+    ...members.map((member) => (
+      <Table.Tr key={member.email}>
+        <Table.Td>
+          <Group gap="sm">
+            <Avatar name={member.name || member.email[0]} color="initials"></Avatar>
+            <div>
+              <Text fz="sm" fw={500}>
+                {member.name}
+              </Text>
+              <Text fz="xs" c="dimmed">
+                {member.email}
+              </Text>
+            </div>
+          </Group>
+        </Table.Td>
+        <Table.Td>
+          {toRemove.includes(member.email) ? (
+            <Badge color="red" variant="light">
+              Queued for removal
+            </Badge>
+          ) : (
+            <Badge color="green" variant="light">
+              Active
+            </Badge>
+          )}
+        </Table.Td>
+        <Table.Td>
+          <Button
+            color="red"
+            variant="light"
+            size="xs"
+            onClick={() => handleRemoveMember(member.email)}
+            leftSection={<IconTrash size={14} />}
+          >
+            Remove
+          </Button>
+        </Table.Td>
+      </Table.Tr>
+    )),
+    ...toAdd.map((email) => (
+      <Table.Tr key={email}>
+        <Table.Td>
+          <Group gap="sm">
+            <Avatar name={email} color="initials"></Avatar>
+            <div>
+              <Text fz="sm" fw={500}>
+                {email.split('@')[0]}
+              </Text>
+              <Text fz="xs" c="dimmed">
+                {email}
+              </Text>
+            </div>
+          </Group>
+        </Table.Td>
+        <Table.Td>
+          <Badge color="blue" variant="light">
+            Queued for addition
+          </Badge>
+        </Table.Td>
+        <Table.Td>
+          <Button
+            color="red"
+            variant="light"
+            size="xs"
+            onClick={() => setToAdd((prev) => prev.filter((item) => item !== email))}
+            leftSection={<IconTrash size={14} />}
+          >
+            Cancel
+          </Button>
+        </Table.Td>
+      </Table.Tr>
+    )),
+  ];
+
   return (
-    <Box p="md">
-      <Text fw={500} mb={4}>
+    <div>
+      <Text fw={500} mb={4} size="lg">
         Exec Council Group Management
       </Text>
 
-      {/* Member List */}
-      <Box mb="md">
-        <Text size="sm" fw={500} mb="xs">
-          Current Members
-        </Text>
-        <ScrollArea style={{ height: 250 }}>
-          {isLoading && <FullScreenLoader />}
-          {!isLoading && (
-            <List spacing="sm">
-              {members.map((member) => (
-                <ListItem key={member.email}>
-                  <Group justify="space-between">
-                    <Box>
-                      <Text size="sm">
-                        {member.name} ({member.email})
-                      </Text>
-                      {toRemove.includes(member.email) && (
-                        <Badge color="red" size="sm">
-                          Queued for removal
-                        </Badge>
-                      )}
-                    </Box>
-                    <ActionIcon
-                      color="red"
-                      variant="light"
-                      onClick={() => handleRemoveMember(member.email)}
-                      data-testid={`remove-exec-member-${member.email}`}
-                    >
-                      <IconTrash size={16} />
-                    </ActionIcon>
-                  </Group>
-                </ListItem>
-              ))}
-              {toAdd.map((member) => (
-                <ListItem key={member}>
-                  <Group justify="space-between">
-                    <Box>
-                      <Text size="sm">{member}</Text>
-                      <Badge color="green" size="sm">
-                        Queued for addition
-                      </Badge>
-                    </Box>
-                  </Group>
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </ScrollArea>
-      </Box>
+      {isLoading ? (
+        <FullScreenLoader />
+      ) : (
+        <Table verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Member</Table.Th>
+              <Table.Th>Status</Table.Th>
+              <Table.Th>Actions</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>{rows}</Table.Tbody>
+        </Table>
+      )}
 
-      {/* Add Member */}
-      <Box mb="md">
-        <TextInput
-          value={email}
-          onChange={(e) => setEmail(e.currentTarget.value)}
-          placeholder="Enter email"
-          label="Add Member"
-        />
-        <Button
-          mt="sm"
-          leftSection={<IconUserPlus size={16} />}
-          onClick={handleAddMember}
-          disabled={isLoading}
-        >
-          Add Member
-        </Button>
-      </Box>
+      <TextInput
+        value={email}
+        onChange={(e) => setEmail(e.currentTarget.value)}
+        placeholder="Enter email"
+        label="Add Member"
+        mt="md"
+      />
+      <Button
+        mt="sm"
+        leftSection={<IconUserPlus size={16} />}
+        onClick={handleAddMember}
+        disabled={isLoading}
+      >
+        Add Member
+      </Button>
 
-      {/* Save Changes Button */}
       <Button
         fullWidth
         color="blue"
@@ -220,36 +225,31 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
         Save Changes
       </Button>
 
-      {/* Confirmation Modal */}
       <Modal
         opened={confirmationModal}
         onClose={() => setConfirmationModal(false)}
         title="Confirm Changes"
       >
-        <Box>
+        <div>
           {toAdd.length > 0 && (
-            <Box mb="md">
-              <Text fw={500} size="sm">
+            <div>
+              <Text fw={500} size="sm" mb="xs">
                 Members to Add:
               </Text>
-              <List spacing="sm">
-                {toAdd.map((email) => (
-                  <ListItem key={email}>{email}</ListItem>
-                ))}
-              </List>
-            </Box>
+              {toAdd.map((email) => (
+                <Text key={email}>{email}</Text>
+              ))}
+            </div>
           )}
           {toRemove.length > 0 && (
-            <Box mb="md">
-              <Text fw={500} size="sm">
+            <div>
+              <Text fw={500} size="sm" mt="md" mb="xs">
                 Members to Remove:
               </Text>
-              <List spacing="sm">
-                {toRemove.map((email) => (
-                  <ListItem key={email}>{email}</ListItem>
-                ))}
-              </List>
-            </Box>
+              {toRemove.map((email) => (
+                <Text key={email}>{email}</Text>
+              ))}
+            </div>
           )}
           <Group justify="center" mt="lg">
             <Button
@@ -270,9 +270,9 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
               Cancel
             </Button>
           </Group>
-        </Box>
+        </div>
       </Modal>
-    </Box>
+    </div>
   );
 };
 

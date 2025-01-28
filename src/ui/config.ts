@@ -3,7 +3,7 @@ import { execCouncilGroupId, execCouncilTestingGroupId } from '@common/config';
 export const runEnvironments = ['dev', 'prod', 'local-dev'] as const;
 // local dev should be used when you want to test against a local instance of the API
 
-export const services = ['core', 'tickets', 'merch'] as const;
+export const services = ['core', 'tickets', 'merch', 'msGraphApi'] as const;
 export type RunEnvironment = (typeof runEnvironments)[number];
 export type ValidServices = (typeof services)[number];
 export type ValidService = ValidServices;
@@ -49,6 +49,12 @@ const environmentConfig: EnvironmentConfigType = {
         friendlyName: 'Merch Sales Service (Prod)',
         baseEndpoint: 'https://merchapi.acm.illinois.edu',
       },
+      msGraphApi: {
+        friendlyName: 'Microsoft Graph API',
+        baseEndpoint: 'https://graph.microsoft.com',
+        loginScope: 'https://graph.microsoft.com/.default',
+        apiId: 'https://graph.microsoft.com',
+      },
     },
     KnownGroupMappings: {
       Exec: execCouncilTestingGroupId,
@@ -72,6 +78,12 @@ const environmentConfig: EnvironmentConfigType = {
         friendlyName: 'Merch Sales Service (Prod)',
         baseEndpoint: 'https://merchapi.acm.illinois.edu',
       },
+      msGraphApi: {
+        friendlyName: 'Microsoft Graph API',
+        baseEndpoint: 'https://graph.microsoft.com',
+        loginScope: 'https://graph.microsoft.com/.default',
+        apiId: 'https://graph.microsoft.com',
+      },
     },
     KnownGroupMappings: {
       Exec: execCouncilTestingGroupId,
@@ -94,6 +106,12 @@ const environmentConfig: EnvironmentConfigType = {
       merch: {
         friendlyName: 'Merch Sales Service',
         baseEndpoint: 'https://merchapi.acm.illinois.edu',
+      },
+      msGraphApi: {
+        friendlyName: 'Microsoft Graph API',
+        baseEndpoint: 'https://graph.microsoft.com',
+        loginScope: 'https://graph.microsoft.com/.default',
+        apiId: 'https://graph.microsoft.com',
       },
     },
     KnownGroupMappings: {

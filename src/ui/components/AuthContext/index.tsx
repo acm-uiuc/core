@@ -19,6 +19,8 @@ import { CACHE_KEY_PREFIX } from '../AuthGuard/index.js';
 import FullScreenLoader from './LoadingScreen.js';
 
 import { getRunEnvironmentConfig, ValidServices } from '@ui/config.js';
+import { transformCommaSeperatedName } from '@common/utils.js';
+import { useApi } from '@ui/util/api.js';
 
 interface AuthContextDataWrapper {
   isLoggedIn: boolean;
@@ -28,6 +30,7 @@ interface AuthContextDataWrapper {
   getToken: CallableFunction;
   logoutCallback: CallableFunction;
   getApiToken: CallableFunction;
+  setLoginStatus: CallableFunction;
 }
 
 export type AuthContextData = {
@@ -53,7 +56,6 @@ export const clearAuthCache = () => {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { instance, inProgress, accounts } = useMsal();
-
   const [userData, setUserData] = useState<AuthContextData | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
@@ -67,11 +69,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response) {
         handleMsalResponse(response);
       } else if (accounts.length > 0) {
-        // User is already logged in, set the state
-        const [lastName, firstName] = accounts[0].name?.split(',') || [];
         setUserData({
           email: accounts[0].username,
-          name: `${firstName} ${lastName}`,
+          name: transformCommaSeperatedName(accounts[0].name || ''),
         });
         setIsLoggedIn(true);
       }
@@ -94,10 +94,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             })
             .then((silentResponse) => {
               if (silentResponse?.account?.name) {
-                const [lastName, firstName] = silentResponse.account.name.split(',');
                 setUserData({
-                  email: silentResponse.account.username,
-                  name: `${firstName} ${lastName}`,
+                  email: accounts[0].username,
+                  name: transformCommaSeperatedName(accounts[0].name || ''),
                 });
                 setIsLoggedIn(true);
               }
@@ -105,18 +104,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             .catch(console.error);
           return;
         }
-
-        // Use response.account instead of accounts[0]
-        const [lastName, firstName] = response.account.name?.split(',') || [];
         setUserData({
-          email: response.account.username,
-          name: `${firstName} ${lastName}`,
+          email: accounts[0].username,
+          name: transformCommaSeperatedName(accounts[0].name || ''),
         });
         setIsLoggedIn(true);
       }
     },
     [accounts, instance]
   );
+
   const getApiToken = useCallback(
     async (service: ValidServices) => {
       if (!userData) {
@@ -194,6 +191,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     },
     [instance]
   );
+  const setLoginStatus = useCallback((val: boolean) => {
+    setIsLoggedIn(val);
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -209,7 +209,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
   return (
     <AuthContext.Provider
-      value={{ isLoggedIn, userData, loginMsal, logout, getToken, logoutCallback, getApiToken }}
+      value={{
+        isLoggedIn,
+        userData,
+        setLoginStatus,
+        loginMsal,
+        logout,
+        getToken,
+        logoutCallback,
+        getApiToken,
+      }}
     >
       {inProgress !== InteractionStatus.None ? (
         <MantineProvider>

@@ -25,7 +25,7 @@ import { HeaderNavbar } from '../Navbar/index.js';
 import { AuthenticatedProfileDropdown } from '../ProfileDropdown/index.js';
 import { getCurrentRevision } from '@ui/util/revision.js';
 
-interface AcmAppShellProps {
+export interface AcmAppShellProps {
   children: ReactNode;
   active?: string;
   showLoader?: boolean;
@@ -164,7 +164,7 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
       padding="md"
       header={{ height: 60 }}
       navbar={{
-        width: 200,
+        width: showSidebar ? 200 : 0,
         breakpoint: 'sm',
         collapsed: { mobile: !opened },
       }}
