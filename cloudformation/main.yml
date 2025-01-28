@@ -40,12 +40,14 @@ Mappings:
       HostedZoneId: Z04502822NVIA85WM2SML
       ApiDomainName: "aws.qa.acmuiuc.org"
       LinkryApiDomainName: "aws.qa.acmuiuc.org"
+      SesDomain: "aws.qa.acmuiuc.org"
       LinkryApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
     prod:
       ApiCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/6142a0e2-d62f-478e-bf15-5bdb616fe705
       HostedZoneId: Z05246633460N5MEB9DBF
       ApiDomainName: "aws.acmuiuc.org"
       LinkryApiDomainName: "acm.illinois.edu"
+      SesDomain: "acm.illinois.edu"
       LinkryApiCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/aeb93d9e-b0b7-4272-9c12-24ca5058c77e
   EnvironmentToCidr:
     dev:
@@ -71,6 +73,7 @@ Resources:
       Parameters:
         RunEnvironment: !Ref RunEnvironment
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
+        SesEmailDomain: !FindInMap [General, !Ref RunEnvironment, SesDomain]
 
   AppLogGroups:
     Type: AWS::Serverless::Application

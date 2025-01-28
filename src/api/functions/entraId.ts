@@ -7,6 +7,7 @@ import {
 } from "../../common/config.js";
 import {
   BaseError,
+  EntraFetchError,
   EntraGroupError,
   EntraInvitationError,
   InternalServerError,
@@ -19,6 +20,7 @@ import {
   EntraInvitationResponse,
 } from "../../common/types/iam.js";
 import { FastifyInstance } from "fastify";
+import { UserProfileDataBase } from "common/types/msGraphApi.js";
 
 function validateGroupId(groupId: string): boolean {
   const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
@@ -348,6 +350,50 @@ export async function listGroupMembers(
     throw new EntraGroupError({
       message: error instanceof Error ? error.message : String(error),
       group,
+    });
+  }
+}
+
+/**
+ * Retrieves the profile of a user from Entra ID.
+ * @param token - Entra ID token authorized to perform this action.
+ * @param userId - The user ID to fetch the profile for.
+ * @throws {EntraUserError} If fetching the user profile fails.
+ * @returns {Promise<UserProfileDataBase>} The user's profile information.
+ */
+export async function getUserProfile(
+  token: string,
+  email: string,
+): Promise<UserProfileDataBase> {
+  const userId = await resolveEmailToOid(token, email);
+  try {
+    const url = `https://graph.microsoft.com/v1.0/users/${userId}?$select=userPrincipalName,givenName,surname,displayName,otherMails,mail`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as {
+        error?: { message?: string };
+      };
+      throw new EntraFetchError({
+        message: errorData?.error?.message ?? response.statusText,
+        email,
+      });
+    }
+    return (await response.json()) as UserProfileDataBase;
+  } catch (error) {
+    if (error instanceof EntraFetchError) {
+      throw error;
+    }
+
+    throw new EntraFetchError({
+      message: error instanceof Error ? error.message : String(error),
+      email,
     });
   }
 }

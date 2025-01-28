@@ -28,7 +28,7 @@ export async function issueAppleWalletMembershipCard(
   app: FastifyInstance,
   request: FastifyRequest,
   email: string,
-  name: string,
+  name?: string,
 ) {
   if (!email.endsWith("@illinois.edu")) {
     throw new UnauthorizedError({

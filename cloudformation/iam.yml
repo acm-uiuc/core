@@ -10,6 +10,9 @@ Parameters:
   LambdaFunctionName:
     Type: String
     AllowedPattern: ^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$
+  SesEmailDomain:
+    Type: String
+
 Resources:
   ApiLambdaIAMRole:
     Type: AWS::IAM::Role
@@ -24,6 +27,21 @@ Resources:
             Service:
             - lambda.amazonaws.com
       Policies:
+      - PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Action:
+            - ses:SendEmail
+            - ses:SendRawEmail
+            Effect: Allow
+            Resource: "*"
+            Condition:
+              StringEquals:
+                ses:FromAddress: !Sub "membership@${SesEmailDomain}"
+              ForAllValues:StringLike:
+                ses:Recipients:
+                  - "*@illinois.edu"
+        PolicyName: ses-membership
       - PolicyDocument:
           Version: '2012-10-17'
           Statement:

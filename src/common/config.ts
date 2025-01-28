@@ -14,6 +14,8 @@ export type ConfigType = {
   AadValidClientId: string;
   PasskitIdentifier: string;
   PasskitSerialNumber: string;
+  MembershipApiEndpoint: string;
+  EmailDomain: string;
 };
 
 type GenericConfigType = {
@@ -69,7 +71,9 @@ const environmentConfig: EnvironmentConfigType = {
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
-    PasskitSerialNumber: "0"
+    PasskitSerialNumber: "0",
+    MembershipApiEndpoint: "https://infra-membership-api.aws.qa.acmuiuc.org/api/v1/checkMembership",
+    EmailDomain: "aws.qa.acmuiuc.org",
   },
   prod: {
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
@@ -81,7 +85,9 @@ const environmentConfig: EnvironmentConfigType = {
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
-    PasskitSerialNumber: "0"
+    PasskitSerialNumber: "0",
+    MembershipApiEndpoint: "https://infra-membership-api.aws.acmuiuc.org/api/v1/checkMembership",
+    EmailDomain: "acm.illinois.edu",
   }
 };
 

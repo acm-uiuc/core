@@ -22,6 +22,7 @@ import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import mobileWalletRoute from "./routes/mobileWallet.js";
+import { SESClient } from "@aws-sdk/client-ses";
 
 dotenv.config();
 
@@ -33,6 +34,10 @@ async function init() {
   });
 
   const secretsManagerClient = new SecretsManagerClient({
+    region: genericConfig.AwsRegion,
+  });
+
+  const sesClient = new SESClient({
     region: genericConfig.AwsRegion,
   });
 
@@ -84,6 +89,7 @@ async function init() {
   app.dynamoClient = dynamoClient;
   app.secretsManagerClient = secretsManagerClient;
   app.secretsManagerData = null;
+  app.sesClient = sesClient;
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;
@@ -112,7 +118,7 @@ async function init() {
       api.register(organizationsPlugin, { prefix: "/organizations" });
       api.register(icalPlugin, { prefix: "/ical" });
       api.register(iamRoutes, { prefix: "/iam" });
-      api.register(mobileWalletRoute, { prefix: "/mobile" });
+      api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
       api.register(ticketsPlugin, { prefix: "/tickets" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });

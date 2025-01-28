@@ -134,6 +134,20 @@ export class DiscordEventError extends BaseError<"DiscordEventError"> {
   }
 }
 
+
+export class EntraFetchError extends BaseError<"EntraFetchError"> {
+  email: string;
+  constructor({ message, email }: { message?: string; email: string }) {
+    super({
+      name: "EntraFetchError",
+      id: 509,
+      message: message || "Could not get data from Entra ID.",
+      httpStatusCode: 500,
+    });
+    this.email = email;
+  }
+}
+
 export class EntraInvitationError extends BaseError<"EntraInvitationError"> {
   email: string;
   constructor({ message, email }: { message?: string; email: string }) {
