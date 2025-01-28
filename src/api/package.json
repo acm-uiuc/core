@@ -17,6 +17,7 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.624.0",
     "@aws-sdk/client-secrets-manager": "^3.624.0",
+    "@aws-sdk/client-ses": "^3.734.0",
     "@aws-sdk/client-sts": "^3.726.0",
     "@aws-sdk/util-dynamodb": "^3.624.0",
     "@azure/msal-node": "^2.16.1",
@@ -25,6 +26,7 @@
     "@fastify/caching": "^9.0.1",
     "@fastify/cors": "^10.0.1",
     "@touch4it/ical-timezones": "^1.9.0",
+    "base64-arraybuffer": "^1.0.2",
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
     "esbuild": "^0.24.2",
@@ -36,6 +38,7 @@
     "moment": "^2.30.1",
     "moment-timezone": "^0.5.45",
     "node-cache": "^5.1.2",
+    "passkit-generator": "^3.3.1",
     "pluralize": "^8.0.0",
     "zod": "^3.23.8",
     "zod-to-json-schema": "^3.23.2",
