@@ -55,7 +55,7 @@ const app = await init();
 describe("Mobile wallet pass issuance", async () => {
   test("Test that passes will not be issued for non-emails", async () => {
     const response = await app.inject({
-      method: "GET",
+      method: "POST",
       url: "/api/v1/mobileWallet/membership?email=notanemail",
     });
     expect(response.statusCode).toBe(400);
@@ -63,7 +63,7 @@ describe("Mobile wallet pass issuance", async () => {
   });
   test("Test that passes will not be issued for non-members", async () => {
     const response = await app.inject({
-      method: "GET",
+      method: "POST",
       url: "/api/v1/mobileWallet/membership?email=notamember@illinois.edu",
     });
     expect(response.statusCode).toBe(403);
@@ -72,7 +72,7 @@ describe("Mobile wallet pass issuance", async () => {
   test("Test that passes will be issued for members", async () => {
     sesMock.on(SendRawEmailCommand).resolvesOnce({}).rejects();
     const response = await app.inject({
-      method: "GET",
+      method: "POST",
       url: "/api/v1/mobileWallet/membership?email=valid@illinois.edu",
     });
     expect(response.statusCode).toBe(202);
