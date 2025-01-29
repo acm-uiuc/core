@@ -32,8 +32,10 @@ Mappings:
   General:
     dev:
       LogRetentionDays: 7
+      SesDomain: "aws.qa.acmuiuc.org"
     prod:
       LogRetentionDays: 365
+      SesDomain: "acm.illinois.edu"
   ApiGwConfig:
     dev:
       ApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
@@ -71,6 +73,7 @@ Resources:
       Parameters:
         RunEnvironment: !Ref RunEnvironment
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
+        SesEmailDomain: !FindInMap [General, !Ref RunEnvironment, SesDomain]
 
   AppLogGroups:
     Type: AWS::Serverless::Application
@@ -120,29 +123,9 @@ Resources:
     Type: AWS::Serverless::Function
     DependsOn:
       - AppLogGroups
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Format: esm
-        Minify: true
-        OutExtension:
-          - .js=.mjs
-        Target: "es2022"
-        Sourcemap: false
-        EntryPoints:
-          - api/lambda.js
-        External:
-          - aws-sdk
-        Banner:
-          - js=import path from 'path';
-            import { fileURLToPath } from 'url';
-            import { createRequire as topLevelCreateRequire } from 'module';
-            const require = topLevelCreateRequire(import.meta.url);
-            const __filename = fileURLToPath(import.meta.url);
-            const __dirname = path.dirname(__filename);
     Properties:
       Architectures: [arm64]
-      CodeUri: ../dist
+      CodeUri: ../dist/lambda
       AutoPublishAlias: live
       Runtime: nodejs22.x
       Description: !Sub "${ApplicationFriendlyName} API Lambda"
