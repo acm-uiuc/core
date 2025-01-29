@@ -74,6 +74,14 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
         `membership@${fastify.environmentConfig.EmailDomain}`,
         item,
       );
+      if (
+        fastify.runEnvironment === "dev" &&
+        request.query.email === "testinguser@illinois.edu"
+      ) {
+        return reply
+          .status(202)
+          .send({ message: "OK (skipped sending email)" });
+      }
       await fastify.sesClient.send(emailCommand);
       reply.status(202).send({ message: "OK" });
     },
