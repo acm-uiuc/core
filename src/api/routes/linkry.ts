@@ -180,7 +180,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           TableName: genericConfig.LinkryDynamoTableName, // Replace with your table name
           KeyConditionExpression: "slug = :slug",
           ExpressionAttributeValues: {
-            ":slug": { S: slug },
+            ":slug": { S: decodeURIComponent(slug) },
           },
         };
 

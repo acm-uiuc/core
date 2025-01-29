@@ -105,7 +105,8 @@ export const LinkShortener: React.FC = () => {
 
   const deleteLink = async (slug: string) => {
     try {
-      await api.delete(`/api/v1/linkry/redir/${slug}`);
+      const encodedSlug = encodeURIComponent(slug);
+      await api.delete(`/api/v1/linkry/redir/${encodedSlug}`);
       setLinkList((prevEvents) => prevEvents.filter((link) => link.slug !== slug));
       notifications.show({
         title: 'Event deleted',
