@@ -18,7 +18,7 @@ const payload = {
     groups: ["0"],
     idp: "https://login.microsoftonline.com",
     ipaddr: "192.168.1.1",
-    name: "John Doe",
+    name: "Doe, John",
     oid: "00000000-0000-0000-0000-000000000000",
     rh: "rh-value",
     scp: "user_impersonation",
