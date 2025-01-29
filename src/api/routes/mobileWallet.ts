@@ -12,7 +12,7 @@ import { getEntraIdToken, getUserProfile } from "../functions/entraId.js";
 import { checkPaidMembership } from "../functions/membership.js";
 
 const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.get<{ Querystring: { email: string } }>(
+  fastify.post<{ Querystring: { email: string } }>(
     "/membership",
     {
       schema: {
