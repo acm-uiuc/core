@@ -10,20 +10,8 @@ const sesMock = mockClient(SESClient);
 const jwt_secret = secretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
-vi.mock("fs", () => {
-  return {
-    ...vi.importActual("fs"),
-    promises: {
-      readFile: vi.fn(() => {
-        return "";
-      }),
-    },
-  };
-});
-
 vi.mock("../../src/api/functions/membership.js", () => {
   return {
-    ...vi.importActual("../../src/api/functions/membership.js"),
     checkPaidMembership: vi.fn(
       (_endpoint: string, _log: any, netId: string) => {
         if (netId === "valid") {
@@ -37,7 +25,6 @@ vi.mock("../../src/api/functions/membership.js", () => {
 
 vi.mock("../../src/api/functions/entraId.js", () => {
   return {
-    ...vi.importActual("../../src/api/functions/entraId.js"),
     getEntraIdToken: vi.fn().mockImplementation(async () => {
       return "atokenofalltime";
     }),
@@ -54,6 +41,14 @@ vi.mock("../../src/api/functions/entraId.js", () => {
       }),
     resolveEmailToOid: vi.fn().mockImplementation(async () => {
       return "12345";
+    }),
+  };
+});
+
+vi.mock("../../src/api/functions/mobileWallet.js", () => {
+  return {
+    issueAppleWalletMembershipCard: vi.fn().mockImplementation(async () => {
+      return new ArrayBuffer();
     }),
   };
 });
@@ -83,6 +78,7 @@ describe("Mobile wallet pass issuance", async () => {
       url: "/api/v1/mobileWallet/membership?email=valid@illinois.edu",
     });
     expect(response.statusCode).toBe(202);
+    expect();
   });
   test("Test that SES errors result in a server error", async () => {
     sesMock.on(SendRawEmailCommand).rejects({});
