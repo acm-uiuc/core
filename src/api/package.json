@@ -7,7 +7,7 @@
   "license": "BSD-3-Clause",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node build.js",
     "dev": "cross-env LOG_LEVEL=debug concurrently --names 'esbuild,server' 'node esbuild.config.js --watch' 'cd ../../dist_devel && nodemon index.js'",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts --cache",
