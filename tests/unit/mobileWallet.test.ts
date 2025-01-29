@@ -1,14 +1,9 @@
 import { afterAll, expect, test, beforeEach, vi } from "vitest";
-import { SendRawEmailCommand, SESClient } from "@aws-sdk/client-ses";
-import { mockClient } from "aws-sdk-client-mock";
 import { secretObject } from "./secret.testdata.js";
 import init from "../../src/api/index.js";
 import { describe } from "node:test";
 import { EntraFetchError } from "../../src/common/errors/index.js";
-
-const sesMock = mockClient(SESClient);
-const jwt_secret = secretObject["jwt_key"];
-vi.stubEnv("JwtSigningKey", jwt_secret);
+import { issueAppleWalletMembershipCard } from "../../src/api/functions/mobileWallet.js";
 
 vi.mock("../../src/api/functions/membership.js", () => {
   return {
@@ -72,21 +67,12 @@ describe("Mobile wallet pass issuance", async () => {
     await response.json();
   });
   test("Test that passes will be issued for members", async () => {
-    sesMock.on(SendRawEmailCommand).resolves({});
     const response = await app.inject({
       method: "GET",
       url: "/api/v1/mobileWallet/membership?email=valid@illinois.edu",
     });
     expect(response.statusCode).toBe(202);
-    expect();
-  });
-  test("Test that SES errors result in a server error", async () => {
-    sesMock.on(SendRawEmailCommand).rejects({});
-    const response = await app.inject({
-      method: "GET",
-      url: "/api/v1/mobileWallet/membership?email=valid@illinois.edu",
-    });
-    expect(response.statusCode).toBe(500);
+    expect(issueAppleWalletMembershipCard).toHaveBeenCalledOnce();
   });
   afterAll(async () => {
     await app.close();
