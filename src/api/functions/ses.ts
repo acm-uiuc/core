@@ -89,8 +89,12 @@ export function generateMembershipEmailCommand(
             If you have any questions, feel free to contact us at
             <a href="mailto:infra@acm.illinois.edu">infra@acm.illinois.edu</a>.
         </p>
+        <p>
+            We also encourage you to check out our resources page, where you can find the benefits associated with your membership.
+            Welcome to ACM @ UIUC!
+        </p>
         <div style="text-align: center; margin-top: 20px;">
-            <a href="https://acm.illinois.edu" class="button">Visit ACM @ UIUC</a>
+            <a href="https://www.acm.illinois.edu/resources" class="button">ACM @ UIUC Resources</a>
         </div>
     </div>
     <div class="footer">
