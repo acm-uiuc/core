@@ -1,9 +1,12 @@
 import { afterAll, expect, test, beforeEach, vi } from "vitest";
-import { secretObject } from "./secret.testdata.js";
 import init from "../../src/api/index.js";
 import { describe } from "node:test";
 import { EntraFetchError } from "../../src/common/errors/index.js";
+import { mockClient } from "aws-sdk-client-mock";
 import { issueAppleWalletMembershipCard } from "../../src/api/functions/mobileWallet.js";
+import { SendRawEmailCommand, SESClient } from "@aws-sdk/client-ses";
+
+const sesMock = mockClient(SESClient);
 
 vi.mock("../../src/api/functions/membership.js", () => {
   return {
@@ -67,6 +70,7 @@ describe("Mobile wallet pass issuance", async () => {
     await response.json();
   });
   test("Test that passes will be issued for members", async () => {
+    sesMock.on(SendRawEmailCommand).resolvesOnce({}).rejects();
     const response = await app.inject({
       method: "GET",
       url: "/api/v1/mobileWallet/membership?email=valid@illinois.edu",
