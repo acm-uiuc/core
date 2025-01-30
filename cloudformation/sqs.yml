@@ -19,6 +19,7 @@ Resources:
           Fn::GetAtt:
             - "AppDLQ"
             - "Arn"
+        maxReceiveCount: 3
 
 Outputs:
   MainQueueArn:
