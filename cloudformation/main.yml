@@ -173,7 +173,7 @@ Resources:
       Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
       Timeout: 900
       LoggingConfig:
-        LogGroup: !Sub /aws/lambda/${LambdaFunctionName}
+        LogGroup: !Sub /aws/lambda/${ApplicationPrefix}-lambda
       Environment:
         Variables:
           RunEnvironment: !Ref RunEnvironment
