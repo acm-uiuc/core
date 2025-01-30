@@ -182,6 +182,13 @@ Resources:
         SecurityGroupIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SecurityGroupIds], !Ref AWS::NoValue]
         SubnetIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds], !Ref AWS::NoValue]
 
+  SQSLambdaEventMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 5
+      EventSourceArn: !GetAtt AppSecurityRoles.Outputs.MainQueueArn
+      FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
+
   IamGroupRolesTable:
     Type: 'AWS::DynamoDB::Table'
     DeletionPolicy: "Retain"

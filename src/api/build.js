@@ -33,8 +33,9 @@ const commonParams = {
 esbuild
   .build({
     ...commonParams,
-    entryPoints: ["api/lambda.js", "api/index.js"],
+    entryPoints: ["api/lambda.js"],
     outdir: "../../dist/lambda/",
+    external: [...commonParams.external, "sqs/*"],
   })
   .then(() => console.log("API server build completed successfully!"))
   .catch((error) => {
