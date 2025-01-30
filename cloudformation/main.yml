@@ -186,7 +186,7 @@ Resources:
     Type: AWS::Lambda::EventSourceMapping
     Properties:
       BatchSize: 5
-      EventSourceArn: !GetAtt AppSecurityRoles.Outputs.MainQueueArn
+      EventSourceArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
       FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
 
   IamGroupRolesTable:
