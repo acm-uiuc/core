@@ -5,15 +5,19 @@ Parameters:
   QueueName:
     Type: String
     AllowedPattern: ^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$
+  MessageTimeout:
+    Type: Number
 Resources:
   AppDLQ:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${QueueName}-dlq
+      VisibilityTimeout: !Ref MessageTimeout
   AppQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Ref QueueName
+      VisibilityTimeout: !Ref MessageTimeout
       RedrivePolicy:
         deadLetterTargetArn:
           Fn::GetAtt:

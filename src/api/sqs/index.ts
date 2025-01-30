@@ -54,6 +54,7 @@ export const handler = middy()
         return func(parsedBody.payload, parsedBody.metadata, childLogger);
       } catch (e: any) {
         logger.error({ sqsMessageId: record.messageId }, e.toString());
+        throw e;
       }
     });
     return Promise.allSettled(recordsPromises);
