@@ -188,6 +188,8 @@ Resources:
       BatchSize: 5
       EventSourceArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
       FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
 
   IamGroupRolesTable:
     Type: 'AWS::DynamoDB::Table'
