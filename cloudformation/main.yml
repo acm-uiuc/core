@@ -83,6 +83,14 @@ Resources:
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
         LogRetentionDays: !FindInMap [General, !Ref RunEnvironment, LogRetentionDays]
 
+  AppSQSQueues:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./sqs.yml
+      Parameters:
+        QueueName: !Sub ${ApplicationPrefix}-sqs
+
+
   IcalDomainProxy:
     Type: AWS::Serverless::Application
     Properties:
@@ -148,6 +156,31 @@ Resources:
             RestApiId: !Ref AppApiGateway
             Path: /{proxy+}
             Method: ANY
+
+  AppSqsLambdaFunction:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - AppLogGroups
+    Properties:
+      Architectures: [arm64]
+      CodeUri: ../dist/sqsConsumer
+      AutoPublishAlias: live
+      Runtime: nodejs22.x
+      Description: !Sub "${ApplicationFriendlyName} SQS Lambda"
+      FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
+      Handler: index.handler
+      MemorySize: 512
+      Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
+      Timeout: 900
+      LoggingConfig:
+        LogGroup: !Sub /aws/lambda/${LambdaFunctionName}
+      Environment:
+        Variables:
+          RunEnvironment: !Ref RunEnvironment
+      VpcConfig:
+        Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
+        SecurityGroupIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SecurityGroupIds], !Ref AWS::NoValue]
+        SubnetIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds], !Ref AWS::NoValue]
 
   IamGroupRolesTable:
     Type: 'AWS::DynamoDB::Table'
