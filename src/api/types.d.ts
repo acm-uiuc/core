@@ -6,6 +6,7 @@ import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SESClient } from "@aws-sdk/client-ses";
+import { SQSClient } from "@aws-sdk/client-sqs";
 declare module "fastify" {
   interface FastifyInstance {
     authenticate: (
@@ -27,6 +28,7 @@ declare module "fastify" {
     nodeCache: NodeCache;
     dynamoClient: DynamoDBClient;
     sesClient: SESClient;
+    sqsClient?: SQSClient;
     secretsManagerClient: SecretsManagerClient;
   }
   interface FastifyRequest {

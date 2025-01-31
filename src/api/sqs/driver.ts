@@ -11,7 +11,6 @@ const payload = parseSQSPayload({
   function: "ping",
   payload: {},
   metadata: {
-    taskId: "0",
     reqId: "1",
     initiator: "dsingh14@illinois.edu",
   },

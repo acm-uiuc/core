@@ -11,7 +11,7 @@
   "scripts": {
     "build": "yarn workspaces run build && yarn lockfile-manage",
     "dev": "concurrently --names 'api,ui' 'yarn workspace infra-core-api run dev' 'yarn workspace infra-core-ui run dev'",
-    "lockfile-manage": "synp --with-workspace --source-file yarn.lock && cp package-lock.json dist/lambda/ && cp src/api/package.lambda.json dist/lambda/package.json && rm package-lock.json",
+    "lockfile-manage": "synp --with-workspace --source-file yarn.lock && cp package-lock.json dist/lambda/ && cp package-lock.json dist/sqsConsumer/ && cp src/api/package.lambda.json dist/lambda/package.json && cp src/api/package.lambda.json dist/sqsConsumer/package.json && rm package-lock.json",
     "prettier": "yarn workspaces run prettier && prettier --check tests/**/*.ts",
     "prettier:write": "yarn workspaces run prettier:write && prettier --write tests/**/*.ts",
     "lint": "yarn workspaces run lint",

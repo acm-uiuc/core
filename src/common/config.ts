@@ -19,7 +19,7 @@ export type ConfigType = {
   SqsQueueUrl: string;
 };
 
-type GenericConfigType = {
+export type GenericConfigType = {
   EventsDynamoTableName: string;
   CacheDynamoTableName: string;
   ConfigSecretName: string;

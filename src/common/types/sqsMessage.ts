@@ -6,7 +6,6 @@ export enum AvailableSQSFunctions {
 }
 
 const sqsMessageMetadataSchema = z.object({
-  taskId: z.string().min(1),
   reqId: z.string().min(1),
   initiator: z.string().min(1),
 });
@@ -42,13 +41,14 @@ export const sqsPayloadSchema = z.discriminatedUnion(
   ] as const
 );
 
-export type SQSPayload = z.infer<typeof sqsPayloadSchema>;
 
-export type SQSFunctionPayloadTypes = {
-  [K in keyof typeof sqsPayloadSchemas]: z.infer<(typeof sqsPayloadSchemas)[K]>;
-};
+export type SQSPayload<T extends AvailableSQSFunctions> = z.infer<
+  (typeof sqsPayloadSchemas)[T]
+>;
 
-export function parseSQSPayload(json: unknown): SQSPayload | ZodError {
+export type AnySQSPayload = z.infer<typeof sqsPayloadSchema>;
+
+export function parseSQSPayload(json: unknown): AnySQSPayload | ZodError {
   const parsed = sqsPayloadSchema.safeParse(json);
   if (parsed.success) {
     return parsed.data;
