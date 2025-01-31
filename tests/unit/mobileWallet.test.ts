@@ -1,6 +1,16 @@
 import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
 import init from "../../src/api/index.js";
 import { EntraFetchError } from "../../src/common/errors/index.js";
+import {
+  GetSecretValueCommand,
+  SecretsManagerClient,
+} from "@aws-sdk/client-secrets-manager";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { mockClient } from "aws-sdk-client-mock";
+import { secretJson } from "./secret.testdata.js";
+
+const smMock = mockClient(SecretsManagerClient);
+const sqsMock = mockClient(SQSClient);
 
 vi.mock("../../src/api/functions/membership.js", () => {
   return {
@@ -64,10 +74,12 @@ describe("Mobile wallet pass issuance", async () => {
     await response.json();
   });
   test("Test that passes will be issued for members", async () => {
+    sqsMock.on(SendMessageCommand).resolvesOnce({});
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/mobileWallet/membership?email=valid@illinois.edu",
     });
+    expect(sqsMock.calls.length).toBe(1);
     expect(response.statusCode).toBe(202);
   });
   afterAll(async () => {
@@ -76,5 +88,8 @@ describe("Mobile wallet pass issuance", async () => {
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
     vi.clearAllMocks();
+    smMock.on(GetSecretValueCommand).resolves({
+      SecretString: secretJson,
+    });
   });
 });
