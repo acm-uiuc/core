@@ -46,7 +46,7 @@ esbuild
   esbuild
   .build({
     ...commonParams,
-    entryPoints: ["api/sqs/index.js"],
+    entryPoints: ["api/sqs/index.js", "api/sqs/driver.js"],
     outdir: "../../dist/sqsConsumer/",
   })
   .then(() => console.log("SQS consumer build completed successfully!"))

@@ -1,7 +1,7 @@
 import { z, ZodError, ZodType } from "zod";
 
 export enum AvailableSQSFunctions {
-  Ping = "pong",
+  Ping = "ping",
   EmailMembershipPass = "emailMembershipPass",
 }
 

@@ -13,6 +13,7 @@ import { logger } from "./logger.js";
 import { z, ZodError } from "zod";
 import pino from "pino";
 import { emailMembershipPassHandler, pingHandler } from "./handlers.js";
+import { ValidationError } from "common/errors/index.js";
 
 export type SQSFunctionPayloadTypes = {
   [K in keyof typeof sqsPayloadSchemas]: SQSHandlerFunction<K>;
@@ -41,11 +42,15 @@ export const handler = middy()
             { sqsMessageId: record.messageId },
             parsedBody.toString(),
           );
+          throw new ValidationError({
+            message: "Could not parse SQS payload",
+          });
         }
         parsedBody = parsedBody as SQSPayload;
         const childLogger = logger.child({
           sqsMessageId: record.messageId,
           metadata: parsedBody.metadata,
+          function: parsedBody.function,
         });
         childLogger.info("Processing started.");
         const func = handlers[parsedBody.function] as SQSHandlerFunction<

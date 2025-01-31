@@ -18,6 +18,7 @@
     "@aws-sdk/client-dynamodb": "^3.624.0",
     "@aws-sdk/client-secrets-manager": "^3.624.0",
     "@aws-sdk/client-ses": "^3.734.0",
+    "@aws-sdk/client-sqs": "^3.738.0",
     "@aws-sdk/client-sts": "^3.726.0",
     "@aws-sdk/util-dynamodb": "^3.624.0",
     "@azure/msal-node": "^2.16.1",
