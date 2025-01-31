@@ -13,12 +13,12 @@ import { logger } from "./logger.js";
 import { z, ZodError } from "zod";
 import pino from "pino";
 import { emailMembershipPassHandler, pingHandler } from "./handlers.js";
-import { ValidationError } from "common/errors/index.js";
+import { ValidationError } from "../../common/errors/index.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SESClient } from "@aws-sdk/client-ses";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { RunEnvironment } from "common/roles.js";
-import { environmentConfig } from "common/config.js";
+import { RunEnvironment } from "../../common/roles.js";
+import { environmentConfig } from "../../common/config.js";
 
 export type SQSFunctionPayloadTypes = {
   [K in keyof typeof sqsPayloadSchemas]: SQSHandlerFunction<K>;

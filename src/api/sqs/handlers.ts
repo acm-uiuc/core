@@ -4,12 +4,15 @@ import {
   runEnvironment,
   SQSHandlerFunction,
 } from "./index.js";
-import { getEntraIdToken, getUserProfile } from "api/functions/entraId.js";
+import {
+  getEntraIdToken,
+  getUserProfile,
+} from "../../api/functions/entraId.js";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { environmentConfig, genericConfig } from "common/config.js";
+import { environmentConfig, genericConfig } from "../../common/config.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import { issueAppleWalletMembershipCard } from "api/functions/mobileWallet.js";
-import { generateMembershipEmailCommand } from "api/functions/ses.js";
+import { issueAppleWalletMembershipCard } from "../../api/functions/mobileWallet.js";
+import { generateMembershipEmailCommand } from "../../api/functions/ses.js";
 import { SESClient } from "@aws-sdk/client-ses";
 
 export const emailMembershipPassHandler: SQSHandlerFunction<

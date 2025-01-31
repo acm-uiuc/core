@@ -6,9 +6,12 @@ import {
 } from "../../common/errors/index.js";
 import { z } from "zod";
 import { checkPaidMembership } from "../functions/membership.js";
-import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import {
+  AvailableSQSFunctions,
+  SQSPayload,
+} from "../../common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
-import { genericConfig } from "common/config.js";
+import { genericConfig } from "../../common/config.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 const queuedResponseJsonSchema = zodToJsonSchema(
