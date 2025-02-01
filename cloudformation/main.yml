@@ -193,6 +193,8 @@ Resources:
 
   SQSLambdaEventMapping:
     Type: AWS::Lambda::EventSourceMapping
+    DependsOn:
+      - AppSqsLambdaFunction
     Properties:
       BatchSize: 5
       EventSourceArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
