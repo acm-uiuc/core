@@ -349,12 +349,12 @@ Resources:
     Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-gateway-latency-high
-      AlarmDescription: 'Average API gateway latency is > 1.25s for 2 minutes.'
+      AlarmDescription: 'Trailing Mean - 95% API gateway latency is > 1.25s for 2 times in 4 minutes.'
       Namespace: 'AWS/ApiGateway'
       MetricName: 'Latency'
-      Statistic: 'Average'
+      ExtendedStatistic: 'tm95'
       Period: '120'
-      EvaluationPeriods: '1'
+      EvaluationPeriods: '2'
       ComparisonOperator: 'GreaterThanThreshold'
       Threshold: '1250'
       AlarmActions:
