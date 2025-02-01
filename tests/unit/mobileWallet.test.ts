@@ -8,6 +8,7 @@ import {
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { mockClient } from "aws-sdk-client-mock";
 import { secretJson } from "./secret.testdata.js";
+import { v4 as uuidv4 } from "uuid";
 
 const smMock = mockClient(SecretsManagerClient);
 const sqsMock = mockClient(SQSClient);
@@ -47,14 +48,6 @@ vi.mock("../../src/api/functions/entraId.js", () => {
   };
 });
 
-vi.mock("../../src/api/functions/mobileWallet.js", () => {
-  return {
-    issueAppleWalletMembershipCard: vi.fn().mockImplementation(async () => {
-      return new ArrayBuffer();
-    }),
-  };
-});
-
 const app = await init();
 describe("Mobile wallet pass issuance", async () => {
   test("Test that passes will not be issued for non-emails", async () => {
@@ -74,13 +67,15 @@ describe("Mobile wallet pass issuance", async () => {
     await response.json();
   });
   test("Test that passes will be issued for members", async () => {
-    sqsMock.on(SendMessageCommand).resolvesOnce({});
+    const queueId = uuidv4();
+    sqsMock.on(SendMessageCommand).resolves({ MessageId: queueId });
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/mobileWallet/membership?email=valid@illinois.edu",
     });
-    expect(sqsMock.calls.length).toBe(1);
     expect(response.statusCode).toBe(202);
+    const body = await response.json();
+    expect(body).toEqual({ queueId });
   });
   afterAll(async () => {
     await app.close();
