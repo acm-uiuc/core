@@ -13,7 +13,7 @@ import { AuthGuard } from '@ui/components/AuthGuard';
 import { useApi } from '@ui/util/api';
 import { AppRoles } from '@common/roles.js';
 import { OrganizationList } from '@common/orgs';
-import { User, UserNames, UserOrgs, Users } from '@common/types/iam';
+import { User, UserName, UserOrg } from '@common/types/iam';
 
 // const repeatOptions = ['weekly', 'biweekly'] as const;
 
@@ -22,7 +22,7 @@ import { User, UserNames, UserOrgs, Users } from '@common/types/iam';
 // export type EventsGetResponse = z.infer<typeof getEventsSchema>;
 
 export const ScreenPage: React.FC = () => {
-  const [userList, setUserList] = useState<Users>([]);
+  const [userList, setUserList] = useState<User[]>([]);
   const api = useApi('core');
   const [opened, { open, close }] = useDisclosure(false);
   // const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false); // Changed default to false
@@ -87,7 +87,7 @@ export const ScreenPage: React.FC = () => {
       // });
 
       // get request for user orgs
-      const userOrgsResponse: UserOrgs = [
+      const userOrgsResponse: UserOrg[] = [
         { netid: 'johnd01', org: 'SIGMusic' },
         { netid: 'miker44', org: 'SIGPLAN' },
         { netid: 'chrisb19', org: 'SIGCHI' },
@@ -118,7 +118,7 @@ export const ScreenPage: React.FC = () => {
       ];
 
       // retrieve from azure active directory (aad)
-      const userNamesResponse: UserNames = [
+      const userNamesResponse: UserName[] = [
         { netid: 'johnd01', firstName: 'John', lastName: 'Doe' },
         { netid: 'miker44', firstName: 'Michael', lastName: 'Roberts' },
         { netid: 'chrisb19', firstName: 'Christopher', lastName: 'Brown' },
@@ -148,7 +148,7 @@ export const ScreenPage: React.FC = () => {
         { netid: 'patrickh37', firstName: 'Patrick', middleName: 'Henry', lastName: 'Hill' },
       ];
 
-      const mergedResponse: Users = userOrgsResponse.map((orgObj) => {
+      const mergedResponse: User[] = userOrgsResponse.map((orgObj) => {
         const nameObj = userNamesResponse.find((name) => name.netid === orgObj.netid);
         return { ...orgObj, ...nameObj } as User;
       });
