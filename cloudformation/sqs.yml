@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Stack SQS Queues
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  QueueName:
+    Type: String
+    AllowedPattern: ^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$
+  MessageTimeout:
+    Type: Number
+Resources:
+  AppDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${QueueName}-dlq
+      VisibilityTimeout: !Ref MessageTimeout
+  AppQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref QueueName
+      VisibilityTimeout: !Ref MessageTimeout
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - "AppDLQ"
+            - "Arn"
+        maxReceiveCount: 3
+
+Outputs:
+  MainQueueArn:
+    Description: Main Queue Arn
+    Value:
+      Fn::GetAtt:
+      - AppQueue
+      - Arn
+  DLQArn:
+    Description: Dead-letter Queue Arn
+    Value:
+      Fn::GetAtt:
+      - AppDLQ
+      - Arn

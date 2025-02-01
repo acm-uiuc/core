@@ -12,10 +12,14 @@ Parameters:
     AllowedPattern: ^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$
   SesEmailDomain:
     Type: String
+  SqsQueueArn:
+    Type: String
 Resources:
   ApiLambdaIAMRole:
     Type: AWS::IAM::Role
     Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -41,6 +45,14 @@ Resources:
                 ses:Recipients:
                   - "*@illinois.edu"
         PolicyName: ses-membership
+      - PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Action:
+            - sqs:SendMessage
+            Effect: Allow
+            Resource: !Ref SqsQueueArn
+        PolicyName: lambda-sqs
       - PolicyDocument:
           Version: '2012-10-17'
           Statement:
