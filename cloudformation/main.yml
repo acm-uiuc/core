@@ -82,6 +82,7 @@ Resources:
         RunEnvironment: !Ref RunEnvironment
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
         SesEmailDomain: !FindInMap [General, !Ref RunEnvironment, SesDomain]
+        SqsQueueArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
 
   AppLogGroups:
     Type: AWS::Serverless::Application
