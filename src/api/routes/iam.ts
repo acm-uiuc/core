@@ -160,7 +160,10 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const emails = request.body.emails;
       const entraIdToken = await getEntraIdToken(
-        fastify,
+        {
+          smClient: fastify.secretsManagerClient,
+          dynamoClient: fastify.dynamoClient,
+        },
         fastify.environmentConfig.AadValidClientId,
       );
       if (!entraIdToken) {
@@ -247,7 +250,10 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const entraIdToken = await getEntraIdToken(
-        fastify,
+        {
+          smClient: fastify.secretsManagerClient,
+          dynamoClient: fastify.dynamoClient,
+        },
         fastify.environmentConfig.AadValidClientId,
       );
       const addResults = await Promise.allSettled(
@@ -371,7 +377,10 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const entraIdToken = await getEntraIdToken(
-        fastify,
+        {
+          smClient: fastify.secretsManagerClient,
+          dynamoClient: fastify.dynamoClient,
+        },
         fastify.environmentConfig.AadValidClientId,
       );
       const response = await listGroupMembers(entraIdToken, groupId);

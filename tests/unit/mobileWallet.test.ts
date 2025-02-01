@@ -1,12 +1,17 @@
-import { afterAll, expect, test, beforeEach, vi } from "vitest";
+import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
 import init from "../../src/api/index.js";
-import { describe } from "node:test";
 import { EntraFetchError } from "../../src/common/errors/index.js";
+import {
+  GetSecretValueCommand,
+  SecretsManagerClient,
+} from "@aws-sdk/client-secrets-manager";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { mockClient } from "aws-sdk-client-mock";
-import { issueAppleWalletMembershipCard } from "../../src/api/functions/mobileWallet.js";
-import { SendRawEmailCommand, SESClient } from "@aws-sdk/client-ses";
+import { secretJson } from "./secret.testdata.js";
+import { v4 as uuidv4 } from "uuid";
 
-const sesMock = mockClient(SESClient);
+const smMock = mockClient(SecretsManagerClient);
+const sqsMock = mockClient(SQSClient);
 
 vi.mock("../../src/api/functions/membership.js", () => {
   return {
@@ -43,14 +48,6 @@ vi.mock("../../src/api/functions/entraId.js", () => {
   };
 });
 
-vi.mock("../../src/api/functions/mobileWallet.js", () => {
-  return {
-    issueAppleWalletMembershipCard: vi.fn().mockImplementation(async () => {
-      return new ArrayBuffer();
-    }),
-  };
-});
-
 const app = await init();
 describe("Mobile wallet pass issuance", async () => {
   test("Test that passes will not be issued for non-emails", async () => {
@@ -70,13 +67,15 @@ describe("Mobile wallet pass issuance", async () => {
     await response.json();
   });
   test("Test that passes will be issued for members", async () => {
-    sesMock.on(SendRawEmailCommand).resolvesOnce({}).rejects();
+    const queueId = uuidv4();
+    sqsMock.on(SendMessageCommand).resolves({ MessageId: queueId });
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/mobileWallet/membership?email=valid@illinois.edu",
     });
     expect(response.statusCode).toBe(202);
-    expect(issueAppleWalletMembershipCard).toHaveBeenCalledOnce();
+    const body = await response.json();
+    expect(body).toEqual({ queueId });
   });
   afterAll(async () => {
     await app.close();
@@ -84,5 +83,8 @@ describe("Mobile wallet pass issuance", async () => {
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
     vi.clearAllMocks();
+    smMock.on(GetSecretValueCommand).resolves({
+      SecretString: secretJson,
+    });
   });
 });

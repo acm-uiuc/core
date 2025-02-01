@@ -1,21 +1,31 @@
 import { FastifyPluginAsync } from "fastify";
-import { issueAppleWalletMembershipCard } from "../functions/mobileWallet.js";
 import {
-  EntraFetchError,
+  InternalServerError,
   UnauthenticatedError,
-  UnauthorizedError,
   ValidationError,
 } from "../../common/errors/index.js";
-import { generateMembershipEmailCommand } from "../functions/ses.js";
 import { z } from "zod";
-import { getEntraIdToken, getUserProfile } from "../functions/entraId.js";
 import { checkPaidMembership } from "../functions/membership.js";
+import {
+  AvailableSQSFunctions,
+  SQSPayload,
+} from "../../common/types/sqsMessage.js";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { genericConfig } from "../../common/config.js";
+import { zodToJsonSchema } from "zod-to-json-schema";
+
+const queuedResponseJsonSchema = zodToJsonSchema(
+  z.object({
+    queueId: z.string().uuid(),
+  }),
+);
 
 const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
   fastify.post<{ Querystring: { email: string } }>(
     "/membership",
     {
       schema: {
+        response: { 202: queuedResponseJsonSchema },
         querystring: {
           type: "object",
           properties: {
@@ -53,37 +63,36 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
           message: `${request.query.email} is not a paid member.`,
         });
       }
-      const entraIdToken = await getEntraIdToken(
-        fastify,
-        fastify.environmentConfig.AadValidClientId,
-      );
-
-      const userProfile = await getUserProfile(
-        entraIdToken,
-        request.query.email,
-      );
-
-      const item = await issueAppleWalletMembershipCard(
-        fastify,
-        request,
-        request.query.email,
-        userProfile.displayName,
-      );
-      const emailCommand = generateMembershipEmailCommand(
-        request.query.email,
-        `membership@${fastify.environmentConfig.EmailDomain}`,
-        item,
-      );
-      if (
-        fastify.runEnvironment === "dev" &&
-        request.query.email === "testinguser@illinois.edu"
-      ) {
-        return reply
-          .status(202)
-          .send({ message: "OK (skipped sending email)" });
+      const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailMembershipPass> =
+        {
+          function: AvailableSQSFunctions.EmailMembershipPass,
+          metadata: {
+            initiator: "public",
+            reqId: request.id,
+          },
+          payload: {
+            email: request.query.email,
+          },
+        };
+      if (!fastify.sqsClient) {
+        fastify.sqsClient = new SQSClient({
+          region: genericConfig.AwsRegion,
+        });
       }
-      await fastify.sesClient.send(emailCommand);
-      reply.status(202).send({ message: "OK" });
+      const result = await fastify.sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+          MessageBody: JSON.stringify(sqsPayload),
+        }),
+      );
+      if (!result.MessageId) {
+        request.log.error(result);
+        throw new InternalServerError({
+          message: "Could not add job to queue.",
+        });
+      }
+      request.log.info(`Queued job to SQS with message ID ${result.MessageId}`);
+      reply.status(202).send({ queueId: result.MessageId });
     },
   );
 };

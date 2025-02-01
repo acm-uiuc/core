@@ -22,6 +22,14 @@ Parameters:
     Default: false
     Type: String
     AllowedValues: [true, false]
+  SqsLambdaTimeout:
+    Description: How long the SQS lambda is permitted to run (in seconds)
+    Default: 300
+    Type: Number
+  SqsMessageTimeout:
+    Description: MessageVisibilityTimeout for the SQS Lambda queue (should be at least 6xSqsLambdaTimeout)
+    Default: 1800
+    Type: Number
 
 Conditions:
   IsProd: !Equals [!Ref RunEnvironment, 'prod']
@@ -74,6 +82,7 @@ Resources:
         RunEnvironment: !Ref RunEnvironment
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
         SesEmailDomain: !FindInMap [General, !Ref RunEnvironment, SesDomain]
+        SqsQueueArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
 
   AppLogGroups:
     Type: AWS::Serverless::Application
@@ -82,6 +91,14 @@ Resources:
       Parameters:
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
         LogRetentionDays: !FindInMap [General, !Ref RunEnvironment, LogRetentionDays]
+
+  AppSQSQueues:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./sqs.yml
+      Parameters:
+        QueueName: !Sub ${ApplicationPrefix}-sqs
+        MessageTimeout: !Ref SqsMessageTimeout
 
   IcalDomainProxy:
     Type: AWS::Serverless::Application
@@ -148,6 +165,40 @@ Resources:
             RestApiId: !Ref AppApiGateway
             Path: /{proxy+}
             Method: ANY
+
+  AppSqsLambdaFunction:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - AppLogGroups
+    Properties:
+      Architectures: [arm64]
+      CodeUri: ../dist/sqsConsumer
+      AutoPublishAlias: live
+      Runtime: nodejs22.x
+      Description: !Sub "${ApplicationFriendlyName} SQS Lambda"
+      FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
+      Handler: index.handler
+      MemorySize: 512
+      Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
+      Timeout: !Ref SqsLambdaTimeout
+      LoggingConfig:
+        LogGroup: !Sub /aws/lambda/${ApplicationPrefix}-lambda
+      Environment:
+        Variables:
+          RunEnvironment: !Ref RunEnvironment
+      VpcConfig:
+        Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
+        SecurityGroupIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SecurityGroupIds], !Ref AWS::NoValue]
+        SubnetIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds], !Ref AWS::NoValue]
+
+  SQSLambdaEventMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 5
+      EventSourceArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
+      FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
 
   IamGroupRolesTable:
     Type: 'AWS::DynamoDB::Table'
@@ -347,6 +398,23 @@ Resources:
       Dimensions:
         - Name: 'ApiName'
           Value: !Sub ${ApplicationPrefix}-gateway
+
+
+  AppDLQMessagesAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub ${ApplicationPrefix}-sqs-dlq
+      AlarmDescription: 'Items are present in the application DLQ, meaning some messages failed to process.'
+      Namespace: 'AWS/SQS'
+      MetricName: 'ApproximateNumberOfMessagesVisible'
+      Statistic: 'Sum'
+      Period: '60'
+      EvaluationPeriods: '1'
+      ComparisonOperator: 'GreaterThanThreshold'
+      Threshold: '0'
+      AlarmActions:
+        - !Ref AlertSNSArn
 
   APILambdaPermission:
     Type: AWS::Lambda::Permission

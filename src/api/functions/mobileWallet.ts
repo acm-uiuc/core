@@ -1,5 +1,10 @@
 import { getSecretValue } from "../plugins/auth.js";
-import { genericConfig, SecretConfig } from "../../common/config.js";
+import {
+  ConfigType,
+  genericConfig,
+  GenericConfigType,
+  SecretConfig,
+} from "../../common/config.js";
 import {
   InternalServerError,
   UnauthorizedError,
@@ -12,6 +17,9 @@ import strip from "../resources/MembershipPass.pkpass/strip.png";
 import pass from "../resources/MembershipPass.pkpass/pass.js";
 import { PKPass } from "passkit-generator";
 import { promises as fs } from "fs";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { RunEnvironment } from "common/roles.js";
+import pino from "pino";
 
 function trim(s: string) {
   return (s || "").replace(/^\s+|\s+$/g, "");
@@ -25,9 +33,11 @@ function convertName(name: string): string {
 }
 
 export async function issueAppleWalletMembershipCard(
-  app: FastifyInstance,
-  request: FastifyRequest,
+  clients: { smClient: SecretsManagerClient },
+  environmentConfig: ConfigType,
+  runEnvironment: RunEnvironment,
   email: string,
+  logger: pino.Logger,
   name?: string,
 ) {
   if (!email.endsWith("@illinois.edu")) {
@@ -37,7 +47,7 @@ export async function issueAppleWalletMembershipCard(
     });
   }
   const secretApiConfig = (await getSecretValue(
-    app.secretsManagerClient,
+    clients.smClient,
     genericConfig.ConfigSecretName,
   )) as SecretConfig;
   if (!secretApiConfig) {
@@ -57,7 +67,7 @@ export async function issueAppleWalletMembershipCard(
     secretApiConfig.apple_signing_cert_base64,
     "base64",
   ).toString("utf-8");
-  pass["passTypeIdentifier"] = app.environmentConfig["PasskitIdentifier"];
+  pass["passTypeIdentifier"] = environmentConfig["PasskitIdentifier"];
 
   const pkpass = new PKPass(
     {
@@ -73,13 +83,13 @@ export async function issueAppleWalletMembershipCard(
     },
     {
       // logoText: app.runEnvironment === "dev" ? "INVALID Membership Pass" : "Membership Pass",
-      serialNumber: app.environmentConfig["PasskitSerialNumber"],
+      serialNumber: environmentConfig["PasskitSerialNumber"],
     },
   );
   pkpass.setBarcodes({
     altText: email.split("@")[0],
     format: "PKBarcodeFormatPDF417",
-    message: app.runEnvironment === "dev" ? `INVALID${email}INVALID` : email,
+    message: runEnvironment === "dev" ? `INVALID${email}INVALID` : email,
   });
   const iat = new Date().toLocaleDateString("en-US", {
     day: "2-digit",
@@ -93,7 +103,7 @@ export async function issueAppleWalletMembershipCard(
       value: convertName(name),
     });
   }
-  if (app.runEnvironment === "prod") {
+  if (runEnvironment === "prod") {
     pkpass.backFields.push({
       label: "Verification URL",
       key: "iss",
@@ -109,7 +119,7 @@ export async function issueAppleWalletMembershipCard(
   pkpass.backFields.push({ label: "Pass Created On", key: "iat", value: iat });
   pkpass.backFields.push({ label: "Membership ID", key: "id", value: email });
   const buffer = pkpass.getAsBuffer();
-  request.log.info(
+  logger.info(
     { type: "audit", actor: email, target: email },
     "Created membership verification pass",
   );
