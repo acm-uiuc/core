@@ -14,9 +14,6 @@ import { z, ZodError } from "zod";
 import pino from "pino";
 import { emailMembershipPassHandler, pingHandler } from "./handlers.js";
 import { ValidationError } from "../../common/errors/index.js";
-import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import { SESClient } from "@aws-sdk/client-ses";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { RunEnvironment } from "../../common/roles.js";
 import { environmentConfig } from "../../common/config.js";
 
@@ -28,7 +25,7 @@ export type SQSHandlerFunction<T extends AvailableSQSFunctions> = (
   payload: z.infer<(typeof sqsPayloadSchemas)[T]>["payload"],
   metadata: SQSMessageMetadata,
   logger: pino.Logger,
-) => Promise<void>;
+) => Promise<any>;
 
 const handlers: SQSFunctionPayloadTypes = {
   [AvailableSQSFunctions.EmailMembershipPass]: emailMembershipPassHandler,

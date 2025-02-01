@@ -23,7 +23,6 @@ export const emailMembershipPassHandler: SQSHandlerFunction<
   const clients = {
     smClient: new SecretsManagerClient(commonConfig),
     dynamoClient: new DynamoDBClient(commonConfig),
-    sesClient: new SESClient(commonConfig),
   };
   const entraIdToken = await getEntraIdToken(
     clients,
@@ -46,8 +45,8 @@ export const emailMembershipPassHandler: SQSHandlerFunction<
   if (runEnvironment === "dev" && email === "testinguser@illinois.edu") {
     return;
   }
-  await clients.sesClient.send(emailCommand);
-  return;
+  const sesClient = new SESClient(commonConfig);
+  return await sesClient.send(emailCommand);
 };
 
 export const pingHandler: SQSHandlerFunction<
