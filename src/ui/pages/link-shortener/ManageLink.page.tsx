@@ -1,6 +1,17 @@
-import { Title, Box, TextInput, Textarea, Switch, Select, Button, Loader } from '@mantine/core';
+import {
+  Title,
+  Box,
+  TextInput,
+  Textarea,
+  Switch,
+  Select,
+  Button,
+  Loader,
+  TextInputProps,
+} from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { useForm, zodResolver } from '@mantine/form';
+import { MultiSelect } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
@@ -11,6 +22,7 @@ import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
+import { v4 as uuidv4 } from 'uuid';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -18,9 +30,25 @@ export function capitalizeFirstLetter(string: string) {
 
 const repeatOptions = ['weekly', 'biweekly'] as const;
 
+const slugRegex = new RegExp('^(https?://)?[a-zA-Z0-9-._/]*$');
+
+const accessGroup = [
+  'ACM Link Shortener Manager',
+  'ACM Exec',
+  'ACM Officers',
+  'ACM Infra Leadership',
+];
+
 const baseBodySchema = z.object({
-  slug: z.string().min(1).optional(),
-  access: z.string().min(1).optional(),
+  slug: z
+    .string()
+    .min(1)
+    .regex(
+      slugRegex,
+      "Invalid input: Only alphanumeric characters, '-', '_', '/', and '.' are allowed"
+    )
+    .optional(),
+  access: z.array(z.string()).min(1).optional(),
   redirect: z.string().min(1).optional(),
   createdAtUtc: z.number().optional(),
   updatedAtUtc: z.number().optional(),
@@ -39,12 +67,12 @@ export const ManageLinkPage: React.FC = () => {
 
   const isEditing = false; //= eventId !== undefined;
 
-  useEffect(() => {
+  /*useEffect(() => {
     if (!isEditing) {
       return;
     }
     // Fetch event data and populate form
-    const getEvent = async () => {
+    const startForm = async () => {
       try {
         const response = await api.get(`/api/v1/events/${eventId}`);
         const eventData = response.data;
@@ -61,32 +89,17 @@ export const ManageLinkPage: React.FC = () => {
         });
       }
     };
-    getEvent();
-  }, [eventId, isEditing]);
+    startForm();
+  }, [eventId, isEditing]);*/
 
   const form = useForm<LinkPostRequest>({
     validate: zodResolver(requestBodySchema),
     initialValues: {
       slug: '',
-      access: '',
+      access: [],
       redirect: '',
     },
   });
-
-  // const checkPaidEventId = async (paidEventId: string) => {
-  //   try {
-  //     const merchEndpoint = getRunEnvironmentConfig().ServiceConfiguration.merch.baseEndpoint;
-  //     const ticketEndpoint = getRunEnvironmentConfig().ServiceConfiguration.tickets.baseEndpoint;
-  //     const paidEventHref = paidEventId.startsWith('merch:')
-  //       ? `${merchEndpoint}/api/v1/merch/details?itemid=${paidEventId.slice(6)}`
-  //       : `${ticketEndpoint}/api/v1/event/details?eventid=${paidEventId}`;
-  //     const response = await api.get(paidEventHref);
-  //     return Boolean(response.status < 299 && response.status >= 200);
-  //   } catch (error) {
-  //     console.error('Error validating paid event ID:', error);
-  //     return false;
-  //   }
-  // };
 
   const handleSubmit = async (values: LinkPostRequest) => {
     try {
@@ -94,8 +107,7 @@ export const ManageLinkPage: React.FC = () => {
       const realValues = {
         ...values,
       };
-
-      const linkURL = isEditing ? `/api/v1/events/${eventId}` : '/api/v1/linkry/redir';
+      const linkURL = '/api/v1/linkry/redir';
       const response = await api.post(linkURL, realValues);
       notifications.show({
         title: isEditing ? 'Link updated!' : 'Link created!',
@@ -106,13 +118,25 @@ export const ManageLinkPage: React.FC = () => {
       setIsSubmitting(false);
       console.error('Error creating/editing link:', error);
       notifications.show({
-        message: 'Failed to create/edit link, please try again.',
+        message: 'Failed to create/edit link',
       });
     }
   };
 
   const handleFormClose = () => {
     navigate('/link-shortener');
+  };
+
+  const generateRandomSlug = () => {
+    const randomSlug = uuidv4().substring(0, 5);
+    notifications.show({
+      message: randomSlug, //first 6 digits of uuid
+    });
+    form.setFieldValue('slug', randomSlug);
+  };
+
+  const handleSlug = (e: TextInputProps) => {
+    form.setFieldValue('slug', e.value?.toString());
   };
 
   return (
@@ -123,24 +147,36 @@ export const ManageLinkPage: React.FC = () => {
           Close
         </Button>
       </Box>
-      <Box maw={400} mx="auto" mt="xl">
+      <Box maw={600} mx="auto" mt="xl">
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <TextInput
-            label="URL to Shorten"
+            label="URL to be Shorten"
             withAsterisk
-            placeholder="URl to shorten"
-            {...form.getInputProps('slug')}
-          />
-          <TextInput
-            label="Redirect/Shorten URL"
-            withAsterisk
-            placeholder="Redirect/Shorten URL"
+            placeholder="Paste URL here to Shorten"
+            style={{ marginBottom: '20px' }}
             {...form.getInputProps('redirect')}
           />
+
           <TextInput
+            label="Alias"
+            withAsterisk
+            leftSectionWidth={'100px'}
+            rightSectionWidth={'140px'}
+            rightSection={
+              <Button variant="filled" ml="auto" color="blue" onClick={generateRandomSlug}>
+                Random URL
+              </Button>
+            }
+            placeholder="Enter an Alias for redirecting to your url"
+            {...{ ...form.getInputProps('slug'), onChange: handleSlug }}
+            style={{ marginBottom: '20px' }}
+          />
+
+          <MultiSelect
             label="Access Group"
             withAsterisk
-            placeholder="Access Group"
+            placeholder="Select Access Group"
+            data={accessGroup}
             {...form.getInputProps('access')}
           />
 

@@ -82,7 +82,6 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     reply.send({ Status: "Up" });
   });
 
-  
   fastify.get("/ticketEvents", async (request, reply) => {
     try {
       const response = await dynamoclient.send(
@@ -370,7 +369,6 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
 
-
   //Post merchEvents
   fastify.post<{ Body: MerchPostSchema }>(
     "/merchEvents",
@@ -426,8 +424,6 @@ const paidEventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
-
-
 
   fastify.delete<EventDeleteRequest>(
     "/ticketEvents/:id",

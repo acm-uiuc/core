@@ -262,8 +262,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Failed to get Links from Dynamo table.",
         });
       }
-
-      throw new NotImplementedError({});
     },
   );
 };
