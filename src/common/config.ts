@@ -22,6 +22,7 @@ export type ConfigType = {
 export type GenericConfigType = {
   EventsDynamoTableName: string;
   CacheDynamoTableName: string;
+  StripeLinksDynamoTableName: string;
   ConfigSecretName: string;
   UpcomingEventThresholdSeconds: number;
   AwsRegion: string;
@@ -46,6 +47,7 @@ export const execCouncilTestingGroupId = "dbe18eb2-9675-46c4-b1ef-749a6db4fedd";
 
 const genericConfig: GenericConfigType = {
   EventsDynamoTableName: "infra-core-api-events",
+  StripeLinksDynamoTableName: "infra-core-api-stripe-links",
   CacheDynamoTableName: "infra-core-api-cache",
   ConfigSecretName: "infra-core-api-config",
   UpcomingEventThresholdSeconds: 1800, // 30 mins

@@ -1,3 +1,5 @@
+import { PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
 import {
   createStripeLink,
   StripeLinkCreateParams,
@@ -52,10 +54,30 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const payload: StripeLinkCreateParams = {
         ...request.body,
         createdBy: request.username,
-        logger: request.log,
         stripeApiKey: secretApiConfig.stripe_secret_key as string,
       };
-      const url = await createStripeLink(payload);
+      const { url, linkId, priceId, productId } =
+        await createStripeLink(payload);
+      const invoiceId = request.body.invoiceId;
+      const dynamoCommand = new PutItemCommand({
+        TableName: genericConfig.StripeLinksDynamoTableName,
+        Item: marshall({
+          userId: request.username,
+          linkId,
+          priceId,
+          productId,
+          url,
+        }),
+      });
+      await fastify.dynamoClient.send(dynamoCommand);
+      request.log.info(
+        {
+          type: "audit",
+          actor: request.username,
+          target: `Link ${linkId} | Invoice ${invoiceId}`,
+        },
+        "Created Stripe payment link",
+      );
       reply.status(201).send({ invoiceId: request.body.invoiceId, link: url });
     },
   );

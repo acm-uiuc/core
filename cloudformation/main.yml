@@ -273,11 +273,22 @@ Resources:
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: false
       AttributeDefinitions:
-        - AttributeName: id
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: linkId
           AttributeType: S
       KeySchema:
-        - AttributeName: id
-          KeyType: HASH
+        - AttributeName: userId
+          KeyType: "HASH"
+        - AttributeName: linkId
+          KeyType: "RANGE"
+      GlobalSecondaryIndexes:
+        - IndexName: LinkIdIndex
+          KeySchema:
+            - AttributeName: linkId
+              KeyType: "HASH"
+          Projection:
+            ProjectionType: "ALL"
 
   CacheRecordsTable:
     Type: 'AWS::DynamoDB::Table'

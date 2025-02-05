@@ -8,7 +8,6 @@ export type StripeLinkCreateParams = {
   contactEmail: string;
   createdBy: string;
   stripeApiKey: string;
-  logger: FastifyBaseLogger;
 };
 
 /**
@@ -22,9 +21,13 @@ export const createStripeLink = async ({
   contactName,
   contactEmail,
   createdBy,
-  logger,
   stripeApiKey,
-}: StripeLinkCreateParams): Promise<string> => {
+}: StripeLinkCreateParams): Promise<{
+  linkId: string;
+  priceId: string;
+  productId: string;
+  url: string;
+}> => {
   const stripe = new Stripe(stripeApiKey);
   const description = `Created For: ${contactName} (${contactEmail}) by ${createdBy}.`;
   const product = await stripe.products.create({
@@ -44,9 +47,10 @@ export const createStripeLink = async ({
       },
     ],
   });
-  logger.info(
-    { type: "audit", actor: createdBy, target: invoiceId },
-    "Created Stripe payment link",
-  );
-  return paymentLink.url;
+  return {
+    url: paymentLink.url,
+    linkId: paymentLink.id,
+    productId: product.id,
+    priceId: price.id,
+  };
 };
