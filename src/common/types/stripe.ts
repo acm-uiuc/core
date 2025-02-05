@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const invoiceLinkPostResponseSchema = z.object({
-  invoiceId: z.string().min(1),
+  id: z.string().min(1),
   link: z.string().url(),
 })
 
@@ -11,3 +11,12 @@ export const invoiceLinkPostRequestSchema = z.object({
   contactName: z.string().min(1),
   contactEmail: z.string().email()
 })
+
+export const invoiceLinkGetResponseSchema = z.array(z.object({
+  id: z.string().min(1),
+  userId: z.string().email(),
+  link: z.string().url(),
+  active: z.boolean(),
+  invoiceId: z.string().min(1),
+  invoiceAmountUsd: z.number().min(50)
+}))

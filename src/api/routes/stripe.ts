@@ -1,5 +1,9 @@
-import { PutItemCommand } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import {
+  PutItemCommand,
+  QueryCommand,
+  ScanCommand,
+} from "@aws-sdk/client-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import {
   createStripeLink,
   StripeLinkCreateParams,
@@ -9,19 +13,63 @@ import { genericConfig } from "common/config.js";
 import {
   InternalServerError,
   UnauthenticatedError,
+  UnauthorizedError,
 } from "common/errors/index.js";
 import { AppRoles } from "common/roles.js";
 import {
   invoiceLinkPostResponseSchema,
   invoiceLinkPostRequestSchema,
+  invoiceLinkGetResponseSchema,
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
-import { z } from "zod";
+import { object, z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
+  fastify.get(
+    "/paymentLinks",
+    {
+      schema: {
+        response: { 200: zodToJsonSchema(invoiceLinkGetResponseSchema) },
+      },
+      onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, [AppRoles.STRIPE_LINK_CREATOR]);
+      },
+    },
+    async (request, reply) => {
+      let dynamoCommand;
+      if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
+        dynamoCommand = new ScanCommand({
+          TableName: genericConfig.StripeLinksDynamoTableName,
+        });
+      } else {
+        dynamoCommand = new QueryCommand({
+          TableName: genericConfig.StripeLinksDynamoTableName,
+          KeyConditionExpression: "userId = :userId",
+          ExpressionAttributeValues: {
+            ":userId": { S: request.username! },
+          },
+        });
+      }
+      const result = await fastify.dynamoClient.send(dynamoCommand);
+      if (result.Count === 0 || !result.Items) {
+        return [];
+      }
+      const parsed = result.Items.map((item) => unmarshall(item)).map(
+        (item) => ({
+          id: item.linkId,
+          userId: item.userId,
+          link: item.url,
+          active: item.active,
+          invoiceId: item.invoiceId,
+          invoiceAmountUsd: item.amount,
+        }),
+      );
+      reply.status(200).send(parsed);
+    },
+  );
   fastify.post<{ Body: z.infer<typeof invoiceLinkPostRequestSchema> }>(
-    "/paymentLink",
+    "/paymentLinks",
     {
       schema: {
         response: { 201: zodToJsonSchema(invoiceLinkPostResponseSchema) },
@@ -66,7 +114,10 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           linkId,
           priceId,
           productId,
+          invoiceId,
           url,
+          amount: request.body.invoiceAmountUsd,
+          active: true,
         }),
       });
       await fastify.dynamoClient.send(dynamoCommand);

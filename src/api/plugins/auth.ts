@@ -237,6 +237,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       request.log.info(`authenticated request from ${request.username} `);
+      request.userRoles = userRoles;
       return userRoles;
     },
   );

@@ -33,6 +33,7 @@ declare module "fastify" {
   interface FastifyRequest {
     startTime: number;
     username?: string;
+    userRoles?: Set<AppRoles>;
     tokenPayload?: AadToken;
   }
 }
