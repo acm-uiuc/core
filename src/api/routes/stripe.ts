@@ -11,9 +11,10 @@ import {
 import { getSecretValue } from "api/plugins/auth.js";
 import { genericConfig } from "common/config.js";
 import {
+  BaseError,
+  DatabaseFetchError,
   InternalServerError,
   UnauthenticatedError,
-  UnauthorizedError,
 } from "common/errors/index.js";
 import { AppRoles } from "common/roles.js";
 import {
@@ -22,7 +23,7 @@ import {
   invoiceLinkGetResponseSchema,
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
-import { object, z } from "zod";
+import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
@@ -51,7 +52,19 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           },
         });
       }
-      const result = await fastify.dynamoClient.send(dynamoCommand);
+      let result;
+      try {
+        result = await fastify.dynamoClient.send(dynamoCommand);
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        request.log.error(e);
+        throw new DatabaseFetchError({
+          message: "Could not get active links.",
+        });
+      }
+
       if (result.Count === 0 || !result.Items) {
         return [];
       }

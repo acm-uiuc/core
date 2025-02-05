@@ -11,6 +11,9 @@ vi.mock(
       getUserRoles: vi.fn(async (_, __, userEmail) => {
         const mockUserRoles = {
           "infra-unit-test-nogrp@acm.illinois.edu": [AppRoles.TICKETS_SCANNER],
+          "infra-unit-test-stripeonly@acm.illinois.edu": [
+            AppRoles.STRIPE_LINK_CREATOR,
+          ],
           kLkvWTYwNnJfBkIK7mBi4niXXHYNR7ygbV8utlvFxjw: allAppRoles,
         };
 
