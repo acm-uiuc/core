@@ -24,6 +24,8 @@ import { useAuth } from '../AuthContext/index.js';
 import { HeaderNavbar } from '../Navbar/index.js';
 import { AuthenticatedProfileDropdown } from '../ProfileDropdown/index.js';
 import { getCurrentRevision } from '@ui/util/revision.js';
+import { AppRoles } from '@common/roles.js';
+import { AuthGuard } from '../AuthGuard/index.js';
 
 export interface AcmAppShellProps {
   children: ReactNode;
@@ -39,18 +41,28 @@ export const navItems = [
     name: 'Events',
     icon: IconCalendar,
     description: null,
+    validRoles: [AppRoles.EVENTS_MANAGER],
   },
   {
     link: '/tickets',
     name: 'Ticketing/Merch',
     icon: IconTicket,
     description: null,
+    validRoles: [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
   },
   {
     link: '/iam',
     name: 'IAM',
     icon: IconLock,
     description: null,
+    validRoles: [AppRoles.IAM_ADMIN, AppRoles.IAM_INVITE_ONLY],
+  },
+  {
+    link: '/stripe',
+    name: 'Stripe Link Creator',
+    icon: IconCoin,
+    description: null,
+    validRoles: [AppRoles.STRIPE_LINK_CREATOR],
   },
 ];
 
@@ -59,12 +71,6 @@ export const extLinks = [
     link: 'https://go.acm.illinois.edu/create',
     name: 'Link Shortener',
     icon: IconLink,
-    description: null,
-  },
-  {
-    link: 'https://stripelinks.acm.illinois.edu/create',
-    name: 'Stripe Link Creator',
-    icon: IconCoin,
     description: null,
   },
   {
@@ -104,31 +110,45 @@ export const renderNavItems = (
   active: string | undefined,
   navigate: CallableFunction
 ) =>
-  items.map((item) => (
-    <NavLink
-      style={{ borderRadius: 5 }}
-      h={48}
-      mt="sm"
-      onClick={() => {
-        if (item.link.includes('://')) {
-          window.location.href = item.link;
-        } else {
-          navigate(item.link);
+  items.map((item) => {
+    const link = (
+      <NavLink
+        style={{ borderRadius: 5 }}
+        h={48}
+        mt="sm"
+        onClick={() => {
+          if (item.link.includes('://')) {
+            window.location.href = item.link;
+          } else {
+            navigate(item.link);
+          }
+        }}
+        key={item.name}
+        label={
+          <Text size="sm" fw={500}>
+            {item.name}
+          </Text>
         }
-      }}
-      key={item.link}
-      label={
-        <Text size="sm" fw={500}>
-          {item.name}
-        </Text>
-      }
-      active={active === item.link || isSameParentPath(active, item.link)}
-      description={item.description || null}
-      leftSection={<item.icon />}
-    >
-      {item.children ? renderNavItems(item.children, active, navigate) : null}
-    </NavLink>
-  ));
+        active={active === item.link || isSameParentPath(active, item.link)}
+        description={item.description || null}
+        leftSection={<item.icon />}
+      >
+        {item.children ? renderNavItems(item.children, active, navigate) : null}
+      </NavLink>
+    );
+    if (item.link.at(0) == '/') {
+      return (
+        <AuthGuard
+          resourceDef={{ service: 'core', validRoles: item.validRoles }}
+          isAppShell={false}
+          key={`${item.name}-wrap`}
+        >
+          {link}
+        </AuthGuard>
+      );
+    }
+    return link;
+  });
 
 type SidebarNavItemsProps = {
   items: Record<string, any>[];

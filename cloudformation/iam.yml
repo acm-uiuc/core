@@ -106,6 +106,8 @@ Resources:
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-userroles/*
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles/*
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/*
 
         PolicyName: lambda-dynamo
 Outputs:

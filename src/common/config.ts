@@ -103,6 +103,7 @@ export type SecretConfig = {
   acm_passkit_signerCert_base64: string;
   acm_passkit_signerKey_base64: string;
   apple_signing_cert_base64: string;
+  stripe_secret_key: string;
 };
 
 export { genericConfig, environmentConfig };
