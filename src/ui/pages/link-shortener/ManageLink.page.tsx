@@ -95,7 +95,7 @@ export const ManageLinkPage: React.FC = () => {
         ...values,
       };
 
-      const linkURL = isEditing ? `/api/v1/events/${eventId}` : '/api/v1/linkry/redir';
+      const linkURL = isEditing ? `/api/v1/linkry/redir/${eventId}` : '/api/v1/linkry/redir';
       const response = await api.post(linkURL, realValues);
       notifications.show({
         title: isEditing ? 'Link updated!' : 'Link created!',
@@ -128,19 +128,19 @@ export const ManageLinkPage: React.FC = () => {
           <TextInput
             label="URL to Shorten"
             withAsterisk
-            placeholder="URl to shorten"
-            {...form.getInputProps('slug')}
-          />
-          <TextInput
-            label="Redirect/Shorten URL"
-            withAsterisk
-            placeholder="Redirect/Shorten URL"
+            placeholder="https://www.google.com"
             {...form.getInputProps('redirect')}
           />
           <TextInput
-            label="Access Group"
+            label="Redirect/Shorten URL (Slug)"
             withAsterisk
-            placeholder="Access Group"
+            placeholder="acm123"
+            {...form.getInputProps('slug')}
+          />
+          <TextInput
+            label="Access Group(s) (Comma-Separated)"
+            withAsterisk
+            placeholder="group1,group2"
             {...form.getInputProps('access')}
           />
 

@@ -4,6 +4,7 @@ import { AppRoles } from "../../common/roles.js";
 import {
   BaseError,
   DatabaseFetchError,
+  DatabaseInsertError,
   NotFoundError,
   NotImplementedError,
 } from "../../common/errors/index.js";
@@ -20,6 +21,8 @@ import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { randomUUID } from "crypto";
 
+const LINKRY_MAX_SLUG_LENGTH = 1000;
+
 type LinkrySlugOnlyRequest = {
   Params: { slug: string };
   Querystring: undefined;
@@ -32,7 +35,12 @@ const rawRequest = {
   groups: z.optional(z.array(z.string()).min(1)),
 };
 
-const createRequest = z.object(rawRequest);
+const createRequest = z.object({
+  slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
+  //TODO: require validation of access string?
+  access: z.string(),
+  redirect: z.string().url().min(1),
+});
 
 const deleteRequest = z.object({
   slug: z.string().min(1),
@@ -104,21 +112,23 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     {
       preValidation: async (request, reply) => {
         await fastify.zodValidateBody(request, reply, createRequest);
+        //TODO: validate that the slug does not already exist
       },
       onRequest: async (request, reply) => {
-        // await fastify.authorize(request, reply, [
-        //   AppRoles.LINKS_MANAGER,
-        //   AppRoles.LINKS_ADMIN,
-        // ]);
+        await fastify.authorize(request, reply, [
+          AppRoles.LINKS_MANAGER,
+          AppRoles.LINKS_ADMIN,
+        ]);
         //send a request to database to add a new linkry record
       },
     },
     async (request, reply) => {
+      //Add the OWNER record to Dynamo
       try {
         const entry = {
           slug: request.body.slug,
           redirect: request.body.redirect,
-          access: "OWNER#testUser",
+          access: "OWNER#" + request.username,
           UpdatedAtUtc: Date.now(),
           createdAtUtc: Date.now(),
         };
@@ -128,14 +138,34 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             Item: marshall(entry),
           }),
         );
-        reply.send({ message: "Record Created" });
+
+        //TODO: How to handle when one/multiple of these fail?
+
+        //Add GROUP records
+        const accessGroups: string[] = request.body.access.split(",");
+        for (const accessGroup of accessGroups) {
+          const entry = {
+            slug: request.body.slug,
+            access: "GROUP#" + accessGroup,
+            //TODO: we don't want additional copies of these, correct?
+            //redirect: request.body.redirect,
+            //UpdatedAtUtc: Date.now(),
+            //createdAtUtc: Date.now(),
+          };
+          await dynamoClient.send(
+            new PutItemCommand({
+              TableName: genericConfig.LinkryDynamoTableName,
+              Item: marshall(entry),
+            }),
+          );
+        }
+        reply.send({ message: "Record Created", id: request.body.slug });
       } catch (e: unknown) {
         console.log(e);
-        throw new DatabaseFetchError({
+        throw new DatabaseInsertError({
           message: "Failed to create record in Dynamo table.",
         });
       }
-      throw new NotImplementedError({});
     },
   );
   fastify.patch<LinkryPatchRequest>(
