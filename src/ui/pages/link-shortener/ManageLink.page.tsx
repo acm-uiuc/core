@@ -32,10 +32,10 @@ const repeatOptions = ['weekly', 'biweekly'] as const;
 const slugRegex = new RegExp('^(https?://)?[a-zA-Z0-9-._/]*$');
 
 const accessGroup = [
-  'ACM Link Shortener Manager',
-  'ACM Exec',
-  'ACM Officers',
-  'ACM Infra Leadership',
+  'ACM_Link_Shortener_Manager',
+  'ACM_Exec',
+  'ACM_Officers',
+  'ACM_Infra_Leadership',
 ];
 
 const baseBodySchema = z.object({
@@ -113,7 +113,7 @@ export const ManageLinkPage: React.FC = () => {
         title: isEditing ? 'Link updated!' : 'Link created!',
         message: isEditing
           ? undefined
-          : `The Link ID is "${response.data.id}", and ${realValues.redirect}, ${realValues.slug} ${realValues.access}".`,
+          : `The Link: ${realValues.redirect}, ${realValues.slug} ${realValues.access}".`,
       });
       navigate('/link-shortener');
     } catch (error) {
@@ -134,9 +134,6 @@ export const ManageLinkPage: React.FC = () => {
       { length: 6 },
       () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 52)]
     ).join('');
-    notifications.show({
-      message: randomSlug, //first 6 digits of uuid
-    });
     form.setFieldValue('slug', randomSlug);
   };
 

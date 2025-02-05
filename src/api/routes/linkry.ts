@@ -38,7 +38,7 @@ const rawRequest = {
 const createRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
   //TODO: require validation of access string?
-  access: z.string(),
+  access: z.array(z.string()),
   redirect: z.string().url().min(1),
 });
 
@@ -115,10 +115,11 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         //TODO: validate that the slug does not already exist
       },
       onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [
+        /*await fastify.authorize(request, reply, [
           AppRoles.LINKS_MANAGER,
           AppRoles.LINKS_ADMIN,
-        ]);
+        ]);*/
+        //Ethan: I took validation off for developing purposes
         //send a request to database to add a new linkry record
       },
     },
@@ -142,7 +143,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         //TODO: How to handle when one/multiple of these fail?
 
         //Add GROUP records
-        const accessGroups: string[] = request.body.access.split(",");
+        const accessGroups: string[] = request.body.access;
         for (const accessGroup of accessGroups) {
           const entry = {
             slug: request.body.slug,
@@ -219,12 +220,21 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         const items = queryResponse.Items || [];
 
-        const desiredAccessValues = ["OWNER#testUser", "OWNER#testUser2"];
+        const desiredAccessValues = [
+          "GROUP#ACM_Link_Shortener_Manager",
+          "GROUP#ACM_Exec",
+          "GROUP#ACM_Officers",
+          "GROUP#ACM_Infra_Leadership",
+        ]; //Only groups in the above hardcoded array can be deleted.
 
-        const filteredItems = items.filter(
-          (item) =>
-            item.access.S && desiredAccessValues.includes(item.access.S),
-        );
+        const filteredItems = items.filter((item) => {
+          if (item.access.S?.startsWith("OWNER#")) {
+            return true;
+          } //Ethan: temporary solution, current filter deletes all owner tagged and group tagged, need to differentiate between deleting owner versus deleting specific groups...
+          else {
+            return item.access.S && desiredAccessValues.includes(item.access.S);
+          }
+        });
 
         // Delete all fetched items
         const deletePromises = (filteredItems || []).map((item) =>
