@@ -111,7 +111,9 @@ export const ManageLinkPage: React.FC = () => {
       const response = await api.post(linkURL, realValues);
       notifications.show({
         title: isEditing ? 'Link updated!' : 'Link created!',
-        message: isEditing ? undefined : `The Link ID is "${response.data.id}".`,
+        message: isEditing
+          ? undefined
+          : `The Link ID is "${response.data.id}", and ${realValues.redirect}, ${realValues.slug} ${realValues.access}".`,
       });
       navigate('/link-shortener');
     } catch (error) {
@@ -128,21 +130,24 @@ export const ManageLinkPage: React.FC = () => {
   };
 
   const generateRandomSlug = () => {
-    const randomSlug = uuidv4().substring(0, 5);
+    const randomSlug = Array.from(
+      { length: 6 },
+      () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 52)]
+    ).join('');
     notifications.show({
       message: randomSlug, //first 6 digits of uuid
     });
     form.setFieldValue('slug', randomSlug);
   };
 
-  const handleSlug = (e: TextInputProps) => {
-    form.setFieldValue('slug', e.value?.toString());
+  const handleSlug = (event: React.ChangeEvent<HTMLInputElement>) => {
+    form.setFieldValue('slug', event.currentTarget.value);
   };
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
       <Box display="flex" ta="center" mt="1.5rem">
-        <Title order={2}>Add Link</Title>
+        <Title order={2}>Add a Link</Title>
         <Button variant="subtle" ml="auto" onClick={handleFormClose}>
           Close
         </Button>
@@ -150,10 +155,10 @@ export const ManageLinkPage: React.FC = () => {
       <Box maw={600} mx="auto" mt="xl">
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <TextInput
-            label="URL to be Shorten"
+            label="URL"
             withAsterisk
-            placeholder="Paste URL here to Shorten"
-            style={{ marginBottom: '20px' }}
+            placeholder="Enter URL here to Shorten"
+            style={{ marginTop: '20px', marginBottom: '20px' }}
             {...form.getInputProps('redirect')}
           />
 
@@ -167,9 +172,9 @@ export const ManageLinkPage: React.FC = () => {
                 Random URL
               </Button>
             }
-            placeholder="Enter an Alias for redirecting to your url"
+            placeholder="Enter an Alias to redirect to your url"
             {...{ ...form.getInputProps('slug'), onChange: handleSlug }}
-            style={{ marginBottom: '20px' }}
+            style={{ marginTop: '20px', marginBottom: '20px' }}
           />
 
           <MultiSelect
@@ -177,6 +182,7 @@ export const ManageLinkPage: React.FC = () => {
             withAsterisk
             placeholder="Select Access Group"
             data={accessGroup}
+            style={{ marginTop: '20px' }}
             {...form.getInputProps('access')}
           />
 

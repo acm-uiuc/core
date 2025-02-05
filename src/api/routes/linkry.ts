@@ -66,7 +66,7 @@ const dynamoClient = new DynamoDBClient({
 
 const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.get<LinkrySlugOnlyRequest>("/redir/:id", async (request, reply) => {
-    const id = request.params.id;
+    const id = request.id;
     const command = new QueryCommand({
       TableName: genericConfig.LinkryDynamoTableName,
       KeyConditionExpression:
