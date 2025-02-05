@@ -29,7 +29,7 @@ test("creating an event", async () => {
       featured: true,
     }),
   });
-  expect(response.status).toBe(200);
+  expect(response.status).toBe(201);
   const responseJson = await response.json();
   expect(responseJson).toHaveProperty("id");
   expect(responseJson).toHaveProperty("resource");
