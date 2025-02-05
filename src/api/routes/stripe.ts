@@ -78,7 +78,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         },
         "Created Stripe payment link",
       );
-      reply.status(201).send({ invoiceId: request.body.invoiceId, link: url });
+      reply.status(201).send({ id: linkId, link: url });
     },
   );
 };
