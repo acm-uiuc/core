@@ -92,6 +92,8 @@ jobs:
         run: make dev_health_check
       - name: Run live testing
         run: make test_live_integration
+        env:
+          JWT_KEY: ${{ secrets.JWT_KEY }}
       - name: Run E2E testing
         run: make test_e2e
         env:
