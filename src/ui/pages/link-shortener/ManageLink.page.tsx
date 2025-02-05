@@ -22,7 +22,6 @@ import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
-import { v4 as uuidv4 } from 'uuid';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -107,7 +106,8 @@ export const ManageLinkPage: React.FC = () => {
       const realValues = {
         ...values,
       };
-      const linkURL = '/api/v1/linkry/redir';
+
+      const linkURL = isEditing ? `/api/v1/linkry/redir/${eventId}` : '/api/v1/linkry/redir';
       const response = await api.post(linkURL, realValues);
       notifications.show({
         title: isEditing ? 'Link updated!' : 'Link created!',
