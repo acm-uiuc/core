@@ -1,6 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
 import {
-  DynamoDBClient,
   QueryCommand,
   QueryCommandInput,
   ScanCommand,

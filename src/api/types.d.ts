@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { FastifyRequest, FastifyInstance, FastifyReply } from "fastify";
 import { AppRoles, RunEnvironment } from "../common/roles.js";
 import { AadToken } from "./plugins/auth.js";

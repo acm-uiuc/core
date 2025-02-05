@@ -25,7 +25,7 @@ export type SQSHandlerFunction<T extends AvailableSQSFunctions> = (
   payload: z.infer<(typeof sqsPayloadSchemas)[T]>["payload"],
   metadata: SQSMessageMetadata,
   logger: pino.Logger,
-) => Promise<any>;
+) => Promise<object | void>;
 
 const handlers: SQSFunctionPayloadTypes = {
   [AvailableSQSFunctions.EmailMembershipPass]: emailMembershipPassHandler,
@@ -37,8 +37,8 @@ export const currentEnvironmentConfig = environmentConfig[runEnvironment];
 export const handler = middy()
   .use(eventNormalizerMiddleware())
   .use(sqsPartialBatchFailure())
-  .handler((event: SQSEvent, context: Context, { signal }) => {
-    const recordsPromises = event.Records.map(async (record, index) => {
+  .handler((event: SQSEvent, _context: Context, { signal: _signal }) => {
+    const recordsPromises = event.Records.map(async (record, _index) => {
       try {
         let parsedBody = parseSQSPayload(record.body);
         if (parsedBody instanceof ZodError) {
@@ -67,7 +67,14 @@ export const handler = middy()
         );
         childLogger.info(`Finished handler for ${parsedBody.function}.`);
         return result;
-      } catch (e: any) {
+      } catch (e: unknown) {
+        if (!(e instanceof Error)) {
+          logger.error(
+            { sqsMessageId: record.messageId },
+            "An unknown-type error occurred.",
+          );
+          throw e;
+        }
         logger.error({ sqsMessageId: record.messageId }, e.toString());
         throw e;
       }
