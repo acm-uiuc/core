@@ -28,7 +28,7 @@ export const createStripeLink = async ({
   url: string;
 }> => {
   const stripe = new Stripe(stripeApiKey);
-  const description = `Created For: ${contactName} (${contactEmail}) by ${createdBy}.`;
+  const description = `Created for ${contactName} (${contactEmail}) by ${createdBy}.`;
   const product = await stripe.products.create({
     name: `Payment for Invoice: ${invoiceId}`,
     description,
