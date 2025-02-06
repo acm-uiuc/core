@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { FastifyRequest, FastifyInstance, FastifyReply } from "fastify";
 import { AppRoles, RunEnvironment } from "../common/roles.js";
 import { AadToken } from "./plugins/auth.js";
@@ -33,6 +34,7 @@ declare module "fastify" {
   interface FastifyRequest {
     startTime: number;
     username?: string;
+    userRoles?: Set<AppRoles>;
     tokenPayload?: AadToken;
   }
 }

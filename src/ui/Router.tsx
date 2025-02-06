@@ -18,6 +18,7 @@ import { SelectTicketsPage } from './pages/tickets/SelectEventId.page';
 import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
 import { ManageIamPage } from './pages/iam/ManageIam.page';
 import { ManageProfilePage } from './pages/profile/ManageProfile.page';
+import { ManageStripeLinksPage } from './pages/stripe/ViewLinks.page';
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -156,6 +157,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/tickets/manage/:eventId',
     element: <ViewTicketsPage />,
+  },
+  {
+    path: '/stripe',
+    element: <ManageStripeLinksPage />,
   },
   // Catch-all route for authenticated users shows 404 page
   {

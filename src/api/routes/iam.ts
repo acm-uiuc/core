@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
-import { allAppRoles, AppRoles } from "../../common/roles.js";
+import { AppRoles } from "../../common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   addToTenant,
@@ -16,13 +16,9 @@ import {
   InternalServerError,
   NotFoundError,
 } from "../../common/errors/index.js";
-import {
-  DynamoDBClient,
-  GetItemCommand,
-  PutItemCommand,
-} from "@aws-sdk/client-dynamodb";
+import { PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
-import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
 import {
   InviteUserPostRequest,
   invitePostRequestSchema,

@@ -2,15 +2,12 @@ import { getSecretValue } from "../plugins/auth.js";
 import {
   ConfigType,
   genericConfig,
-  GenericConfigType,
   SecretConfig,
 } from "../../common/config.js";
 import {
   InternalServerError,
   UnauthorizedError,
 } from "../../common/errors/index.js";
-import { FastifyInstance, FastifyRequest } from "fastify";
-// these make sure that esbuild includes the files
 import icon from "../resources/MembershipPass.pkpass/icon.png";
 import logo from "../resources/MembershipPass.pkpass/logo.png";
 import strip from "../resources/MembershipPass.pkpass/strip.png";

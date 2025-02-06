@@ -45,6 +45,7 @@
     "passkit-generator": "^3.3.1",
     "pino": "^9.6.0",
     "pluralize": "^8.0.0",
+    "stripe": "^17.6.0",
     "uuid": "^11.0.5",
     "zod": "^3.23.8",
     "zod-to-json-schema": "^3.23.2",

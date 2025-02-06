@@ -1,7 +1,6 @@
 import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import {
-  DynamoDBClient,
   QueryCommand,
   ScanCommand,
   UpdateItemCommand,

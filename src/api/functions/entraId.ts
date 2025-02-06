@@ -6,7 +6,6 @@ import {
   officersGroupTestingId,
 } from "../../common/config.js";
 import {
-  BaseError,
   EntraFetchError,
   EntraGroupError,
   EntraInvitationError,
@@ -19,7 +18,6 @@ import {
   EntraGroupActions,
   EntraInvitationResponse,
 } from "../../common/types/iam.js";
-import { FastifyInstance } from "fastify";
 import { UserProfileDataBase } from "common/types/msGraphApi.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";

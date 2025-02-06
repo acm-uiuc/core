@@ -15,7 +15,6 @@ import {
 } from "../../common/errors/index.js";
 import { genericConfig, SecretConfig } from "../../common/config.js";
 import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
 function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();
@@ -237,6 +236,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       request.log.info(`authenticated request from ${request.username} `);
+      request.userRoles = userRoles;
       return userRoles;
     },
   );

@@ -43,7 +43,7 @@ const getCachedResponse = (service: ValidService, route: string): CacheData | nu
   return null;
 };
 
-const setCachedResponse = (service: ValidService, route: string, data: any) => {
+export const setCachedResponse = (service: ValidService, route: string, data: any) => {
   const cacheData: CacheData = {
     data,
     timestamp: Date.now(),
