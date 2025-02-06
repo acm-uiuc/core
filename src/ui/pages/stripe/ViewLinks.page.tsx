@@ -14,6 +14,7 @@ export const ManageStripeLinksPage: React.FC = () => {
   const createLink = async (payload: PostInvoiceLinkRequest): Promise<PostInvoiceLinkResponse> => {
     const modifiedPayload = { ...payload, invoiceAmountUsd: payload.invoiceAmountUsd * 100 };
     try {
+      setIsLoading(true);
       const response = await api.post('/api/v1/stripe/paymentLinks', modifiedPayload);
       setIsLoading(false);
       return response.data;
