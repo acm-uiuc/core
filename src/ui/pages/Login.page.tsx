@@ -23,7 +23,8 @@ export function LoginPage() {
           givenName?: string;
           surname?: string;
         };
-        if (!me.givenName || !me.surname) {
+        // if (!me.givenName || !me.surname) {
+        if (false) {
           setLoginStatus(null);
           navigate(`/profile?firstTime=true${returnTo ? `&returnTo=${returnTo}` : ''}`);
         } else {
