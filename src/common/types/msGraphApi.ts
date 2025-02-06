@@ -4,7 +4,7 @@ export interface UserProfileDataBase {
   givenName?: string;
   surname?: string;
   mail?: string;
-  otherMails?: string[]
+  otherMails?: string[];
 }
 
 export interface UserProfileData extends UserProfileDataBase {

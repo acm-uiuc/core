@@ -55,7 +55,10 @@ export const ViewEventsPage: React.FC = () => {
     return (
       <Transition mounted={shouldShow} transition="fade" duration={400} timingFunction="ease">
         {(styles) => (
-          <tr style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}>
+          <tr
+            style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}
+            key={`${event.id}-tr`}
+          >
             <Table.Td>{event.title}</Table.Td>
             <Table.Td>{dayjs(event.start).format('MMM D YYYY hh:mm')}</Table.Td>
             <Table.Td>{event.end ? dayjs(event.end).format('MMM D YYYY hh:mm') : 'N/A'}</Table.Td>
