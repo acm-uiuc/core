@@ -11,6 +11,7 @@ import {
   Anchor,
   CopyButton,
   Group,
+  Loader,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -62,10 +63,6 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
     }
   };
 
-  if (isLoading) {
-    return <FullScreenLoader />;
-  }
-
   return (
     <Box mt="xl" mb="xl">
       <Title order={2} mb="sm">
@@ -101,8 +98,9 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
           required
         />
 
-        <Button type="submit" fullWidth mt="md">
-          Create Link
+        <Button type="submit" fullWidth mt="md" disabled={isLoading}>
+          {isLoading ? 'Creating...' : 'Create Link'}{' '}
+          {isLoading && <Loader color="blue" size="sm" ml="sm" />}
         </Button>
       </form>
 
@@ -111,11 +109,13 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
         size="xl"
         onClose={() => setModalOpened(false)}
         title="Payment Link Created!"
+        closeOnClickOutside={false}
+        withCloseButton={true}
       >
         {returnedLink && (
           <Box mt="md">
             <Group>
-              <Text style={{ color: 'blue' }}>{returnedLink}</Text>
+              <Text color="blue">{returnedLink}</Text>
               <CopyButton value={returnedLink}>
                 {({ copied, copy }) => (
                   <Button color={copied ? 'teal' : 'blue'} onClick={copy}>

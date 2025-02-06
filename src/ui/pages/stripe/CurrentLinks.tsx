@@ -13,9 +13,6 @@ export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = (
   links,
   isLoading,
 }) => {
-  if (isLoading) {
-    return <FullScreenLoader />;
-  }
   return (
     <div>
       <Title order={2} mb="sm">
