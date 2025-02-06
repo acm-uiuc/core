@@ -13,7 +13,7 @@ import {
   Group,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { showNotification } from '@mantine/notifications';
+import { notifications } from '@mantine/notifications';
 import { IconAlertCircle } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import { PostInvoiceLinkRequest, PostInvoiceLinkResponse } from '@common/types/stripe';
@@ -53,7 +53,7 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
       setModalOpened(true);
       form.reset();
     } catch (err) {
-      showNotification({
+      notifications.show({
         title: 'Error',
         message: 'Failed to create payment link. Please try again or contact support.',
         color: 'red',
