@@ -4,6 +4,7 @@ import {
   Group,
   LoadingOverlay,
   NavLink,
+  Skeleton,
   Text,
   useMantineColorScheme,
 } from '@mantine/core';
@@ -142,6 +143,7 @@ export const renderNavItems = (
           resourceDef={{ service: 'core', validRoles: item.validRoles }}
           isAppShell={false}
           key={`${item.name}-wrap`}
+          loadingSkeleton={<Skeleton h={48} style={{ borderRadius: 5 }} mt="sm"></Skeleton>}
         >
           {link}
         </AuthGuard>

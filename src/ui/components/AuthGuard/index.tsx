@@ -23,7 +23,7 @@ export type ResourceDefinition = {
 const getAuthCacheKey = (service: ValidService, route: string) =>
   `${CACHE_KEY_PREFIX}${service}_${route}`;
 
-const getCachedResponse = (service: ValidService, route: string): CacheData | null => {
+export const getCachedResponse = (service: ValidService, route: string): CacheData | null => {
   const cached = sessionStorage.getItem(getAuthCacheKey(service, route));
   if (!cached) return null;
 
@@ -65,14 +65,16 @@ export const AuthGuard: React.FC<
     resourceDef: ResourceDefinition;
     children: ReactNode;
     isAppShell?: boolean;
+    loadingSkeleton?: ReactNode;
   } & AcmAppShellProps
-> = ({ resourceDef, children, isAppShell = true, ...appShellProps }) => {
+> = ({ resourceDef, children, isAppShell = true, loadingSkeleton, ...appShellProps }) => {
   const { service, validRoles } = resourceDef;
   const { baseEndpoint, authCheckRoute, friendlyName } =
     getRunEnvironmentConfig().ServiceConfiguration[service];
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [roles, setRoles] = useState<string[] | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const api = useApi(service);
 
   useEffect(() => {
@@ -88,6 +90,7 @@ export const AuthGuard: React.FC<
         }
 
         // Check for cached response first
+        setIsLoading(true);
         const cachedData = getCachedResponse(service, authCheckRoute);
         if (cachedData !== null) {
           const userRoles = cachedData.data.roles;
@@ -101,6 +104,7 @@ export const AuthGuard: React.FC<
           setUsername(cachedData.data.username);
           setRoles(cachedData.data.roles);
           setIsAuthenticated(authenticated);
+          setIsLoading(false);
           return;
         }
 
@@ -120,15 +124,19 @@ export const AuthGuard: React.FC<
         setIsAuthenticated(authenticated);
         setRoles(result.data.roles);
         setUsername(result.data.username);
+        setIsLoading(false);
       } catch (e) {
         setIsAuthenticated(false);
+        setIsLoading(false);
         console.error(e);
       }
     }
 
     getAuth();
   }, [baseEndpoint, authCheckRoute, service]);
-
+  if (isLoading && loadingSkeleton) {
+    return loadingSkeleton;
+  }
   if (isAuthenticated === null) {
     if (isAppShell) {
       return <FullScreenLoader />;
