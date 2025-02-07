@@ -83,7 +83,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
           }}
         >
           <TextInput
-            label="Display Name"
+            label="Full Name"
             value={userProfile?.displayName || ''}
             onChange={(e) =>
               setUserProfile((prev) => prev && { ...prev, displayName: e.target.value })
