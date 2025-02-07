@@ -76,6 +76,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           active: item.active,
           invoiceId: item.invoiceId,
           invoiceAmountUsd: item.amount,
+          createdAt: item.createdAt || null,
         }),
       );
       reply.status(200).send(parsed);
@@ -131,6 +132,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           url,
           amount: request.body.invoiceAmountUsd,
           active: true,
+          createdAt: new Date().toISOString(),
         }),
       });
       await fastify.dynamoClient.send(dynamoCommand);

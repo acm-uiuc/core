@@ -4,24 +4,25 @@ import { AuthGuard } from '@ui/components/AuthGuard';
 import { AppRoles } from '@common/roles';
 import StripeCurrentLinksPanel from './CurrentLinks';
 import StripeCreateLinkPanel from './CreateLink';
-import { PostInvoiceLinkRequest, PostInvoiceLinkResponse } from '@common/types/stripe';
+import {
+  GetInvoiceLinksResponse,
+  PostInvoiceLinkRequest,
+  PostInvoiceLinkResponse,
+} from '@common/types/stripe';
 import { useApi } from '@ui/util/api';
 
 export const ManageStripeLinksPage: React.FC = () => {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const api = useApi('core');
 
   const createLink = async (payload: PostInvoiceLinkRequest): Promise<PostInvoiceLinkResponse> => {
     const modifiedPayload = { ...payload, invoiceAmountUsd: payload.invoiceAmountUsd * 100 };
-    try {
-      setIsLoading(true);
-      const response = await api.post('/api/v1/stripe/paymentLinks', modifiedPayload);
-      setIsLoading(false);
-      return response.data;
-    } catch (e) {
-      setIsLoading(false);
-      throw e;
-    }
+    const response = await api.post('/api/v1/stripe/paymentLinks', modifiedPayload);
+    return response.data;
+  };
+
+  const getLinks = async (): Promise<GetInvoiceLinksResponse> => {
+    const response = await api.get('/api/v1/stripe/paymentLinks');
+    return response.data;
   };
 
   return (
@@ -32,11 +33,8 @@ export const ManageStripeLinksPage: React.FC = () => {
       <Container>
         <Title>Stripe Link Creator</Title>
         <Text>Create a Stripe Payment Link to accept credit card payments.</Text>
-        <StripeCreateLinkPanel
-          createLink={createLink}
-          isLoading={isLoading}
-        ></StripeCreateLinkPanel>
-        <StripeCurrentLinksPanel links={[]} isLoading={isLoading} />
+        <StripeCreateLinkPanel createLink={createLink}></StripeCreateLinkPanel>
+        <StripeCurrentLinksPanel getLinks={getLinks} />
       </Container>
     </AuthGuard>
   );

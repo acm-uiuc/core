@@ -1,4 +1,4 @@
-import { allAppRoles, AppRoles, RunEnvironment } from "./roles.js";
+import { AppRoles, RunEnvironment } from "./roles.js";
 import { OriginFunction } from "@fastify/cors";
 
 // From @fastify/cors
@@ -75,9 +75,11 @@ const environmentConfig: EnvironmentConfigType = {
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
     PasskitSerialNumber: "0",
-    MembershipApiEndpoint: "https://infra-membership-api.aws.qa.acmuiuc.org/api/v1/checkMembership",
+    MembershipApiEndpoint:
+      "https://infra-membership-api.aws.qa.acmuiuc.org/api/v1/checkMembership",
     EmailDomain: "aws.qa.acmuiuc.org",
-    SqsQueueUrl: "https://sqs.us-east-1.amazonaws.com/427040638965/infra-core-api-sqs"
+    SqsQueueUrl:
+      "https://sqs.us-east-1.amazonaws.com/427040638965/infra-core-api-sqs",
   },
   prod: {
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
@@ -90,10 +92,12 @@ const environmentConfig: EnvironmentConfigType = {
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
     PasskitSerialNumber: "0",
-    MembershipApiEndpoint: "https://infra-membership-api.aws.acmuiuc.org/api/v1/checkMembership",
+    MembershipApiEndpoint:
+      "https://infra-membership-api.aws.acmuiuc.org/api/v1/checkMembership",
     EmailDomain: "acm.illinois.edu",
-    SqsQueueUrl: "https://sqs.us-east-1.amazonaws.com/298118738376/infra-core-api-sqs"
-  }
+    SqsQueueUrl:
+      "https://sqs.us-east-1.amazonaws.com/298118738376/infra-core-api-sqs",
+  },
 };
 
 export type SecretConfig = {

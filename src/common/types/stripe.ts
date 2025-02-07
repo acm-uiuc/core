@@ -28,6 +28,7 @@ export const invoiceLinkGetResponseSchema = z.array(
     active: z.boolean(),
     invoiceId: z.string().min(1),
     invoiceAmountUsd: z.number().min(50),
+    createdAt: z.union([z.string().date(), z.null()]),
   }),
 );
 

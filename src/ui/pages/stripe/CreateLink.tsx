@@ -22,14 +22,11 @@ import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 
 interface StripeCreateLinkPanelProps {
   createLink: (payload: PostInvoiceLinkRequest) => Promise<PostInvoiceLinkResponse>;
-  isLoading: boolean;
 }
 
-export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
-  createLink,
-  isLoading,
-}) => {
+export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({ createLink }) => {
   const [modalOpened, setModalOpened] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [returnedLink, setReturnedLink] = useState<string | null>(null);
 
   const form = useForm({
@@ -49,17 +46,21 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
 
   const handleSubmit = async (values: typeof form.values) => {
     try {
+      setIsLoading(true);
       const response = await createLink(values);
       setReturnedLink(response.link);
+      setIsLoading(false);
       setModalOpened(true);
       form.reset();
-    } catch (err) {
+    } catch (e) {
+      setIsLoading(false);
       notifications.show({
         title: 'Error',
         message: 'Failed to create payment link. Please try again or contact support.',
         color: 'red',
         icon: <IconAlertCircle size={16} />,
       });
+      throw e;
     }
   };
 
