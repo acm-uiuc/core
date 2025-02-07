@@ -181,7 +181,7 @@ export const ScanTicketsPage: React.FC = () => {
             }
           }
         } catch (err) {
-          console.log('Invalid QR code format:', err);
+          console.warn('Invalid QR code format:', err);
         }
       }
     } catch (err) {
