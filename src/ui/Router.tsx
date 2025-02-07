@@ -19,6 +19,29 @@ import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
 import { ManageIamPage } from './pages/iam/ManageIam.page';
 import { ScreenPage } from './pages/screen/Screen.page';
 import { ManageProfilePage } from './pages/profile/ManageProfile.page';
+import { ManageStripeLinksPage } from './pages/stripe/ViewLinks.page';
+
+const ProfileRediect: React.FC = () => {
+  const location = useLocation();
+
+  // Don't store login-related paths and ALLOW the callback path
+  const excludedPaths = [
+    '/login',
+    '/logout',
+    '/force_login',
+    '/a',
+    '/auth/callback', // Add this to excluded paths
+  ];
+
+  if (excludedPaths.includes(location.pathname)) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Include search params and hash in the return URL if they exist
+  const returnPath = location.pathname + location.search + location.hash;
+  const loginUrl = `/profile?returnTo=${encodeURIComponent(returnPath)}&firstTime=true`;
+  return <Navigate to={loginUrl} replace />;
+};
 
 // Component to handle redirects to login with return path
 const LoginRedirect: React.FC = () => {
@@ -139,6 +162,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/iam/leads',
     element: <ScreenPage />,
+  },
+  {
+    path: '/stripe',
+    element: <ManageStripeLinksPage />,
   },
   // Catch-all route for authenticated users shows 404 page
   {

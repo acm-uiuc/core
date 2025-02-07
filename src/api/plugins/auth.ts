@@ -15,7 +15,6 @@ import {
 } from "../../common/errors/index.js";
 import { genericConfig, SecretConfig } from "../../common/config.js";
 import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
 function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();
@@ -49,6 +48,7 @@ export type AadToken = {
   sub: string;
   tid: string;
   unique_name: string;
+  upn?: string;
   uti: string;
   ver: string;
   roles?: string[];
@@ -160,7 +160,10 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           verifyOptions,
         ) as AadToken;
         request.tokenPayload = verifiedTokenData;
-        request.username = verifiedTokenData.email || verifiedTokenData.sub;
+        request.username =
+          verifiedTokenData.email ||
+          verifiedTokenData.upn?.replace("acm.illinois.edu", "illinois.edu") ||
+          verifiedTokenData.sub;
         const expectedRoles = new Set(validRoles);
         if (verifiedTokenData.groups) {
           const groupRoles = await Promise.allSettled(
@@ -237,6 +240,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       request.log.info(`authenticated request from ${request.username} `);
+      request.userRoles = userRoles;
       return userRoles;
     },
   );

@@ -150,7 +150,7 @@ test("Happy path: Adding a non-repeating, featured, paid event", async () => {
       paidEventId: "sp24_semiformal",
     });
 
-  expect(response.statusCode).toBe(200);
+  expect(response.statusCode).toBe(201);
   const responseDataJson = response.body as { id: string; resource: string };
   expect(responseDataJson).toHaveProperty("id");
   const uuid = responseDataJson["id"];
@@ -182,7 +182,7 @@ test("Happy path: Adding a weekly repeating, non-featured, paid event", async ()
       paidEventId: "sp24_semiformal",
     });
 
-  expect(response.statusCode).toBe(200);
+  expect(response.statusCode).toBe(201);
   const responseDataJson = response.body as { id: string; resource: string };
   expect(responseDataJson).toHaveProperty("id");
   const uuid = responseDataJson["id"];

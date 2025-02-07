@@ -8,7 +8,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@ui/components/AuthContext';
 
 export const ManageProfilePage: React.FC = () => {
-  const api = useApi('msGraphApi');
+  const graphApi = useApi('msGraphApi');
+  const api = useApi('core');
   const { setLoginStatus } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -16,7 +17,7 @@ export const ManageProfilePage: React.FC = () => {
   const firstTime = searchParams.get('firstTime') === 'true' || false;
   const getProfile = async () => {
     const raw = (
-      await api.get(
+      await graphApi.get(
         '/v1.0/me?$select=userPrincipalName,givenName,surname,displayName,otherMails,mail'
       )
     ).data as UserProfileDataBase;
@@ -36,7 +37,7 @@ export const ManageProfilePage: React.FC = () => {
     }
     data.otherMails = newOtherEmails;
     delete data.discordUsername;
-    const response = await api.patch('/v1.0/me', data);
+    const response = await api.patch('/api/v1/iam/profile', data);
     if (response.status < 299 && firstTime) {
       setLoginStatus(true);
     }

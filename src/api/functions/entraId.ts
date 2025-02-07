@@ -6,10 +6,10 @@ import {
   officersGroupTestingId,
 } from "../../common/config.js";
 import {
-  BaseError,
   EntraFetchError,
   EntraGroupError,
   EntraInvitationError,
+  EntraPatchError,
   InternalServerError,
 } from "../../common/errors/index.js";
 import { getSecretValue } from "../plugins/auth.js";
@@ -18,8 +18,8 @@ import { getItemFromCache, insertItemIntoCache } from "./cache.js";
 import {
   EntraGroupActions,
   EntraInvitationResponse,
+  ProfilePatchRequest,
 } from "../../common/types/iam.js";
-import { FastifyInstance } from "fastify";
 import { UserProfileDataBase } from "common/types/msGraphApi.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -392,6 +392,52 @@ export async function getUserProfile(
     }
 
     throw new EntraFetchError({
+      message: error instanceof Error ? error.message : String(error),
+      email,
+    });
+  }
+}
+
+/**
+ * Patches the profile of a user from Entra ID.
+ * @param token - Entra ID token authorized to perform this action.
+ * @param userId - The user ID to patch the profile for.
+ * @throws {EntraUserError} If setting the user profile fails.
+ * @returns {Promise<void>} nothing
+ */
+export async function patchUserProfile(
+  token: string,
+  email: string,
+  userId: string,
+  data: ProfilePatchRequest,
+): Promise<void> {
+  try {
+    const url = `https://graph.microsoft.com/v1.0/users/${userId}`;
+    const response = await fetch(url, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as {
+        error?: { message?: string };
+      };
+      throw new EntraPatchError({
+        message: errorData?.error?.message ?? response.statusText,
+        email,
+      });
+    }
+    return;
+  } catch (error) {
+    if (error instanceof EntraPatchError) {
+      throw error;
+    }
+
+    throw new EntraPatchError({
       message: error instanceof Error ? error.message : String(error),
       email,
     });

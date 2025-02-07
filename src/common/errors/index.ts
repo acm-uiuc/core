@@ -214,3 +214,17 @@ export class EntraFetchError extends BaseError<"EntraFetchError"> {
     this.email = email;
   }
 }
+
+
+export class EntraPatchError extends BaseError<"EntraPatchError"> {
+  email: string;
+  constructor({ message, email }: { message?: string; email: string }) {
+    super({
+      name: "EntraPatchError",
+      id: 510,
+      message: message || "Could not set data at Entra ID.",
+      httpStatusCode: 500,
+    });
+    this.email = email;
+  }
+}

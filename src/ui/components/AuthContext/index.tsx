@@ -14,7 +14,7 @@ import React, {
   useCallback,
 } from 'react';
 
-import { CACHE_KEY_PREFIX } from '../AuthGuard/index.js';
+import { CACHE_KEY_PREFIX, setCachedResponse } from '../AuthGuard/index.js';
 
 import FullScreenLoader from './LoadingScreen.js';
 
@@ -58,6 +58,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { instance, inProgress, accounts } = useMsal();
   const [userData, setUserData] = useState<AuthContextData | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const checkRoute = getRunEnvironmentConfig().ServiceConfiguration['core'].authCheckRoute;
+  if (!checkRoute) {
+    throw new Error('no check route found!');
+  }
 
   const navigate = (path: string) => {
     window.location.href = path;
@@ -92,12 +96,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               scopes: ['openid', 'profile', 'email'],
               loginHint: response.account.username,
             })
-            .then((silentResponse) => {
+            .then(async (silentResponse) => {
               if (silentResponse?.account?.name) {
                 setUserData({
                   email: accounts[0].username,
                   name: transformCommaSeperatedName(accounts[0].name || ''),
                 });
+                const api = useApi('core');
+                const result = await api.get(checkRoute);
+                setCachedResponse('core', checkRoute, result.data);
                 setIsLoggedIn(true);
               }
             })
@@ -177,9 +184,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const loginMsal = useCallback(
     async (returnTo: string) => {
+      if (!checkRoute) {
+        throw new Error('could not get user roles!');
+      }
       const accountsLocal = instance.getAllAccounts();
       if (accountsLocal.length > 0) {
         instance.setActiveAccount(accountsLocal[0]);
+        const api = useApi('core');
+        const result = await api.get(checkRoute);
+        setCachedResponse('core', checkRoute, result.data);
         setIsLoggedIn(true);
       } else {
         await instance.loginRedirect({

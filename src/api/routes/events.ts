@@ -17,6 +17,7 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   DiscordEventError,
+  NotFoundError,
   ValidationError,
 } from "../../common/errors/index.js";
 import { randomUUID } from "crypto";
@@ -85,7 +86,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     "/:id?",
     {
       schema: {
-        response: { 200: responseJsonSchema },
+        response: { 201: responseJsonSchema },
       },
       preValidation: async (request, reply) => {
         await fastify.zodValidateBody(request, reply, postRequestSchema);
@@ -168,7 +169,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
           throw new DiscordEventError({});
         }
-        reply.send({
+        reply.status(201).send({
           id: entryUUID,
           resource: `/api/v1/events/${entryUUID}`,
         });
@@ -211,10 +212,15 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         );
         const items = response.Items?.map((item) => unmarshall(item));
         if (items?.length !== 1) {
-          throw new Error("Event not found");
+          throw new NotFoundError({
+            endpointName: request.url,
+          });
         }
         reply.send(items[0]);
       } catch (e: unknown) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
         if (e instanceof Error) {
           request.log.error("Failed to get from DynamoDB: " + e.toString());
         }
@@ -233,7 +239,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     "/:id",
     {
       schema: {
-        response: { 200: responseJsonSchema },
+        response: { 201: responseJsonSchema },
       },
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
@@ -254,7 +260,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           true,
           request.log,
         );
-        reply.send({
+        reply.status(201).send({
           id,
           resource: `/api/v1/events/${id}`,
         });

@@ -67,26 +67,12 @@ export type GroupMemberGetResponse = z.infer<
   typeof entraGroupMembershipListResponse
 >;
 
-const userOrgSchema = z.object({
-  netid: z.string().min(1),
-  org: z.enum(OrganizationList),
+export const entraProfilePatchRequest = z.object({
+  displayName: z.string().min(1),
+  givenName: z.string().min(1),
+  surname: z.string().min(1),
+  mail: z.string().email(),
+  otherMails: z.array(z.string()).min(1),
 });
-// const userOrgsSchema = z.array(userOrgSchema);
 
-const userNameSchema = z.object({
-  netid: z.string().min(1),
-  firstName: z.string().min(1),
-  middleName: z.string().optional(),
-  lastName: z.string().min(1),
-});
-// const userNamesSchema = z.array(userNameSchema);
-
-const userSchema = userNameSchema.merge(userOrgSchema);
-// const usersSchema = z.array(userSchema);
-
-export type UserOrg = z.infer<typeof userOrgSchema>;
-// export type UserOrgs = z.infer<typeof userOrgsSchema>;
-export type UserName = z.infer<typeof userNameSchema>;
-// export type UserNames = z.infer<typeof userNamesSchema>;
-export type User = z.infer<typeof userSchema>;
-// export type Users = z.infer<typeof usersSchema>;
+export type ProfilePatchRequest = z.infer<typeof entraProfilePatchRequest>;

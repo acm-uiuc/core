@@ -19,9 +19,10 @@ const ddbMock = mockClient(SecretsManagerClient);
 
 const app = await init();
 const jwt_secret = secretObject["jwt_key"];
-export function createJwt(date?: Date, group?: string) {
+export function createJwt(date?: Date, group?: string, email?: string) {
   let modifiedPayload = {
     ...jwtPayload,
+    email: email || jwtPayload.email,
     groups: [...jwtPayload.groups],
   };
   if (date) {

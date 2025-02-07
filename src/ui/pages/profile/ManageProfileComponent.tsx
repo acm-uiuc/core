@@ -49,7 +49,6 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
         title: 'Profile updated successfully',
         message: 'Changes may take some time to reflect.',
       });
-      await fetchProfile();
     } catch (e) {
       console.error(e);
       notifications.show({
@@ -62,7 +61,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
   };
 
   if (userProfile === undefined) {
-    return <LoadingOverlay visible={true} data-testId="profile-loading" />;
+    return <LoadingOverlay visible={true} data-testid="profile-loading" />;
   }
 
   return (
@@ -70,7 +69,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
       {firstTime && (
         <Alert
           icon={<IconMoodSmileBeam />}
-          title="Welcome to ACM @ UIUC Management Portal"
+          title="Welcome to the ACM @ UIUC Management Portal"
           color="yellow"
         >
           Your profile is incomplete. Please provide us with the information below and click Save.
@@ -84,14 +83,14 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
           }}
         >
           <TextInput
-            label="Display Name"
+            label="Full Name"
             value={userProfile?.displayName || ''}
             onChange={(e) =>
               setUserProfile((prev) => prev && { ...prev, displayName: e.target.value })
             }
             placeholder={userProfile?.displayName}
             required
-            data-testId="edit-displayName"
+            data-testid="edit-displayName"
           />
           <TextInput
             label="First Name"
@@ -101,7 +100,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             }
             placeholder={userProfile?.givenName}
             required
-            data-testId="edit-firstName"
+            data-testid="edit-firstName"
           />
           <TextInput
             label="Last Name"
@@ -109,7 +108,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             onChange={(e) => setUserProfile((prev) => prev && { ...prev, surname: e.target.value })}
             placeholder={userProfile?.surname}
             required
-            data-testId="edit-lastName"
+            data-testid="edit-lastName"
           />
           <TextInput
             label="Email"
@@ -118,7 +117,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             placeholder={userProfile?.mail}
             required
             disabled
-            data-testId="edit-email"
+            data-testid="edit-email"
           />
 
           <TextInput
@@ -127,7 +126,7 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             onChange={(e) =>
               setUserProfile((prev) => prev && { ...prev, discordUsername: e.target.value })
             }
-            data-testId="edit-discordUsername"
+            data-testid="edit-discordUsername"
           />
 
           <Group mt="md">

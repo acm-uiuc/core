@@ -51,7 +51,7 @@ describe("Test Events <-> Discord integration", () => {
         title: "Fall Semiformal",
         paidEventId: "sp24_semiformal",
       });
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(201);
     expect((updateDiscord as Mock).mock.calls.length).toBe(1);
   });
 
@@ -76,7 +76,7 @@ describe("Test Events <-> Discord integration", () => {
         repeats: "weekly",
         paidEventId: "sp24_semiformal",
       });
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(201);
     expect((updateDiscord as Mock).mock.calls.length).toBe(0);
   });
 

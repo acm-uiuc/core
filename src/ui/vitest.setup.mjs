@@ -35,7 +35,6 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-
 vi.mock('@mantine/hooks', async () => {
   const rrdactual = await vi.importActual('react-router-dom');
   return {

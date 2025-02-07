@@ -22,6 +22,7 @@ import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import mobileWalletRoute from "./routes/mobileWallet.js";
+import stripeRoutes from "./routes/stripe.js";
 
 dotenv.config();
 
@@ -113,6 +114,7 @@ async function init() {
       api.register(iamRoutes, { prefix: "/iam" });
       api.register(ticketsPlugin, { prefix: "/tickets" });
       api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
+      api.register(stripeRoutes, { prefix: "/stripe" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }
