@@ -10,12 +10,12 @@ import { MemoryRouter } from 'react-router-dom';
 describe('StripeCreateLinkPanel Tests', () => {
   const createLinkMock = vi.fn();
 
-  const renderComponent = async (isLoading = false) => {
+  const renderComponent = async () => {
     await act(async () => {
       render(
         <MemoryRouter>
           <MantineProvider withGlobalClasses withCssVariables forceColorScheme="light">
-            <StripeCreateLinkPanel createLink={createLinkMock} isLoading={isLoading} />
+            <StripeCreateLinkPanel createLink={createLinkMock} />
           </MantineProvider>
         </MemoryRouter>
       );
