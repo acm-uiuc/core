@@ -40,6 +40,7 @@ export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = (
           color: 'red',
           icon: <IconAlertCircle size={16} />,
         });
+        console.error(e);
       }
     };
     getLinksOnLoad();

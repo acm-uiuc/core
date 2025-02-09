@@ -193,6 +193,7 @@ describe("Test Stripe link creation", async () => {
           active: true,
           invoiceId: "ACM102",
           amount: 100,
+          createdAt: "2025-02-09T17:11:30.762Z",
         }),
       ],
     });
@@ -209,6 +210,7 @@ describe("Test Stripe link creation", async () => {
         active: true,
         invoiceId: "ACM102",
         invoiceAmountUsd: 100,
+        createdAt: "2025-02-09T17:11:30.762Z",
       },
     ]);
   });
@@ -226,6 +228,7 @@ describe("Test Stripe link creation", async () => {
           active: true,
           invoiceId: "ACM103",
           amount: 999,
+          createdAt: "2025-02-09T17:11:30.762Z",
         }),
       ],
     });
@@ -246,6 +249,7 @@ describe("Test Stripe link creation", async () => {
         active: true,
         invoiceId: "ACM103",
         invoiceAmountUsd: 999,
+        createdAt: "2025-02-09T17:11:30.762Z",
       },
     ]);
   });
