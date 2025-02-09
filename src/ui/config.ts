@@ -94,7 +94,7 @@ const environmentConfig: EnvironmentConfigType = {
     ServiceConfiguration: {
       core: {
         friendlyName: 'Core Management Service',
-        baseEndpoint: 'https://infra-core-api.aws.acmuiuc.org',
+        baseEndpoint: 'https://core.acm.illinois.edu',
         authCheckRoute: '/api/v1/protected',
         loginScope: 'api://5e08cf0f-53bb-4e09-9df2-e9bdc3467296/ACM.Events.Login',
         apiId: 'api://5e08cf0f-53bb-4e09-9df2-e9bdc3467296',
