@@ -1,22 +1,17 @@
 import {
   Badge,
-  Box,
   Button,
-  Card,
   Checkbox,
   CopyButton,
-  Divider,
   Group,
   Loader,
   NumberFormatter,
   Table,
-  Text,
   Title,
 } from '@mantine/core';
-import { IconAlertCircle, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
+import { IconAlertCircle, IconAlertTriangle } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 import { GetInvoiceLinksResponse } from '@common/types/stripe';
-import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { notifications } from '@mantine/notifications';
 import { useAuth } from '@ui/components/AuthContext';
 import pluralize from 'pluralize';
