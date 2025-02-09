@@ -60,7 +60,7 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({ cr
         color: 'red',
         icon: <IconAlertCircle size={16} />,
       });
-      throw e;
+      console.error(e);
     }
   };
 
