@@ -31,13 +31,6 @@ const repeatOptions = ['weekly', 'biweekly'] as const;
 
 const slugRegex = new RegExp('^(https?://)?[a-zA-Z0-9-._/]*$');
 
-const accessGroup = [
-  'ACM_Link_Shortener_Manager',
-  'ACM_Exec',
-  'ACM_Officers',
-  'ACM_Infra_Leadership',
-];
-
 const baseBodySchema = z.object({
   slug: z
     .string()
@@ -59,6 +52,31 @@ type LinkPostRequest = z.infer<typeof requestBodySchema>;
 
 export const ManageLinkPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const [accessGroup, setAccessGroup] = useState<any[]>([
+    'ACM Link Shortener Manager',
+    'ACM Exec',
+    'ACM Officers',
+    'ACM Infra Leadership',
+  ]);
+
+  useEffect(() => {
+    const fetchAccessGroup = async () => {
+      try {
+        const config = await getRunEnvironmentConfig();
+        if (config.LinkryGroupList) {
+          setAccessGroup(config.LinkryGroupList);
+        }
+      } catch (error) {
+        //console.error('Failed to fetch access group config:', error);
+      } finally {
+        //setLoading(false);
+      }
+    };
+
+    fetchAccessGroup();
+  }, []);
+
   const navigate = useNavigate();
   const api = useApi('core');
 
