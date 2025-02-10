@@ -301,7 +301,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         `events-upcoming_only=${upcomingOnly}`,
       );
       if (cachedResponse) {
-        reply
+        return reply
           .header(
             "cache-control",
             "public, max-age=7200, stale-while-revalidate=900, stale-if-error=86400",
