@@ -220,23 +220,20 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         const items = queryResponse.Items || [];
 
-        const desiredAccessValues = [
-          "GROUP#ACM_Link_Shortener_Manager",
-          "GROUP#ACM_Exec",
-          "GROUP#ACM_Officers",
-          "GROUP#ACM_Infra_Leadership",
-        ]; //Only groups in the above hardcoded array can be deleted.
+        const desiredAccessValues = fastify.environmentConfig.LinkryGroupList;
 
         //Use the below fastify environement to fetch group names
-
-        // console.log(fastify.environmentConfig.LinkryGroupList)
+        //console.log(desiredAccessValues)
 
         const filteredItems = items.filter((item) => {
           if (item.access.S?.startsWith("OWNER#")) {
             return true;
           } //Ethan: temporary solution, current filter deletes all owner tagged and group tagged, need to differentiate between deleting owner versus deleting specific groups...
           else {
-            return item.access.S && desiredAccessValues.includes(item.access.S);
+            return (
+              item.access.S &&
+              desiredAccessValues.includes(item.access.S.replace("GROUP#", ""))
+            );
           }
         });
 

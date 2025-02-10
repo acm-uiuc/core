@@ -24,6 +24,7 @@ import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
 import { IconScale } from '@tabler/icons-react';
+import { environmentConfig } from '@common/config';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -36,13 +37,13 @@ const urlRegex = new RegExp('^https?://[a-zA-Z0-9-._/]*$');
 const baseBodySchema = z.object({
   slug: z
     .string()
-    .min(1)
+    .min(1, 'Enter or generate an alias')
     .regex(
       slugRegex,
       "Invalid input: Only alphanumeric characters, '-', '_', '/', and '.' are allowed"
     )
     .optional(),
-  access: z.array(z.string()).min(1),
+  access: z.array(z.string()).min(1, 'Choose at least 1 access group').optional(),
   redirect: z.string().min(1).regex(urlRegex, 'Invalid URL').optional(),
   createdAtUtc: z.number().optional(),
   updatedAtUtc: z.number().optional(),
@@ -55,12 +56,7 @@ type LinkPostRequest = z.infer<typeof requestBodySchema>;
 export const ManageLinkPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const [accessGroup, setAccessGroup] = useState<any[]>([
-    'ACM Link Shortener Manager',
-    'ACM Exec',
-    'ACM Officers',
-    'ACM Infra Leadership',
-  ]);
+  const [accessGroup, setAccessGroup] = useState<any[]>();
 
   useEffect(() => {
     const fetchAccessGroup = async () => {
@@ -70,7 +66,10 @@ export const ManageLinkPage: React.FC = () => {
           setAccessGroup(config.LinkryGroupList);
         }
       } catch (error) {
-        //console.error('Failed to fetch access group config:', error);
+        console.error('Failed to fetch access group config:', error);
+        notifications.show({
+          message: 'Failed to fetch access group config.',
+        });
       } finally {
         //setLoading(false);
       }
@@ -121,6 +120,11 @@ export const ManageLinkPage: React.FC = () => {
   });
 
   const handleSubmit = async (values: LinkPostRequest) => {
+    /*if (!values.access || values.redirect || !values.slug){
+      notifications.show({
+        message: "Please fill in all entries",
+      });
+    }  */ //Potential warning for fields that are not filled...
     try {
       setIsSubmitting(true);
       const realValues = {
@@ -216,7 +220,7 @@ export const ManageLinkPage: React.FC = () => {
 
           <Button
             type="submit"
-            mt="50px"
+            mt="30px"
             w="125px"
             style={{ marginLeft: 'auto', display: 'block' }}
           >
