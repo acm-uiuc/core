@@ -53,7 +53,13 @@ export const ViewEventsPage: React.FC = () => {
     const shouldShow = event.upcoming || (!event.upcoming && showPrevious);
 
     return (
-      <Transition mounted={shouldShow} transition="fade" duration={400} timingFunction="ease">
+      <Transition
+        mounted={shouldShow}
+        transition="fade"
+        duration={400}
+        timingFunction="ease"
+        key={`${event.id}-tr-transition`}
+      >
         {(styles) => (
           <tr
             style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}
