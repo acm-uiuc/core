@@ -104,7 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 });
                 const api = useApi('core');
                 const result = await api.get(checkRoute);
-                setCachedResponse('core', checkRoute, result.data);
+                await setCachedResponse('core', checkRoute, result.data);
                 setIsLoggedIn(true);
               }
             })
@@ -192,7 +192,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         instance.setActiveAccount(accountsLocal[0]);
         const api = useApi('core');
         const result = await api.get(checkRoute);
-        setCachedResponse('core', checkRoute, result.data);
+        await setCachedResponse('core', checkRoute, result.data);
         setIsLoggedIn(true);
       } else {
         await instance.loginRedirect({

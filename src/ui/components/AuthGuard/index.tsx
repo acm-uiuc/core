@@ -23,32 +23,46 @@ export type ResourceDefinition = {
 const getAuthCacheKey = (service: ValidService, route: string) =>
   `${CACHE_KEY_PREFIX}${service}_${route}`;
 
-export const getCachedResponse = (service: ValidService, route: string): CacheData | null => {
-  const cached = sessionStorage.getItem(getAuthCacheKey(service, route));
-  if (!cached) return null;
+export const getCachedResponse = async (
+  service: ValidService,
+  route: string
+): Promise<CacheData | null> => {
+  const cacheKey = getAuthCacheKey(service, route);
+  const item = (await navigator.locks.request(
+    `lock_${cacheKey}`,
+    { mode: 'shared' },
+    async (lock) => {
+      const cached = sessionStorage.getItem(getAuthCacheKey(service, route));
+      if (!cached) return null;
 
-  try {
-    const data = JSON.parse(cached) as CacheData;
-    const now = Date.now();
+      try {
+        const data = JSON.parse(cached) as CacheData;
+        const now = Date.now();
 
-    if (now - data.timestamp <= CACHE_DURATION) {
-      return data;
+        if (now - data.timestamp <= CACHE_DURATION) {
+          return data;
+        }
+        // Clear expired cache
+        sessionStorage.removeItem(getAuthCacheKey(service, route));
+      } catch (e) {
+        console.error('Error parsing auth cache:', e);
+        sessionStorage.removeItem(getAuthCacheKey(service, route));
+      }
+      return null;
     }
-    // Clear expired cache
-    sessionStorage.removeItem(getAuthCacheKey(service, route));
-  } catch (e) {
-    console.error('Error parsing auth cache:', e);
-    sessionStorage.removeItem(getAuthCacheKey(service, route));
-  }
-  return null;
+  )) as CacheData | null;
+  return item;
 };
 
-export const setCachedResponse = (service: ValidService, route: string, data: any) => {
+export const setCachedResponse = async (service: ValidService, route: string, data: any) => {
   const cacheData: CacheData = {
     data,
     timestamp: Date.now(),
   };
-  sessionStorage.setItem(getAuthCacheKey(service, route), JSON.stringify(cacheData));
+  const cacheKey = getAuthCacheKey(service, route);
+  await navigator.locks.request(`lock_${cacheKey}`, { mode: 'exclusive' }, async (lock) => {
+    sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
+  });
 };
 
 // Function to clear auth cache for all services
@@ -79,59 +93,64 @@ export const AuthGuard: React.FC<
 
   useEffect(() => {
     async function getAuth() {
-      try {
-        if (!authCheckRoute) {
-          setIsAuthenticated(true);
-          return;
-        }
-        if (validRoles.length === 0) {
-          setIsAuthenticated(true);
-          return;
-        }
-
-        // Check for cached response first
-        setIsLoading(true);
-        const cachedData = getCachedResponse(service, authCheckRoute);
-        if (cachedData !== null) {
-          const userRoles = cachedData.data.roles;
-          let authenticated = false;
-          for (const item of userRoles) {
-            if (validRoles.indexOf(item) !== -1) {
-              authenticated = true;
-              break;
+      await navigator.locks.request(
+        `lock_authGuard_loader`,
+        { mode: 'exclusive' },
+        async (lock) => {
+          try {
+            if (!authCheckRoute) {
+              setIsAuthenticated(true);
+              return;
             }
-          }
-          setUsername(cachedData.data.username);
-          setRoles(cachedData.data.roles);
-          setIsAuthenticated(authenticated);
-          setIsLoading(false);
-          return;
-        }
+            if (validRoles.length === 0) {
+              setIsAuthenticated(true);
+              return;
+            }
 
-        // If no cache, make the API call
-        const result = await api.get(authCheckRoute);
-        // Cache just the response data
-        setCachedResponse(service, authCheckRoute, result.data);
+            // Check for cached response first
+            setIsLoading(true);
+            const cachedData = await getCachedResponse(service, authCheckRoute);
+            if (cachedData !== null) {
+              const userRoles = cachedData.data.roles;
+              let authenticated = false;
+              for (const item of userRoles) {
+                if (validRoles.indexOf(item) !== -1) {
+                  authenticated = true;
+                  break;
+                }
+              }
+              setUsername(cachedData.data.username);
+              setRoles(cachedData.data.roles);
+              setIsAuthenticated(authenticated);
+              setIsLoading(false);
+              return;
+            }
 
-        const userRoles = result.data.roles;
-        let authenticated = false;
-        for (const item of userRoles) {
-          if (validRoles.indexOf(item) !== -1) {
-            authenticated = true;
-            break;
+            // If no cache, make the API call
+            const result = await api.get(authCheckRoute);
+            // Cache just the response data
+            await setCachedResponse(service, authCheckRoute, result.data);
+
+            const userRoles = result.data.roles;
+            let authenticated = false;
+            for (const item of userRoles) {
+              if (validRoles.indexOf(item) !== -1) {
+                authenticated = true;
+                break;
+              }
+            }
+            setIsAuthenticated(authenticated);
+            setRoles(result.data.roles);
+            setUsername(result.data.username);
+            setIsLoading(false);
+          } catch (e) {
+            setIsAuthenticated(false);
+            setIsLoading(false);
+            console.error(e);
           }
         }
-        setIsAuthenticated(authenticated);
-        setRoles(result.data.roles);
-        setUsername(result.data.username);
-        setIsLoading(false);
-      } catch (e) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        console.error(e);
-      }
+      );
     }
-
     getAuth();
   }, [baseEndpoint, authCheckRoute, service]);
   if (isLoading && loadingSkeleton) {
