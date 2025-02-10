@@ -93,45 +93,26 @@ export const AuthGuard: React.FC<
 
   useEffect(() => {
     async function getAuth() {
-      await navigator.locks.request(
-        `lock_authGuard_loader`,
-        { mode: 'exclusive' },
-        async (lock) => {
-          try {
-            if (!authCheckRoute) {
-              setIsAuthenticated(true);
-              return;
-            }
-            if (validRoles.length === 0) {
-              setIsAuthenticated(true);
-              return;
-            }
-
-            // Check for cached response first
-            setIsLoading(true);
-            const cachedData = await getCachedResponse(service, authCheckRoute);
-            if (cachedData !== null) {
-              const userRoles = cachedData.data.roles;
-              let authenticated = false;
-              for (const item of userRoles) {
-                if (validRoles.indexOf(item) !== -1) {
-                  authenticated = true;
-                  break;
-                }
-              }
-              setUsername(cachedData.data.username);
-              setRoles(cachedData.data.roles);
-              setIsAuthenticated(authenticated);
-              setIsLoading(false);
-              return;
-            }
-
-            // If no cache, make the API call
-            const result = await api.get(authCheckRoute);
-            // Cache just the response data
-            await setCachedResponse(service, authCheckRoute, result.data);
-
-            const userRoles = result.data.roles;
+      if (!authCheckRoute) {
+        setIsAuthenticated(true);
+        return;
+      }
+      if (validRoles.length === 0) {
+        setIsAuthenticated(true);
+        return;
+      }
+      const cachedData = await getCachedResponse(service, authCheckRoute);
+      const lockMode = cachedData ? 'shared' : 'exclusive';
+      await navigator.locks.request(`lock_authGuard_loader`, { mode: lockMode }, async (lock) => {
+        try {
+          // We have to check the cache twice because if one exclusive process before us
+          // retrieved it we should now be able to use it. Theoretically this shouldn't
+          // ever trigger because AuthGuard on the navbar will always call first, but
+          // to protect against future implementations.
+          setIsLoading(true);
+          const cachedData = await getCachedResponse(service, authCheckRoute);
+          if (cachedData !== null) {
+            const userRoles = cachedData.data.roles;
             let authenticated = false;
             for (const item of userRoles) {
               if (validRoles.indexOf(item) !== -1) {
@@ -139,17 +120,36 @@ export const AuthGuard: React.FC<
                 break;
               }
             }
+            setUsername(cachedData.data.username);
+            setRoles(cachedData.data.roles);
             setIsAuthenticated(authenticated);
-            setRoles(result.data.roles);
-            setUsername(result.data.username);
             setIsLoading(false);
-          } catch (e) {
-            setIsAuthenticated(false);
-            setIsLoading(false);
-            console.error(e);
+            return;
           }
+
+          // If no cache, make the API call
+          const result = await api.get(authCheckRoute);
+          // Cache just the response data
+          await setCachedResponse(service, authCheckRoute, result.data);
+
+          const userRoles = result.data.roles;
+          let authenticated = false;
+          for (const item of userRoles) {
+            if (validRoles.indexOf(item) !== -1) {
+              authenticated = true;
+              break;
+            }
+          }
+          setIsAuthenticated(authenticated);
+          setRoles(result.data.roles);
+          setUsername(result.data.username);
+          setIsLoading(false);
+        } catch (e) {
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          console.error(e);
         }
-      );
+      });
     }
     getAuth();
   }, [baseEndpoint, authCheckRoute, service]);
