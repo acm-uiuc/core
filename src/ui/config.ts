@@ -11,6 +11,7 @@ export type ValidService = ValidServices;
 export type ConfigType = {
   AadValidClientId: string;
   ServiceConfiguration: Record<ValidServices, ServiceConfiguration>;
+  LinkryGroupList?: string[];
   KnownGroupMappings: {
     Exec: string;
   };
@@ -33,6 +34,12 @@ type EnvironmentConfigType = {
 const environmentConfig: EnvironmentConfigType = {
   'local-dev': {
     AadValidClientId: 'd1978c23-6455-426a-be4d-528b2d2e4026',
+    LinkryGroupList: [
+      'ACM Exec Linkry Test',
+      'ACM Link Shortener Managers Linkry Test',
+      'ACM Officers Linkry Test',
+      'ACM Infra Leadership Linkry Test',
+    ],
     ServiceConfiguration: {
       core: {
         friendlyName: 'Core Management Service (NonProd)',
@@ -56,6 +63,12 @@ const environmentConfig: EnvironmentConfigType = {
   },
   dev: {
     AadValidClientId: 'd1978c23-6455-426a-be4d-528b2d2e4026',
+    LinkryGroupList: [
+      'ACM Exec Linkry Test',
+      'ACM Link Shortener Managers Linkry Test',
+      'ACM Officers Linkry Test',
+      'ACM Infra Leadership Linkry Test',
+    ],
     ServiceConfiguration: {
       core: {
         friendlyName: 'Core Management Service (NonProd)',
@@ -79,6 +92,12 @@ const environmentConfig: EnvironmentConfigType = {
   },
   prod: {
     AadValidClientId: '43fee67e-e383-4071-9233-ef33110e9386',
+    LinkryGroupList: [
+      'ACM Exec',
+      'ACM Link Shortener Managers',
+      'ACM Officers',
+      'ACM Infra Leadership',
+    ],
     ServiceConfiguration: {
       core: {
         friendlyName: 'Core Management Service',

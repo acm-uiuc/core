@@ -227,6 +227,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           "GROUP#ACM_Infra_Leadership",
         ]; //Only groups in the above hardcoded array can be deleted.
 
+        //Use the below fastify environement to fetch group names
+
+        // console.log(fastify.environmentConfig.LinkryGroupList)
+
         const filteredItems = items.filter((item) => {
           if (item.access.S?.startsWith("OWNER#")) {
             return true;

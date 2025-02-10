@@ -16,6 +16,7 @@ export type ConfigType = {
   UserRoleMapping: UserRoleMapping;
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
+  LinkryGroupList: string[];
 };
 
 type GenericConfigType = {
@@ -84,6 +85,12 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
+    LinkryGroupList: [
+      "ACM Exec Linkry Test", 
+      "ACM Link Shortener Managers Linkry Test", 
+      "ACM Officers Linkry Test", 
+      "ACM Infra Leadership Linkry Test"
+    ]
   },
   prod: {
     GroupRoleMapping: {
@@ -114,6 +121,12 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
+    LinkryGroupList: [
+      "ACM Exec", 
+      "ACM Link Shortener Managers", 
+      "ACM Officers", 
+      "ACM Infra Leadership"
+    ]
   }
 };
 
