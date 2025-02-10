@@ -8,13 +8,14 @@ import {
   Button,
   Loader,
   TextInputProps,
+  getSize,
 } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { useForm, zodResolver } from '@mantine/form';
 import { MultiSelect } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { z } from 'zod';
 import { AuthGuard } from '@ui/components/AuthGuard';
@@ -22,14 +23,15 @@ import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
+import { IconScale } from '@tabler/icons-react';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-const repeatOptions = ['weekly', 'biweekly'] as const;
-
+const baseUrl = getRunEnvironmentConfig().ServiceConfiguration.core.baseEndpoint;
 const slugRegex = new RegExp('^(https?://)?[a-zA-Z0-9-._/]*$');
+const urlRegex = new RegExp('^https?://[a-zA-Z0-9-._/]*$');
 
 const accessGroup = [
   'ACM_Link_Shortener_Manager',
@@ -47,8 +49,8 @@ const baseBodySchema = z.object({
       "Invalid input: Only alphanumeric characters, '-', '_', '/', and '.' are allowed"
     )
     .optional(),
-  access: z.array(z.string()).min(1).optional(),
-  redirect: z.string().min(1).optional(),
+  access: z.array(z.string()).min(1),
+  redirect: z.string().min(1).regex(urlRegex, 'Invalid URL').optional(),
   createdAtUtc: z.number().optional(),
   updatedAtUtc: z.number().optional(),
 });
@@ -141,56 +143,72 @@ export const ManageLinkPage: React.FC = () => {
     form.setFieldValue('slug', event.currentTarget.value);
   };
 
+  const calculateRenderWidth = (str: string) => {
+    const span = document.createElement('button');
+    document.body.appendChild(span);
+    span.textContent = str;
+    const width = span.offsetWidth;
+    document.body.removeChild(span);
+    return width;
+  }; //VERY crude solution...
+
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
       <Box display="flex" ta="center" mt="1.5rem">
-        <Title order={2}>Add a Link</Title>
+        <Title order={2}>Please Add a Link</Title>
         <Button variant="subtle" ml="auto" onClick={handleFormClose}>
           Close
         </Button>
       </Box>
-      <Box maw={600} mx="auto" mt="xl">
+      <Box maw={650} mx="auto" mt="100px">
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <TextInput
-            label="URL"
+            label="Paste URL to be Shorten"
             withAsterisk
-            placeholder="Enter URL here to Shorten"
-            style={{ marginTop: '20px', marginBottom: '20px' }}
+            mt="xl"
             {...form.getInputProps('redirect')}
           />
 
           <TextInput
-            label="Alias"
+            label="Suggest of Generate a URL"
             withAsterisk
-            leftSectionWidth={'100px'}
-            rightSectionWidth={'140px'}
+            leftSectionWidth={calculateRenderWidth(baseUrl) + 30}
+            rightSectionWidth={'150px'}
+            leftSection={
+              <Button variant="outline" mr="auto" size="auto">
+                {baseUrl + '/' || 'https://domain/'}
+              </Button>
+            }
             rightSection={
               <Button variant="filled" ml="auto" color="blue" onClick={generateRandomSlug}>
                 Random URL
               </Button>
             }
-            placeholder="Enter an Alias to redirect to your url"
+            mt="xl"
             {...{ ...form.getInputProps('slug'), onChange: handleSlug }}
-            style={{ marginTop: '20px', marginBottom: '20px' }}
           />
 
           <MultiSelect
-            label="Access Group"
+            label="Select Access Groups"
             withAsterisk
-            placeholder="Select Access Group"
             data={accessGroup}
-            style={{ marginTop: '20px' }}
+            mt="xl"
             {...form.getInputProps('access')}
           />
 
-          <Button type="submit" mt="md">
+          <Button
+            type="submit"
+            mt="50px"
+            w="125px"
+            style={{ marginLeft: 'auto', display: 'block' }}
+          >
             {isSubmitting ? (
               <>
                 <Loader size={16} color="white" />
                 Submitting...
               </>
             ) : (
-              `${isEditing ? 'Save' : 'Create'} Event`
+              `${isEditing ? 'Save' : 'Create'} Link`
             )}
           </Button>
         </form>
