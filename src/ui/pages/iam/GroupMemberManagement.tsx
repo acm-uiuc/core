@@ -169,7 +169,7 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
         </Table.Td>
         <Table.Td>
           <Badge color="blue" variant="light">
-            Active
+            Queued for addition
           </Badge>
         </Table.Td>
         <Table.Td>
@@ -189,10 +189,6 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
 
   return (
     <div>
-      <Text fw={500} mb={4} size="lg">
-        Exec Council Group Management
-      </Text>
-
       <Table verticalSpacing="sm">
         <Table.Thead>
           <Table.Tr>

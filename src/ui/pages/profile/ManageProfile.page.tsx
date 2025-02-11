@@ -6,6 +6,7 @@ import { UserProfileData, UserProfileDataBase } from '@common/types/msGraphApi';
 import { ManageProfileComponent } from './ManageProfileComponent';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@ui/components/AuthContext';
+import { transformCommaSeperatedName } from '@common/utils';
 
 export const ManageProfilePage: React.FC = () => {
   const graphApi = useApi('msGraphApi');
@@ -27,7 +28,16 @@ export const ManageProfilePage: React.FC = () => {
       enhanced.discordUsername = discordUsername[0].replace('@discord', '');
       enhanced.otherMails = enhanced.otherMails?.filter((x) => !x.endsWith('@discord'));
     }
-    return enhanced;
+    const normalizedName = transformCommaSeperatedName(enhanced.displayName || '');
+    const extractedFirstName = enhanced.givenName || normalizedName.split(' ')[0];
+    let extractedLastName = enhanced.surname || normalizedName.split(' ')[1];
+    extractedLastName = extractedLastName.slice(1, extractedLastName.length);
+    return {
+      ...enhanced,
+      displayName: normalizedName,
+      givenName: extractedFirstName,
+      surname: extractedLastName,
+    };
   };
 
   const setProfile = async (data: UserProfileData) => {

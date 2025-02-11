@@ -1,4 +1,10 @@
-import { execCouncilGroupId, execCouncilTestingGroupId } from '@common/config';
+import {
+  commChairsGroupId,
+  commChairsTestingGroupId,
+  execCouncilGroupId,
+  execCouncilTestingGroupId,
+  miscTestingGroupId,
+} from '@common/config';
 
 export const runEnvironments = ['dev', 'prod', 'local-dev'] as const;
 // local dev should be used when you want to test against a local instance of the API
@@ -8,12 +14,16 @@ export type RunEnvironment = (typeof runEnvironments)[number];
 export type ValidServices = (typeof services)[number];
 export type ValidService = ValidServices;
 
+export type KnownGroups = {
+  Exec: string;
+  CommChairs: string;
+  StripeLinkCreators: string;
+};
+
 export type ConfigType = {
   AadValidClientId: string;
   ServiceConfiguration: Record<ValidServices, ServiceConfiguration>;
-  KnownGroupMappings: {
-    Exec: string;
-  };
+  KnownGroupMappings: KnownGroups;
 };
 
 export type ServiceConfiguration = {
@@ -58,6 +68,8 @@ const environmentConfig: EnvironmentConfigType = {
     },
     KnownGroupMappings: {
       Exec: execCouncilTestingGroupId,
+      CommChairs: commChairsTestingGroupId,
+      StripeLinkCreators: miscTestingGroupId,
     },
   },
   dev: {
@@ -87,6 +99,8 @@ const environmentConfig: EnvironmentConfigType = {
     },
     KnownGroupMappings: {
       Exec: execCouncilTestingGroupId,
+      CommChairs: commChairsTestingGroupId,
+      StripeLinkCreators: miscTestingGroupId,
     },
   },
   prod: {
@@ -116,6 +130,8 @@ const environmentConfig: EnvironmentConfigType = {
     },
     KnownGroupMappings: {
       Exec: execCouncilGroupId,
+      CommChairs: commChairsGroupId,
+      StripeLinkCreators: '675203eb-fbb9-4789-af2f-e87a3243f8e6',
     },
   },
 } as const;

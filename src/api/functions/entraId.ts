@@ -1,4 +1,6 @@
 import {
+  commChairsGroupId,
+  commChairsTestingGroupId,
   execCouncilGroupId,
   execCouncilTestingGroupId,
   genericConfig,
@@ -214,6 +216,8 @@ export async function modifyGroup(
     execCouncilTestingGroupId,
     officersGroupId,
     officersGroupTestingId,
+    commChairsGroupId,
+    commChairsTestingGroupId,
   ];
   if (
     paidMemberRequiredGroups.includes(group) &&

@@ -44,6 +44,9 @@ export const officersGroupId = "ff49e948-4587-416b-8224-65147540d5fc";
 export const officersGroupTestingId = "0e6e9199-506f-4ede-9d1b-e73f6811c9e5";
 export const execCouncilGroupId = "ad81254b-4eeb-4c96-8191-3acdce9194b1";
 export const execCouncilTestingGroupId = "dbe18eb2-9675-46c4-b1ef-749a6db4fedd";
+export const commChairsTestingGroupId = "d714adb7-07bb-4d4d-a40a-b035bc2a35a3";
+export const commChairsGroupId = "105e7d32-7289-435e-a67a-552c7f215507";
+export const miscTestingGroupId = "ff25ec56-6a33-420d-bdb0-51d8a3920e46";
 
 const genericConfig: GenericConfigType = {
   EventsDynamoTableName: "infra-core-api-events",

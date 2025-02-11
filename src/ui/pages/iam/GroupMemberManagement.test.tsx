@@ -30,10 +30,7 @@ describe('Exec Group Management Panel tests', () => {
   it('renders with no members', async () => {
     const fetchMembers = async () => [];
     const updateMembers = async () => ({ success: [] });
-
     await renderComponent(fetchMembers, updateMembers);
-
-    expect(screen.getByText('Exec Council Group Management')).toBeInTheDocument();
     expect(screen.queryByText(/.*@.*/)).not.toBeInTheDocument();
   });
 
