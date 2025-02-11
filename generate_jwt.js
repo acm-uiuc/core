@@ -1,8 +1,39 @@
 import jwt from "jsonwebtoken";
-import * as dotenv from "dotenv";
-dotenv.config();
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand,
+} from "@aws-sdk/client-secrets-manager";
+import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 
-const username = process.env.JWTGEN_USERNAME || "infra@acm.illinois.edu"
+export const getSecretValue = async (secretId) => {
+  const smClient = new SecretsManagerClient();
+  const data = await smClient.send(
+    new GetSecretValueCommand({ SecretId: secretId }),
+  );
+  if (!data.SecretString) {
+    return null;
+  }
+  try {
+    return JSON.parse(data.SecretString);
+  } catch {
+    return null;
+  }
+};
+
+const secrets = await getSecretValue("infra-core-api-config");
+const client = new STSClient({ region: "us-east-1" });
+const command = new GetCallerIdentityCommand({});
+let data;
+try {
+  data = await client.send(command);
+} catch {
+  console.error(
+    `Could not get AWS STS credentials: are you logged in to AWS? Run "aws configure sso" to log in.`,
+  );
+  process.exit(1);
+}
+
+const username = process.env.JWTGEN_USERNAME || data.UserId?.split(":")[1];
 const payload = {
   aud: "custom_jwt",
   iss: "custom_jwt",
@@ -29,8 +60,9 @@ const payload = {
   ver: "1.0",
 };
 
-const secretKey = process.env.JwtSigningKey;
-const token = jwt.sign(payload, secretKey, { algorithm: "HS256" });
+const token = jwt.sign(payload, secrets["jwt_key"], {
+  algorithm: "HS256",
+});
 console.log(`USERNAME=${username}`);
 console.log("=====================");
 console.log(token);
