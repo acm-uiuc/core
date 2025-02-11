@@ -20,11 +20,11 @@ describe("Login tests", () => {
       page.getByRole("link", { name: "ACM Logo Management Portal" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "PC", exact: true }),
+      page.getByRole("link", { name: "PU", exact: true }),
     ).toBeVisible();
-    await page.getByRole("link", { name: "PC", exact: true }).click();
-    await expect(page.getByLabel("PCMy Account")).toContainText(
-      "NamePlaywright Core UserEmailcore-e2e-testing@acm.illinois.eduEdit ProfileLog Out",
+    await page.getByRole("link", { name: "PU", exact: true }).click();
+    await expect(page.getByLabel("PUMy Account")).toContainText(
+      "NamePlaywright UserEmailcore-e2e-testing@acm.illinois.eduEdit ProfileLog Out",
     );
     expect(page.url()).toEqual("https://manage.qa.acmuiuc.org/home");
   });
