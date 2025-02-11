@@ -6,6 +6,7 @@ import {
   Group,
   Loader,
   NumberFormatter,
+  Skeleton,
   Table,
   Title,
 } from '@mantine/core';
@@ -121,38 +122,81 @@ export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = (
         )}
       </Group>
 
-      {isLoading && <Loader color="blue" />}
-      {!isLoading && links && (
-        <Table.ScrollContainer minWidth={500}>
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>
-                  <Checkbox
-                    aria-label="Select all rows"
-                    checked={selectedRows.length === links.length}
-                    onChange={(event) =>
-                      setSelectedRows(() => {
-                        if (selectedRows.length === links.length) {
-                          return [];
-                        }
-                        return links.map((x) => x.id);
-                      })
-                    }
-                  />
-                </Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Invoice ID</Table.Th>
-                <Table.Th>Invoice Amount</Table.Th>
-                <Table.Th>Created By</Table.Th>
-                <Table.Th>Created At</Table.Th>
-                <Table.Th>Payment Link</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>{links.map(createTableRow)}</Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
-      )}
+      <Table.ScrollContainer minWidth={500}>
+        <Table>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>
+                <Checkbox
+                  aria-label="Select all rows"
+                  checked={links ? selectedRows.length === links.length : false}
+                  onChange={(event) =>
+                    setSelectedRows(() => {
+                      if (!links) {
+                        return [];
+                      }
+                      if (selectedRows.length === links.length) {
+                        return [];
+                      }
+                      return links.map((x) => x.id);
+                    })
+                  }
+                />
+              </Table.Th>
+              <Table.Th>Status</Table.Th>
+              <Table.Th>Invoice ID</Table.Th>
+              <Table.Th>Invoice Amount</Table.Th>
+              <Table.Th>Created By</Table.Th>
+              <Table.Th>Created At</Table.Th>
+              <Table.Th>Payment Link</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {isLoading || !links ? (
+              <>
+                <Table.Tr key="skeleton">
+                  <Table.Td>
+                    <Checkbox aria-label="Select row" checked={false} />
+                  </Table.Td>
+                  <Table.Td>
+                    <Skeleton visible>
+                      <Badge color="green" variant="light">
+                        Active
+                      </Badge>
+                    </Skeleton>
+                  </Table.Td>
+                  <Table.Td>
+                    <Skeleton visible>Sample Text</Skeleton>
+                  </Table.Td>
+                  <Table.Td>
+                    <Skeleton visible>Sample Text</Skeleton>
+                  </Table.Td>
+                  <Table.Td>
+                    <Skeleton visible>Sample Text</Skeleton>
+                  </Table.Td>
+                  <Table.Td>
+                    <Skeleton visible>Sample Text</Skeleton>
+                  </Table.Td>
+                  <Table.Td>
+                    <Skeleton visible>
+                      {' '}
+                      <CopyButton value={''}>
+                        {({ copied, copy }) => (
+                          <Button color={copied ? 'teal' : 'blue'} onClick={copy}>
+                            {copied ? 'Copied!' : 'Copy'}
+                          </Button>
+                        )}
+                      </CopyButton>
+                    </Skeleton>
+                  </Table.Td>
+                </Table.Tr>
+              </>
+            ) : (
+              links.map(createTableRow)
+            )}
+          </Table.Tbody>
+        </Table>
+      </Table.ScrollContainer>
     </div>
   );
 };

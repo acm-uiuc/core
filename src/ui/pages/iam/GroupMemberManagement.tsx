@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Avatar, Badge, Group, Table, Text, Button, TextInput, Modal, Select } from '@mantine/core';
+import {
+  Avatar,
+  Badge,
+  Group,
+  Table,
+  Text,
+  Button,
+  TextInput,
+  Modal,
+  Loader,
+  Skeleton,
+} from '@mantine/core';
 import { IconUserPlus, IconTrash } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { GroupMemberGetResponse, EntraActionResponse } from '@common/types/iam';
-import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 
 interface GroupMemberManagementProps {
   fetchMembers: () => Promise<GroupMemberGetResponse>;
@@ -159,7 +169,7 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
         </Table.Td>
         <Table.Td>
           <Badge color="blue" variant="light">
-            Queued for addition
+            Active
           </Badge>
         </Table.Td>
         <Table.Td>
@@ -183,20 +193,55 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
         Exec Council Group Management
       </Text>
 
-      {isLoading ? (
-        <FullScreenLoader />
-      ) : (
-        <Table verticalSpacing="sm">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Member</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Actions</Table.Th>
+      <Table verticalSpacing="sm">
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>Member</Table.Th>
+            <Table.Th>Status</Table.Th>
+            <Table.Th>Actions</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {isLoading ? (
+            <Table.Tr key="skeleton">
+              <Table.Td>
+                <Skeleton visible={true}>
+                  <Group gap="sm">
+                    <Avatar name={email} color="initials"></Avatar>
+                    <div>
+                      <Text fz="sm" fw={500}>
+                        Johnathan Doe
+                      </Text>
+                      <Text fz="xs" c="dimmed">
+                        jdoe@illinois.edu
+                      </Text>
+                    </div>
+                  </Group>
+                </Skeleton>
+              </Table.Td>
+              <Table.Td>
+                <Skeleton visible={true}>
+                  <Badge color="blue" variant="light"></Badge>
+                </Skeleton>
+              </Table.Td>
+              <Table.Td>
+                <Skeleton visible={true}>
+                  <Button
+                    color="red"
+                    variant="light"
+                    size="xs"
+                    leftSection={<IconTrash size={14} />}
+                  >
+                    Remove
+                  </Button>
+                </Skeleton>
+              </Table.Td>
             </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>{rows}</Table.Tbody>
-        </Table>
-      )}
+          ) : (
+            rows
+          )}
+        </Table.Tbody>
+      </Table>
 
       <TextInput
         value={email}
