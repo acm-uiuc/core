@@ -1,7 +1,6 @@
 import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import {
-  DynamoDBClient,
   QueryCommand,
   ScanCommand,
   UpdateItemCommand,
@@ -93,10 +92,6 @@ const postSchema = z.union([postMerchSchema, postTicketSchema]);
 
 type VerifyPostRequest = z.infer<typeof postSchema>;
 
-const dynamoClient = new DynamoDBClient({
-  region: genericConfig.AwsRegion,
-});
-
 type TicketsGetRequest = {
   Params: { id: string };
   Querystring: { type: string };
@@ -140,7 +135,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       });
 
       const merchItems: ItemMetadata[] = [];
-      const response = await dynamoClient.send(merchCommand);
+      const response = await fastify.dynamoClient.send(merchCommand);
       const now = new Date();
 
       if (response.Items) {
@@ -175,7 +170,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       });
 
       const ticketItems: TicketItemMetadata[] = [];
-      const ticketResponse = await dynamoClient.send(ticketCommand);
+      const ticketResponse = await fastify.dynamoClient.send(ticketCommand);
 
       if (ticketResponse.Items) {
         for (const item of ticketResponse.Items.map((x) => unmarshall(x))) {
@@ -243,7 +238,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               ":itemId": { S: eventId },
             },
           });
-          const response = await dynamoClient.send(command);
+          const response = await fastify.dynamoClient.send(command);
           if (!response.Items) {
             throw new NotFoundError({
               endpointName: `/api/v1/tickets/${eventId}`,
@@ -340,7 +335,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
       let purchaserData: PurchaseData;
       try {
-        const ticketEntry = await dynamoClient.send(command);
+        const ticketEntry = await fastify.dynamoClient.send(command);
         if (!ticketEntry.Attributes) {
           throw new DatabaseFetchError({
             message: "Could not find ticket data",
@@ -436,8 +431,12 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             message: `Unknown verification type!`,
           });
       }
-      await dynamoClient.send(command);
+      await fastify.dynamoClient.send(command);
       reply.send(response);
+      request.log.info(
+        { type: "audit", actor: request.username, target: ticketId },
+        `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
+      );
     },
   );
 };

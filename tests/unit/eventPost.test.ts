@@ -63,7 +63,7 @@ test("Sad path: Prevent empty body request", async () => {
     error: true,
     name: "ValidationError",
     id: 104,
-    message: "Required",
+    message: `Required at "title"; Required at "description"; Required at "start"; Required at "location"; Required at "host"`,
   });
 });
 test("Sad path: Prevent specifying repeatEnds on non-repeating events", async () => {
@@ -150,7 +150,7 @@ test("Happy path: Adding a non-repeating, featured, paid event", async () => {
       paidEventId: "sp24_semiformal",
     });
 
-  expect(response.statusCode).toBe(200);
+  expect(response.statusCode).toBe(201);
   const responseDataJson = response.body as { id: string; resource: string };
   expect(responseDataJson).toHaveProperty("id");
   const uuid = responseDataJson["id"];
@@ -182,7 +182,7 @@ test("Happy path: Adding a weekly repeating, non-featured, paid event", async ()
       paidEventId: "sp24_semiformal",
     });
 
-  expect(response.statusCode).toBe(200);
+  expect(response.statusCode).toBe(201);
   const responseDataJson = response.body as { id: string; resource: string };
   expect(responseDataJson).toHaveProperty("id");
   const uuid = responseDataJson["id"];
@@ -197,6 +197,7 @@ afterAll(async () => {
   vi.useRealTimers();
 });
 beforeEach(() => {
+  (app as any).nodeCache.flushAll();
   ddbMock.reset();
   smMock.reset();
   vi.useFakeTimers();

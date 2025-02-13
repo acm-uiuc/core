@@ -6,11 +6,8 @@ import {
 import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
-const dynamoClient = new DynamoDBClient({
-  region: genericConfig.AwsRegion,
-});
-
 export async function getItemFromCache(
+  dynamoClient: DynamoDBClient,
   key: string,
 ): Promise<null | Record<string, string | number>> {
   const currentTime = Math.floor(Date.now() / 1000);
@@ -37,6 +34,7 @@ export async function getItemFromCache(
 }
 
 export async function insertItemIntoCache(
+  dynamoClient: DynamoDBClient,
   key: string,
   value: Record<string, string | number>,
   expireAt: Date,

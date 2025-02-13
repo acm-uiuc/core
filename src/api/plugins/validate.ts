@@ -16,7 +16,7 @@ const zodValidationPlugin: FastifyPluginAsync = async (fastify, _options) => {
       zodSchema: z.ZodTypeAny,
     ): Promise<void> {
       try {
-        await zodSchema.parseAsync(request.body);
+        await zodSchema.parseAsync(request.body || {});
       } catch (e: unknown) {
         if (e instanceof ZodError) {
           throw new ValidationError({

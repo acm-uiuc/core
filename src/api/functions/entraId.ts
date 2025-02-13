@@ -1,7 +1,17 @@
-import { genericConfig } from "../../common/config.js";
 import {
+  commChairsGroupId,
+  commChairsTestingGroupId,
+  execCouncilGroupId,
+  execCouncilTestingGroupId,
+  genericConfig,
+  officersGroupId,
+  officersGroupTestingId,
+} from "../../common/config.js";
+import {
+  EntraFetchError,
   EntraGroupError,
   EntraInvitationError,
+  EntraPatchError,
   InternalServerError,
 } from "../../common/errors/index.js";
 import { getSecretValue } from "../plugins/auth.js";
@@ -10,7 +20,11 @@ import { getItemFromCache, insertItemIntoCache } from "./cache.js";
 import {
   EntraGroupActions,
   EntraInvitationResponse,
+  ProfilePatchRequest,
 } from "../../common/types/iam.js";
+import { UserProfileDataBase } from "common/types/msGraphApi.js";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
 function validateGroupId(groupId: string): boolean {
   const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
@@ -18,11 +32,13 @@ function validateGroupId(groupId: string): boolean {
 }
 
 export async function getEntraIdToken(
+  clients: { smClient: SecretsManagerClient; dynamoClient: DynamoDBClient },
   clientId: string,
   scopes: string[] = ["https://graph.microsoft.com/.default"],
 ) {
   const secretApiConfig =
-    (await getSecretValue(genericConfig.ConfigSecretName)) || {};
+    (await getSecretValue(clients.smClient, genericConfig.ConfigSecretName)) ||
+    {};
   if (
     !secretApiConfig.entra_id_private_key ||
     !secretApiConfig.entra_id_thumbprint
@@ -35,7 +51,10 @@ export async function getEntraIdToken(
     secretApiConfig.entra_id_private_key as string,
     "base64",
   ).toString("utf8");
-  const cachedToken = await getItemFromCache("entra_id_access_token");
+  const cachedToken = await getItemFromCache(
+    clients.dynamoClient,
+    "entra_id_access_token",
+  );
   if (cachedToken) {
     return cachedToken["token"] as string;
   }
@@ -63,6 +82,7 @@ export async function getEntraIdToken(
     date.setTime(date.getTime() - 30000);
     if (result?.accessToken) {
       await insertItemIntoCache(
+        clients.dynamoClient,
         "entra_id_access_token",
         { token: result?.accessToken },
         date,
@@ -190,7 +210,34 @@ export async function modifyGroup(
       message: "User's domain must be illinois.edu to be added to the group.",
     });
   }
-
+  // if adding to exec group, check that all exec members we want to add are paid members
+  const paidMemberRequiredGroups = [
+    execCouncilGroupId,
+    execCouncilTestingGroupId,
+    officersGroupId,
+    officersGroupTestingId,
+    commChairsGroupId,
+    commChairsTestingGroupId,
+  ];
+  if (
+    paidMemberRequiredGroups.includes(group) &&
+    action === EntraGroupActions.ADD
+  ) {
+    const netId = email.split("@")[0];
+    const response = await fetch(
+      `https://membership.acm.illinois.edu/api/v1/checkMembership?netId=${netId}`,
+    );
+    const membershipStatus = (await response.json()) as {
+      netId: string;
+      isPaidMember: boolean;
+    };
+    if (!membershipStatus["isPaidMember"]) {
+      throw new EntraGroupError({
+        message: `${netId} is not a paid member. This group requires that all members are paid members.`,
+        group,
+      });
+    }
+  }
   try {
     const oid = await resolveEmailToOid(token, email);
     const methodMapper = {
@@ -220,6 +267,12 @@ export async function modifyGroup(
       const errorData = (await response.json()) as {
         error?: { message?: string };
       };
+      if (
+        errorData?.error?.message ===
+        "One or more added object references already exist for the following modified properties: 'members'."
+      ) {
+        return true;
+      }
       throw new EntraGroupError({
         message: errorData?.error?.message ?? response.statusText,
         group,
@@ -231,12 +284,15 @@ export async function modifyGroup(
     if (error instanceof EntraGroupError) {
       throw error;
     }
-
-    throw new EntraGroupError({
-      message: error instanceof Error ? error.message : String(error),
-      group,
-    });
+    const message = error instanceof Error ? error.message : String(error);
+    if (message) {
+      throw new EntraGroupError({
+        message,
+        group,
+      });
+    }
   }
+  return false;
 }
 
 /**
@@ -298,6 +354,96 @@ export async function listGroupMembers(
     throw new EntraGroupError({
       message: error instanceof Error ? error.message : String(error),
       group,
+    });
+  }
+}
+
+/**
+ * Retrieves the profile of a user from Entra ID.
+ * @param token - Entra ID token authorized to perform this action.
+ * @param userId - The user ID to fetch the profile for.
+ * @throws {EntraUserError} If fetching the user profile fails.
+ * @returns {Promise<UserProfileDataBase>} The user's profile information.
+ */
+export async function getUserProfile(
+  token: string,
+  email: string,
+): Promise<UserProfileDataBase> {
+  const userId = await resolveEmailToOid(token, email);
+  try {
+    const url = `https://graph.microsoft.com/v1.0/users/${userId}?$select=userPrincipalName,givenName,surname,displayName,otherMails,mail`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as {
+        error?: { message?: string };
+      };
+      throw new EntraFetchError({
+        message: errorData?.error?.message ?? response.statusText,
+        email,
+      });
+    }
+    return (await response.json()) as UserProfileDataBase;
+  } catch (error) {
+    if (error instanceof EntraFetchError) {
+      throw error;
+    }
+
+    throw new EntraFetchError({
+      message: error instanceof Error ? error.message : String(error),
+      email,
+    });
+  }
+}
+
+/**
+ * Patches the profile of a user from Entra ID.
+ * @param token - Entra ID token authorized to perform this action.
+ * @param userId - The user ID to patch the profile for.
+ * @throws {EntraUserError} If setting the user profile fails.
+ * @returns {Promise<void>} nothing
+ */
+export async function patchUserProfile(
+  token: string,
+  email: string,
+  userId: string,
+  data: ProfilePatchRequest,
+): Promise<void> {
+  try {
+    const url = `https://graph.microsoft.com/v1.0/users/${userId}`;
+    const response = await fetch(url, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as {
+        error?: { message?: string };
+      };
+      throw new EntraPatchError({
+        message: errorData?.error?.message ?? response.statusText,
+        email,
+      });
+    }
+    return;
+  } catch (error) {
+    if (error instanceof EntraPatchError) {
+      throw error;
+    }
+
+    throw new EntraPatchError({
+      message: error instanceof Error ? error.message : String(error),
+      email,
     });
   }
 }

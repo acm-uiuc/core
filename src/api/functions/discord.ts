@@ -15,6 +15,7 @@ import { FastifyBaseLogger } from "fastify";
 import { DiscordEventError } from "../../common/errors/index.js";
 import { getSecretValue } from "../plugins/auth.js";
 import { genericConfig } from "../../common/config.js";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 
 // https://stackoverflow.com/a/3809435/5684541
 // https://calendar-buff.acmuiuc.pages.dev/calendar?id=dd7af73a-3df6-4e12-b228-0d2dac34fda7&date=2024-08-30
@@ -24,12 +25,13 @@ export type IUpdateDiscord = EventPostRequest & { id: string };
 
 const urlRegex = /https:\/\/[a-z0-9\.-]+\/calendar\?id=([a-f0-9-]+)/;
 export const updateDiscord = async (
+  smClient: SecretsManagerClient,
   event: IUpdateDiscord,
   isDelete: boolean = false,
   logger: FastifyBaseLogger,
 ): Promise<null | GuildScheduledEventCreateOptions> => {
   const secretApiConfig =
-    (await getSecretValue(genericConfig.ConfigSecretName)) || {};
+    (await getSecretValue(smClient, genericConfig.ConfigSecretName)) || {};
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
   let payload: GuildScheduledEventCreateOptions | null = null;
 

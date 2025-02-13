@@ -137,3 +137,8 @@ dist_ui/
 
 *.pyc
 __pycache__
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+dist_devel/

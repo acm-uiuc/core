@@ -17,6 +17,30 @@ import { ScanTicketsPage } from './pages/tickets/ScanTickets.page';
 import { SelectTicketsPage } from './pages/tickets/SelectEventId.page';
 import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
 import { ManageIamPage } from './pages/iam/ManageIam.page';
+import { ManageProfilePage } from './pages/profile/ManageProfile.page';
+import { ManageStripeLinksPage } from './pages/stripe/ViewLinks.page';
+
+const ProfileRediect: React.FC = () => {
+  const location = useLocation();
+
+  // Don't store login-related paths and ALLOW the callback path
+  const excludedPaths = [
+    '/login',
+    '/logout',
+    '/force_login',
+    '/a',
+    '/auth/callback', // Add this to excluded paths
+  ];
+
+  if (excludedPaths.includes(location.pathname)) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Include search params and hash in the return URL if they exist
+  const returnPath = location.pathname + location.search + location.hash;
+  const loginUrl = `/profile?returnTo=${encodeURIComponent(returnPath)}&firstTime=true`;
+  return <Navigate to={loginUrl} replace />;
+};
 
 // Component to handle redirects to login with return path
 const LoginRedirect: React.FC = () => {
@@ -56,6 +80,18 @@ const commonRoutes = [
   },
 ];
 
+const profileRouter = createBrowserRouter([
+  ...commonRoutes,
+  {
+    path: '/profile',
+    element: <ManageProfilePage />,
+  },
+  {
+    path: '*',
+    element: <ProfileRediect />,
+  },
+]);
+
 const unauthenticatedRouter = createBrowserRouter([
   ...commonRoutes,
   {
@@ -66,7 +102,6 @@ const unauthenticatedRouter = createBrowserRouter([
     path: '/login',
     element: <LoginPage />,
   },
-  // Catch-all route that preserves the attempted path
   {
     path: '*',
     element: <LoginRedirect />,
@@ -86,6 +121,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/logout',
     element: <LogoutPage />,
+  },
+  {
+    path: '/profile',
+    element: <ManageProfilePage />,
   },
   {
     path: '/home',
@@ -118,6 +157,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/tickets/manage/:eventId',
     element: <ViewTicketsPage />,
+  },
+  {
+    path: '/stripe',
+    element: <ManageStripeLinksPage />,
   },
   // Catch-all route for authenticated users shows 404 page
   {
@@ -163,7 +206,11 @@ const ErrorBoundary: React.FC<ErrorBoundaryProps> = ({ children }) => {
 
 export const Router: React.FC = () => {
   const { isLoggedIn } = useAuth();
-  const router = isLoggedIn ? authenticatedRouter : unauthenticatedRouter;
+  const router = isLoggedIn
+    ? authenticatedRouter
+    : isLoggedIn === null
+      ? profileRouter
+      : unauthenticatedRouter;
 
   return (
     <ErrorBoundary>

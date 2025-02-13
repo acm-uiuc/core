@@ -1,11 +1,12 @@
 import { FastifyPluginAsync } from "fastify";
-import { AppRoles } from "../../common/roles.js";
+import { allAppRoles, AppRoles } from "../../common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   addToTenant,
   getEntraIdToken,
   listGroupMembers,
   modifyGroup,
+  patchUserProfile,
 } from "../functions/entraId.js";
 import {
   BaseError,
@@ -15,14 +16,11 @@ import {
   EntraInvitationError,
   InternalServerError,
   NotFoundError,
+  UnauthorizedError,
 } from "../../common/errors/index.js";
-import {
-  DynamoDBClient,
-  GetItemCommand,
-  PutItemCommand,
-} from "@aws-sdk/client-dynamodb";
+import { PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
-import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
 import {
   InviteUserPostRequest,
   invitePostRequestSchema,
@@ -33,18 +31,53 @@ import {
   GroupModificationPatchRequest,
   EntraGroupActions,
   entraGroupMembershipListResponse,
+  ProfilePatchRequest,
+  entraProfilePatchRequest,
 } from "../../common/types/iam.js";
-
-const dynamoClient = new DynamoDBClient({
-  region: genericConfig.AwsRegion,
-});
+import {
+  AUTH_DECISION_CACHE_SECONDS,
+  getGroupRoles,
+} from "../functions/authorization.js";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
+  fastify.patch<{ Body: ProfilePatchRequest }>(
+    "/profile",
+    {
+      preValidation: async (request, reply) => {
+        await fastify.zodValidateBody(request, reply, entraProfilePatchRequest);
+      },
+      onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, allAppRoles);
+      },
+    },
+    async (request, reply) => {
+      if (!request.tokenPayload || !request.username) {
+        throw new UnauthorizedError({
+          message: "User does not have the privileges for this task.",
+        });
+      }
+      const userOid = request.tokenPayload["oid"];
+      const entraIdToken = await getEntraIdToken(
+        {
+          smClient: fastify.secretsManagerClient,
+          dynamoClient: fastify.dynamoClient,
+        },
+        fastify.environmentConfig.AadValidClientId,
+      );
+      await patchUserProfile(
+        entraIdToken,
+        request.username,
+        userOid,
+        request.body,
+      );
+      reply.send(201);
+    },
+  );
   fastify.get<{
     Body: undefined;
     Querystring: { groupId: string };
   }>(
-    "/groupRoles/:groupId",
+    "/groups/:groupId/roles",
     {
       schema: {
         querystring: {
@@ -61,19 +94,14 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
     },
     async (request, reply) => {
-      const groupId = (request.params as Record<string, string>).groupId;
       try {
-        const command = new GetItemCommand({
-          TableName: `${genericConfig.IAMTablePrefix}-grouproles`,
-          Key: { groupUuid: { S: groupId } },
-        });
-        const response = await dynamoClient.send(command);
-        if (!response.Item) {
-          throw new NotFoundError({
-            endpointName: `/api/v1/iam/groupRoles/${groupId}`,
-          });
-        }
-        reply.send(unmarshall(response.Item));
+        const groupId = (request.params as Record<string, string>).groupId;
+        const roles = await getGroupRoles(
+          fastify.dynamoClient,
+          fastify,
+          groupId,
+        );
+        return reply.send(roles);
       } catch (e: unknown) {
         if (e instanceof BaseError) {
           throw e;
@@ -90,7 +118,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     Body: GroupMappingCreatePostRequest;
     Querystring: { groupId: string };
   }>(
-    "/groupRoles/:groupId",
+    "/groups/:groupId/roles",
     {
       schema: {
         querystring: {
@@ -125,9 +153,14 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createdAt: timestamp,
           }),
         });
-
-        await dynamoClient.send(command);
+        await fastify.dynamoClient.send(command);
+        fastify.nodeCache.set(
+          `grouproles-${groupId}`,
+          request.body.roles,
+          AUTH_DECISION_CACHE_SECONDS,
+        );
       } catch (e: unknown) {
+        fastify.nodeCache.del(`grouproles-${groupId}`);
         if (e instanceof BaseError) {
           throw e;
         }
@@ -138,6 +171,10 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       reply.send({ message: "OK" });
+      request.log.info(
+        { type: "audit", actor: request.username, target: groupId },
+        `set target roles to ${request.body.roles.toString()}`,
+      );
     },
   );
   fastify.post<{ Body: InviteUserPostRequest }>(
@@ -156,6 +193,10 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const emails = request.body.emails;
       const entraIdToken = await getEntraIdToken(
+        {
+          smClient: fastify.secretsManagerClient,
+          dynamoClient: fastify.dynamoClient,
+        },
         fastify.environmentConfig.AadValidClientId,
       );
       if (!entraIdToken) {
@@ -173,12 +214,25 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         if (result.status === "fulfilled") {
+          request.log.info(
+            { type: "audit", actor: request.username, target: emails[i] },
+            "invited user to Entra ID tenant.",
+          );
           response.success.push({ email: emails[i] });
         } else {
+          request.log.info(
+            { type: "audit", actor: request.username, target: emails[i] },
+            "failed to invite user to Entra ID tenant.",
+          );
           if (result.reason instanceof EntraInvitationError) {
             response.failure.push({
               email: emails[i],
               message: result.reason.message,
+            });
+          } else {
+            response.failure.push({
+              email: emails[i],
+              message: "An unknown error occurred.",
             });
           }
         }
@@ -229,6 +283,10 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const entraIdToken = await getEntraIdToken(
+        {
+          smClient: fastify.secretsManagerClient,
+          dynamoClient: fastify.dynamoClient,
+        },
         fastify.environmentConfig.AadValidClientId,
       );
       const addResults = await Promise.allSettled(
@@ -249,7 +307,23 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const result = addResults[i];
         if (result.status === "fulfilled") {
           response.success.push({ email: request.body.add[i] });
+          request.log.info(
+            {
+              type: "audit",
+              actor: request.username,
+              target: request.body.add[i],
+            },
+            `added target to group ID ${groupId}`,
+          );
         } else {
+          request.log.info(
+            {
+              type: "audit",
+              actor: request.username,
+              target: request.body.add[i],
+            },
+            `failed to add target to group ID ${groupId}`,
+          );
           if (result.reason instanceof EntraGroupError) {
             response.failure.push({
               email: request.body.add[i],
@@ -267,7 +341,23 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const result = removeResults[i];
         if (result.status === "fulfilled") {
           response.success.push({ email: request.body.remove[i] });
+          request.log.info(
+            {
+              type: "audit",
+              actor: request.username,
+              target: request.body.remove[i],
+            },
+            `removed target from group ID ${groupId}`,
+          );
         } else {
+          request.log.info(
+            {
+              type: "audit",
+              actor: request.username,
+              target: request.body.add[i],
+            },
+            `failed to remove target from group ID ${groupId}`,
+          );
           if (result.reason instanceof EntraGroupError) {
             response.failure.push({
               email: request.body.add[i],
@@ -320,6 +410,10 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const entraIdToken = await getEntraIdToken(
+        {
+          smClient: fastify.secretsManagerClient,
+          dynamoClient: fastify.dynamoClient,
+        },
         fastify.environmentConfig.AadValidClientId,
       );
       const response = await listGroupMembers(entraIdToken, groupId);

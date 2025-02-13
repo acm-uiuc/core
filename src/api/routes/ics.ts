@@ -1,6 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
 import {
-  DynamoDBClient,
   QueryCommand,
   QueryCommandInput,
   ScanCommand,
@@ -17,10 +16,6 @@ import moment from "moment";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
 import { OrganizationList } from "../../common/orgs.js";
 import { EventRepeatOptions } from "./events.js";
-
-const dynamoClient = new DynamoDBClient({
-  region: genericConfig.AwsRegion,
-});
 
 const repeatingIcalMap: Record<EventRepeatOptions, ICalEventJSONRepeatingData> =
   {
@@ -54,7 +49,7 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
       queryParams = {
         ...queryParams,
       };
-      response = await dynamoClient.send(
+      response = await fastify.dynamoClient.send(
         new QueryCommand({
           ...queryParams,
           ExpressionAttributeValues: {
@@ -67,7 +62,7 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
         }),
       );
     } else {
-      response = await dynamoClient.send(new ScanCommand(queryParams));
+      response = await fastify.dynamoClient.send(new ScanCommand(queryParams));
     }
     const dynamoItems = response.Items
       ? response.Items.map((x) => unmarshall(x))

@@ -4,6 +4,7 @@ import {
   Group,
   LoadingOverlay,
   NavLink,
+  Skeleton,
   Text,
   useMantineColorScheme,
 } from '@mantine/core';
@@ -23,8 +24,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext/index.js';
 import { HeaderNavbar } from '../Navbar/index.js';
 import { AuthenticatedProfileDropdown } from '../ProfileDropdown/index.js';
+import { getCurrentRevision } from '@ui/util/revision.js';
+import { AppRoles } from '@common/roles.js';
+import { AuthGuard } from '../AuthGuard/index.js';
 
-interface AcmAppShellProps {
+export interface AcmAppShellProps {
   children: ReactNode;
   active?: string;
   showLoader?: boolean;
@@ -38,18 +42,28 @@ export const navItems = [
     name: 'Events',
     icon: IconCalendar,
     description: null,
+    validRoles: [AppRoles.EVENTS_MANAGER],
   },
   {
     link: '/tickets',
     name: 'Ticketing/Merch',
     icon: IconTicket,
     description: null,
+    validRoles: [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
   },
   {
     link: '/iam',
     name: 'IAM',
     icon: IconLock,
     description: null,
+    validRoles: [AppRoles.IAM_ADMIN, AppRoles.IAM_INVITE_ONLY],
+  },
+  {
+    link: '/stripe',
+    name: 'Stripe Link Creator',
+    icon: IconCoin,
+    description: null,
+    validRoles: [AppRoles.STRIPE_LINK_CREATOR],
   },
 ];
 
@@ -58,12 +72,6 @@ export const extLinks = [
     link: 'https://go.acm.illinois.edu/create',
     name: 'Link Shortener',
     icon: IconLink,
-    description: null,
-  },
-  {
-    link: 'https://stripelinks.acm.illinois.edu/create',
-    name: 'Stripe Link Creator',
-    icon: IconCoin,
     description: null,
   },
   {
@@ -103,31 +111,46 @@ export const renderNavItems = (
   active: string | undefined,
   navigate: CallableFunction
 ) =>
-  items.map((item) => (
-    <NavLink
-      style={{ borderRadius: 5 }}
-      h={48}
-      mt="sm"
-      onClick={() => {
-        if (item.link.includes('://')) {
-          window.location.href = item.link;
-        } else {
-          navigate(item.link);
+  items.map((item) => {
+    const link = (
+      <NavLink
+        style={{ borderRadius: 5 }}
+        h={48}
+        mt="sm"
+        onClick={() => {
+          if (item.link.includes('://')) {
+            window.location.href = item.link;
+          } else {
+            navigate(item.link);
+          }
+        }}
+        key={item.name}
+        label={
+          <Text size="sm" fw={500}>
+            {item.name}
+          </Text>
         }
-      }}
-      key={item.link}
-      label={
-        <Text size="sm" fw={500}>
-          {item.name}
-        </Text>
-      }
-      active={active === item.link || isSameParentPath(active, item.link)}
-      description={item.description || null}
-      leftSection={<item.icon />}
-    >
-      {item.children ? renderNavItems(item.children, active, navigate) : null}
-    </NavLink>
-  ));
+        active={active === item.link || isSameParentPath(active, item.link)}
+        description={item.description || null}
+        leftSection={<item.icon />}
+      >
+        {item.children ? renderNavItems(item.children, active, navigate) : null}
+      </NavLink>
+    );
+    if (item.link.at(0) == '/') {
+      return (
+        <AuthGuard
+          resourceDef={{ service: 'core', validRoles: item.validRoles }}
+          isAppShell={false}
+          key={`${item.name}-wrap`}
+          loadingSkeleton={<Skeleton h={48} style={{ borderRadius: 5 }} mt="sm"></Skeleton>}
+        >
+          {link}
+        </AuthGuard>
+      );
+    }
+    return link;
+  });
 
 type SidebarNavItemsProps = {
   items: Record<string, any>[];
@@ -163,7 +186,7 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
       padding="md"
       header={{ height: 60 }}
       navbar={{
-        width: 200,
+        width: showSidebar ? 200 : 0,
         breakpoint: 'sm',
         collapsed: { mobile: !opened },
       }}
@@ -172,14 +195,24 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
         <HeaderNavbar />
       </AppShell.Header>
       <AppShell.Navbar p="sm">
-        <SidebarNavItems items={navItems} visible={showSidebar} active={active} />
-        <br />
-        <Divider label="Other Services" />
-        <SidebarNavItems items={extLinks} visible={showSidebar} active={active} />
-        <Group hiddenFrom="sm">
-          <Divider />
-          <AuthenticatedProfileDropdown userData={userData || {}} />
-        </Group>
+        <AppShell.Section grow>
+          <SidebarNavItems items={navItems} visible={showSidebar} active={active} />
+          <br />
+          <Divider label="Other Services" />
+          <SidebarNavItems items={extLinks} visible={showSidebar} active={active} />
+          <Group hiddenFrom="sm">
+            <Divider />
+            <AuthenticatedProfileDropdown userData={userData || {}} />
+          </Group>
+        </AppShell.Section>
+        <AppShell.Section>
+          <Text size="xs" fw={500}>
+            &copy; {new Date().getFullYear()} ACM @ UIUC
+          </Text>
+          <Text size="xs" fw={500}>
+            Revision <code>{getCurrentRevision()}</code>
+          </Text>
+        </AppShell.Section>
       </AppShell.Navbar>
       <AppShell.Main>
         {showLoader ? (

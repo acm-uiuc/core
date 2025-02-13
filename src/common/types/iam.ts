@@ -22,12 +22,15 @@ export const invitePostRequestSchema = z.object({
 export type InviteUserPostRequest = z.infer<typeof invitePostRequestSchema>;
 
 export const groupMappingCreatePostSchema = z.object({
-  roles: z
-    .array(z.nativeEnum(AppRoles))
-    .min(1)
-    .refine((items) => new Set(items).size === items.length, {
-      message: "All roles must be unique, no duplicate values allowed",
-    }),
+  roles: z.union([
+    z
+      .array(z.nativeEnum(AppRoles))
+      .min(1)
+      .refine((items) => new Set(items).size === items.length, {
+        message: "All roles must be unique, no duplicate values allowed",
+      }),
+    z.tuple([z.literal("all")]),
+  ]),
 });
 
 export type GroupMappingCreatePostRequest = z.infer<
@@ -62,3 +65,13 @@ export const entraGroupMembershipListResponse = z.array(
 export type GroupMemberGetResponse = z.infer<
   typeof entraGroupMembershipListResponse
 >;
+
+export const entraProfilePatchRequest = z.object({
+  displayName: z.string().min(1),
+  givenName: z.string().min(1),
+  surname: z.string().min(1),
+  mail: z.string().email(),
+  otherMails: z.array(z.string()).min(1),
+});
+
+export type ProfilePatchRequest = z.infer<typeof entraProfilePatchRequest>;

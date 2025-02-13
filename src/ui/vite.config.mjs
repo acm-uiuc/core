@@ -6,13 +6,14 @@ import path from 'path';
 
 
 export default defineConfig({
-  define:{'process.env': process.env},
+  define: {'process.env': {AWS_REGION: process.env.AWS_REGION}},
   plugins: [react(), tsconfigPaths()],
   resolve: {
     preserveSymlinks: true,
     alias: {
       '@ui': path.resolve(__dirname, './'),
       '@common': path.resolve(__dirname, '../common/'),
+      '@tabler/icons-react': '@tabler/icons-react/dist/esm/icons/index.mjs',
     },
   },
   test: {
@@ -20,11 +21,13 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './vitest.setup.mjs',
     env: {
-      VITE_RUN_ENVIRONMENT: 'dev'
+      VITE_RUN_ENVIRONMENT: 'dev',
     },
   },
   server: {
     historyApiFallback: true,
+    host: '127.0.0.1',
+    port: 5173
   },
   build: {
     outDir: '../../dist_ui',

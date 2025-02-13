@@ -5,19 +5,33 @@ import { Center, Alert } from '@mantine/core';
 import { IconAlertCircle, IconAlertTriangle } from '@tabler/icons-react';
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useApi } from '@ui/util/api';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { isLoggedIn } = useAuth();
+  const graphApi = useApi('msGraphApi');
+  const { isLoggedIn, setLoginStatus } = useAuth();
   const [searchParams] = useSearchParams();
   const showLogoutMessage = searchParams.get('lc') === 'true';
   const showLoginMessage = !showLogoutMessage && searchParams.get('li') === 'true';
 
   useEffect(() => {
-    if (isLoggedIn) {
-      const returnTo = searchParams.get('returnTo');
-      navigate(returnTo || '/home');
-    }
+    const evalState = async () => {
+      if (isLoggedIn) {
+        const returnTo = searchParams.get('returnTo');
+        const me = (await graphApi.get('/v1.0/me?$select=givenName,surname')).data as {
+          givenName?: string;
+          surname?: string;
+        };
+        if (!me.givenName || !me.surname) {
+          setLoginStatus(null);
+          navigate(`/profile?firstTime=true${returnTo ? `&returnTo=${returnTo}` : ''}`);
+        } else {
+          navigate(returnTo || '/home');
+        }
+      }
+    };
+    evalState();
   }, [navigate, isLoggedIn, searchParams]);
 
   return (

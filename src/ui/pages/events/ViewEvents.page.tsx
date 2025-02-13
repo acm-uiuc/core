@@ -1,4 +1,4 @@
-import { Text, Button, Table, Modal, Group, Transition, ButtonGroup } from '@mantine/core';
+import { Text, Button, Table, Modal, Group, Transition, ButtonGroup, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
@@ -53,9 +53,18 @@ export const ViewEventsPage: React.FC = () => {
     const shouldShow = event.upcoming || (!event.upcoming && showPrevious);
 
     return (
-      <Transition mounted={shouldShow} transition="fade" duration={400} timingFunction="ease">
+      <Transition
+        mounted={shouldShow}
+        transition="fade"
+        duration={400}
+        timingFunction="ease"
+        key={`${event.id}-tr-transition`}
+      >
         {(styles) => (
-          <tr style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}>
+          <tr
+            style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}
+            key={`${event.id}-tr`}
+          >
             <Table.Td>{event.title}</Table.Td>
             <Table.Td>{dayjs(event.start).format('MMM D YYYY hh:mm')}</Table.Td>
             <Table.Td>{event.end ? dayjs(event.end).format('MMM D YYYY hh:mm') : 'N/A'}</Table.Td>
@@ -131,6 +140,9 @@ export const ViewEventsPage: React.FC = () => {
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
+      <Title order={1} mb={'md'}>
+        Event Management
+      </Title>
       {deleteCandidate && (
         <Modal
           opened={opened}
@@ -169,7 +181,7 @@ export const ViewEventsPage: React.FC = () => {
           {showPrevious ? 'Hide Previous Events' : 'Show Previous Events'}
         </Button>
       </div>
-      <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+      <Table style={{ tableLayout: 'fixed', width: '100%' }} data-testid="events-table">
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Title</Table.Th>
