@@ -16,6 +16,8 @@ import {
   PutItemCommand,
   DeleteItemCommand,
   ScanCommand,
+  GetItemCommand,
+  TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -37,7 +39,7 @@ const rawRequest = {
 
 const createRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
-  //TODO: require validation of access string?
+  //TODO: require validation of access string? Should this be required to be at least length 1?
   access: z.array(z.string()),
   redirect: z.string().url().min(1),
 });
@@ -111,10 +113,37 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/redir",
     {
       preValidation: async (request, reply) => {
+        console.log(request);
         await fastify.zodValidateBody(request, reply, createRequest);
-        //TODO: validate that the slug does not already exist
+
+        //validate that the slug entry does not already exist
+        //TODO: could this just call one of the other routes to prevent duplicating code?
+        try {
+          const queryParams = {
+            TableName: genericConfig.LinkryDynamoTableName,
+            KeyConditionExpression: "slug = :slug",
+            ExpressionAttributeValues: {
+              ":slug": { S: request.body.slug },
+            },
+          };
+
+          const queryCommand = new QueryCommand(queryParams);
+          const queryResponse = await dynamoClient.send(queryCommand);
+          if (queryResponse.Items && queryResponse.Items.length > 0) {
+            //TODO: throw a different error type so that the user can see the error message?
+            throw new DatabaseInsertError({
+              message: `Slug ${request.body.slug} already exists.`,
+            });
+          }
+        } catch (e: unknown) {
+          console.log(e);
+          throw new DatabaseFetchError({
+            message: "Failed to verify that the slug does not already exist.",
+          });
+        }
       },
       onRequest: async (request, reply) => {
+        //TODO: re-add auth
         /*await fastify.authorize(request, reply, [
           AppRoles.LINKS_MANAGER,
           AppRoles.LINKS_ADMIN,
@@ -124,43 +153,50 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
     },
     async (request, reply) => {
-      //Add the OWNER record to Dynamo
+      //Use a transaction to handle if one/multiple of these fail
+      const TransactItems: object[] = [];
+
       try {
-        const entry = {
+        //Add the OWNER record
+        const ownerRecord = {
           slug: request.body.slug,
           redirect: request.body.redirect,
+          //TODO: fix this, I don't know why request.username is now undefined
           access: "OWNER#" + request.username,
           UpdatedAtUtc: Date.now(),
           createdAtUtc: Date.now(),
         };
-        await dynamoClient.send(
-          new PutItemCommand({
+        const OwnerPutCommand = {
+          Put: {
             TableName: genericConfig.LinkryDynamoTableName,
-            Item: marshall(entry),
-          }),
-        );
+            Item: marshall(ownerRecord),
+          },
+        };
 
-        //TODO: How to handle when one/multiple of these fail?
+        TransactItems.push(OwnerPutCommand);
 
         //Add GROUP records
         const accessGroups: string[] = request.body.access;
         for (const accessGroup of accessGroups) {
-          const entry = {
+          const groupRecord = {
             slug: request.body.slug,
             access: "GROUP#" + accessGroup,
-            //TODO: we don't want additional copies of these, correct?
-            //redirect: request.body.redirect,
-            //UpdatedAtUtc: Date.now(),
-            //createdAtUtc: Date.now(),
           };
-          await dynamoClient.send(
-            new PutItemCommand({
+          const GroupPutCommand = {
+            Put: {
               TableName: genericConfig.LinkryDynamoTableName,
-              Item: marshall(entry),
-            }),
-          );
+              Item: marshall(groupRecord),
+            },
+          };
+
+          TransactItems.push(GroupPutCommand);
         }
-        reply.send({ message: "Record Created", id: request.body.slug });
+
+        await dynamoClient.send(
+          new TransactWriteItemsCommand({ TransactItems: TransactItems }),
+        );
+
+        reply.send({ message: "Slug Created", id: request.body.slug });
       } catch (e: unknown) {
         console.log(e);
         throw new DatabaseInsertError({
