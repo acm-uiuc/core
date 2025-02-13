@@ -76,3 +76,4 @@ export const entraProfilePatchRequest = z.object({
 });
 
 export type ProfilePatchRequest = z.infer<typeof entraProfilePatchRequest>;
+
