@@ -4,17 +4,54 @@ import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { z } from 'zod';
 import { OrganizationList } from '@common/orgs';
 
+const OrganizationListEnum = z.enum(OrganizationList);
+
 const userSchema = z.object({
   netid: z.string().min(1),
-  org: z.enum(OrganizationList),
+  org: OrganizationListEnum,
   firstName: z.string().min(1),
   middleName: z.string().optional(),
   lastName: z.string().min(1),
 });
+
+const orgSuperRowSchema = userSchema.extend({
+  netid: z.string().max(0),
+  firstName: z.string().max(0),
+  lastName: z.string().max(0),
+  subRows: userSchema.array(),
+});
+
 export type User = z.infer<typeof userSchema>;
+export type OrgSuperRow = z.infer<typeof orgSuperRowSchema>;
+export type Org = z.infer<typeof OrganizationListEnum>;
+
+function groupUsersByOrg(users: User[]): OrgSuperRow[] {
+  const grouped: Record<Org, User[]> = {} as Record<Org, User[]>;
+
+  // Group users by organization
+  users.forEach((user) => {
+    if (!grouped[user.org]) {
+      grouped[user.org] = [];
+    }
+    grouped[user.org].push(user);
+  });
+
+  // Transform into the desired structure
+  const reformatted = Object.entries(grouped).map(([org, subRows]) =>
+    orgSuperRowSchema.parse({
+      netid: '',
+      org,
+      firstName: '',
+      lastName: '',
+      subRows,
+    })
+  );
+
+  return reformatted;
+}
 
 export const ScreenComponent: React.FC = () => {
-  const [userList, setUserList] = useState<User[]>([]);
+  const [userList, setUserList] = useState<OrgSuperRow[]>([]);
   const columns = useMemo<MRT_ColumnDef<User>[]>(
     () => [
       {
@@ -119,7 +156,8 @@ export const ScreenComponent: React.FC = () => {
         return { ...orgObj, ...nameObj } as User;
       });
 
-      setUserList(mergedResponse);
+      // console.log(mergedResponse);
+      setUserList(groupUsersByOrg(mergedResponse));
     };
     getUsers();
   }, []);
