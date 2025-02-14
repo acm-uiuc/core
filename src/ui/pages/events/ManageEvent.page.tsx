@@ -150,7 +150,6 @@ export const ManageEventPage: React.FC = () => {
             : undefined,
         repeats: values.repeats ? values.repeats : undefined,
       };
-      console.log(realValues);
       const eventURL = isEditing ? `/api/v1/events/${eventId}` : '/api/v1/events';
       const response = await api.post(eventURL, realValues);
       notifications.show({
@@ -270,6 +269,7 @@ export const ManageEventPage: React.FC = () => {
             <TextInput
               mt="sm"
               label="Paid Event ID"
+              withAsterisk
               placeholder="Enter Ticketing ID or Merch ID prefixed with merch:"
               {...form.getInputProps('paidEventId')}
             />
@@ -280,30 +280,35 @@ export const ManageEventPage: React.FC = () => {
               <TextInput
                 mt="sm"
                 label="Event ID"
+                withAsterisk
                 placeholder="Enter event_id (same as paidEventID):"
                 {...form.getInputProps('event_id')}
               />
               <TextInput
                 mt="sm"
                 label="Event Name"
+                withAsterisk
                 placeholder="Enter event_name"
                 {...form.getInputProps('event_name')}
               />
               <TextInput
                 mt="sm"
                 label="Event Details"
+                withAsterisk
                 placeholder="Enter event details"
                 {...form.getInputProps('eventDetails')}
               />
               <TextInput
                 mt="sm"
                 label="Event Image"
+                withAsterisk
                 placeholder="Enter event image"
                 {...form.getInputProps('eventImage')}
               />
               <NumberInput
                 mt="sm"
                 label="Event Capacity"
+                withAsterisk
                 placeholder="Enter event capacity"
                 {...{
                   ...form.getInputProps('event_capacity'),
@@ -314,6 +319,7 @@ export const ManageEventPage: React.FC = () => {
               <NumberInput
                 mt="sm"
                 label="Event Start Sales"
+                withAsterisk
                 placeholder="Enter event_sales_active_utc"
                 {...{
                   ...form.getInputProps('event_sales_active_utc'),
@@ -324,6 +330,7 @@ export const ManageEventPage: React.FC = () => {
               <NumberInput
                 mt="sm"
                 label="Event Time"
+                withAsterisk
                 placeholder="Enter event_time"
                 {...{
                   ...form.getInputProps('event_time'),
@@ -333,7 +340,8 @@ export const ManageEventPage: React.FC = () => {
               <NumberInput
                 mt="sm"
                 label="Tickets_sold"
-                placeholder="Enter tickets_sold"
+                withAsterisk
+                placeholder="Enter Tickets Sold"
                 {...{
                   ...form.getInputProps('tickets_sold'),
                   onChange: (event) =>
@@ -347,30 +355,36 @@ export const ManageEventPage: React.FC = () => {
               <TextInput
                 mt="sm"
                 label="Item ID"
+                withAsterisk
                 placeholder="Enter item_id (same as paidEventID):"
                 {...form.getInputProps('item_id')}
               />
               <TextInput
                 mt="sm"
                 label="Item Name"
+                withAsterisk
                 placeholder="Enter item_name"
                 {...form.getInputProps('item_name')}
               />
               <TextInput
                 mt="sm"
                 label="Items Details"
+                withAsterisk
                 placeholder="Enter item details"
                 {...form.getInputProps('item_email_desc')}
               />
               <TextInput
                 mt="sm"
                 label="Item Image"
+                withAsterisk
                 placeholder="Enter item_image"
                 {...form.getInputProps('item_image')}
               />
+
               <NumberInput
                 mt="sm"
                 label="Item Start Sales"
+                withAsterisk
                 placeholder="Enter item_sales_active_utc"
                 {...{
                   ...form.getInputProps('item_sales_active_utc'),
@@ -380,7 +394,8 @@ export const ManageEventPage: React.FC = () => {
               />
               <NumberInput
                 mt="sm"
-                label="Limit_per_person"
+                label="Limit Per Person"
+                withAsterisk
                 placeholder="Enter limit_per_person"
                 {...{
                   ...form.getInputProps('limit_per_person'),

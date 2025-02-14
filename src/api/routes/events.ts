@@ -114,7 +114,6 @@ const postRefinedSchema = z.union([
   postMerchEventSchema,
   postTicketEventSchema,
 ]);
-z.union([postMerchEventSchema, postTicketEventSchema]);
 
 export type EventPostRequest = z.infer<typeof postRefinedSchema>;
 
@@ -243,8 +242,9 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
         const obj = splitter(request.body);
+        const eventEntry: z.infer<typeof postRequestSchema> = obj[1];
         const entry = {
-          ...obj[1],
+          ...eventEntry,
           id: entryUUID,
           createdBy: "request.username", //temporary disabled for testing
           createdAt: originalEvent
@@ -252,7 +252,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             : new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        console.log("PutEvent", entry);
+        console.log("EventPut", entry);
         await fastify.dynamoClient.send(
           new PutItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
@@ -307,6 +307,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               member_price: "Send to stripe API",
               nonmember_price: "Send to stripe API",
             };
+            console.log("ItemPut", merchDBEntry);
             await fastify.dynamoClient.send(
               new PutItemCommand({
                 TableName: genericConfig.MerchStoreMetadataTableName,
