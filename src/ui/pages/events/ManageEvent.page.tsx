@@ -1,4 +1,16 @@
-import { Title, Box, TextInput, Textarea, Switch, Select, Button, Loader } from '@mantine/core';
+import {
+  Title,
+  Box,
+  TextInput,
+  Textarea,
+  Switch,
+  Select,
+  Button,
+  Loader,
+  Group,
+  NumberInput,
+  Checkbox,
+} from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { useForm, zodResolver } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -51,6 +63,7 @@ type EventPostRequest = z.infer<typeof requestBodySchema>;
 
 export const ManageEventPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isPaidEvent, setIsPaidEvent] = useState<'ticket' | 'merch' | undefined>(undefined);
   const navigate = useNavigate();
   const api = useApi('core');
 
@@ -128,6 +141,7 @@ export const ManageEventPage: React.FC = () => {
       setIsSubmitting(true);
       const realValues = {
         ...values,
+        type: isPaidEvent,
         start: dayjs(values.start).format('YYYY-MM-DD[T]HH:mm:00'),
         end: values.end ? dayjs(values.end).format('YYYY-MM-DD[T]HH:mm:00') : undefined,
         repeatEnds:
@@ -136,7 +150,7 @@ export const ManageEventPage: React.FC = () => {
             : undefined,
         repeats: values.repeats ? values.repeats : undefined,
       };
-
+      console.log(realValues);
       const eventURL = isEditing ? `/api/v1/events/${eventId}` : '/api/v1/events';
       const response = await api.post(eventURL, realValues);
       notifications.show({
@@ -153,12 +167,19 @@ export const ManageEventPage: React.FC = () => {
     }
   };
 
+  const handleFormClose = () => {
+    navigate('/events/manage');
+  };
+
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
-      <Box maw={400} mx="auto" mt="xl">
-        <Title mb="sm" order={2}>
-          {isEditing ? `Edit` : `Create`} Event
-        </Title>
+      <Box maw={800} mx="auto" mt="xl">
+        <Box display="flex" ta="center" mt="xl">
+          <Title order={2}>{isEditing ? `Edit` : `Create`} Event</Title>
+          <Button variant="subtle" ml="auto" onClick={handleFormClose}>
+            Close
+          </Button>
+        </Box>
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <TextInput
             label="Event Title"
@@ -227,11 +248,154 @@ export const ManageEventPage: React.FC = () => {
               {...form.getInputProps('repeatEnds')}
             />
           )}
-          <TextInput
-            label="Paid Event ID"
-            placeholder="Enter Ticketing ID or Merch ID prefixed with merch:"
-            {...form.getInputProps('paidEventId')}
-          />
+
+          <Group mt="xs">
+            <Checkbox
+              checked={isPaidEvent === 'ticket'}
+              label="Ticket"
+              onClick={() => {
+                setIsPaidEvent(isPaidEvent === 'ticket' ? undefined : 'ticket');
+              }}
+            ></Checkbox>
+            <Checkbox
+              checked={isPaidEvent === 'merch'}
+              label="Merch"
+              onClick={() => {
+                setIsPaidEvent(isPaidEvent === 'merch' ? undefined : 'merch');
+              }}
+            ></Checkbox>
+          </Group>
+
+          {isPaidEvent != undefined && (
+            <TextInput
+              mt="sm"
+              label="Paid Event ID"
+              placeholder="Enter Ticketing ID or Merch ID prefixed with merch:"
+              {...form.getInputProps('paidEventId')}
+            />
+          )}
+
+          {isPaidEvent == 'ticket' && (
+            <Box maw={800} mx="auto" mt="sm">
+              <TextInput
+                mt="sm"
+                label="Event ID"
+                placeholder="Enter event_id (same as paidEventID):"
+                {...form.getInputProps('event_id')}
+              />
+              <TextInput
+                mt="sm"
+                label="Event Name"
+                placeholder="Enter event_name"
+                {...form.getInputProps('event_name')}
+              />
+              <TextInput
+                mt="sm"
+                label="Event Details"
+                placeholder="Enter event details"
+                {...form.getInputProps('eventDetails')}
+              />
+              <TextInput
+                mt="sm"
+                label="Event Image"
+                placeholder="Enter event image"
+                {...form.getInputProps('eventImage')}
+              />
+              <NumberInput
+                mt="sm"
+                label="Event Capacity"
+                placeholder="Enter event capacity"
+                {...{
+                  ...form.getInputProps('event_capacity'),
+                  onChange: (event) =>
+                    form.setFieldValue('event_capacity', parseInt(event.toString())),
+                }}
+              />
+              <NumberInput
+                mt="sm"
+                label="Event Start Sales"
+                placeholder="Enter event_sales_active_utc"
+                {...{
+                  ...form.getInputProps('event_sales_active_utc'),
+                  onChange: (event) =>
+                    form.setFieldValue('event_sales_active_utc', parseInt(event.toString())),
+                }}
+              />
+              <NumberInput
+                mt="sm"
+                label="Event Time"
+                placeholder="Enter event_time"
+                {...{
+                  ...form.getInputProps('event_time'),
+                  onChange: (event) => form.setFieldValue('event_time', parseInt(event.toString())),
+                }}
+              />
+              <NumberInput
+                mt="sm"
+                label="Tickets_sold"
+                placeholder="Enter tickets_sold"
+                {...{
+                  ...form.getInputProps('tickets_sold'),
+                  onChange: (event) =>
+                    form.setFieldValue('tickets_sold', parseInt(event.toString())),
+                }}
+              />
+            </Box>
+          )}
+          {isPaidEvent == 'merch' && (
+            <Box maw={800} mx="auto" mt="sm">
+              <TextInput
+                mt="sm"
+                label="Item ID"
+                placeholder="Enter item_id (same as paidEventID):"
+                {...form.getInputProps('item_id')}
+              />
+              <TextInput
+                mt="sm"
+                label="Item Name"
+                placeholder="Enter item_name"
+                {...form.getInputProps('item_name')}
+              />
+              <TextInput
+                mt="sm"
+                label="Items Details"
+                placeholder="Enter item details"
+                {...form.getInputProps('item_email_desc')}
+              />
+              <TextInput
+                mt="sm"
+                label="Item Image"
+                placeholder="Enter item_image"
+                {...form.getInputProps('item_image')}
+              />
+              <NumberInput
+                mt="sm"
+                label="Item Start Sales"
+                placeholder="Enter item_sales_active_utc"
+                {...{
+                  ...form.getInputProps('item_sales_active_utc'),
+                  onChange: (event) =>
+                    form.setFieldValue('item_sales_active_utc', parseInt(event.toString())),
+                }}
+              />
+              <NumberInput
+                mt="sm"
+                label="Limit_per_person"
+                placeholder="Enter limit_per_person"
+                {...{
+                  ...form.getInputProps('limit_per_person'),
+                  onChange: (event) =>
+                    form.setFieldValue('limit_per_person', parseInt(event.toString())),
+                }}
+              />
+              <Checkbox
+                mt="sm"
+                label="PickupStatus"
+                placeholder="Click True/False"
+                {...form.getInputProps('ready_for_pickup', { type: 'checkbox' })}
+              />
+            </Box>
+          )}
           <Button type="submit" mt="md">
             {isSubmitting ? (
               <>

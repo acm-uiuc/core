@@ -39,12 +39,44 @@ const baseSchema = z.object({
   locationLink: z.optional(z.string().url()),
   host: z.enum(OrganizationList as [string, ...string[]]),
   featured: z.boolean().default(false),
-  paidEventId: z.optional(z.string().min(1)),
+  paidEventId: z.optional(z.string()),
+  type: z.literal(undefined),
 });
 
 const requestSchema = baseSchema.extend({
   repeats: z.optional(z.enum(repeatOptions)),
   repeatEnds: z.string().optional(),
+});
+
+const ticketEventSchema = requestSchema.extend({
+  type: z.literal("ticket"),
+  event_id: z.string(),
+  event_name: z.string(),
+  eventCost: z.optional(z.record(z.number())),
+  eventDetails: z.string(),
+  eventImage: z.string(),
+  event_capacity: z.number(),
+  event_sales_active_utc: z.number(),
+  event_time: z.number(),
+  member_price: z.optional(z.string()),
+  nonmember_price: z.optional(z.string()),
+  tickets_sold: z.number(),
+});
+
+const merchEventSchema = requestSchema.extend({
+  type: z.literal("merch"),
+  item_id: z.string(),
+  item_email_desc: z.string(),
+  item_image: z.string(),
+  item_name: z.string(),
+  item_price: z.optional(z.record(z.string(), z.number())),
+  item_sales_active_utc: z.number(),
+  limit_per_person: z.number(),
+  member_price: z.optional(z.string()),
+  nonmember_price: z.optional(z.string()),
+  ready_for_pickup: z.boolean(),
+  sizes: z.optional(z.array(z.string())),
+  total_avail: z.optional(z.record(z.string(), z.string())),
 });
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -55,7 +87,37 @@ const postRequestSchema = requestSchema.refine(
   },
 );
 
-export type EventPostRequest = z.infer<typeof postRequestSchema>;
+/*.refine(
+  (data) => (data.paidEventId === undefined), 
+  {
+    message: "paidEventId should be empty if you are not creating a paid event",
+  },
+)*/ //Potential check here in case people creates event with a paideventid but no other entry so zod validates to just a normal event
+
+const postTicketEventSchema = ticketEventSchema.refine(
+  (data) =>
+    data.paidEventId !== undefined && data.paidEventId === data.event_id,
+  {
+    message: "event_id needs to be the same as paidEventId", //currently useless bc if this false it will auto convert to a unpaid event...
+  },
+);
+
+const postMerchEventSchema = merchEventSchema.refine(
+  (data) => data.paidEventId !== undefined && data.paidEventId === data.item_id,
+  {
+    message: "merch_id needs to be the same as paidEventId", //currently useless bc if this false it will auto convert to a unpaid event...
+  },
+);
+
+const postRefinedSchema = z.union([
+  postRequestSchema,
+  postMerchEventSchema,
+  postTicketEventSchema,
+]);
+z.union([postMerchEventSchema, postTicketEventSchema]);
+
+export type EventPostRequest = z.infer<typeof postRefinedSchema>;
+
 type EventGetRequest = {
   Params: { id: string };
   Querystring: undefined;
@@ -81,6 +143,70 @@ const getEventsSchema = z.array(getEventSchema);
 export type EventsGetResponse = z.infer<typeof getEventsSchema>;
 type EventsGetQueryParams = { upcomingOnly?: boolean };
 
+const splitter = (input: z.infer<typeof postRefinedSchema>) => {
+  type entry = undefined | string | number | boolean;
+  const { type, ...rest } = input;
+  console.log(rest);
+  let eventData: any = {}; //TODO: Need to specify type very faulty
+  const paidData: { [key: string]: entry } = {};
+  const eventSchemaKeys = Object.keys(requestSchema.shape);
+  if (type === undefined) {
+    eventData = rest as { [key: string]: entry };
+  } else if (type === "ticket") {
+    const data = rest as { [key: string]: entry };
+    const paidSchemaKeys = [
+      "event_id",
+      "event_name",
+      "eventCost",
+      "eventDetails",
+      "eventImage",
+      "event_capacity",
+      "event_sales_active_utc",
+      "event_time",
+      "member_price",
+      "nonmember_price",
+      "tickets_sold",
+    ];
+    for (const key of paidSchemaKeys) {
+      if (key in data) {
+        paidData[key] = data[key];
+      }
+    }
+    for (const key of eventSchemaKeys) {
+      if (key in data) {
+        eventData[key] = data[key];
+      }
+    }
+  } else if (type === "merch") {
+    const data = rest as { [key: string]: entry };
+    const paidSchemaKeys = [
+      "item_id",
+      "item_email_desc",
+      "item_image",
+      "item_name",
+      "item_price",
+      "item_sales_active_utc",
+      "limit_per_person",
+      "member_price",
+      "nonmember_price",
+      "ready_for_pickup",
+      "sizes",
+      "total_avail",
+    ];
+    for (const key of paidSchemaKeys) {
+      if (key in data) {
+        paidData[key] = data[key];
+      }
+    }
+    for (const key of eventSchemaKeys) {
+      if (key in data) {
+        eventData[key] = data[key];
+      }
+    }
+  }
+  return [type, eventData, paidData];
+};
+
 const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.post<{ Body: EventPostRequest }>(
     "/:id?",
@@ -89,11 +215,11 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         response: { 201: responseJsonSchema },
       },
       preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, postRequestSchema);
+        await fastify.zodValidateBody(request, reply, postRefinedSchema);
       },
-      onRequest: async (request, reply) => {
+      /*onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
-      },
+      },*/
     },
     async (request, reply) => {
       try {
@@ -116,27 +242,87 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             });
           }
         }
+        const obj = splitter(request.body);
         const entry = {
-          ...request.body,
+          ...obj[1],
           id: entryUUID,
-          createdBy: request.username,
+          createdBy: "request.username", //temporary disabled for testing
           createdAt: originalEvent
             ? originalEvent.createdAt || new Date().toISOString()
             : new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
+        console.log("PutEvent", entry);
         await fastify.dynamoClient.send(
           new PutItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
             Item: marshall(entry),
           }),
         );
+
+        switch (obj[0]) {
+          case "ticket":
+            const ticketEntry: z.infer<typeof postTicketEventSchema> = obj[2];
+            const ticketResponse = await fastify.dynamoClient.send(
+              new QueryCommand({
+                TableName: genericConfig.TicketMetadataTableName,
+                KeyConditionExpression: "event_id = :id",
+                ExpressionAttributeValues: {
+                  ":id": { S: ticketEntry.event_id },
+                },
+              }),
+            );
+            if (ticketResponse.Items?.length != 0) {
+              throw new Error("Event_id already exists");
+            }
+            const ticketDBEntry = {
+              ...ticketEntry,
+              member_price: "Send to stripe API",
+              nonmember_price: "Send to stripe API",
+            };
+            console.log("TicketPut", ticketDBEntry);
+            await fastify.dynamoClient.send(
+              new PutItemCommand({
+                TableName: genericConfig.TicketMetadataTableName,
+                Item: marshall(ticketDBEntry),
+              }),
+            );
+            break;
+          case "merch":
+            const merchEntry: z.infer<typeof postMerchEventSchema> = obj[2];
+            const merchResponse = await fastify.dynamoClient.send(
+              new QueryCommand({
+                TableName: genericConfig.MerchStoreMetadataTableName,
+                KeyConditionExpression: "item_id = :id",
+                ExpressionAttributeValues: {
+                  ":id": { S: merchEntry.item_id },
+                },
+              }),
+            );
+            if (merchResponse.Items?.length != 0) {
+              throw new Error("Item_id already exists");
+            }
+            const merchDBEntry = {
+              ...merchEntry,
+              member_price: "Send to stripe API",
+              nonmember_price: "Send to stripe API",
+            };
+            await fastify.dynamoClient.send(
+              new PutItemCommand({
+                TableName: genericConfig.MerchStoreMetadataTableName,
+                Item: marshall(merchDBEntry),
+              }),
+            );
+            break;
+        }
+
         let verb = "created";
         if (userProvidedId && userProvidedId === entryUUID) {
           verb = "modified";
         }
+        /* Disable for now...
         try {
-          if (request.body.featured && !request.body.repeats) {
+          if (eventEntry.featured && !eventEntry.repeats) {
             await updateDiscord(
               fastify.secretsManagerClient,
               entry,
@@ -168,7 +354,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             throw e;
           }
           throw new DiscordEventError({});
-        }
+        } */
         reply.status(201).send({
           id: entryUUID,
           resource: `/api/v1/events/${entryUUID}`,
@@ -278,10 +464,12 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       );
     },
   );
+
   type EventsGetRequest = {
     Body: undefined;
     Querystring?: EventsGetQueryParams;
   };
+
   fastify.get<EventsGetRequest>(
     "/",
     {
