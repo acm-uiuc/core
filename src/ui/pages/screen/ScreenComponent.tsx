@@ -18,12 +18,12 @@ const orgSuperRowSchema = userSchema.extend({
   netid: z.string().max(0),
   firstName: z.string().max(0),
   lastName: z.string().max(0),
-  subRows: userSchema.array(),
+  subRows: userSchema.omit({ org: true }).array(), // redundant so omit org
 });
 
+export type Org = z.infer<typeof OrganizationListEnum>;
 export type User = z.infer<typeof userSchema>;
 export type OrgSuperRow = z.infer<typeof orgSuperRowSchema>;
-export type Org = z.infer<typeof OrganizationListEnum>;
 
 function groupUsersByOrg(users: User[]): OrgSuperRow[] {
   const grouped: Record<Org, User[]> = {} as Record<Org, User[]>;
@@ -52,7 +52,7 @@ function groupUsersByOrg(users: User[]): OrgSuperRow[] {
 
 export const ScreenComponent: React.FC = () => {
   const [userList, setUserList] = useState<OrgSuperRow[]>([]);
-  const columns = useMemo<MRT_ColumnDef<User>[]>(
+  const columns = useMemo<MRT_ColumnDef<OrgSuperRow>[]>(
     () => [
       {
         accessorKey: 'org',
@@ -89,7 +89,7 @@ export const ScreenComponent: React.FC = () => {
       //   return { ...item, upcoming: false };
       // });
 
-      // get request for user orgs
+      // mock data
       const userOrgsResponse = [
         { netid: 'johnd01', org: 'SIGMusic' },
         { netid: 'miker44', org: 'SIGPLAN' },
@@ -248,5 +248,17 @@ export const ScreenComponent: React.FC = () => {
   //   getSubRows: (originalRow) => originalRow.subRows, //default, can customize
   // });
 
-  return <MantineReactTable columns={columns} data={userList} enableExpanding />;
+  return (
+    <MantineReactTable
+      columns={columns}
+      data={userList}
+      enableExpanding
+      mantineTableBodyRowProps={({ row }) => ({
+        // className: row.original.subRows ? 'super-row' : 'sub-row',
+        style: row.original.subRows
+          ? { fontWeight: 'bold' } // Super row styling
+          : { fontWeight: 'lighter' }, // Sub-row styling
+      })}
+    />
+  );
 };
