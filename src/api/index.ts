@@ -24,6 +24,7 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import mobileWalletRoute from "./routes/mobileWallet.js";
 import stripeRoutes from "./routes/stripe.js";
 
+import paidEventsPlugin from "./routes/paidEvents.js";
 dotenv.config();
 
 const now = () => Date.now();
@@ -109,6 +110,7 @@ async function init() {
     async (api, _options) => {
       api.register(protectedRoute, { prefix: "/protected" });
       api.register(eventsPlugin, { prefix: "/events" });
+      api.register(paidEventsPlugin, { prefix: "/paidEvents" });
       api.register(organizationsPlugin, { prefix: "/organizations" });
       api.register(icalPlugin, { prefix: "/ical" });
       api.register(iamRoutes, { prefix: "/iam" });
