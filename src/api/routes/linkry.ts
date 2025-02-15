@@ -115,6 +115,18 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       preValidation: async (request, reply) => {
         await fastify.zodValidateBody(request, reply, createRequest);
 
+        const routeAlreadyExists = fastify.hasRoute({
+          url: `/${request.body.slug}`,
+          method: "GET",
+        });
+
+        if (routeAlreadyExists) {
+          //TODO: throw a more appropriate error type (and one that lets the end user see the message)?
+          throw new DatabaseInsertError({
+            message: `Slug ${request.body.slug} is reserved.`,
+          });
+        }
+
         for (const accessGroup of request.body.access) {
           if (
             !fastify.environmentConfig.LinkryGroupList.includes(accessGroup)
@@ -159,11 +171,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           AppRoles.LINKS_ADMIN,
         ]);*/
         //Ethan: I took validation off for developing purposes
-        //send a request to database to add a new linkry record
       },
     },
     async (request, reply) => {
-      //Use a transaction to handle if one/multiple of these fail
+      //Use a transaction to handle if one/multiple of these writes fail
       const TransactItems: object[] = [];
 
       try {
@@ -171,7 +182,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const ownerRecord = {
           slug: request.body.slug,
           redirect: request.body.redirect,
-          //TODO: fix this, I don't know why request.username is now undefined
+          //TODO: FIXME: fix this, I don't know why request.username is now undefined
           access: "OWNER#" + request.username,
           UpdatedAtUtc: Date.now(),
           createdAtUtc: Date.now(),
