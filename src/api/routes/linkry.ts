@@ -22,6 +22,7 @@ import {
 import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { randomUUID } from "crypto";
+import { access } from "fs";
 
 const LINKRY_MAX_SLUG_LENGTH = 1000;
 
@@ -39,8 +40,7 @@ const rawRequest = {
 
 const createRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
-  //TODO: require validation of access string? Should this be required to be at least length 1?
-  access: z.array(z.string()),
+  access: z.array(z.string()).min(1),
   redirect: z.string().url().min(1),
 });
 
@@ -113,8 +113,18 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/redir",
     {
       preValidation: async (request, reply) => {
-        console.log(request);
         await fastify.zodValidateBody(request, reply, createRequest);
+
+        for (const accessGroup of request.body.access) {
+          if (
+            !fastify.environmentConfig.LinkryGroupList.includes(accessGroup)
+          ) {
+            //TODO: throw a more appropriate error type (and one that lets the end user see the message)?
+            throw new DatabaseInsertError({
+              message: `${accessGroup} is not a valid access group.`,
+            });
+          }
+        }
 
         //validate that the slug entry does not already exist
         //TODO: could this just call one of the other routes to prevent duplicating code?
