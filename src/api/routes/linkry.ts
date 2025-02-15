@@ -184,8 +184,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           redirect: request.body.redirect,
           //TODO: FIXME: fix this, I don't know why request.username is now undefined
           access: "OWNER#" + request.username,
-          UpdatedAtUtc: Date.now(),
-          createdAtUtc: Date.now(),
+          updatedAtUtc: new Date().toISOString(),
+          createdAtUtc: new Date().toISOString(),
         };
         const OwnerPutCommand = {
           Put: {
