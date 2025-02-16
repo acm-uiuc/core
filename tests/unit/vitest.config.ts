@@ -8,6 +8,10 @@ const __dirname = path.dirname(__filename);
 export default defineConfig({
   test: {
     setupFiles: "./tests/unit/vitest.setup.ts",
+    coverage: {
+      provider: "istanbul",
+      include: ["src/api/**/*.ts", "src/common/**/*.ts"],
+    },
   },
   resolve: {
     alias: {
