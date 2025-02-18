@@ -3,6 +3,7 @@ export const runEnvironments = ["dev", "prod"] as const;
 export type RunEnvironment = (typeof runEnvironments)[number];
 export enum AppRoles {
   EVENTS_MANAGER = "manage:events",
+  SIGLEAD_MANAGER = "manage:siglead",
   TICKETS_SCANNER = "scan:tickets",
   TICKETS_MANAGER = "manage:tickets",
   IAM_ADMIN = "admin:iam",

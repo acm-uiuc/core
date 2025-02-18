@@ -17,6 +17,7 @@ import {
   IconPizza,
   IconTicket,
   IconLock,
+  IconUsers,
 } from '@tabler/icons-react';
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -38,13 +39,6 @@ export interface AcmAppShellProps {
 
 export const navItems = [
   {
-    link: '/events/manage',
-    name: 'Events',
-    icon: IconCalendar,
-    description: null,
-    validRoles: [AppRoles.EVENTS_MANAGER],
-  },
-  {
     link: '/tickets',
     name: 'Ticketing/Merch',
     icon: IconTicket,
@@ -64,6 +58,13 @@ export const navItems = [
     icon: IconCoin,
     description: null,
     validRoles: [AppRoles.STRIPE_LINK_CREATOR],
+  },
+  {
+    link: '/siglead-management',
+    name: 'SigLead',
+    icon: IconUsers,
+    description: null,
+    validRoles: [AppRoles.SIGLEAD_MANAGER],
   },
 ];
 
