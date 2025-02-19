@@ -114,6 +114,10 @@ const authenticatedRouter = createBrowserRouter([
     element: <ManageLinkPage />,
   },
   {
+    path: '/link/edit/:slug',
+    element: <ManageLinkPage />,
+  },
+  {
     path: '/tickets/scan',
     element: <ScanTicketsPage />,
   },

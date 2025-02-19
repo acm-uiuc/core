@@ -23,6 +23,7 @@ import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { randomUUID } from "crypto";
 import { access } from "fs";
+import { AuthError } from "@azure/msal-node";
 
 const LINKRY_MAX_SLUG_LENGTH = 1000;
 
@@ -58,6 +59,12 @@ type LinkyCreateRequest = {
   Body: z.infer<typeof createRequest>;
 };
 
+type LinkryGetRequest = {
+  Params: { slug: string };
+  Querystring: undefined;
+  Body: undefined;
+};
+
 type LinkyDeleteRequest = {
   Params: undefined;
   Querystring: undefined;
@@ -65,7 +72,7 @@ type LinkyDeleteRequest = {
 };
 
 type LinkryPatchRequest = {
-  Params: { id: string };
+  Params: { slug: string };
   Querystring: undefined;
   Body: z.infer<typeof patchRequest>;
 };
@@ -75,8 +82,8 @@ const dynamoClient = new DynamoDBClient({
 });
 
 const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.get<LinkrySlugOnlyRequest>("/redir/:id", async (request, reply) => {
-    const id = request.id;
+  fastify.get<LinkrySlugOnlyRequest>("/redir/:slug", async (request, reply) => {
+    const slug = request.params.slug;
     const command = new QueryCommand({
       TableName: genericConfig.LinkryDynamoTableName,
       KeyConditionExpression:
@@ -86,7 +93,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         "#access": "access",
       },
       ExpressionAttributeValues: {
-        ":slugVal": { S: id },
+        ":slugVal": { S: slug },
         ":accessVal": { S: "OWNER#" },
       },
     });
@@ -165,12 +172,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }
       },
       onRequest: async (request, reply) => {
-        //TODO: re-add auth
-        /*await fastify.authorize(request, reply, [
+        await fastify.authorize(request, reply, [
           AppRoles.LINKS_MANAGER,
           AppRoles.LINKS_ADMIN,
-        ]);*/
-        //Ethan: I took validation off for developing purposes
+        ]);
       },
     },
     async (request, reply) => {
@@ -183,7 +188,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const ownerRecord = {
           slug: request.body.slug,
           redirect: request.body.redirect,
-          //TODO: FIXME: fix this, I don't know why request.username is now undefined
           access: "OWNER#" + request.username,
           updatedAtUtc: creationTime.toISOString(),
           createdAtUtc: creationTime.toISOString(),
@@ -227,8 +231,75 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
+  fastify.get<LinkryGetRequest>(
+    "/linkdata/:slug",
+    {
+      /*preValidation: async (request, reply) => {
+        await fastify.zodValidateBody(request, reply, getRequest);
+      },*/
+      onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, [
+          AppRoles.LINKS_MANAGER,
+          AppRoles.LINKS_ADMIN,
+        ]);
+      },
+    },
+    async (request, reply) => {
+      try {
+        const { slug: slug } = request.params;
+        // Query to get all items with the specified slug
+        const queryParams = {
+          TableName: genericConfig.LinkryDynamoTableName,
+          KeyConditionExpression: "slug = :slug",
+          ExpressionAttributeValues: {
+            ":slug": { S: decodeURIComponent(slug) },
+          },
+        };
+
+        const queryCommand = new QueryCommand(queryParams);
+        const queryResponse = await dynamoClient.send(queryCommand);
+
+        const items: object[] = queryResponse.Items || [];
+        if (items.length == 0)
+          throw new DatabaseFetchError({ message: "Slug does not exist" });
+
+        //TODO: translate group UUIDs back to names
+        //TODO: cache response;
+
+        const ownerRecord: object =
+          items.filter((item) => {
+            return item.access.S?.startsWith("OWNER#");
+          })[0] || {};
+
+        const accessGroupUUIDs: string[] = [];
+        for (const record of items) {
+          if (record && record != ownerRecord) {
+            accessGroupUUIDs.push(record.access.S?.split("GROUP#")[1]);
+          }
+        }
+
+        if (
+          ownerRecord &&
+          ownerRecord.access.S?.split("OWNER#")[1] == request.username
+        ) {
+          reply.send({
+            slug: ownerRecord.slug.S,
+            access: accessGroupUUIDs,
+            redirect: ownerRecord.redirect.S,
+          });
+        } else {
+          throw new AuthError("User does not own slug.");
+        }
+      } catch (e: unknown) {
+        console.log(e);
+        throw new DatabaseFetchError({
+          message: "Failed to fetch slug information in Dynamo table.",
+        });
+      }
+    },
+  );
   fastify.patch<LinkryPatchRequest>(
-    "/redir/:id",
+    "/redir/:slug",
     {
       preValidation: async (request, reply) => {
         await fastify.zodValidateBody(request, reply, patchRequest);

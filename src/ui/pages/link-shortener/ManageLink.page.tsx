@@ -81,23 +81,23 @@ export const ManageLinkPage: React.FC = () => {
   const navigate = useNavigate();
   const api = useApi('core');
 
-  const { eventId } = useParams();
+  const { slug } = useParams();
 
-  const isEditing = false; //= eventId !== undefined;
+  const isEditing = slug !== undefined;
 
-  /*useEffect(() => {
+  useEffect(() => {
     if (!isEditing) {
       return;
     }
     // Fetch event data and populate form
     const startForm = async () => {
       try {
-        const response = await api.get(`/api/v1/events/${eventId}`);
-        const eventData = response.data;
+        const response = await api.get(`/api/v1/linkry/linkdata/${slug}`);
+        const linkData = response.data;
         const formValues = {
-          slug: eventData.slug,
-          access: eventData.access,
-          redirect: eventData.redirects,
+          slug: linkData.slug,
+          access: linkData.access,
+          redirect: linkData.redirect,
         };
         form.setValues(formValues);
       } catch (error) {
@@ -105,10 +105,11 @@ export const ManageLinkPage: React.FC = () => {
         notifications.show({
           message: 'Failed to fetch event data, please try again.',
         });
+        navigate('/link-shortener');
       }
     };
     startForm();
-  }, [eventId, isEditing]);*/
+  }, [slug, isEditing]);
 
   const form = useForm<LinkPostRequest>({
     validate: zodResolver(requestBodySchema),
@@ -131,7 +132,7 @@ export const ManageLinkPage: React.FC = () => {
         ...values,
       };
 
-      const linkURL = isEditing ? `/api/v1/linkry/redir/${eventId}` : '/api/v1/linkry/redir';
+      const linkURL = isEditing ? `/api/v1/linkry/redir/${slug}` : '/api/v1/linkry/redir';
       const response = await api.post(linkURL, realValues);
       notifications.show({
         title: isEditing ? 'Link updated!' : 'Link created!',
@@ -175,9 +176,9 @@ export const ManageLinkPage: React.FC = () => {
   }; //VERY crude solution...
 
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
+    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_MANAGER] }}>
       <Box display="flex" ta="center" mt="1.5rem">
-        <Title order={2}>Please Add a Link</Title>
+        <Title order={2}>{isEditing ? 'Edit' : 'Add'} Link</Title>
         <Button variant="subtle" ml="auto" onClick={handleFormClose}>
           Close
         </Button>
@@ -185,14 +186,14 @@ export const ManageLinkPage: React.FC = () => {
       <Box maw={650} mx="auto" mt="100px">
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <TextInput
-            label="Paste URL to be Shorten"
+            label="Paste URL to be Shortened"
             withAsterisk
             mt="xl"
             {...form.getInputProps('redirect')}
           />
 
           <TextInput
-            label="Suggest of Generate a URL"
+            label="Enter or Generate a Shortened URL"
             withAsterisk
             leftSectionWidth={calculateRenderWidth(baseUrl) + 30}
             rightSectionWidth={'150px'}

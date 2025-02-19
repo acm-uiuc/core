@@ -66,6 +66,9 @@ export const LinkShortener: React.FC = () => {
                 {/* <Button component="a" href={`/linkry/edit/${link.id}`}>
                   Edit
                 </Button> */}
+                <Button component="a" href={`/link/edit/${encodeURIComponent(link.slug)}`}>
+                  Edit
+                </Button>
                 <Button
                   color="red"
                   onClick={() => {
