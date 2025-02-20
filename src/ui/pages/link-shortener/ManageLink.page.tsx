@@ -44,7 +44,11 @@ const baseBodySchema = z.object({
     )
     .optional(),
   access: z.array(z.string()).min(1, 'Choose at least 1 access group').optional(),
-  redirect: z.string().min(1).regex(urlRegex, 'Invalid URL').optional(),
+  redirect: z
+    .string()
+    .min(1)
+    .regex(urlRegex, 'Invalid URL. Use format: http:// or https://www.example.com')
+    .optional(),
   createdAtUtc: z.number().optional(),
   updatedAtUtc: z.number().optional(),
 });
