@@ -390,14 +390,14 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
   fastify.get<NoDataRequest>(
     "/redir",
-    // {
-    //   onRequest: async (request, reply) => {
-    //     await fastify.authorize(request, reply, [
-    //       AppRoles.LINKS_MANAGER,
-    //       AppRoles.LINKS_ADMIN,
-    //     ]);
-    //   },
-    // },
+    {
+      onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, [
+          AppRoles.LINKS_MANAGER,
+          AppRoles.LINKS_ADMIN,
+        ]);
+      },
+    },
     async (request, reply) => {
       // console.log("******#*#")
       // console.log(request.headers)
@@ -405,10 +405,36 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       // if a links manager, show all my links + links I can manage
 
       try {
+        // console.log("******")
+        // console.log(request.username)
+
         const response = await dynamoClient.send(
           new ScanCommand({ TableName: genericConfig.LinkryDynamoTableName }),
         );
-        const items = response.Items?.map((item) => unmarshall(item));
+
+        // const params = {
+        //   TableName: genericConfig.LinkryDynamoTableName, // Replace with your actual table name
+        //   IndexName: "AccessIndex",   // Your GSI name
+        //   KeyConditionExpression: "access = :accessValue",
+        //   ExpressionAttributeValues: {
+        //     ":accessValue": { S: `OWNER#${request.username}` }
+        //   }
+        // };
+
+        // const response = await dynamoClient.send(new QueryCommand(params));
+        // console.log(response.Items);
+
+        const items = response.Items?.map((item) => {
+          const unmarshalledItem = unmarshall(item);
+
+          // Strip '#' from access field
+          if (unmarshalledItem.access) {
+            unmarshalledItem.access =
+              unmarshalledItem.access.split("#")[1] || unmarshalledItem.access;
+          }
+
+          return unmarshalledItem;
+        });
 
         // Sort items by createdAtUtc in ascending order, need to pass this to dyanmo instead of calcaulting here
         const sortedItems = items?.sort(

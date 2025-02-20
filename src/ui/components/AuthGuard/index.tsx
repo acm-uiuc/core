@@ -85,6 +85,7 @@ export const AuthGuard: React.FC<{
         const cachedData = getCachedResponse(service, authCheckRoute);
         if (cachedData !== null) {
           const userRoles = cachedData.data.roles;
+
           let authenticated = false;
           for (const item of userRoles) {
             if (validRoles.indexOf(item) !== -1) {
