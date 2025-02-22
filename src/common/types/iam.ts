@@ -1,3 +1,4 @@
+import { OrganizationList } from "../orgs.js";
 import { AppRoles } from "../roles.js";
 import { z } from "zod";
 
@@ -75,3 +76,4 @@ export const entraProfilePatchRequest = z.object({
 });
 
 export type ProfilePatchRequest = z.infer<typeof entraProfilePatchRequest>;
+

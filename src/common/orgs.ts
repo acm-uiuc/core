@@ -27,4 +27,5 @@ export const CommitteeList = [
   "Corporate Committee",
   "Marketing Committee",
 ] as const;
-export const OrganizationList = ["ACM", ...SIGList, ...CommitteeList];
+
+export const OrganizationList = ["ACM", ...SIGList, ...CommitteeList] as const;
