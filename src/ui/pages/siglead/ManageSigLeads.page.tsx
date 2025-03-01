@@ -11,6 +11,7 @@ import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
+import { ScreenComponent } from './SigScreenComponents';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -154,54 +155,9 @@ export const ManageSigLeadsPage: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        textAlign: 'center',
-      }}
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="100"
-        height="100"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{
-          animation: 'rotate 2s linear infinite',
-        }}
-      >
-        <path d="M12 2v2"></path>
-        <path d="M12 20v2"></path>
-        <path d="m4.93 4.93 1.41 1.41"></path>
-        <path d="m17.66 17.66 1.41 1.41"></path>
-        <path d="M2 12h2"></path>
-        <path d="M20 12h2"></path>
-        <path d="m6.34 17.66-1.41 1.41"></path>
-        <path d="m19.07 4.93-1.41 1.41"></path>
-        <circle cx="12" cy="12" r="3"></circle>
-      </svg>
-      <h1 style={{ marginTop: '20px', fontSize: '24px' }}>Page Under Construction</h1>
-
-      <style>
-        {`
-        @keyframes rotate {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}
-      </style>
-    </div>
+    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.IAM_ADMIN] }}>
+      <Title order={2}>SigLead Management System</Title>
+      <ScreenComponent />
+    </AuthGuard>
   );
 };
