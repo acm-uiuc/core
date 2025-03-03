@@ -30,28 +30,38 @@ export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-const baseUrl = getRunEnvironmentConfig().ServiceConfiguration.core.baseEndpoint;
+const baseUrl = 'https://go.acm.illinois.edu'; //Move to config in future?
 const slugRegex = new RegExp('^(https?://)?[a-zA-Z0-9-._/]*$');
-const urlRegex = new RegExp('^https?://[a-zA-Z0-9-._/]*$');
+const urlRegex = new RegExp('^https?://[a-zA-Z0-9-._/?=]*$');
 
-const baseBodySchema = z.object({
-  slug: z
-    .string()
-    .min(1, 'Enter or generate an alias')
-    .regex(
-      slugRegex,
-      "Invalid input: Only alphanumeric characters, '-', '_', '/', and '.' are allowed"
-    )
-    .optional(),
-  access: z.array(z.string()).min(1, 'Choose at least 1 access group').optional(),
-  redirect: z
-    .string()
-    .min(1)
-    .regex(urlRegex, 'Invalid URL. Use format: http:// or https://www.example.com')
-    .optional(),
-  createdAtUtc: z.number().optional(),
-  updatedAtUtc: z.number().optional(),
-});
+const baseBodySchema = z
+  .object({
+    slug: z
+      .string()
+      .min(1, 'Enter or generate an alias')
+      .regex(
+        slugRegex,
+        "Invalid input: Only alphanumeric characters, '-', '_', '/', and '.' are allowed"
+      )
+      .optional(),
+    access: z.array(z.string()).min(1, 'Choose at least 1 access group').optional(),
+    redirect: z
+      .string()
+      .min(1)
+      .regex(urlRegex, 'Invalid URL. Use format: http:// or https://www.example.com')
+      .optional(),
+    createdAtUtc: z.number().optional(),
+    updatedAtUtc: z.number().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if ((data.slug?.length || 0) * 2 >= (data.redirect?.length || 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['slug'],
+        message: 'Shortened URL cannot be that long',
+      }); //Throw custom error through context using superrefine
+    }
+  });
 
 const requestBodySchema = baseBodySchema;
 
@@ -170,6 +180,7 @@ export const ManageLinkPage: React.FC = () => {
     form.setFieldValue('slug', event.currentTarget.value);
   };
 
+  /*
   const calculateRenderWidth = (str: string) => {
     const span = document.createElement('button');
     document.body.appendChild(span);
@@ -177,7 +188,7 @@ export const ManageLinkPage: React.FC = () => {
     const width = span.offsetWidth;
     document.body.removeChild(span);
     return width;
-  }; //VERY crude solution...
+  }; */ //VERY crude solution...
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_MANAGER] }}>
@@ -199,7 +210,7 @@ export const ManageLinkPage: React.FC = () => {
           <TextInput
             label="Enter or Generate a Shortened URL"
             withAsterisk
-            leftSectionWidth={calculateRenderWidth(baseUrl) + 30}
+            leftSectionWidth={'230px'}
             rightSectionWidth={'150px'}
             leftSection={
               <Button variant="outline" mr="auto" size="auto">

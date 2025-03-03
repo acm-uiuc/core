@@ -1,4 +1,14 @@
-import { Text, Title, Button, Table, Modal, Group, Transition, ButtonGroup } from '@mantine/core';
+import {
+  Text,
+  Title,
+  Button,
+  Table,
+  Modal,
+  Group,
+  Transition,
+  ButtonGroup,
+  Anchor,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
@@ -56,7 +66,16 @@ export const LinkShortener: React.FC = () => {
       <Transition mounted={shouldShow} transition="fade" duration={400} timingFunction="ease">
         {(styles) => (
           <tr style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}>
-            <Table.Td style={wrapTextStyle}>{link.slug}</Table.Td>
+            <Table.Td style={wrapTextStyle}>
+              <Anchor
+                href={'http://localhost:8080/api/v1/linkry/redir/' + link.slug}
+                target="_blank"
+              >
+                {' '}
+                {/* Currently set to localhost for local testing purposes */}
+                https://go.acm.illinois.edu/{link.slug}
+              </Anchor>
+            </Table.Td>
             <Table.Td style={wrapTextStyle}>{link.redirect}</Table.Td>
             <Table.Td style={wrapTextStyle}>{link.access}</Table.Td>
             {/* <Table.Td style={wrapTextStyle}>{dayjs(link.createdAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>
@@ -178,7 +197,7 @@ export const LinkShortener: React.FC = () => {
       <Table style={{ tableLayout: 'fixed', width: '100%' }}>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th>Slug</Table.Th>
+            <Table.Th>Shortened Link</Table.Th>
             <Table.Th>Redirect URL</Table.Th>
             <Table.Th>Access Group</Table.Th>
             {/* <Table.Th>Created At</Table.Th>
