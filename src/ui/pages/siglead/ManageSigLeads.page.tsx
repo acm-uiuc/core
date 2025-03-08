@@ -11,7 +11,7 @@ import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
-import { ScreenComponent } from './SigScreenComponents';
+import { ScreenComponent, SigTable } from './SigScreenComponents';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -158,6 +158,7 @@ export const ManageSigLeadsPage: React.FC = () => {
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.IAM_ADMIN] }}>
       <Title order={2}>SigLead Management System</Title>
       <ScreenComponent />
+      {/* <SigTable /> */}
     </AuthGuard>
   );
 };
