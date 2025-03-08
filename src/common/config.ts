@@ -17,6 +17,7 @@ export type ConfigType = {
   MembershipApiEndpoint: string;
   EmailDomain: string;
   SqsQueueUrl: string;
+  PaidMemberGroupId: string;
 };
 
 export type GenericConfigType = {
@@ -30,6 +31,7 @@ export type GenericConfigType = {
   MerchStorePurchasesTableName: string;
   TicketPurchasesTableName: string;
   TicketMetadataTableName: string;
+  MembershipTableName: string;
   MerchStoreMetadataTableName: string;
   IAMTablePrefix: string;
   ProtectedEntraIDGroups: string[]; // these groups are too privileged to be modified via this portal and must be modified directly in Entra ID.
@@ -62,6 +64,7 @@ const genericConfig: GenericConfigType = {
   TicketMetadataTableName: "infra-events-ticketing-metadata",
   IAMTablePrefix: "infra-core-api-iam",
   ProtectedEntraIDGroups: [infraChairsGroupId, officersGroupId],
+  MembershipTableName: "infra-core-api-membership-provisioning",
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
@@ -83,6 +86,7 @@ const environmentConfig: EnvironmentConfigType = {
     EmailDomain: "aws.qa.acmuiuc.org",
     SqsQueueUrl:
       "https://sqs.us-east-1.amazonaws.com/427040638965/infra-core-api-sqs",
+    PaidMemberGroupId: "9222451f-b354-4e64-ba28-c0f367a277c2",
   },
   prod: {
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
@@ -100,6 +104,7 @@ const environmentConfig: EnvironmentConfigType = {
     EmailDomain: "acm.illinois.edu",
     SqsQueueUrl:
       "https://sqs.us-east-1.amazonaws.com/298118738376/infra-core-api-sqs",
+    PaidMemberGroupId: "172fd9ee-69f0-4384-9786-41ff1a43cf8e",
   },
 };
 
