@@ -4,8 +4,10 @@ set_application_name = ParameterKey=ApplicationFriendlyName,ParameterValue
 
 prod_aws_account = 298118738376
 dev_aws_account = 427040638965
+current_aws_account = $$(aws sts get-caller-identity --query Account --output text)
 
 src_directory_root = src/
+dist_ui_directory_root = dist_ui/
 integration_test_directory_root = tests/live_integration/
 
 # CHANGE ME (as needed)
@@ -24,19 +26,19 @@ common_params = --no-confirm-changeset \
 				--s3-prefix $(application_key) \
 				--resolve-s3
 
+ui_s3_bucket = "$(current_aws_account)-$(region)-$(application_key)-ui"
+
 GIT_HASH := $(shell git rev-parse --short HEAD)
 
 .PHONY: build clean
 
 check_account_prod:
-	@aws_account_id=$$(aws sts get-caller-identity --query Account --output text); \
-	if [ "$$aws_account_id" != "$(prod_aws_account)" ]; then \
+	if [ "$(current_aws_account)" != "$(prod_aws_account)" ]; then \
 		echo "Error: running in incorrect account $$aws_account_id, expected account ID $(prod_aws_account)"; \
 		exit 1; \
 	fi
 check_account_dev:
-	@aws_account_id=$$(aws sts get-caller-identity --query Account --output text); \
-	if [ "$$aws_account_id" != "$(dev_aws_account)" ]; then \
+	if [ "$(current_aws_account)" != "$(dev_aws_account)" ]; then \
 		echo "Error: running in incorrect account $$aws_account_id, expected account ID $(dev_aws_account)"; \
 		exit 1; \
 	fi
@@ -61,11 +63,12 @@ local:
 	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
 
 deploy_prod: check_account_prod build
-	aws sts get-caller-identity --query Account --output text
 	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)"
+	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
 
 deploy_dev: check_account_dev build
 	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)"
+	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
 
 install:
 	yarn -D
