@@ -3,7 +3,7 @@ import { describe } from "node:test";
 import { OrganizationList } from "../../src/common/orgs.js";
 import ical from "node-ical";
 
-const baseEndpoint = `https://infra-core-api.aws.qa.acmuiuc.org`;
+const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
 
 test("getting all events", async () => {
   const response = await fetch(`${baseEndpoint}/api/v1/ical`);
