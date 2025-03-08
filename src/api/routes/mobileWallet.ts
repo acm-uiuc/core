@@ -53,11 +53,14 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
           message: "Email query parameter is not a valid email",
         });
       }
-      const isPaidMember = await checkPaidMembership(
-        fastify.environmentConfig.MembershipApiEndpoint,
-        request.log,
-        request.query.email.replace("@illinois.edu", ""),
-      );
+      const isPaidMember =
+        (fastify.runEnvironment === "dev" &&
+          request.query.email === "testinguser@illinois.edu") ||
+        (await checkPaidMembership(
+          fastify.environmentConfig.MembershipApiEndpoint,
+          request.log,
+          request.query.email.replace("@illinois.edu", ""),
+        ));
       if (!isPaidMember) {
         throw new UnauthenticatedError({
           message: `${request.query.email} is not a paid member.`,
