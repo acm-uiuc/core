@@ -54,8 +54,9 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const isPaidMember = await checkPaidMembership(
+        fastify.environmentConfig.MembershipApiEndpoint,
+        request.log,
         request.query.email.replace("@illinois.edu", ""),
-        fastify.dynamoClient,
       );
       if (!isPaidMember) {
         throw new UnauthenticatedError({
