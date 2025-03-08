@@ -30,6 +30,9 @@ Parameters:
     Description: MessageVisibilityTimeout for the SQS Lambda queue (should be at least 6xSqsLambdaTimeout)
     Default: 1800
     Type: Number
+  S3BucketPrefix:
+    Description: S3 bucket prefix which will ensure global uniqueness
+    Type: String
 
 Conditions:
   IsProd: !Equals [!Ref RunEnvironment, "prod"]
@@ -45,15 +48,13 @@ Mappings:
       SesDomain: "acm.illinois.edu"
   ApiGwConfig:
     dev:
-      ApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
       HostedZoneId: Z04502822NVIA85WM2SML
-      ApiDomainName: "aws.qa.acmuiuc.org"
+      UiDomainName: "core.aws.qa.acmuiuc.org"
       EnvDomainName: "aws.qa.acmuiuc.org"
       EnvCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
     prod:
-      ApiCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/6142a0e2-d62f-478e-bf15-5bdb616fe705
       HostedZoneId: Z05246633460N5MEB9DBF
-      ApiDomainName: "aws.acmuiuc.org"
+      UiDomainName: "core.acm.illinois.edu"
       EnvDomainName: "acm.illinois.edu"
       EnvCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/aeb93d9e-b0b7-4272-9c12-24ca5058c77e
   EnvironmentToCidr:
@@ -373,15 +374,6 @@ Resources:
           Name: AWS::Include
           Parameters:
             Location: ./phony-swagger.yml
-      Domain:
-        DomainName: !Sub
-          - "${ApplicationPrefix}.${BaseDomainName}"
-          - BaseDomainName: !FindInMap
-              - ApiGwConfig
-              - !Ref RunEnvironment
-              - ApiDomainName
-        CertificateArn:
-          !FindInMap [ApiGwConfig, !Ref RunEnvironment, ApiCertificateArn]
         Route53:
           HostedZoneId:
             !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
@@ -517,7 +509,7 @@ Resources:
   AppFrontendS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub ${AWS::AccountId}-${AWS::Region}-${ApplicationPrefix}-ui
+      BucketName: !Sub ${S3BucketPrefix}-ui
 
   CloudFrontOriginAccessIdentity:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
@@ -534,8 +526,21 @@ Resources:
             DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
             S3OriginConfig:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
+          - Id: ApiGatewayOrigin
+            DomainName: !Sub "${AppApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
+            OriginPath: "/default"
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
         Enabled: true
         DefaultRootObject: index.html
+        Aliases:
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - UiDomainName
+
         DefaultCacheBehavior:
           TargetOriginId: S3WebsiteOrigin
           ViewerProtocolPolicy: redirect-to-https
@@ -549,8 +554,33 @@ Resources:
             QueryString: false
             Cookies:
               Forward: none
+        CacheBehaviors:
+          - PathPattern: "/api/*"
+            TargetOriginId: ApiGatewayOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - DELETE
+              - PATCH
+            CachedMethods:
+              - GET
+              - HEAD
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # caching disabled
         ViewerCertificate:
-          CloudFrontDefaultCertificate: true
+          AcmCertificateArn: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvCertificateArn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
         HttpVersion: http2
         PriceClass: PriceClass_100
 
@@ -566,3 +596,17 @@ Resources:
               CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
             Action: s3:GetObject
             Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
+
+Outputs:
+  DomainName:
+    Description: Domain name that the UI is hosted at
+    Value: !FindInMap
+      - ApiGwConfig
+      - !Ref RunEnvironment
+      - UiDomainName
+  CloudfrontCnameTarget:
+    Description: CNAME record target to create for the domain name above (create the CNAME manually)
+    Value:
+      Fn::GetAtt:
+        - AppFrontendCloudfrontDistribution
+        - DomainName
