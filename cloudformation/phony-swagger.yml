@@ -7,7 +7,7 @@ info:
     email: infra@acm.illinois.edu
 
 paths:
-  /api/{proxy+}:
+  /{proxy+}:
     x-amazon-apigateway-any-method:
       responses:
         200:
