@@ -5,7 +5,7 @@ Transform: AWS::Serverless-2016-10-31
 Parameters:
   RunEnvironment:
     Type: String
-    AllowedValues: [ 'dev', 'prod' ]
+    AllowedValues: ["dev", "prod"]
   AlertSNSArn:
     Description: SNS Queue to send alarm alerts to (prod only)
     Type: String
@@ -32,9 +32,8 @@ Parameters:
     Type: Number
 
 Conditions:
-  IsProd: !Equals [!Ref RunEnvironment, 'prod']
-  ShouldAttachVpc:
-    !Equals [true, !Ref VpcRequired]
+  IsProd: !Equals [!Ref RunEnvironment, "prod"]
+  ShouldAttachVpc: !Equals [true, !Ref VpcRequired]
 
 Mappings:
   General:
@@ -90,7 +89,8 @@ Resources:
       Location: ./logs.yml
       Parameters:
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
-        LogRetentionDays: !FindInMap [General, !Ref RunEnvironment, LogRetentionDays]
+        LogRetentionDays:
+          !FindInMap [General, !Ref RunEnvironment, LogRetentionDays]
 
   AppSQSQueues:
     Type: AWS::Serverless::Application
@@ -108,15 +108,16 @@ Resources:
         RunEnvironment: !Ref RunEnvironment
         RecordName: ical
         GWBaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - EnvDomainName
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvDomainName
         GWCertArn: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - EnvCertificateArn
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvCertificateArn
         GWApiId: !Ref AppApiGateway
-        GWHostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+        GWHostedZoneId:
+          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
 
   LinkryDomainProxy:
     Type: AWS::Serverless::Application
@@ -126,16 +127,16 @@ Resources:
         RunEnvironment: !Ref RunEnvironment
         RecordName: go
         GWBaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - EnvDomainName
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvDomainName
         GWCertArn: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - EnvCertificateArn
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvCertificateArn
         GWApiId: !Ref AppApiGateway
-        GWHostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-
+        GWHostedZoneId:
+          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
 
   CoreUrlProd:
     Type: AWS::Serverless::Application
@@ -146,15 +147,16 @@ Resources:
         RunEnvironment: !Ref RunEnvironment
         RecordName: core
         GWBaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - EnvDomainName
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvDomainName
         GWCertArn: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - EnvCertificateArn
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvCertificateArn
         GWApiId: !Ref AppApiGateway
-        GWHostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+        GWHostedZoneId:
+          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
 
   AppApiLambdaFunction:
     Type: AWS::Serverless::Function
@@ -176,8 +178,22 @@ Resources:
           RunEnvironment: !Ref RunEnvironment
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
-        SecurityGroupIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SecurityGroupIds], !Ref AWS::NoValue]
-        SubnetIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds], !Ref AWS::NoValue]
+        SecurityGroupIds:
+          !If [
+            ShouldAttachVpc,
+            !FindInMap [
+              EnvironmentToCidr,
+              !Ref RunEnvironment,
+              SecurityGroupIds,
+            ],
+            !Ref AWS::NoValue,
+          ]
+        SubnetIds:
+          !If [
+            ShouldAttachVpc,
+            !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds],
+            !Ref AWS::NoValue,
+          ]
       Events:
         ApiEvent:
           Type: Api
@@ -208,8 +224,22 @@ Resources:
           RunEnvironment: !Ref RunEnvironment
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
-        SecurityGroupIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SecurityGroupIds], !Ref AWS::NoValue]
-        SubnetIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds], !Ref AWS::NoValue]
+        SecurityGroupIds:
+          !If [
+            ShouldAttachVpc,
+            !FindInMap [
+              EnvironmentToCidr,
+              !Ref RunEnvironment,
+              SecurityGroupIds,
+            ],
+            !Ref AWS::NoValue,
+          ]
+        SubnetIds:
+          !If [
+            ShouldAttachVpc,
+            !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds],
+            !Ref AWS::NoValue,
+          ]
 
   SQSLambdaEventMapping:
     Type: AWS::Lambda::EventSourceMapping
@@ -223,11 +253,11 @@ Resources:
         - ReportBatchItemFailures
 
   IamGroupRolesTable:
-    Type: 'AWS::DynamoDB::Table'
+    Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
     UpdateReplacePolicy: "Retain"
     Properties:
-      BillingMode: 'PAY_PER_REQUEST'
+      BillingMode: "PAY_PER_REQUEST"
       TableName: infra-core-api-iam-grouproles
       DeletionProtectionEnabled: true
       PointInTimeRecoverySpecification:
@@ -240,11 +270,11 @@ Resources:
           KeyType: HASH
 
   IamUserRolesTable:
-    Type: 'AWS::DynamoDB::Table'
+    Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
     UpdateReplacePolicy: "Retain"
     Properties:
-      BillingMode: 'PAY_PER_REQUEST'
+      BillingMode: "PAY_PER_REQUEST"
       TableName: infra-core-api-iam-userroles
       DeletionProtectionEnabled: true
       PointInTimeRecoverySpecification:
@@ -257,11 +287,11 @@ Resources:
           KeyType: HASH
 
   EventRecordsTable:
-    Type: 'AWS::DynamoDB::Table'
+    Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
     UpdateReplacePolicy: "Retain"
     Properties:
-      BillingMode: 'PAY_PER_REQUEST'
+      BillingMode: "PAY_PER_REQUEST"
       TableName: infra-core-api-events
       DeletionProtectionEnabled: true
       PointInTimeRecoverySpecification:
@@ -275,19 +305,19 @@ Resources:
         - AttributeName: id
           KeyType: HASH
       GlobalSecondaryIndexes:
-      - IndexName: HostIndex
-        KeySchema:
-        - AttributeName: host
-          KeyType: HASH
-        Projection:
-          ProjectionType: ALL
+        - IndexName: HostIndex
+          KeySchema:
+            - AttributeName: host
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
 
   StripeLinksTable:
-    Type: 'AWS::DynamoDB::Table'
+    Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
     UpdateReplacePolicy: "Retain"
     Properties:
-      BillingMode: 'PAY_PER_REQUEST'
+      BillingMode: "PAY_PER_REQUEST"
       TableName: infra-core-api-stripe-links
       DeletionProtectionEnabled: true
       PointInTimeRecoverySpecification:
@@ -311,11 +341,11 @@ Resources:
             ProjectionType: "ALL"
 
   CacheRecordsTable:
-    Type: 'AWS::DynamoDB::Table'
+    Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
     UpdateReplacePolicy: "Retain"
     Properties:
-      BillingMode: 'PAY_PER_REQUEST'
+      BillingMode: "PAY_PER_REQUEST"
       TableName: infra-core-api-cache
       DeletionProtectionEnabled: true
       PointInTimeRecoverySpecification:
@@ -347,12 +377,14 @@ Resources:
         DomainName: !Sub
           - "${ApplicationPrefix}.${BaseDomainName}"
           - BaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - ApiDomainName
-        CertificateArn: !FindInMap [ApiGwConfig, !Ref RunEnvironment, ApiCertificateArn]
+              - ApiGwConfig
+              - !Ref RunEnvironment
+              - ApiDomainName
+        CertificateArn:
+          !FindInMap [ApiGwConfig, !Ref RunEnvironment, ApiCertificateArn]
         Route53:
-          HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+          HostedZoneId:
+            !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
       StageName: default
       Cors:
         AllowHeaders: "'Content-Type,Authorization,X-Amz-Date'"
@@ -368,7 +400,7 @@ Resources:
       ResponseParameters:
         gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
       ResponseTemplates:
-        application/json: "{\"error\": true, \"message\": \"Resource not found. Check your URL or contact support.\"}"
+        application/json: '{"error": true, "message": "Resource not found. Check your URL or contact support."}'
 
   APIAccessDeniedResponse:
     Type: AWS::ApiGateway::GatewayResponse
@@ -379,7 +411,7 @@ Resources:
       ResponseParameters:
         gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
       ResponseTemplates:
-        application/json: "{\"error\": true, \"message\": \"Access denied. Perhaps reauthenticate and try again?\"}"
+        application/json: '{"error": true, "message": "Access denied. Perhaps reauthenticate and try again?"}'
 
   APIUnauthorizedResponse:
     Type: AWS::ApiGateway::GatewayResponse
@@ -390,79 +422,78 @@ Resources:
       ResponseParameters:
         gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
       ResponseTemplates:
-        application/json: "{\"error\": true, \"message\": \"Request could not be authenticated. Perhaps reauthenticate and try again?\"}"
+        application/json: '{"error": true, "message": "Request could not be authenticated. Perhaps reauthenticate and try again?"}'
 
   AppApiGatewayLatencyAlarm:
-    Type: 'AWS::CloudWatch::Alarm'
+    Type: "AWS::CloudWatch::Alarm"
     Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-gateway-latency-high
-      AlarmDescription: 'Trailing Mean - 95% API gateway latency is > 1.25s for 2 times in 4 minutes.'
-      Namespace: 'AWS/ApiGateway'
-      MetricName: 'Latency'
-      ExtendedStatistic: 'tm95'
-      Period: '120'
-      EvaluationPeriods: '2'
-      ComparisonOperator: 'GreaterThanThreshold'
-      Threshold: '1250'
+      AlarmDescription: "Trailing Mean - 95% API gateway latency is > 1.25s for 2 times in 4 minutes."
+      Namespace: "AWS/ApiGateway"
+      MetricName: "Latency"
+      ExtendedStatistic: "tm95"
+      Period: "120"
+      EvaluationPeriods: "2"
+      ComparisonOperator: "GreaterThanThreshold"
+      Threshold: "1250"
       AlarmActions:
         - !Ref AlertSNSArn
       Dimensions:
-        - Name: 'ApiName'
+        - Name: "ApiName"
           Value: !Sub ${ApplicationPrefix}-gateway
 
   AppApiGatewayNoRequestsAlarm:
-    Type: 'AWS::CloudWatch::Alarm'
+    Type: "AWS::CloudWatch::Alarm"
     Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-gateway-no-requests
-      AlarmDescription: 'No requests have been received in the past 5 minutes.'
-      Namespace: 'AWS/ApiGateway'
-      MetricName: 'Count'
-      Statistic: 'Sum'
-      Period: '300'
-      EvaluationPeriods: '1'
-      ComparisonOperator: 'LessThanThreshold'
-      Threshold: '1'
+      AlarmDescription: "No requests have been received in the past 5 minutes."
+      Namespace: "AWS/ApiGateway"
+      MetricName: "Count"
+      Statistic: "Sum"
+      Period: "300"
+      EvaluationPeriods: "1"
+      ComparisonOperator: "LessThanThreshold"
+      Threshold: "1"
       AlarmActions:
         - !Ref AlertSNSArn
       Dimensions:
-        - Name: 'ApiName'
+        - Name: "ApiName"
           Value: !Sub ${ApplicationPrefix}-gateway
 
   AppApiGateway5XXErrorAlarm:
-    Type: 'AWS::CloudWatch::Alarm'
+    Type: "AWS::CloudWatch::Alarm"
     Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-gateway-5xx
-      AlarmDescription: 'More than 2 API gateway 5XX errors were detected.'
-      Namespace: 'AWS/ApiGateway'
-      MetricName: '5XXError'
-      Statistic: 'Average'
-      Period: '60'
-      EvaluationPeriods: '1'
-      ComparisonOperator: 'GreaterThanThreshold'
-      Threshold: '2'
+      AlarmDescription: "More than 2 API gateway 5XX errors were detected."
+      Namespace: "AWS/ApiGateway"
+      MetricName: "5XXError"
+      Statistic: "Average"
+      Period: "60"
+      EvaluationPeriods: "1"
+      ComparisonOperator: "GreaterThanThreshold"
+      Threshold: "2"
       AlarmActions:
         - !Ref AlertSNSArn
       Dimensions:
-        - Name: 'ApiName'
+        - Name: "ApiName"
           Value: !Sub ${ApplicationPrefix}-gateway
 
-
   AppDLQMessagesAlarm:
-    Type: 'AWS::CloudWatch::Alarm'
+    Type: "AWS::CloudWatch::Alarm"
     Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-sqs-dlq
-      AlarmDescription: 'Items are present in the application DLQ, meaning some messages failed to process.'
-      Namespace: 'AWS/SQS'
-      MetricName: 'ApproximateNumberOfMessagesVisible'
-      Statistic: 'Sum'
-      Period: '60'
-      EvaluationPeriods: '1'
-      ComparisonOperator: 'GreaterThanThreshold'
-      Threshold: '0'
+      AlarmDescription: "Items are present in the application DLQ, meaning some messages failed to process."
+      Namespace: "AWS/SQS"
+      MetricName: "ApproximateNumberOfMessagesVisible"
+      Statistic: "Sum"
+      Period: "60"
+      EvaluationPeriods: "1"
+      ComparisonOperator: "GreaterThanThreshold"
+      Threshold: "0"
       AlarmActions:
         - !Ref AlertSNSArn
 
@@ -474,11 +505,16 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn:
         Fn::Join:
-        - ''
-        - - 'arn:aws:execute-api:'
-          - !Ref AWS::Region
-          - ":"
-          - !Ref AWS::AccountId
-          - ":"
-          - !Ref AppApiGateway
-          - "/*/*/*"
+          - ""
+          - - "arn:aws:execute-api:"
+            - !Ref AWS::Region
+            - ":"
+            - !Ref AWS::AccountId
+            - ":"
+            - !Ref AppApiGateway
+            - "/*/*/*"
+
+  AppFrontendS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AWS::AccountId}-${AWS::Region}-${ApplicationPrefix}-ui
