@@ -31,6 +31,7 @@ export type GenericConfigType = {
   MerchStorePurchasesTableName: string;
   TicketPurchasesTableName: string;
   TicketMetadataTableName: string;
+  MembershipTableName: string;
   MerchStoreMetadataTableName: string;
   IAMTablePrefix: string;
   ProtectedEntraIDGroups: string[]; // these groups are too privileged to be modified via this portal and must be modified directly in Entra ID.
@@ -63,6 +64,7 @@ const genericConfig: GenericConfigType = {
   TicketMetadataTableName: "infra-events-ticketing-metadata",
   IAMTablePrefix: "infra-core-api-iam",
   ProtectedEntraIDGroups: [infraChairsGroupId, officersGroupId],
+  MembershipTableName: "infra-core-api-membership-provisioning",
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {

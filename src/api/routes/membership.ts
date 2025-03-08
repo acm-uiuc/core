@@ -1,7 +1,12 @@
+import {
+  checkPaidMembershipFromEntra,
+  checkPaidMembershipFromTable,
+  setPaidMembershipInTable,
+} from "api/functions/membership.js";
 import { validateNetId } from "api/functions/validation.js";
-import { NotImplementedError } from "common/errors/index.js";
 import { FastifyPluginAsync } from "fastify";
-import { ValidationError } from "zod-validation-error";
+import { ValidationError } from "common/errors/index.js";
+import { getEntraIdToken } from "api/functions/entraId.js";
 
 const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.get<{
@@ -24,9 +29,44 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const netId = (request.params as Record<string, string>).netId;
       if (!validateNetId(netId)) {
-        throw new ValidationError(`${netId} is not a valid Illinois NetID!`);
+        throw new ValidationError({
+          message: `${netId} is not a valid Illinois NetID!`,
+        });
       }
-      throw new NotImplementedError({});
+      const isDynamoMember = await checkPaidMembershipFromTable(
+        netId,
+        fastify.dynamoClient,
+      );
+      // check Dynamo cache first
+      if (isDynamoMember) {
+        return reply
+          .header("X-ACM-Data-Source", "dynamo")
+          .send({ netId, isPaidMember: true });
+      }
+      // check AAD
+      const entraIdToken = await getEntraIdToken(
+        {
+          smClient: fastify.secretsManagerClient,
+          dynamoClient: fastify.dynamoClient,
+        },
+        fastify.environmentConfig.AadValidClientId,
+      );
+      const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
+      const isAadMember = await checkPaidMembershipFromEntra(
+        netId,
+        entraIdToken,
+        paidMemberGroup,
+      );
+      if (isAadMember) {
+        reply
+          .header("X-ACM-Data-Source", "aad")
+          .send({ netId, isPaidMember: true });
+        await setPaidMembershipInTable(netId, fastify.dynamoClient);
+        return;
+      }
+      return reply
+        .header("X-ACM-Data-Source", "aad")
+        .send({ netId, isPaidMember: false });
     },
   );
 };
