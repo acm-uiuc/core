@@ -554,6 +554,11 @@ Resources:
             QueryString: false
             Cookies:
               Forward: none
+          CachePolicyId: !If [
+              IsProd,
+              "7e5fad67-ee98-4ad0-b05a-394999eefc1a", # Amplify-Static cache policy in prod
+              "4135ea2d-6df8-44a3-9df3-4b5a84be39ad", # caching disabled in dev
+            ]
         CacheBehaviors:
           - PathPattern: "/api/*"
             TargetOriginId: ApiGatewayOrigin
