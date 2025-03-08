@@ -90,7 +90,7 @@ test_e2e: install
 	yarn test:e2e
 
 dev_health_check:
-	curl -f https://$(application_key).aws.qa.acmuiuc.org/api/v1/healthz && curl -f https://manage.qa.acmuiuc.org
+	curl -f https://core.aws.qa.acmuiuc.org/api/v1/healthz && curl -f https://core.aws.qa.acmuiuc.org/
 
 prod_health_check:
-	curl -f https://$(application_key).aws.acmuiuc.org/api/v1/healthz && curl -f https://manage.acm.illinois.edu
+	curl -f https://core.acm.illinois.edu/api/v1/healthz && curl -f https://core.acm.illinois.edu
