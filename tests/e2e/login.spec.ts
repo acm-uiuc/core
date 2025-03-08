@@ -26,6 +26,6 @@ describe("Login tests", () => {
     await expect(page.getByLabel("PUMy Account")).toContainText(
       "NamePlaywright UserEmailcore-e2e-testing@acm.illinois.eduEdit ProfileLog Out",
     );
-    expect(page.url()).toEqual("https://manage.qa.acmuiuc.org/home");
+    expect(page.url()).toEqual("https://core.aws.qa.acmuiuc.org/home");
   });
 });
