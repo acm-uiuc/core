@@ -46,7 +46,7 @@ export function capitalizeFirstLetter(string: string) {
 }
 
 async function becomeUser(page) {
-  await page.goto("https://manage.qa.acmuiuc.org/login");
+  await page.goto("https://core.aws.qa.acmuiuc.org/login");
   await page
     .getByRole("button", { name: "Sign in with Illinois NetID" })
     .click();

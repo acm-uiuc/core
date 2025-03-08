@@ -41,6 +41,6 @@ describe("Events tests", () => {
       expect(repeats).toEqual(capitalizeFirstLetter(expectedData.repeats));
     }
 
-    expect(page.url()).toEqual("https://manage.qa.acmuiuc.org/events/manage");
+    expect(page.url()).toEqual("https://core.aws.qa.acmuiuc.org/events/manage");
   });
 });
