@@ -77,7 +77,7 @@ const environmentConfig: EnvironmentConfigType = {
     ServiceConfiguration: {
       core: {
         friendlyName: 'Core Management Service (NonProd)',
-        baseEndpoint: 'https://infra-core-api.aws.qa.acmuiuc.org',
+        baseEndpoint: 'https://core.aws.qa.acmuiuc.org',
         authCheckRoute: '/api/v1/protected',
         loginScope: 'api://39c28870-94e4-47ee-b4fb-affe0bf96c9f/ACM.Events.Login',
         apiId: 'api://39c28870-94e4-47ee-b4fb-affe0bf96c9f',

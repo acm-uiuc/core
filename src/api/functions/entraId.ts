@@ -447,3 +447,60 @@ export async function patchUserProfile(
     });
   }
 }
+
+/**
+ * Checks if a user is a member of an Entra ID group.
+ * @param token - Entra ID token authorized to take this action.
+ * @param email - The email address of the user to check.
+ * @param group - The group ID to check membership in.
+ * @throws {EntraGroupError} If the membership check fails.
+ * @returns {Promise<boolean>} True if the user is a member of the group, false otherwise.
+ */
+export async function isUserInGroup(
+  token: string,
+  email: string,
+  group: string,
+): Promise<boolean> {
+  email = email.toLowerCase().replace(/\s/g, "");
+  if (!email.endsWith("@illinois.edu")) {
+    throw new EntraGroupError({
+      group,
+      message: "User's domain must be illinois.edu to check group membership.",
+    });
+  }
+  try {
+    const oid = await resolveEmailToOid(token, email);
+    const url = `https://graph.microsoft.com/v1.0/groups/${group}/members/${oid}`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.ok) {
+      return true; // User is in the group
+    } else if (response.status === 404) {
+      return false; // User is not in the group
+    }
+
+    const errorData = (await response.json()) as {
+      error?: { message?: string };
+    };
+    throw new EntraGroupError({
+      message: errorData?.error?.message ?? response.statusText,
+      group,
+    });
+  } catch (error) {
+    if (error instanceof EntraGroupError) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    throw new EntraGroupError({
+      message,
+      group,
+    });
+  }
+}

@@ -58,15 +58,6 @@ jobs:
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
-      - name: Publish to Cloudflare
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: management-ui-dev
-          directory: dist_ui/
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
 
   test-dev:
     runs-on: ubuntu-latest
@@ -132,15 +123,6 @@ jobs:
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: prod
-      - name: Publish to Cloudflare
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: management-ui-prod
-          directory: dist_ui/
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
 
   health-check-prod:
     runs-on: ubuntu-latest

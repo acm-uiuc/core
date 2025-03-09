@@ -3,7 +3,7 @@ import { EventsGetResponse } from "../../src/api/routes/events.js";
 import { createJwt } from "./utils.js";
 import { describe } from "node:test";
 
-const baseEndpoint = `https://infra-core-api.aws.qa.acmuiuc.org`;
+const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
 test("getting events", async () => {
   const response = await fetch(`${baseEndpoint}/api/v1/events`);
   expect(response.status).toBe(200);

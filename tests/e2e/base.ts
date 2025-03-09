@@ -46,7 +46,7 @@ export function capitalizeFirstLetter(string: string) {
 }
 
 async function becomeUser(page) {
-  await page.goto("https://manage.qa.acmuiuc.org/login");
+  await page.goto("https://core.aws.qa.acmuiuc.org/login");
   await page
     .getByRole("button", { name: "Sign in with Illinois NetID" })
     .click();
@@ -63,15 +63,13 @@ async function becomeUser(page) {
 
 export async function getUpcomingEvents() {
   const data = await fetch(
-    "https://infra-core-api.aws.qa.acmuiuc.org/api/v1/events?upcomingOnly=true",
+    "https://core.aws.qa.acmuiuc.org/api/v1/events?upcomingOnly=true",
   );
   return (await data.json()) as Record<string, string>[];
 }
 
 export async function getAllEvents() {
-  const data = await fetch(
-    "https://infra-core-api.aws.qa.acmuiuc.org/api/v1/events",
-  );
+  const data = await fetch("https://core.aws.qa.acmuiuc.org/api/v1/events");
   return (await data.json()) as Record<string, string>[];
 }
 
