@@ -216,7 +216,8 @@ Resources:
       FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
       Handler: index.handler
       MemorySize: 512
-      Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
+      Role:
+        Fn::GetAtt: AppSecurityRoles.Outputs.SqsFunctionRoleArn
       Timeout: !Ref SqsLambdaTimeout
       LoggingConfig:
         LogGroup: !Sub /aws/lambda/${ApplicationPrefix}-lambda

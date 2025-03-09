@@ -26,19 +26,25 @@ describe("Events tests", () => {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const expectedData = expectedTableData[i];
-      const title = await row.locator("td:nth-child(1)").innerText();
-      const location = await row.locator("td:nth-child(4)").innerText();
-      const description = await row.locator("td:nth-child(5)").innerText();
-      const host = await row.locator("td:nth-child(6)").innerText();
-      const featured = await row.locator("td:nth-child(7)").innerText();
-      const repeats = await row.locator("td:nth-child(8)").innerText();
 
-      expect(title).toEqual(expectedData.title);
-      expect(location).toEqual(expectedData.location);
-      expect(description).toEqual(expectedData.description);
-      expect(host).toEqual(expectedData.host);
-      expect(featured).toEqual(expectedData.featured ? "Yes" : "No");
-      expect(repeats).toEqual(capitalizeFirstLetter(expectedData.repeats));
+      const title = (await row.locator("td:nth-child(1)").innerText()).trim();
+      const location = (
+        await row.locator("td:nth-child(4)").innerText()
+      ).trim();
+      const host = (await row.locator("td:nth-child(5)").innerText()).trim();
+      const repeats = (await row.locator("td:nth-child(6)").innerText()).trim();
+
+      let expectedTitle = expectedData.title;
+      if (expectedData.featured) {
+        expectedTitle = `${expectedData.title} \nFEATURED`;
+      }
+
+      expect(title.trim()).toEqual(expectedTitle.trim());
+      expect(location).toEqual(expectedData.location.trim());
+      expect(host).toEqual(expectedData.host.trim());
+      expect(repeats).toEqual(
+        capitalizeFirstLetter(expectedData.repeats).trim(),
+      );
     }
 
     expect(page.url()).toEqual("https://core.aws.qa.acmuiuc.org/events/manage");
