@@ -15,7 +15,7 @@ Parameters:
   SqsQueueArn:
     Type: String
 Resources:
-  ApiLambdaIAMRole:
+  SqsLambdaIAMRole:
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
@@ -31,27 +31,88 @@ Resources:
                 - lambda.amazonaws.com
       Policies:
         - PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Effect: Allow
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  ses:FromAddress:
+                    Fn::Sub: "membership@${SesEmailDomain}"
+                ForAllValues:StringLike:
+                  ses:Recipients:
+                    - "*@illinois.edu"
+          PolicyName: ses-membership
+        - PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Action:
-                  - ses:SendEmail
-                  - ses:SendRawEmail
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
                 Effect: Allow
+                Resource:
+                  - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - secretsmanager:GetSecretValue
+                Effect: Allow
+                Resource:
+                  - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-config*
+          PolicyName: lambda-db-secrets
+
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: DynamoDBTableAccess
+                Effect: Allow
+                Action:
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:ConditionCheckItem
+                  - dynamodb:PutItem
+                  - dynamodb:DescribeTable
+                  - dynamodb:DeleteItem
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                Resource:
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
+
+              - Sid: DynamoDBDescribeLimitsAccess
+                Effect: Allow
+                Action:
+                  - dynamodb:DescribeLimits
                 Resource: "*"
-                Condition:
-                  StringEquals:
-                    ses:FromAddress: !Sub "membership@${SesEmailDomain}"
-                  ForAllValues:StringLike:
-                    ses:Recipients:
-                      - "*@illinois.edu"
-          PolicyName: ses-membership
+          PolicyName: lambda-dynamo
+
+  ApiLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
         - PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Action:
                   - sqs:SendMessage
                 Effect: Allow
-                Resource: !Ref SqsQueueArn
+                Resource:
+                  Fn::Ref: SqsQueueArn
           PolicyName: lambda-sqs
         - PolicyDocument:
             Version: "2012-10-17"
@@ -63,16 +124,6 @@ Resources:
                 Effect: Allow
                 Resource:
                   - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*
-              - Effect: Allow
-                Action:
-                  - ec2:CreateNetworkInterface
-                  - ec2:DescribeNetworkInterfaces
-                  - ec2:DeleteNetworkInterface
-                  - ec2:DescribeSubnets
-                  - ec2:DeleteNetworkInterface
-                  - ec2:AssignPrivateIpAddresses
-                  - ec2:UnassignPrivateIpAddresses
-                Resource: "*"
           PolicyName: lambda
         - PolicyDocument:
             Version: 2012-10-17
@@ -81,36 +132,60 @@ Resources:
                   - secretsmanager:GetSecretValue
                 Effect: Allow
                 Resource:
-                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-config*
+                  - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-config*
           PolicyName: lambda-db-secrets
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Action:
-                  - dynamodb:*
+              - Sid: DynamoDBIndexAccess
                 Effect: Allow
+                Action:
+                  - dynamodb:Query
                 Resource:
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/*
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache/*
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-purchase-history/*
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-purchase-history
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-events-tickets
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-events-tickets/*
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-events-ticketing-metadata/*
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-events-ticketing-metadata
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-metadata/*
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-metadata
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-userroles
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-userroles/*
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles/*
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/*
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-provisioning
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-provisioning/*
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/index/*
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/index/*
 
+              - Sid: DynamoDBStreamAccess
+                Effect: Allow
+                Action:
+                  - dynamodb:GetShardIterator
+                  - dynamodb:DescribeStream
+                  - dynamodb:GetRecords
+                  - dynamodb:ListStreams
+                Resource:
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/stream/*
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/stream/*
+
+              - Sid: DynamoDBTableAccess
+                Effect: Allow
+                Action:
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:ConditionCheckItem
+                  - dynamodb:PutItem
+                  - dynamodb:DescribeTable
+                  - dynamodb:DeleteItem
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                Resource:
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-purchase-history
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-events-tickets
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-events-ticketing-metadata
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-metadata
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-userroles
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-provisioning
+
+              - Sid: DynamoDBDescribeLimitsAccess
+                Effect: Allow
+                Action:
+                  - dynamodb:DescribeLimits
+                Resource: "*"
           PolicyName: lambda-dynamo
 Outputs:
   MainFunctionRoleArn:
@@ -118,4 +193,10 @@ Outputs:
     Value:
       Fn::GetAtt:
         - ApiLambdaIAMRole
+        - Arn
+  SqsFunctionRoleArn:
+    Description: Sqs IAM role ARN
+    Value:
+      Fn::GetAtt:
+        - SqsLambdaIAMRole
         - Arn
