@@ -571,11 +571,7 @@ Resources:
             QueryString: false
             Cookies:
               Forward: none
-          CachePolicyId: !If [
-              IsProd,
-              "658327ea-f89d-4fab-a63d-7e88639e58f6", # Caching-optimized in prod
-              "4135ea2d-6df8-44a3-9df3-4b5a84be39ad", # caching disabled in dev
-            ]
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # caching-optimized
         CacheBehaviors:
           - PathPattern: "/api/*"
             TargetOriginId: ApiGatewayOrigin

@@ -64,12 +64,26 @@ local:
 	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
 
 deploy_prod: check_account_prod build
+	@echo "Deploying CloudFormation stack..."
 	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
+	@echo "Syncing S3 bucket..."
 	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
+	make invalidate_cloudfront
 
 deploy_dev: check_account_dev build
+	@echo "Deploying CloudFormation stack..."
 	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
+	@echo "Syncing S3 bucket..."
 	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
+	make invalidate_cloudfront
+
+invalidate_cloudfront:
+	@echo "Creating CloudFront invalidation..."
+	$(eval DISTRIBUTION_ID := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontDistributionId'].OutputValue" --output text))
+	$(eval INVALIDATION_ID := $(shell aws cloudfront create-invalidation --distribution-id $(DISTRIBUTION_ID) --paths "/*" --query 'Invalidation.Id' --output text --no-cli-page))
+	@echo "Waiting on job $(INVALIDATION_ID)..."
+	aws cloudfront wait invalidation-completed --distribution-id $(DISTRIBUTION_ID) --id $(INVALIDATION_ID)
+	@echo "CloudFront invalidation completed!"
 
 install:
 	yarn -D
