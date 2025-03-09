@@ -218,8 +218,7 @@ Resources:
       MemorySize: 512
       Role:
         Fn::GetAtt: AppSecurityRoles.Outputs.SqsFunctionRoleArn
-      Timeout:
-        Fn::Ref: SqsLambdaTimeout
+      Timeout: !Ref SqsLambdaTimeout
       LoggingConfig:
         LogGroup: !Sub /aws/lambda/${ApplicationPrefix}-lambda
       Environment:
