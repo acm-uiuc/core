@@ -634,3 +634,7 @@ Outputs:
       Fn::GetAtt:
         - AppFrontendCloudfrontDistribution
         - DomainName
+  CloudfrontDistributionId:
+    Description: Cloudfront Distribution ID
+    Value:
+      Fn::Ref: AppFrontendCloudfrontDistribution
