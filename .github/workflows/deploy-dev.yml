@@ -26,6 +26,9 @@ jobs:
         run: make test_unit
   deploy-dev:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     concurrency:
       group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
@@ -50,8 +53,8 @@ jobs:
           python-version: 3.11
       - uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
+          role-session-name: Core_Dev_Deployment
           aws-region: us-east-1
       - name: Publish to AWS
         run: make deploy_dev
