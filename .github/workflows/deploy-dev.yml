@@ -51,7 +51,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
-      - uses: aws-actions/configure-aws-credentials@v2
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
           role-session-name: Core_Dev_Deployment
