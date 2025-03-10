@@ -25,6 +25,7 @@ export type GenericConfigType = {
   CacheDynamoTableName: string;
   StripeLinksDynamoTableName: string;
   ConfigSecretName: string;
+  EntraSecretName: string;
   UpcomingEventThresholdSeconds: number;
   AwsRegion: string;
   EntraTenantId: string;
@@ -55,6 +56,7 @@ const genericConfig: GenericConfigType = {
   StripeLinksDynamoTableName: "infra-core-api-stripe-links",
   CacheDynamoTableName: "infra-core-api-cache",
   ConfigSecretName: "infra-core-api-config",
+  EntraSecretName: "infra-core-api-entra",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
   AwsRegion: process.env.AWS_REGION || "us-east-1",
   EntraTenantId: "c8d9148f-9a59-4db3-827d-42ea0c2b6e2e",
@@ -112,12 +114,16 @@ export type SecretConfig = {
   jwt_key?: string;
   discord_guild_id: string;
   discord_bot_token: string;
-  entra_id_private_key: string;
-  entra_id_thumbprint: string;
+  entra_id_private_key?: string;
+  entra_id_thumbprint?: string;
   acm_passkit_signerCert_base64: string;
   acm_passkit_signerKey_base64: string;
   apple_signing_cert_base64: string;
   stripe_secret_key: string;
 };
 
-export { genericConfig, environmentConfig };
+const roleArns = {
+  Entra: process.env.EntraRoleArn,
+};
+
+export { genericConfig, environmentConfig, roleArns };

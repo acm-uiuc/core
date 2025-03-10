@@ -17,11 +17,176 @@ Parameters:
     Type: String
 
 Resources:
+  # Managed Policy for Common Lambda Permissions
+  CommonLambdaManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CommonLambdaPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*
+
+          - Action:
+              - secretsmanager:GetSecretValue
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-config
+
+          - Action:
+              - dynamodb:DescribeLimits
+            Effect: Allow
+            Resource: "*"
+
+          # Common DynamoDB Permissions
+          - Sid: DynamoDBTableAccess
+            Effect: Allow
+            Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:PutItem
+              - dynamodb:DescribeTable
+              - dynamodb:DeleteItem
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:Query
+              - dynamodb:UpdateItem
+            Resource:
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-purchase-history
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-events-tickets
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-events-ticketing-metadata
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-metadata
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-userroles
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-provisioning
+
+          - Sid: DynamoDBCacheAccess
+            Effect: Allow
+            Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:PutItem
+              - dynamodb:DescribeTable
+              - dynamodb:DeleteItem
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:Query
+              - dynamodb:UpdateItem
+            Resource:
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
+            Condition:
+              StringNotLike:
+                "dynamodb:LeadingKeys": "entra_*"
+
+          - Sid: DynamoDBIndexAccess
+            Effect: Allow
+            Action:
+              - dynamodb:Query
+            Resource:
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/index/*
+
+          - Sid: DynamoDBStreamAccess
+            Effect: Allow
+            Action:
+              - dynamodb:GetShardIterator
+              - dynamodb:DescribeStream
+              - dynamodb:GetRecords
+              - dynamodb:ListStreams
+            Resource:
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/stream/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/stream/*
+
+  # API Lambda IAM Role
+  ApiLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - !Ref CommonLambdaManagedPolicy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Resource: !GetAtt EntraLambdaIAMRole.Arn
+
+      Policies:
+        - PolicyName: lambda-sqs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - sqs:SendMessage
+                Effect: Allow
+                Resource:
+                  - Fn::Sub: "${SqsQueueArn}"
+
+  EntraLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - !Ref CommonLambdaManagedPolicy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: lambda-get-entra-secret
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - secretsmanager:GetSecretValue
+                Effect: Allow
+                Resource:
+                  - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-entra
+              - Action:
+                  - dynamodb:BatchGetItem
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:DescribeTable
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:ConditionCheckItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:UpdateItem
+                Effect: Allow
+                Resource:
+                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
+                Condition:
+                  "StringLike":
+                    "dynamodb:LeadingKeys": "entra_*"
+
+  # SQS Lambda IAM Role
   SqsLambdaIAMRole:
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole
+        - !Ref CommonLambdaManagedPolicy
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -49,164 +214,15 @@ Resources:
                     ses:Recipients:
                       - "*@illinois.edu"
 
-        - PolicyName: lambda-logs
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Effect: Allow
-                Resource:
-                  - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*
-
-        - PolicyName: lambda-db-secrets
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Action:
-                  - secretsmanager:GetSecretValue
-                Effect: Allow
-                Resource:
-                  - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-config*
-
-        - PolicyName: lambda-dynamo
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Sid: DynamoDBTableAccess
-                Effect: Allow
-                Action:
-                  - dynamodb:BatchGetItem
-                  - dynamodb:BatchWriteItem
-                  - dynamodb:ConditionCheckItem
-                  - dynamodb:PutItem
-                  - dynamodb:DescribeTable
-                  - dynamodb:DeleteItem
-                  - dynamodb:GetItem
-                  - dynamodb:Scan
-                  - dynamodb:Query
-                  - dynamodb:UpdateItem
-                Resource:
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
-
-              - Sid: DynamoDBDescribeLimitsAccess
-                Effect: Allow
-                Action:
-                  - dynamodb:DescribeLimits
-                Resource: "*"
-
-  ApiLambdaIAMRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Action:
-              - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-      Policies:
-        - PolicyName: lambda-sqs
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Action:
-                  - sqs:SendMessage
-                Effect: Allow
-                Resource:
-                  - Fn::Sub: "${SqsQueueArn}"
-
-        - PolicyName: lambda-logs
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Effect: Allow
-                Resource:
-                  - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*
-
-        - PolicyName: lambda-db-secrets
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Action:
-                  - secretsmanager:GetSecretValue
-                Effect: Allow
-                Resource:
-                  - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-config*
-
-        - PolicyName: lambda-dynamo
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Sid: DynamoDBIndexAccess
-                Effect: Allow
-                Action:
-                  - dynamodb:Query
-                Resource:
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/index/*
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/index/*
-
-              - Sid: DynamoDBStreamAccess
-                Effect: Allow
-                Action:
-                  - dynamodb:GetShardIterator
-                  - dynamodb:DescribeStream
-                  - dynamodb:GetRecords
-                  - dynamodb:ListStreams
-                Resource:
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/stream/*
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/stream/*
-
-              - Sid: DynamoDBTableAccess
-                Effect: Allow
-                Action:
-                  - dynamodb:BatchGetItem
-                  - dynamodb:BatchWriteItem
-                  - dynamodb:ConditionCheckItem
-                  - dynamodb:PutItem
-                  - dynamodb:DescribeTable
-                  - dynamodb:DeleteItem
-                  - dynamodb:GetItem
-                  - dynamodb:Scan
-                  - dynamodb:Query
-                  - dynamodb:UpdateItem
-                Resource:
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-purchase-history
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-events-tickets
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-events-ticketing-metadata
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-metadata
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-userroles
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-provisioning
-
-              - Sid: DynamoDBDescribeLimitsAccess
-                Effect: Allow
-                Action:
-                  - dynamodb:DescribeLimits
-                Resource: "*"
-
 Outputs:
   MainFunctionRoleArn:
     Description: Main API IAM role ARN
-    Value:
-      Fn::GetAtt:
-        - ApiLambdaIAMRole
-        - Arn
+    Value: !GetAtt ApiLambdaIAMRole.Arn
 
   SqsFunctionRoleArn:
-    Description: Sqs IAM role ARN
-    Value:
-      Fn::GetAtt:
-        - SqsLambdaIAMRole
-        - Arn
+    Description: SQS IAM role ARN
+    Value: !GetAtt SqsLambdaIAMRole.Arn
+
+  EntraFunctionRoleArn:
+    Description: Entra IAM role ARN
+    Value: !GetAtt EntraLambdaIAMRole.Arn
