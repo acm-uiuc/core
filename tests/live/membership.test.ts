@@ -46,7 +46,7 @@ describe("Membership API basic checks", async () => {
     );
 
     expect(response.status).toBe(400);
-    expect(response.headers.get("x-acm-data-source")).toBeUndefined();
+    expect(response.headers.get("x-acm-data-source")).toBeNull();
   });
   test("Test that too short NetID is rejected", { timeout: 3000 }, async () => {
     const response = await fetch(`${baseEndpoint}/api/v1/membership/ds`, {
@@ -54,6 +54,6 @@ describe("Membership API basic checks", async () => {
     });
 
     expect(response.status).toBe(400);
-    expect(response.headers.get("x-acm-data-source")).toBeUndefined();
+    expect(response.headers.get("x-acm-data-source")).toBeNull();
   });
 });
