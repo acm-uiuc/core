@@ -66,7 +66,7 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Action:
-                  - secretsmanager:*
+                  - secretsmanager:GetSecretValue
                 Effect: Allow
                 Resource:
                   - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-config*
