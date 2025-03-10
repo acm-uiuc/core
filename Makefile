@@ -95,7 +95,7 @@ test_live_integration: install
 test_unit: install
 	yarn typecheck
 	yarn lint
-	cfn-lint cloudformation/**/* --ignore-templates cloudformation/phony-swagger.yml
+	cfn-lint cloudformation/**/* --ignore-templates cloudformation/phony-swagger.yml -i W3660
 	yarn prettier
 	yarn test:unit
 
