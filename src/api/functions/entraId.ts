@@ -8,6 +8,7 @@ import {
   officersGroupTestingId,
 } from "../../common/config.js";
 import {
+  BaseError,
   EntraFetchError,
   EntraGroupError,
   EntraInvitationError,
@@ -37,7 +38,7 @@ export async function getEntraIdToken(
   scopes: string[] = ["https://graph.microsoft.com/.default"],
 ) {
   const secretApiConfig =
-    (await getSecretValue(clients.smClient, genericConfig.ConfigSecretName)) ||
+    (await getSecretValue(clients.smClient, genericConfig.EntraSecretName)) ||
     {};
   if (
     !secretApiConfig.entra_id_private_key ||
@@ -90,6 +91,9 @@ export async function getEntraIdToken(
     }
     return result?.accessToken ?? null;
   } catch (error) {
+    if (error instanceof BaseError) {
+      throw error;
+    }
     throw new InternalServerError({
       message: `Failed to acquire token: ${error}`,
     });
