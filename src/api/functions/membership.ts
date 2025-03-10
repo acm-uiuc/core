@@ -60,7 +60,11 @@ export async function checkPaidMembershipFromEntra(
   paidMemberGroup: string,
 ): Promise<boolean> {
   try {
-    return isUserInGroup(entraToken, `${netId}@illinois.edu`, paidMemberGroup);
+    return await isUserInGroup(
+      entraToken,
+      `${netId}@illinois.edu`,
+      paidMemberGroup,
+    );
   } catch (e) {
     if (e instanceof EntraGroupError) {
       return false;

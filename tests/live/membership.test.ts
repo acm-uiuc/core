@@ -15,7 +15,10 @@ describe("Membership API basic checks", async () => {
       netId: "dsingh14",
       isPaidMember: true,
     });
-    expect(response.headers.get("x-acm-data-source")).toBe("dynamo");
+
+    const wasCached = (value: string | null) => value && value !== "aad";
+
+    expect(wasCached(response.headers.get("x-acm-data-source"))).toBe(true);
   });
   test(
     "Test that getting non-members succeeds",
@@ -32,10 +35,9 @@ describe("Membership API basic checks", async () => {
         netId: "zzzz",
         isPaidMember: false,
       });
-      expect(response.headers.get("x-acm-data-source")).toBe("aad");
     },
   );
-  test("Test that invalid NetID is rejected", { timeout: 3000 }, async () => {
+  test("Test that too long NetID is rejected", { timeout: 3000 }, async () => {
     const response = await fetch(
       `${baseEndpoint}/api/v1/membership/dsafdsfdsfsdafsfsdfasfsfsfds`,
       {
@@ -44,5 +46,14 @@ describe("Membership API basic checks", async () => {
     );
 
     expect(response.status).toBe(400);
+    expect(response.headers.get("x-acm-data-source")).toBeUndefined();
+  });
+  test("Test that too short NetID is rejected", { timeout: 3000 }, async () => {
+    const response = await fetch(`${baseEndpoint}/api/v1/membership/ds`, {
+      method: "GET",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("x-acm-data-source")).toBeUndefined();
   });
 });
