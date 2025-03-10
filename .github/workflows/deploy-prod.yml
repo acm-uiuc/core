@@ -29,6 +29,9 @@ jobs:
     concurrency:
       group: ${{ github.event.repository.name }}-dev
       cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: read
     environment: "AWS DEV"
     name: Deploy to DEV
     needs:
@@ -48,10 +51,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
-      - uses: aws-actions/configure-aws-credentials@v2
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
+          role-session-name: Core_Dev_Prod_Deployment
           aws-region: us-east-1
       - name: Publish to AWS
         run: make deploy_dev
@@ -95,6 +98,9 @@ jobs:
     concurrency:
       group: ${{ github.event.repository.name }}-prod
       cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: read
     needs:
       - test-dev
     environment: "AWS PROD"
@@ -113,10 +119,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
-      - uses: aws-actions/configure-aws-credentials@v2
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::298118738376:role/GitHubActionsRole
+          role-session-name: Core_Dev_Prod_Deployment
           aws-region: us-east-1
       - name: Publish to AWS
         run: make deploy_prod
