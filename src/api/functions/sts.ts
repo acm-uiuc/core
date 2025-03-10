@@ -6,7 +6,7 @@ import { duration } from "moment";
 
 export async function getRoleCredentials(
   roleArn: string,
-  durationSeconds: number = 60,
+  durationSeconds: number = 900,
 ) {
   const client = new STSClient({ region: genericConfig.AwsRegion });
   const command = new AssumeRoleCommand({
