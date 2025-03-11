@@ -21,7 +21,7 @@ Resources:
   CommonLambdaManagedPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: CommonLambdaPolicy
+      ManagedPolicyName: infra-core-api-commonlambdapolicy
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
