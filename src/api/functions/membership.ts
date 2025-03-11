@@ -7,6 +7,7 @@ import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
 import { FastifyBaseLogger } from "fastify";
 import { isUserInGroup } from "./entraId.js";
+import { EntraGroupError } from "common/errors/index.js";
 
 export async function checkPaidMembership(
   endpoint: string,
@@ -58,7 +59,18 @@ export async function checkPaidMembershipFromEntra(
   entraToken: string,
   paidMemberGroup: string,
 ): Promise<boolean> {
-  return isUserInGroup(entraToken, `${netId}@illinois.edu`, paidMemberGroup);
+  try {
+    return await isUserInGroup(
+      entraToken,
+      `${netId}@illinois.edu`,
+      paidMemberGroup,
+    );
+  } catch (e) {
+    if (e instanceof EntraGroupError) {
+      return false;
+    }
+    throw e;
+  }
 }
 
 export async function setPaidMembershipInTable(

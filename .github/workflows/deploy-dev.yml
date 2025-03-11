@@ -6,24 +6,38 @@ on:
   pull_request:
     branches:
       - main
+
 jobs:
   test-unit:
     runs-on: ubuntu-latest
     name: Run Unit Tests
     steps:
+      - uses: actions/checkout@v4
+        env:
+          HUSKY: "0"
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
-      - uses: actions/checkout@v4
-        env:
-          HUSKY: "0"
+          cache: 'yarn'
+
+      - name: Restore Yarn Cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          restore-keys: |
+            yarn-modules-${{ runner.os }}-
+
       - name: Set up Python 3.11 for testing
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
+
       - name: Run unit testing
         run: make test_unit
+
   deploy-dev:
     runs-on: ubuntu-latest
     permissions:
@@ -37,25 +51,39 @@ jobs:
     needs:
       - test-unit
     steps:
+      - uses: actions/checkout@v4
+        env:
+          HUSKY: "0"
+
       - name: Set up Node for testing
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
-      - uses: actions/checkout@v4
-        env:
-          HUSKY: "0"
+          cache: 'yarn'
+
+      - name: Restore Yarn Cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          restore-keys: |
+            yarn-modules-${{ runner.os }}-
+
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
           role-session-name: Core_Dev_Deployment
           aws-region: us-east-1
+
       - name: Publish to AWS
         run: make deploy_dev
         env:
@@ -71,23 +99,37 @@ jobs:
       group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v4
+        env:
+          HUSKY: "0"
+          cache: 'yarn'
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
-      - uses: actions/checkout@v4
-        env:
-          HUSKY: "0"
+
+      - name: Restore Yarn Cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          restore-keys: |
+            yarn-modules-${{ runner.os }}-
+
       - name: Set up Python 3.11 for testing
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
+
       - name: Run health check
         run: make dev_health_check
+
       - name: Run live testing
         run: make test_live_integration
         env:
           JWT_KEY: ${{ secrets.JWT_KEY }}
+
       - name: Run E2E testing
         run: make test_e2e
         env:

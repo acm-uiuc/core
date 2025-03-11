@@ -7,8 +7,45 @@ import { validateNetId } from "api/functions/validation.js";
 import { FastifyPluginAsync } from "fastify";
 import { ValidationError } from "common/errors/index.js";
 import { getEntraIdToken } from "api/functions/entraId.js";
+import { genericConfig, roleArns } from "common/config.js";
+import { getRoleCredentials } from "api/functions/sts.js";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+
+const NONMEMBER_CACHE_SECONDS = 1800; // 30 minutes
+const MEMBER_CACHE_SECONDS = 43200; // 12 hours
 
 const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
+  const getAuthorizedClients = async () => {
+    if (roleArns.Entra) {
+      fastify.log.info(
+        `Attempting to assume Entra role ${roleArns.Entra} to get the Entra token...`,
+      );
+      const credentials = await getRoleCredentials(roleArns.Entra);
+      const clients = {
+        smClient: new SecretsManagerClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
+        dynamoClient: new DynamoDBClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
+      };
+      fastify.log.info(
+        `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
+      );
+      return clients;
+    } else {
+      fastify.log.debug(
+        "Did not assume Entra role as no env variable was present",
+      );
+      return {
+        smClient: fastify.secretsManagerClient,
+        dynamoClient: fastify.dynamoClient,
+      };
+    }
+  };
   fastify.get<{
     Body: undefined;
     Querystring: { netId: string };
@@ -33,22 +70,26 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           message: `${netId} is not a valid Illinois NetID!`,
         });
       }
+      if (fastify.nodeCache.get(`isMember_${netId}`) !== undefined) {
+        return reply.header("X-ACM-Data-Source", "cache").send({
+          netId,
+          isPaidMember: fastify.nodeCache.get(`isMember_${netId}`),
+        });
+      }
       const isDynamoMember = await checkPaidMembershipFromTable(
         netId,
         fastify.dynamoClient,
       );
       // check Dynamo cache first
       if (isDynamoMember) {
+        fastify.nodeCache.set(`isMember_${netId}`, true, MEMBER_CACHE_SECONDS);
         return reply
           .header("X-ACM-Data-Source", "dynamo")
           .send({ netId, isPaidMember: true });
       }
       // check AAD
       const entraIdToken = await getEntraIdToken(
-        {
-          smClient: fastify.secretsManagerClient,
-          dynamoClient: fastify.dynamoClient,
-        },
+        await getAuthorizedClients(),
         fastify.environmentConfig.AadValidClientId,
       );
       const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
@@ -58,12 +99,18 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         paidMemberGroup,
       );
       if (isAadMember) {
+        fastify.nodeCache.set(`isMember_${netId}`, true, MEMBER_CACHE_SECONDS);
         reply
           .header("X-ACM-Data-Source", "aad")
           .send({ netId, isPaidMember: true });
         await setPaidMembershipInTable(netId, fastify.dynamoClient);
         return;
       }
+      fastify.nodeCache.set(
+        `isMember_${netId}`,
+        false,
+        NONMEMBER_CACHE_SECONDS,
+      );
       return reply
         .header("X-ACM-Data-Source", "aad")
         .send({ netId, isPaidMember: false });
