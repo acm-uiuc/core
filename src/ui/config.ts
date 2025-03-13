@@ -12,6 +12,7 @@ export type ConfigType = {
   AadValidClientId: string;
   ServiceConfiguration: Record<ValidServices, ServiceConfiguration>;
   LinkryGroupList?: string[];
+  LinkryGroupUUIDList?: string[];
   KnownGroupMappings: {
     Exec: string;
   };
@@ -39,6 +40,12 @@ const environmentConfig: EnvironmentConfigType = {
       'ACM Link Shortener Managers Linkry Test',
       'ACM Officers Linkry Test',
       'ACM Infra Leadership Linkry Test',
+    ],
+    LinkryGroupUUIDList: [
+      '6d0bf289-71e3-4b8f-929b-63d93c2e0533',
+      'a93bc2ad-b2b4-47bf-aa32-603dda8f6fdd',
+      '99b6b87c-9550-4529-87c1-f40862ab7add',
+      '83c275f8-e533-4987-b537-a94b86c9d28e',
     ],
     ServiceConfiguration: {
       core: {
@@ -69,6 +76,12 @@ const environmentConfig: EnvironmentConfigType = {
       'ACM Officers Linkry Test',
       'ACM Infra Leadership Linkry Test',
     ],
+    LinkryGroupUUIDList: [
+      '6d0bf289-71e3-4b8f-929b-63d93c2e0533',
+      'a93bc2ad-b2b4-47bf-aa32-603dda8f6fdd',
+      '99b6b87c-9550-4529-87c1-f40862ab7add',
+      '83c275f8-e533-4987-b537-a94b86c9d28e',
+    ],
     ServiceConfiguration: {
       core: {
         friendlyName: 'Core Management Service (NonProd)',
@@ -97,6 +110,12 @@ const environmentConfig: EnvironmentConfigType = {
       'ACM Link Shortener Managers',
       'ACM Officers',
       'ACM Infra Leadership',
+    ],
+    LinkryGroupUUIDList: [
+      'ad81254b-4eeb-4c96-8191-3acdce9194b1',
+      '270c2d58-11f6-4c45-a217-d46a035fe853',
+      'ff49e948-4587-416b-8224-65147540d5fc',
+      'f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6', //TODO: is this correct?
     ],
     ServiceConfiguration: {
       core: {

@@ -412,6 +412,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           new ScanCommand({ TableName: genericConfig.LinkryDynamoTableName }),
         );
 
+        //TODO: this is where we use the new listGroupIDsByEmail entraId route
+
         // const params = {
         //   TableName: genericConfig.LinkryDynamoTableName, // Replace with your actual table name
         //   IndexName: "AccessIndex",   // Your GSI name
