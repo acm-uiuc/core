@@ -93,7 +93,7 @@ const environmentConfig: EnvironmentConfigType = {
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
       /^https?:\/\/([a-zA-Z0-9-]+\.)*acm\.illinois\.edu$/,
-      / http: \/\/localhost:\d+$/,
+      /http:\/\/localhost:\d+$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
