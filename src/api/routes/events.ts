@@ -79,7 +79,11 @@ const getEventJsonSchema = zodToJsonSchema(getEventSchema);
 
 const getEventsSchema = z.array(getEventSchema);
 export type EventsGetResponse = z.infer<typeof getEventsSchema>;
-type EventsGetQueryParams = { upcomingOnly?: boolean };
+type EventsGetQueryParams = {
+  upcomingOnly?: boolean;
+  host?: string;
+  ts?: number;
+};
 
 const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.post<{ Body: EventPostRequest }>(
@@ -290,6 +294,8 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           type: "object",
           properties: {
             upcomingOnly: { type: "boolean" },
+            host: { type: "string" },
+            ts: { type: "number" },
           },
         },
         response: { 200: getEventsSchema },
@@ -297,22 +303,41 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request: FastifyRequest<EventsGetRequest>, reply) => {
       const upcomingOnly = request.query?.upcomingOnly || false;
+      const host = request.query?.host;
+      const ts = request.query?.ts; // we only use this to disable cache control
       const cachedResponse = fastify.nodeCache.get(
-        `events-upcoming_only=${upcomingOnly}`,
+        `events-upcoming_only=${upcomingOnly}|host=${host}`,
       );
       if (cachedResponse) {
         return reply
           .header(
             "cache-control",
-            "public, max-age=7200, stale-while-revalidate=900, stale-if-error=86400",
+            ts
+              ? "no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate"
+              : "public, max-age=7200, stale-while-revalidate=900, stale-if-error=86400",
           )
-          .header("acm-cache-status", "hit")
+          .header("x-acm-cache-status", "hit")
           .send(cachedResponse);
       }
       try {
-        const response = await fastify.dynamoClient.send(
-          new ScanCommand({ TableName: genericConfig.EventsDynamoTableName }),
-        );
+        let command;
+        if (host) {
+          command = new QueryCommand({
+            TableName: genericConfig.EventsDynamoTableName,
+            ExpressionAttributeValues: {
+              ":host": {
+                S: host,
+              },
+            },
+            KeyConditionExpression: "host = :host",
+            IndexName: "HostIndex",
+          });
+        } else {
+          command = new ScanCommand({
+            TableName: genericConfig.EventsDynamoTableName,
+          });
+        }
+        const response = await fastify.dynamoClient.send(command);
         const items = response.Items?.map((item) => unmarshall(item));
         const currentTimeChicago = moment().tz("America/Chicago");
         let parsedItems = getEventsSchema.parse(items);
@@ -354,9 +379,11 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         reply
           .header(
             "cache-control",
-            "public, max-age=7200, stale-while-revalidate=900, stale-if-error=86400",
+            ts
+              ? "no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate"
+              : "public, max-age=7200, stale-while-revalidate=900, stale-if-error=86400",
           )
-          .header("acm-cache-status", "miss")
+          .header("x-acm-cache-status", "miss")
           .send(parsedItems);
       } catch (e: unknown) {
         if (e instanceof Error) {

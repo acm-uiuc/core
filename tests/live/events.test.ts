@@ -11,6 +11,18 @@ test("getting events", async () => {
   expect(responseJson.length).greaterThan(0);
 });
 
+test("getting events for a given host", async () => {
+  const response = await fetch(`${baseEndpoint}/api/v1/events?host=ACM`);
+  expect(response.status).toBe(200);
+
+  const responseJson = (await response.json()) as EventsGetResponse;
+  expect(responseJson.length).toBeGreaterThan(0);
+
+  responseJson.forEach((event) => {
+    expect(event.host).toBe("ACM");
+  });
+});
+
 describe("Event lifecycle tests", async () => {
   let createdEventUuid;
   test("creating an event", { timeout: 30000 }, async () => {
