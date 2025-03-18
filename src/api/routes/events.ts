@@ -28,6 +28,8 @@ import { IUpdateDiscord, updateDiscord } from "../functions/discord.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
 const EVENT_CACHE_SECONDS = 90;
+const CLIENT_HTTP_CACHE_POLICY =
+  "public, max-age=180, stale-while-revalidate=420, stale-if-error=3600";
 export type EventRepeatOptions = (typeof repeatOptions)[number];
 
 const baseSchema = z.object({
@@ -58,7 +60,7 @@ const postRequestSchema = requestSchema.refine(
 export type EventPostRequest = z.infer<typeof postRequestSchema>;
 type EventGetRequest = {
   Params: { id: string };
-  Querystring: undefined;
+  Querystring: { ts?: number };
   Body: undefined;
 };
 
@@ -119,14 +121,15 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               message: `${userProvidedId} is not a valid event ID.`,
             });
           }
+          originalEvent = unmarshall(originalEvent);
         }
         const entry = {
           ...request.body,
           id: entryUUID,
-          createdBy: request.username,
-          createdAt: originalEvent
-            ? originalEvent.createdAt || new Date().toISOString()
-            : new Date().toISOString(),
+          createdAt:
+            originalEvent && originalEvent.createdAt
+              ? originalEvent.createdAt
+              : new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
         await fastify.dynamoClient.send(
@@ -173,6 +176,9 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
           throw new DiscordEventError({});
         }
+        fastify.nodeCache.del("events-upcoming_only=true");
+        fastify.nodeCache.del("events-upcoming_only=false");
+        fastify.nodeCache.del(`event-${entryUUID}`);
         reply.status(201).send({
           id: entryUUID,
           resource: `/api/v1/events/${entryUUID}`,
@@ -198,35 +204,46 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     "/:id",
     {
       schema: {
+        querystring: {
+          type: "object",
+          properties: {
+            ts: { type: "number" },
+          },
+        },
         response: { 200: getEventJsonSchema },
       },
     },
     async (request: FastifyRequest<EventGetRequest>, reply) => {
       const id = request.params.id;
+      const ts = request.query?.ts;
+      const cachedResponse = fastify.nodeCache.get(`event-${id}`);
+      if (cachedResponse) {
+        if (!ts) {
+          reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
+        }
+        return reply.header("x-acm-cache-status", "hit").send(cachedResponse);
+      }
+
       try {
         const response = await fastify.dynamoClient.send(
-          new QueryCommand({
+          new GetItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
-            KeyConditionExpression: "#id = :id",
-            ExpressionAttributeNames: {
-              "#id": "id",
-            },
-            ExpressionAttributeValues: marshall({ ":id": id }),
+            Key: marshall({ id }),
           }),
         );
-        const items = response.Items?.map((item) => unmarshall(item));
-        if (items?.length !== 1) {
-          throw new NotFoundError({
-            endpointName: request.url,
-          });
+        const item = response.Item ? unmarshall(response.Item) : null;
+        if (!item) {
+          throw new NotFoundError({ endpointName: request.url });
         }
-        reply.send(items[0]);
-      } catch (e: unknown) {
+        fastify.nodeCache.set(`event-${id}`, item, EVENT_CACHE_SECONDS);
+
+        if (!ts) {
+          reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
+        }
+        return reply.header("x-acm-cache-status", "miss").send(item);
+      } catch (e) {
         if (e instanceof BaseError) {
           throw e;
-        }
-        if (e instanceof Error) {
-          request.log.error("Failed to get from DynamoDB: " + e.toString());
         }
         throw new DatabaseFetchError({
           message: "Failed to get event from Dynamo table.",
@@ -268,6 +285,9 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           id,
           resource: `/api/v1/events/${id}`,
         });
+        fastify.nodeCache.del("events-upcoming_only=true");
+        fastify.nodeCache.del("events-upcoming_only=false");
+        fastify.nodeCache.del(`event-${id}`);
       } catch (e: unknown) {
         if (e instanceof Error) {
           request.log.error("Failed to delete from DynamoDB: " + e.toString());
@@ -306,18 +326,17 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       const host = request.query?.host;
       const ts = request.query?.ts; // we only use this to disable cache control
       const cachedResponse = fastify.nodeCache.get(
-        `events-upcoming_only=${upcomingOnly}|host=${host}`,
-      );
+        `events-upcoming_only=${upcomingOnly}`,
+      ) as EventsGetResponse;
       if (cachedResponse) {
-        return reply
-          .header(
-            "cache-control",
-            ts
-              ? "no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate"
-              : "public, max-age=7200, stale-while-revalidate=900, stale-if-error=86400",
-          )
-          .header("x-acm-cache-status", "hit")
-          .send(cachedResponse);
+        if (!ts) {
+          reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
+        }
+        let filteredResponse = cachedResponse;
+        if (host) {
+          filteredResponse = cachedResponse.filter((x) => x["host"] == host);
+        }
+        return reply.header("x-acm-cache-status", "hit").send(filteredResponse);
       }
       try {
         let command;
@@ -371,20 +390,17 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             }
           });
         }
-        fastify.nodeCache.set(
-          `events-upcoming_only=${upcomingOnly}`,
-          parsedItems,
-          EVENT_CACHE_SECONDS,
-        );
-        reply
-          .header(
-            "cache-control",
-            ts
-              ? "no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate"
-              : "public, max-age=7200, stale-while-revalidate=900, stale-if-error=86400",
-          )
-          .header("x-acm-cache-status", "miss")
-          .send(parsedItems);
+        if (!host) {
+          fastify.nodeCache.set(
+            `events-upcoming_only=${upcomingOnly}`,
+            parsedItems,
+            EVENT_CACHE_SECONDS,
+          );
+        }
+        if (!ts) {
+          reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
+        }
+        return reply.header("x-acm-cache-status", "hit").send(parsedItems);
       } catch (e: unknown) {
         if (e instanceof Error) {
           request.log.error("Failed to get from DynamoDB: " + e.toString());
