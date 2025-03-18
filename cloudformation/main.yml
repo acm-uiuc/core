@@ -398,6 +398,8 @@ Resources:
           HostedZoneId:
             !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
       StageName: default
+      EndpointConfiguration:
+        Type: REGIONAL
       Cors:
         AllowHeaders: "'Content-Type,Authorization,X-Amz-Date'"
         AllowOrigin: "'*'"
