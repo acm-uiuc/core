@@ -387,6 +387,7 @@ Resources:
     Properties:
       Name: !Sub ${ApplicationPrefix}-gateway
       Description: !Sub "${ApplicationFriendlyName} API Gateway"
+      MinimumCompressionSize: 2048 # 2kb to compress
       AlwaysDeploy: True
       DefinitionBody:
         Fn::Transform:
