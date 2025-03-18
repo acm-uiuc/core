@@ -73,12 +73,10 @@ const environmentConfig: EnvironmentConfigType = {
   dev: {
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "http://localhost:5174",
       "https://merch-pwa.pages.dev",
       "https://core.aws.qa.acmuiuc.org",
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
+      /http:\/\/localhost:\d+$/,
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
@@ -93,10 +91,9 @@ const environmentConfig: EnvironmentConfigType = {
   prod: {
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
-      "https://acm.illinois.edu",
-      "https://www.acm.illinois.edu",
-      "https://manage.acm.illinois.edu",
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
+      /^https?:\/\/([a-zA-Z0-9-]+\.)*acm\.illinois\.edu$/,
+      / http: \/\/localhost:\d+$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
