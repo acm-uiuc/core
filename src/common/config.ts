@@ -91,6 +91,7 @@ const environmentConfig: EnvironmentConfigType = {
   prod: {
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
+      /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
       /^https?:\/\/([a-zA-Z0-9-]+\.)*acm\.illinois\.edu$/,
       /http:\/\/localhost:\d+$/,
