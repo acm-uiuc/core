@@ -2,13 +2,13 @@ import { vi } from "vitest";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 
 vi.mock(
-  import("../../src/api/plugins/rateLimiter.js"),
+  import("../../src/api/functions/rateLimit.js"),
   async (importOriginal) => {
     const mod = await importOriginal();
     return {
       ...mod,
       isAtLimit: vi.fn(async (_) => {
-        return false;
+        return { limited: false, resetTime: 0, used: 1 };
       }),
     };
   },
