@@ -5,7 +5,7 @@ import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 interface RateLimiterOptions {
   limit?: number | ((request: FastifyRequest) => number);
   duration?: number;
-  rateLimitIdentifier?: string;
+  rateLimitIdentifier?: string | ((request: FastifyRequest) => string);
 }
 
 const rateLimiterPlugin: FastifyPluginAsync<RateLimiterOptions> = async (
@@ -22,12 +22,16 @@ const rateLimiterPlugin: FastifyPluginAsync<RateLimiterOptions> = async (
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userIdentifier = request.ip;
       let computedLimit = limit;
+      let computedIdentifier = rateLimitIdentifier;
       if (typeof computedLimit === "function") {
         computedLimit = computedLimit(request);
       }
+      if (typeof computedIdentifier === "function") {
+        computedIdentifier = computedIdentifier(request);
+      }
       const { limited, resetTime, used } = await isAtLimit({
         ddbClient: fastify.dynamoClient,
-        rateLimitIdentifier,
+        rateLimitIdentifier: computedIdentifier,
         duration,
         limit: computedLimit,
         userIdentifier,

@@ -36,7 +36,7 @@ function generateHostName(host: string) {
 
 const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {
-    limit: 10,
+    limit: OrganizationList.length,
     duration: 30,
     rateLimitIdentifier: "ical",
   });
