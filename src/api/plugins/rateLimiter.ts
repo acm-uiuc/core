@@ -8,8 +8,9 @@ import { genericConfig } from "common/config.js";
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 
 interface RateLimiterOptions {
-  limit?: number;
+  limit?: number | ((request: FastifyRequest) => number);
   duration?: number;
+  rateLimitIdentifier?: string;
 }
 
 interface RateLimitParams {
@@ -76,26 +77,32 @@ const rateLimiterPlugin: FastifyPluginAsync<RateLimiterOptions> = async (
   fastify,
   options,
 ) => {
-  const { limit = 10, duration = 60 } = options;
-
+  const {
+    limit = 10,
+    duration = 60,
+    rateLimitIdentifier = "api-request",
+  } = options;
   fastify.addHook(
-    "onRequest",
+    "preHandler",
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userIdentifier = request.ip;
-      const rateLimitIdentifier = "api-request";
-
+      console.log(request.username);
+      let computedLimit = limit;
+      if (typeof computedLimit === "function") {
+        computedLimit = computedLimit(request);
+      }
       const { limited, resetTime, used } = await isAtLimit({
         ddbClient: fastify.dynamoClient,
         rateLimitIdentifier,
         duration,
-        limit,
+        limit: computedLimit,
         userIdentifier,
       });
-      reply.header("X-RateLimit-Limit", limit.toString());
+      reply.header("X-RateLimit-Limit", computedLimit.toString());
       reply.header("X-RateLimit-Reset", resetTime?.toString() || "0");
       reply.header(
         "X-RateLimit-Remaining",
-        limited ? 0 : used ? limit - used : limit - 1,
+        limited ? 0 : used ? computedLimit - used : computedLimit - 1,
       );
       if (limited) {
         const retryAfter = resetTime

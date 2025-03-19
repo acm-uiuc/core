@@ -11,11 +11,17 @@ import { genericConfig, roleArns } from "common/config.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import rateLimiter from "api/plugins/rateLimiter.js";
 
 const NONMEMBER_CACHE_SECONDS = 1800; // 30 minutes
 const MEMBER_CACHE_SECONDS = 43200; // 12 hours
 
 const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
+  fastify.register(rateLimiter, {
+    limit: 20,
+    duration: 30,
+    rateLimitIdentifier: "membership",
+  });
   const getAuthorizedClients = async () => {
     if (roleArns.Entra) {
       fastify.log.info(

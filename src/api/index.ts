@@ -1,6 +1,6 @@
 /* eslint import/no-nodejs-modules: ["error", {"allow": ["crypto"]}] */
 import { randomUUID } from "crypto";
-import fastify, { FastifyInstance } from "fastify";
+import fastify, { FastifyInstance, FastifyRequest } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
 import fastifyAuthPlugin from "./plugins/auth.js";
 import protectedRoute from "./routes/protected.js";
@@ -72,10 +72,6 @@ async function init() {
   await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);
   await app.register(errorHandlerPlugin);
-  await app.register(rateLimiterPlugin, {
-    limit: 50,
-    duration: 20,
-  });
   if (!process.env.RunEnvironment) {
     process.env.RunEnvironment = "dev";
   }

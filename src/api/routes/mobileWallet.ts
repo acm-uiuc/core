@@ -13,6 +13,7 @@ import {
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { genericConfig } from "../../common/config.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import rateLimiter from "api/plugins/rateLimiter.js";
 
 const queuedResponseJsonSchema = zodToJsonSchema(
   z.object({
@@ -21,6 +22,11 @@ const queuedResponseJsonSchema = zodToJsonSchema(
 );
 
 const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
+  fastify.register(rateLimiter, {
+    limit: 5,
+    duration: 30,
+    rateLimitIdentifier: "mobileWallet",
+  });
   fastify.post<{ Querystring: { email: string } }>(
     "/membership",
     {

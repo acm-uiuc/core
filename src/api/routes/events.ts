@@ -23,6 +23,7 @@ import {
 import { randomUUID } from "crypto";
 import moment from "moment-timezone";
 import { IUpdateDiscord, updateDiscord } from "../functions/discord.js";
+import rateLimiter from "api/plugins/rateLimiter.js";
 
 // POST
 
@@ -88,6 +89,16 @@ type EventsGetQueryParams = {
 };
 
 const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
+  fastify.register(rateLimiter, {
+    limit: (request) => {
+      if (request.method === "GET") {
+        return 30;
+      }
+      return 15;
+    },
+    duration: 60,
+    rateLimitIdentifier: "events",
+  });
   fastify.post<{ Body: EventPostRequest }>(
     "/:id?",
     {
