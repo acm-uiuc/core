@@ -16,6 +16,7 @@ export type StripeCheckoutSessionCreateParams = {
   customerEmail?: string;
   stripeApiKey: string;
   items: { price: string; quantity: number }[];
+  initiator: string;
 };
 
 /**
@@ -69,6 +70,7 @@ export const createCheckoutSession = async ({
   stripeApiKey,
   customerEmail,
   items,
+  initiator,
 }: StripeCheckoutSessionCreateParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
@@ -81,6 +83,9 @@ export const createCheckoutSession = async ({
     })),
     mode: "payment",
     customer_email: customerEmail,
+    metadata: {
+      initiator,
+    },
   };
   const session = await stripe.checkout.sessions.create(payload);
   if (!session.url) {

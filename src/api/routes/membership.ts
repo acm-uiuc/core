@@ -5,7 +5,12 @@ import {
 } from "api/functions/membership.js";
 import { validateNetId } from "api/functions/validation.js";
 import { FastifyPluginAsync } from "fastify";
-import { InternalServerError, ValidationError } from "common/errors/index.js";
+import {
+  BaseError,
+  InternalServerError,
+  UnauthenticatedError,
+  ValidationError,
+} from "common/errors/index.js";
 import { getEntraIdToken } from "api/functions/entraId.js";
 import { genericConfig, roleArns } from "common/config.js";
 import { getRoleCredentials } from "api/functions/sts.js";
@@ -14,6 +19,9 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { createCheckoutSession } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
+import stripe, { Stripe } from "stripe";
+import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
 const NONMEMBER_CACHE_SECONDS = 1800; // 30 minutes
 const MEMBER_CACHE_SECONDS = 43200; // 12 hours
@@ -58,7 +66,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
     fastify.get<{
       Body: undefined;
       Querystring: { netId: string };
-    }>("/checkoutSession/:netId", async (request, reply) => {
+    }>("/checkout/:netId", async (request, reply) => {
       const netId = (request.params as Record<string, string>).netId;
       if (!validateNetId(netId)) {
         throw new ValidationError({
@@ -124,6 +132,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           items: [
             { price: fastify.environmentConfig.PaidMemberPriceId, quantity: 1 },
           ],
+          initiator: "purchase-membership",
         }),
       );
     });
@@ -181,6 +190,104 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         .send({ netId, isPaidMember: false });
     });
   };
+
+  fastify.post(
+    "/provision",
+    {
+      preParsing: async (request, _reply, payload) => {
+        try {
+          const sig = request.headers["stripe-signature"];
+          if (!sig || typeof sig !== "string") {
+            throw new Error("Missing or invalid Stripe signature");
+          }
+
+          if (!Buffer.isBuffer(payload) && typeof payload !== "string") {
+            throw new Error("Invalid payload format");
+          }
+          const secretApiConfig =
+            (await getSecretValue(
+              fastify.secretsManagerClient,
+              genericConfig.ConfigSecretName,
+            )) || {};
+          if (!secretApiConfig) {
+            throw new InternalServerError({
+              message: "Could not connect to Stripe.",
+            });
+          }
+          stripe.webhooks.constructEvent(
+            payload.toString(),
+            sig,
+            secretApiConfig.stripe_endpoint_secret as string,
+          );
+        } catch (err: unknown) {
+          if (err instanceof BaseError) {
+            throw err;
+          }
+          throw new UnauthenticatedError({
+            message: "Stripe webhook could not be validated.",
+          });
+        }
+      },
+    },
+    async (request, reply) => {
+      const event = request.body as Stripe.Event;
+      switch (event.type) {
+        case "checkout.session.completed":
+          if (
+            event.data.object.metadata &&
+            "initiator" in event.data.object.metadata &&
+            event.data.object.metadata["initiator"] == "purchase-membership"
+          ) {
+            const customerEmail = event.data.object.customer_email;
+            if (!customerEmail) {
+              return reply
+                .code(200)
+                .send({ handled: false, requestId: request.id });
+            }
+            const sqsPayload: SQSPayload<AvailableSQSFunctions.ProvisionNewMember> =
+              {
+                function: AvailableSQSFunctions.ProvisionNewMember,
+                metadata: {
+                  initiator: event.data.object.id,
+                  reqId: request.id,
+                },
+                payload: {
+                  email: customerEmail,
+                },
+              };
+            if (!fastify.sqsClient) {
+              fastify.sqsClient = new SQSClient({
+                region: genericConfig.AwsRegion,
+              });
+            }
+            const result = await fastify.sqsClient.send(
+              new SendMessageCommand({
+                QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+                MessageBody: JSON.stringify(sqsPayload),
+              }),
+            );
+            if (!result.MessageId) {
+              request.log.error(result);
+              throw new InternalServerError({
+                message: "Could not add job to queue.",
+              });
+            }
+            return reply.status(200).send({
+              handled: true,
+              requestId: request.id,
+              queueId: result.MessageId,
+            });
+          } else {
+            return reply
+              .code(200)
+              .send({ handled: false, requestId: request.id });
+          }
+        default:
+          request.log.warn(`Unhandled event type: ${event.type}`);
+      }
+      return reply.code(200).send({ handled: false, requestId: request.id });
+    },
+  );
   fastify.register(limitedRoutes);
 };
 

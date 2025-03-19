@@ -123,6 +123,7 @@ export type SecretConfig = {
   acm_passkit_signerKey_base64: string;
   apple_signing_cert_base64: string;
   stripe_secret_key: string;
+  stripe_endpoint_secret: string;
 };
 
 const roleArns = {
