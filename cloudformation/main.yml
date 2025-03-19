@@ -700,7 +700,7 @@ Resources:
     Properties:
       CachePolicyConfig:
         Name: UseOriginCacheControlHeaders-QueryStrings-NoCookies
-        Comment: "Policy for origins that return Cache-Control headers and serve different content based on query strings but dont require cookies."
+        Comment: "UseOriginCacheControlHeaders-QueryStrings but dont cache cookies."
         DefaultTTL: 0
         MaxTTL: 31536000
         MinTTL: 0
