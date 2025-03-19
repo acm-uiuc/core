@@ -602,7 +602,7 @@ Resources:
               Forward: none
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # caching-optimized
         CacheBehaviors:
-          - PathPattern: "/api/v1/events"
+          - PathPattern: "/api/v1/events/*"
             TargetOriginId: ApiGatewayOrigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:
