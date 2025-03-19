@@ -21,6 +21,7 @@ export type ConfigType = {
 };
 
 export type GenericConfigType = {
+  RateLimiterDynamoTableName: string;
   EventsDynamoTableName: string;
   CacheDynamoTableName: string;
   StripeLinksDynamoTableName: string;
@@ -52,6 +53,7 @@ export const commChairsGroupId = "105e7d32-7289-435e-a67a-552c7f215507";
 export const miscTestingGroupId = "ff25ec56-6a33-420d-bdb0-51d8a3920e46";
 
 const genericConfig: GenericConfigType = {
+  RateLimiterDynamoTableName: "infra-core-api-rate-limiter",
   EventsDynamoTableName: "infra-core-api-events",
   StripeLinksDynamoTableName: "infra-core-api-stripe-links",
   CacheDynamoTableName: "infra-core-api-cache",
@@ -123,5 +125,7 @@ export type SecretConfig = {
 const roleArns = {
   Entra: process.env.EntraRoleArn,
 };
+
+export const EVENT_CACHED_DURATION = 120;
 
 export { genericConfig, environmentConfig, roleArns };

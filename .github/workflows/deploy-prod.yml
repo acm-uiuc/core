@@ -24,7 +24,8 @@ jobs:
           python-version: 3.11
       - name: Run unit testing
         run: make test_unit
-  deploy-dev:
+
+  deploy-test-dev:
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.event.repository.name }}-dev
@@ -33,7 +34,7 @@ jobs:
       id-token: write
       contents: read
     environment: "AWS DEV"
-    name: Deploy to DEV
+    name: Deploy to DEV and Run Tests
     needs:
       - test-unit
     steps:
@@ -62,26 +63,6 @@ jobs:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
 
-  test-dev:
-    runs-on: ubuntu-latest
-    name: Run Live Tests
-    needs:
-      - deploy-dev
-    concurrency:
-      group: ${{ github.event.repository.name }}-dev
-      cancel-in-progress: false
-    steps:
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.x
-      - uses: actions/checkout@v4
-        env:
-          HUSKY: "0"
-      - name: Set up Python 3.11 for testing
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.11
       - name: Run live testing
         run: make test_live_integration
         env:
@@ -94,7 +75,7 @@ jobs:
 
   deploy-prod:
     runs-on: ubuntu-latest
-    name: Deploy to Prod
+    name: Deploy to Prod and Run Health Check
     concurrency:
       group: ${{ github.event.repository.name }}-prod
       cancel-in-progress: false
@@ -102,7 +83,7 @@ jobs:
       id-token: write
       contents: read
     needs:
-      - test-dev
+      - deploy-test-dev
     environment: "AWS PROD"
     steps:
       - name: Set up Node for testing
@@ -129,22 +110,5 @@ jobs:
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: prod
-
-  health-check-prod:
-    runs-on: ubuntu-latest
-    name: Confirm services healthy
-    needs:
-      - deploy-prod
-    concurrency:
-      group: ${{ github.event.repository.name }}-prod
-      cancel-in-progress: false
-    steps:
-      - name: Set up Node for testing
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.x
-      - uses: actions/checkout@v4
-        env:
-          HUSKY: "0"
       - name: Call the health check script
         run: make prod_health_check

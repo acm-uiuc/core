@@ -11,6 +11,7 @@ import { genericConfig, roleArns } from "common/config.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import rateLimiter from "api/plugins/rateLimiter.js";
 
 const NONMEMBER_CACHE_SECONDS = 1800; // 30 minutes
 const MEMBER_CACHE_SECONDS = 43200; // 12 hours
@@ -46,76 +47,88 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       };
     }
   };
-  fastify.get<{
-    Body: undefined;
-    Querystring: { netId: string };
-  }>(
-    "/:netId",
-    {
-      schema: {
-        querystring: {
-          type: "object",
-          properties: {
-            netId: {
-              type: "string",
+  const limitedRoutes: FastifyPluginAsync = async (fastify) => {
+    await fastify.register(rateLimiter, {
+      limit: 20,
+      duration: 30,
+      rateLimitIdentifier: "membership",
+    });
+    fastify.get<{
+      Body: undefined;
+      Querystring: { netId: string };
+    }>(
+      "/:netId",
+      {
+        schema: {
+          querystring: {
+            type: "object",
+            properties: {
+              netId: { type: "string" },
             },
           },
         },
       },
-    },
-    async (request, reply) => {
-      const netId = (request.params as Record<string, string>).netId;
-      if (!validateNetId(netId)) {
-        throw new ValidationError({
-          message: `${netId} is not a valid Illinois NetID!`,
-        });
-      }
-      if (fastify.nodeCache.get(`isMember_${netId}`) !== undefined) {
-        return reply.header("X-ACM-Data-Source", "cache").send({
+      async (request, reply) => {
+        const netId = (request.params as Record<string, string>).netId;
+        if (!validateNetId(netId)) {
+          throw new ValidationError({
+            message: `${netId} is not a valid Illinois NetID!`,
+          });
+        }
+        if (fastify.nodeCache.get(`isMember_${netId}`) !== undefined) {
+          return reply.header("X-ACM-Data-Source", "cache").send({
+            netId,
+            isPaidMember: fastify.nodeCache.get(`isMember_${netId}`),
+          });
+        }
+        const isDynamoMember = await checkPaidMembershipFromTable(
           netId,
-          isPaidMember: fastify.nodeCache.get(`isMember_${netId}`),
-        });
-      }
-      const isDynamoMember = await checkPaidMembershipFromTable(
-        netId,
-        fastify.dynamoClient,
-      );
-      // check Dynamo cache first
-      if (isDynamoMember) {
-        fastify.nodeCache.set(`isMember_${netId}`, true, MEMBER_CACHE_SECONDS);
+          fastify.dynamoClient,
+        );
+        if (isDynamoMember) {
+          fastify.nodeCache.set(
+            `isMember_${netId}`,
+            true,
+            MEMBER_CACHE_SECONDS,
+          );
+          return reply
+            .header("X-ACM-Data-Source", "dynamo")
+            .send({ netId, isPaidMember: true });
+        }
+        const entraIdToken = await getEntraIdToken(
+          await getAuthorizedClients(),
+          fastify.environmentConfig.AadValidClientId,
+        );
+        const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
+        const isAadMember = await checkPaidMembershipFromEntra(
+          netId,
+          entraIdToken,
+          paidMemberGroup,
+        );
+        if (isAadMember) {
+          fastify.nodeCache.set(
+            `isMember_${netId}`,
+            true,
+            MEMBER_CACHE_SECONDS,
+          );
+          reply
+            .header("X-ACM-Data-Source", "aad")
+            .send({ netId, isPaidMember: true });
+          await setPaidMembershipInTable(netId, fastify.dynamoClient);
+          return;
+        }
+        fastify.nodeCache.set(
+          `isMember_${netId}`,
+          false,
+          NONMEMBER_CACHE_SECONDS,
+        );
         return reply
-          .header("X-ACM-Data-Source", "dynamo")
-          .send({ netId, isPaidMember: true });
-      }
-      // check AAD
-      const entraIdToken = await getEntraIdToken(
-        await getAuthorizedClients(),
-        fastify.environmentConfig.AadValidClientId,
-      );
-      const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
-      const isAadMember = await checkPaidMembershipFromEntra(
-        netId,
-        entraIdToken,
-        paidMemberGroup,
-      );
-      if (isAadMember) {
-        fastify.nodeCache.set(`isMember_${netId}`, true, MEMBER_CACHE_SECONDS);
-        reply
           .header("X-ACM-Data-Source", "aad")
-          .send({ netId, isPaidMember: true });
-        await setPaidMembershipInTable(netId, fastify.dynamoClient);
-        return;
-      }
-      fastify.nodeCache.set(
-        `isMember_${netId}`,
-        false,
-        NONMEMBER_CACHE_SECONDS,
-      );
-      return reply
-        .header("X-ACM-Data-Source", "aad")
-        .send({ netId, isPaidMember: false });
-    },
-  );
+          .send({ netId, isPaidMember: false });
+      },
+    );
+  };
+  fastify.register(limitedRoutes);
 };
 
 export default membershipPlugin;

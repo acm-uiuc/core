@@ -116,12 +116,9 @@ export const ViewEventsPage: React.FC = () => {
 
   useEffect(() => {
     const getEvents = async () => {
-      const response = await api.get('/api/v1/events', {
-        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache', Expires: 0 },
-      });
-      const upcomingEvents = await api.get(`/api/v1/events?upcomingOnly=true&ts=${Date.now()}`, {
-        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache', Expires: 0 },
-      });
+      // setting ts lets us tell cloudfront I want fresh data
+      const response = await api.get(`/api/v1/events?ts=${Date.now()}`);
+      const upcomingEvents = await api.get(`/api/v1/events?upcomingOnly=true&ts=${Date.now()}`);
       const upcomingEventsSet = new Set(upcomingEvents.data.map((x: EventGetResponse) => x.id));
       const events = response.data;
       events.sort((a: EventGetResponse, b: EventGetResponse) => {

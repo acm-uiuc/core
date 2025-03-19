@@ -2,7 +2,6 @@ import { AssumeRoleCommand } from "@aws-sdk/client-sts";
 import { STSClient } from "@aws-sdk/client-sts";
 import { genericConfig } from "common/config.js";
 import { InternalServerError } from "common/errors/index.js";
-import { duration } from "moment";
 
 export async function getRoleCredentials(
   roleArn: string,

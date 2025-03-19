@@ -16,6 +16,8 @@ Parameters:
     AllowedValues: [ 'dev', 'prod' ]
   RecordName:
     Type: String
+  CloudfrontDomain:
+    Type: String
 
 Conditions:
   IsDev: !Equals [!Ref RunEnvironment, 'dev']
@@ -44,7 +46,7 @@ Resources:
     Properties:
       HostedZoneId: !Ref GWHostedZoneId
       Name: !Sub "${RecordName}.${GWBaseDomainName}"
-      Type: A
-      AliasTarget:
-        DNSName: !GetAtt CustomDomainName.RegionalDomainName
-        HostedZoneId: !GetAtt CustomDomainName.RegionalHostedZoneId
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - !Ref CloudfrontDomain
