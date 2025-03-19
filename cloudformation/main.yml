@@ -633,8 +633,14 @@ Resources:
             CachedMethods:
               - GET
               - HEAD
-            CachePolicyId: 4cc15a8a-d715-48a4-82b8-cc0b614638fe # use origin headers
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # all except host - normally, you want to pass the host header but our setup is weird
+            ForwardedValues:
+              QueryString: true
+              QueryStringCacheKeys:
+                - host
+                - ts
+                - upcomingOnly
+              Cookies:
+                Forward: none
           - PathPattern: "/api/v1/events/*"
             TargetOriginId: ApiGatewayOrigin
             ViewerProtocolPolicy: redirect-to-https
@@ -649,8 +655,14 @@ Resources:
             CachedMethods:
               - GET
               - HEAD
-            CachePolicyId: 4cc15a8a-d715-48a4-82b8-cc0b614638fe # use origin headers
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # all except host - normally, you want to pass the host header but our setup is weird
+            ForwardedValues:
+              QueryString: true
+              QueryStringCacheKeys:
+                - host
+                - ts
+                - upcomingOnly
+              Cookies:
+                Forward: none
           - PathPattern: "/api/*"
             TargetOriginId: ApiGatewayOrigin
             ViewerProtocolPolicy: redirect-to-https
