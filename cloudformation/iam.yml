@@ -168,6 +168,12 @@ Resources:
                 - Fn::GetAtt: ApiLambdaIAMRole.Arn
             Action:
               - sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              AWS:
+                - Fn::GetAtt: SqsLambdaIAMRole.Arn
+            Action:
+              - sts:AssumeRole
       Policies:
         - PolicyName: lambda-get-entra-secret
           PolicyDocument:
