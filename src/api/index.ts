@@ -24,6 +24,7 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import mobileWalletRoute from "./routes/mobileWallet.js";
 import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
+import rateLimiterPlugin from "./plugins/rateLimiter.js";
 
 dotenv.config();
 
@@ -71,6 +72,10 @@ async function init() {
   await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);
   await app.register(errorHandlerPlugin);
+  await app.register(rateLimiterPlugin, {
+    limit: 50,
+    duration: 20,
+  });
   if (!process.env.RunEnvironment) {
     process.env.RunEnvironment = "dev";
   }
