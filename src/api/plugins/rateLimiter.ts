@@ -86,7 +86,6 @@ const rateLimiterPlugin: FastifyPluginAsync<RateLimiterOptions> = async (
     "preHandler",
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userIdentifier = request.ip;
-      console.log(request.username);
       let computedLimit = limit;
       if (typeof computedLimit === "function") {
         computedLimit = computedLimit(request);
