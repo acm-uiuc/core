@@ -20,6 +20,7 @@ import { generateMembershipEmailCommand } from "../../api/functions/ses.js";
 import { SESClient } from "@aws-sdk/client-ses";
 import pino from "pino";
 import { getRoleCredentials } from "api/functions/sts.js";
+import { setPaidMembership } from "api/functions/membership.js";
 
 const getAuthorizedClients = async (
   logger: pino.Logger,
@@ -84,7 +85,33 @@ export const emailMembershipPassHandler: SQSHandlerFunction<
 
 export const pingHandler: SQSHandlerFunction<
   AvailableSQSFunctions.Ping
+> = async (_payload, _metadata, logger) => {
+  logger.info("Pong!");
+};
+
+export const provisionNewMemberHandler: SQSHandlerFunction<
+  AvailableSQSFunctions.ProvisionNewMember
 > = async (payload, metadata, logger) => {
-  logger.error("Not implemented yet!");
-  return;
+  const { email } = payload;
+  const commonConfig = { region: genericConfig.AwsRegion };
+  const clients = await getAuthorizedClients(logger, commonConfig);
+  const entraToken = await getEntraIdToken(
+    clients,
+    currentEnvironmentConfig.AadValidClientId,
+  );
+  logger.info("Got authorized clients and Entra ID token.");
+  const { updated } = await setPaidMembership({
+    netId: email.replace("@illinois.edu", ""),
+    dynamoClient: clients.dynamoClient,
+    entraToken,
+    paidMemberGroup: currentEnvironmentConfig.PaidMemberGroupId,
+  });
+  if (updated) {
+    logger.info(
+      `${email} added as a paid member. Emailing their membership pass.`,
+    );
+    await emailMembershipPassHandler(payload, metadata, logger);
+  } else {
+    logger.info(`${email} was already a paid member.`);
+  }
 };

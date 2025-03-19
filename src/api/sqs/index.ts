@@ -12,7 +12,11 @@ import {
 import { logger } from "./logger.js";
 import { z, ZodError } from "zod";
 import pino from "pino";
-import { emailMembershipPassHandler, pingHandler } from "./handlers.js";
+import {
+  emailMembershipPassHandler,
+  pingHandler,
+  provisionNewMemberHandler,
+} from "./handlers.js";
 import { ValidationError } from "../../common/errors/index.js";
 import { RunEnvironment } from "../../common/roles.js";
 import { environmentConfig } from "../../common/config.js";
@@ -30,6 +34,7 @@ export type SQSHandlerFunction<T extends AvailableSQSFunctions> = (
 const handlers: SQSFunctionPayloadTypes = {
   [AvailableSQSFunctions.EmailMembershipPass]: emailMembershipPassHandler,
   [AvailableSQSFunctions.Ping]: pingHandler,
+  [AvailableSQSFunctions.ProvisionNewMember]: provisionNewMemberHandler,
 };
 export const runEnvironment = process.env.RunEnvironment as RunEnvironment;
 export const currentEnvironmentConfig = environmentConfig[runEnvironment];
