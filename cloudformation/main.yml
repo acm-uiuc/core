@@ -143,7 +143,6 @@ Resources:
 
   CoreUrlProd:
     Type: AWS::Serverless::Application
-    Condition: IsProd
     Properties:
       Location: ./custom-domain.yml
       Parameters:
@@ -619,7 +618,7 @@ Resources:
               Forward: none
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # caching-optimized
         CacheBehaviors:
-          - PathPattern: "/api/v1/events"
+          - PathPattern: "/api/v1/events*"
             TargetOriginId: ApiGatewayOrigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:
@@ -634,23 +633,7 @@ Resources:
               - GET
               - HEAD
             CachePolicyId: !Ref CloudfrontCachePolicy
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # all except host
-          - PathPattern: "/api/v1/events/*"
-            TargetOriginId: ApiGatewayOrigin
-            ViewerProtocolPolicy: redirect-to-https
-            AllowedMethods:
-              - GET
-              - HEAD
-              - OPTIONS
-              - PUT
-              - POST
-              - DELETE
-              - PATCH
-            CachedMethods:
-              - GET
-              - HEAD
-            CachePolicyId: !Ref CloudfrontCachePolicy
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # all except host
+            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
           - PathPattern: "/api/*"
             TargetOriginId: ApiGatewayOrigin
             ViewerProtocolPolicy: redirect-to-https
@@ -666,7 +649,7 @@ Resources:
               - GET
               - HEAD
             CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # caching disabled
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # all except host - normally, you want to pass the host header but our setup is weird
+            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
         ViewerCertificate:
           AcmCertificateArn: !FindInMap
             - ApiGwConfig
