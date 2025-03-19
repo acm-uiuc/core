@@ -160,6 +160,7 @@ Resources:
         GWApiId: !Ref AppApiGateway
         GWHostedZoneId:
           !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+        CloudfrontDomain: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
 
   AppApiLambdaFunction:
     Type: AWS::Serverless::Function
