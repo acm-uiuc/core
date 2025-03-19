@@ -18,6 +18,7 @@ export type ConfigType = {
   EmailDomain: string;
   SqsQueueUrl: string;
   PaidMemberGroupId: string;
+  PaidMemberPriceId: string;
 };
 
 export type GenericConfigType = {
@@ -89,6 +90,7 @@ const environmentConfig: EnvironmentConfigType = {
     SqsQueueUrl:
       "https://sqs.us-east-1.amazonaws.com/427040638965/infra-core-api-sqs",
     PaidMemberGroupId: "9222451f-b354-4e64-ba28-c0f367a277c2",
+    PaidMemberPriceId: "price_1R4TcTDGHrJxx3mKI6XF9cNG",
   },
   prod: {
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
@@ -107,6 +109,7 @@ const environmentConfig: EnvironmentConfigType = {
     SqsQueueUrl:
       "https://sqs.us-east-1.amazonaws.com/298118738376/infra-core-api-sqs",
     PaidMemberGroupId: "172fd9ee-69f0-4384-9786-41ff1a43cf8e",
+    PaidMemberPriceId: "price_1MUGIRDiGOXU9RuSChPYK6wZ",
   },
 };
 
