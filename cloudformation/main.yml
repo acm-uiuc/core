@@ -633,14 +633,8 @@ Resources:
             CachedMethods:
               - GET
               - HEAD
-            ForwardedValues:
-              QueryString: true
-              QueryStringCacheKeys:
-                - host
-                - ts
-                - upcomingOnly
-              Cookies:
-                Forward: none
+            CachePolicyId: !Ref CloudfrontCachePolicy
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # all except host
           - PathPattern: "/api/v1/events/*"
             TargetOriginId: ApiGatewayOrigin
             ViewerProtocolPolicy: redirect-to-https
@@ -655,14 +649,8 @@ Resources:
             CachedMethods:
               - GET
               - HEAD
-            ForwardedValues:
-              QueryString: true
-              QueryStringCacheKeys:
-                - host
-                - ts
-                - upcomingOnly
-              Cookies:
-                Forward: none
+            CachePolicyId: !Ref CloudfrontCachePolicy
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # all except host
           - PathPattern: "/api/*"
             TargetOriginId: ApiGatewayOrigin
             ViewerProtocolPolicy: redirect-to-https
@@ -706,6 +694,31 @@ Resources:
               CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
             Action: s3:GetObject
             Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
+
+  CloudfrontCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: UseOriginCacheControlHeaders-QueryStrings-NoCookies
+        Comment: "Policy for origins that return Cache-Control headers and serve different content based on query strings but dont require cookies."
+        DefaultTTL: 0
+        MaxTTL: 31536000
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers:
+              - x-method-override
+              - origin
+              - host
+              - x-http-method
+              - x-http-method-override
+          QueryStringsConfig:
+            QueryStringBehavior: all
+          CookiesConfig:
+            CookieBehavior: none
 
 Outputs:
   DomainName:
