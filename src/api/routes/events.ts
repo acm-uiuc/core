@@ -10,7 +10,7 @@ import {
   QueryCommand,
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../../common/config.js";
+import { EVENT_CACHED_DURATION, genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import {
   BaseError,
@@ -26,8 +26,7 @@ import { IUpdateDiscord, updateDiscord } from "../functions/discord.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
-const CLIENT_HTTP_CACHE_POLICY =
-  "public, max-age=120, stale-while-revalidate=420, stale-if-error=3600";
+const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
 export type EventRepeatOptions = (typeof repeatOptions)[number];
 
 const baseSchema = z.object({

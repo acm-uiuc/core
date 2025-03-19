@@ -11,6 +11,7 @@ import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
+import { EVENT_CACHED_DURATION } from '@common/config';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -138,10 +139,10 @@ export const ManageEventPage: React.FC = () => {
       };
 
       const eventURL = isEditing ? `/api/v1/events/${eventId}` : '/api/v1/events';
-      const response = await api.post(eventURL, realValues);
+      await api.post(eventURL, realValues);
       notifications.show({
         title: isEditing ? 'Event updated!' : 'Event created!',
-        message: isEditing ? undefined : `The event ID is "${response.data.id}".`,
+        message: `Changes may take up to ${Math.ceil(EVENT_CACHED_DURATION / 60)} minutes to reflect to users.`,
       });
       navigate('/events/manage');
     } catch (error) {

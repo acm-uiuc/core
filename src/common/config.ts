@@ -126,4 +126,6 @@ const roleArns = {
   Entra: process.env.EntraRoleArn,
 };
 
+export const EVENT_CACHED_DURATION = 120;
+
 export { genericConfig, environmentConfig, roleArns };
