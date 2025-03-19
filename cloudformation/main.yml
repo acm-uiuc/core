@@ -602,6 +602,28 @@ Resources:
               Forward: none
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # caching-optimized
         CacheBehaviors:
+          - PathPattern: "/api/v1/events"
+            TargetOriginId: ApiGatewayOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - DELETE
+              - PATCH
+            CachedMethods:
+              - GET
+              - HEAD
+            ForwardedValues:
+              QueryString: true
+              QueryStringCacheKeys:
+                - host
+                - ts
+                - upcomingOnly
+              Cookies:
+                Forward: none
           - PathPattern: "/api/v1/events/*"
             TargetOriginId: ApiGatewayOrigin
             ViewerProtocolPolicy: redirect-to-https
