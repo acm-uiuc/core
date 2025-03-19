@@ -1,6 +1,6 @@
 /* eslint import/no-nodejs-modules: ["error", {"allow": ["crypto"]}] */
 import { randomUUID } from "crypto";
-import fastify, { FastifyInstance, FastifyRequest } from "fastify";
+import fastify, { FastifyInstance } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
 import fastifyAuthPlugin from "./plugins/auth.js";
 import protectedRoute from "./routes/protected.js";
@@ -24,7 +24,6 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import mobileWalletRoute from "./routes/mobileWallet.js";
 import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
-import rateLimiterPlugin from "./plugins/rateLimiter.js";
 
 dotenv.config();
 
