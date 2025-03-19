@@ -78,11 +78,12 @@ export async function checkPaidMembershipFromEntra(
 export async function setPaidMembershipInTable(
   netId: string,
   dynamoClient: DynamoDBClient,
+  actor: string = "core-api-queried",
 ): Promise<{ updated: boolean }> {
   const obj = {
     email: `${netId}@illinois.edu`,
     inserted_at: new Date().toISOString(),
-    inserted_by: "membership-api-queried",
+    inserted_by: actor,
   };
 
   try {
@@ -119,7 +120,11 @@ export async function setPaidMembership({
   entraToken,
   paidMemberGroup,
 }: SetPaidMembershipInput): Promise<SetPaidMembershipOutput> {
-  const dynamoResult = await setPaidMembershipInTable(netId, dynamoClient);
+  const dynamoResult = await setPaidMembershipInTable(
+    netId,
+    dynamoClient,
+    "core-api-provisioned",
+  );
   if (!dynamoResult.updated) {
     const inEntra = await checkPaidMembershipFromEntra(
       netId,
