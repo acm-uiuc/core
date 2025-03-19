@@ -108,8 +108,13 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
   });
   if (updated) {
     logger.info(
+      { type: "audit", actor: metadata.initiator, target: email },
+      "marked user as a paid member.",
+    );
+    logger.info(
       `${email} added as a paid member. Emailing their membership pass.`,
     );
+
     await emailMembershipPassHandler(payload, metadata, logger);
   } else {
     logger.info(`${email} was already a paid member.`);
