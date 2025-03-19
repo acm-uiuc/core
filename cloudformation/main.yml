@@ -227,6 +227,7 @@ Resources:
       Environment:
         Variables:
           RunEnvironment: !Ref RunEnvironment
+          EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds:
