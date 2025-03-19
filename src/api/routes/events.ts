@@ -174,7 +174,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           if (!ts) {
             reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
           }
-          return reply.header("x-acm-cache-status", "hit").send(parsedItems);
+          return reply.send(parsedItems);
         } catch (e: unknown) {
           if (e instanceof Error) {
             request.log.error("Failed to get from DynamoDB: " + e.toString());
@@ -372,7 +372,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         if (!ts) {
           reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
         }
-        return reply.header("x-acm-cache-status", "miss").send(item);
+        return reply.send(item);
       } catch (e) {
         if (e instanceof BaseError) {
           throw e;
