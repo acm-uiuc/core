@@ -26,9 +26,8 @@ import { IUpdateDiscord, updateDiscord } from "../functions/discord.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
-const EVENT_CACHE_SECONDS = 90;
 const CLIENT_HTTP_CACHE_POLICY =
-  "public, max-age=180, stale-while-revalidate=420, stale-if-error=3600";
+  "public, max-age=120, stale-while-revalidate=420, stale-if-error=3600";
 export type EventRepeatOptions = (typeof repeatOptions)[number];
 
 const baseSchema = z.object({
@@ -121,21 +120,6 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         const upcomingOnly = request.query?.upcomingOnly || false;
         const host = request.query?.host;
         const ts = request.query?.ts; // we only use this to disable cache control
-        const cachedResponse = fastify.nodeCache.get(
-          `events-upcoming_only=${upcomingOnly}`,
-        ) as EventsGetResponse;
-        if (cachedResponse) {
-          if (!ts) {
-            reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
-          }
-          let filteredResponse = cachedResponse;
-          if (host) {
-            filteredResponse = cachedResponse.filter((x) => x["host"] == host);
-          }
-          return reply
-            .header("x-acm-cache-status", "hit")
-            .send(filteredResponse);
-        }
         try {
           let command;
           if (host) {
@@ -187,13 +171,6 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 return false;
               }
             });
-          }
-          if (!host) {
-            fastify.nodeCache.set(
-              `events-upcoming_only=${upcomingOnly}`,
-              parsedItems,
-              EVENT_CACHE_SECONDS,
-            );
           }
           if (!ts) {
             reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
@@ -301,9 +278,6 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
           throw new DiscordEventError({});
         }
-        fastify.nodeCache.del("events-upcoming_only=true");
-        fastify.nodeCache.del("events-upcoming_only=false");
-        fastify.nodeCache.del(`event-${entryUUID}`);
         reply.status(201).send({
           id: entryUUID,
           resource: `/api/v1/events/${entryUUID}`,
@@ -354,9 +328,6 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           id,
           resource: `/api/v1/events/${id}`,
         });
-        fastify.nodeCache.del("events-upcoming_only=true");
-        fastify.nodeCache.del("events-upcoming_only=false");
-        fastify.nodeCache.del(`event-${id}`);
       } catch (e: unknown) {
         if (e instanceof Error) {
           request.log.error("Failed to delete from DynamoDB: " + e.toString());
@@ -387,14 +358,6 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     async (request: FastifyRequest<EventGetRequest>, reply) => {
       const id = request.params.id;
       const ts = request.query?.ts;
-      const cachedResponse = fastify.nodeCache.get(`event-${id}`);
-      if (cachedResponse) {
-        if (!ts) {
-          reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
-        }
-        return reply.header("x-acm-cache-status", "hit").send(cachedResponse);
-      }
-
       try {
         const response = await fastify.dynamoClient.send(
           new GetItemCommand({
@@ -406,7 +369,6 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         if (!item) {
           throw new NotFoundError({ endpointName: request.url });
         }
-        fastify.nodeCache.set(`event-${id}`, item, EVENT_CACHE_SECONDS);
 
         if (!ts) {
           reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
