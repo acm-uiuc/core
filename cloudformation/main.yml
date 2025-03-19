@@ -589,17 +589,19 @@ Resources:
             - !Ref RunEnvironment
             - UiDomainName
           - !Join
-            - go
-            - !FindInMap
-              - ApiGwConfig
-              - !Ref RunEnvironment
-              - EnvDomainName
+            - ""
+            - - "go."
+              - !FindInMap
+                - ApiGwConfig
+                - !Ref RunEnvironment
+                - EnvDomainName
           - !Join
-            - ical
-            - !FindInMap
-              - ApiGwConfig
-              - !Ref RunEnvironment
-              - EnvDomainName
+            - ""
+            - - "ical."
+              - !FindInMap
+                - ApiGwConfig
+                - !Ref RunEnvironment
+                - EnvDomainName
 
         DefaultCacheBehavior:
           TargetOriginId: S3WebsiteOrigin
