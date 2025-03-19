@@ -1,6 +1,18 @@
 import { vi } from "vitest";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
-import { group } from "console";
+
+vi.mock(
+  import("../../src/api/plugins/rateLimiter.js"),
+  async (importOriginal) => {
+    const mod = await importOriginal();
+    return {
+      ...mod,
+      isAtLimit: vi.fn(async (_) => {
+        return false;
+      }),
+    };
+  },
+);
 
 vi.mock(
   import("../../src/api/functions/authorization.js"),
