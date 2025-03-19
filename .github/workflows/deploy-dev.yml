@@ -38,7 +38,7 @@ jobs:
       - name: Run unit testing
         run: make test_unit
 
-  deploy-dev:
+  deploy-test-dev:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -47,7 +47,7 @@ jobs:
       group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
     environment: "AWS DEV"
-    name: Deploy to DEV
+    name: Deploy to DEV and Run Tests
     needs:
       - test-unit
     steps:
@@ -89,38 +89,6 @@ jobs:
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
-
-  test-dev:
-    runs-on: ubuntu-latest
-    name: Run Live Tests
-    needs:
-      - deploy-dev
-    concurrency:
-      group: ${{ github.event.repository.name }}-dev-env
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-        env:
-          HUSKY: "0"
-          cache: 'yarn'
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.x
-
-      - name: Restore Yarn Cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
-          restore-keys: |
-            yarn-modules-${{ runner.os }}-
-
-      - name: Set up Python 3.11 for testing
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.11
 
       - name: Run health check
         run: make dev_health_check
