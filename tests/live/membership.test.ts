@@ -56,4 +56,46 @@ describe("Membership API basic checks", async () => {
     expect(response.status).toBe(400);
     expect(response.headers.get("x-acm-data-source")).toBeNull();
   });
+  test(
+    "Test that getting external non-members succeeds",
+    { timeout: 3000 },
+    async () => {
+      const response = await fetch(
+        `${baseEndpoint}/api/v1/membership/zzzz?list=built`,
+        {
+          method: "GET",
+        },
+      );
+
+      expect(response.status).toBe(200);
+
+      const responseBody = await response.json();
+      expect(responseBody).toStrictEqual({
+        netId: "zzzz",
+        list: "built",
+        isPaidMember: false,
+      });
+    },
+  );
+  test(
+    "Test that getting external members succeeds",
+    { timeout: 3000 },
+    async () => {
+      const response = await fetch(
+        `${baseEndpoint}/api/v1/membership/zzzz?list=acmtesting`,
+        {
+          method: "GET",
+        },
+      );
+
+      expect(response.status).toBe(200);
+
+      const responseBody = await response.json();
+      expect(responseBody).toStrictEqual({
+        netId: "zzzz",
+        list: "acmtesting",
+        isPaidMember: true,
+      });
+    },
+  );
 });
