@@ -576,6 +576,8 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub ${S3BucketPrefix}-ui
+      WebsiteConfiguration:
+        IndexDocument: index.html
 
   CloudFrontOriginAccessIdentity:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
@@ -635,6 +637,9 @@ Resources:
             Cookies:
               Forward: none
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # caching-optimized
+          LambdaFunctionAssociations:
+            - EventType: origin-request
+              LambdaFunctionARN: !Ref AppFrontendEdgeLambdaVersion
         CacheBehaviors:
           - PathPattern: "/api/v1/events*"
             TargetOriginId: ApiGatewayOrigin
@@ -675,11 +680,6 @@ Resources:
             - EnvCertificateArn
           MinimumProtocolVersion: TLSv1.2_2021
           SslSupportMethod: sni-only
-        CustomErrorResponses:
-          - ErrorCode: 403
-            ResponseCode: 200
-            ResponsePagePath: /index.html
-            ErrorCachingMinTTL: 0
         HttpVersion: http2
         PriceClass: PriceClass_100
 
@@ -720,6 +720,34 @@ Resources:
             QueryStringBehavior: all
           CookiesConfig:
             CookieBehavior: none
+
+  AppFrontendEdgeLambda:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - AppLogGroups
+    Properties:
+      FunctionName: !Sub ${ApplicationPrefix}-lambda-edge
+      Handler: "index.handler"
+      Role: !GetAtt AppSecurityRoles.Outputs.EdgeFunctionRoleArn
+      Runtime: nodejs22.x
+      Code:
+        ZipFile: |
+          'use strict';
+          exports.handler = async (event) => {
+              const request = event.Records[0].cf.request;
+              const uri = request.uri;
+              if (!uri.startsWith('/api') && !uri.match(/\.\w+$/)) {
+                  request.uri = "/index.html";
+              }
+              return request;
+          };
+      MemorySize: 128
+      Timeout: 5
+
+  AppFrontendEdgeLambdaVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !Ref AppFrontendEdgeLambda
 
 Outputs:
   DomainName:
