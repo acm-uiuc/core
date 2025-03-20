@@ -1,4 +1,5 @@
 import {
+  ConditionalCheckFailedException,
   DynamoDBClient,
   PutItemCommand,
   QueryCommand,
@@ -6,8 +7,9 @@ import {
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
 import { FastifyBaseLogger } from "fastify";
-import { isUserInGroup } from "./entraId.js";
+import { isUserInGroup, modifyGroup } from "./entraId.js";
 import { EntraGroupError } from "common/errors/index.js";
+import { EntraGroupActions } from "common/types/iam.js";
 
 export async function checkPaidMembership(
   endpoint: string,
@@ -76,17 +78,69 @@ export async function checkPaidMembershipFromEntra(
 export async function setPaidMembershipInTable(
   netId: string,
   dynamoClient: DynamoDBClient,
-): Promise<void> {
+  actor: string = "core-api-queried",
+): Promise<{ updated: boolean }> {
   const obj = {
     email: `${netId}@illinois.edu`,
     inserted_at: new Date().toISOString(),
-    inserted_by: "membership-api-queried",
+    inserted_by: actor,
   };
 
-  await dynamoClient.send(
-    new PutItemCommand({
-      TableName: genericConfig.MembershipTableName,
-      Item: marshall(obj),
-    }),
+  try {
+    await dynamoClient.send(
+      new PutItemCommand({
+        TableName: genericConfig.MembershipTableName,
+        Item: marshall(obj),
+        ConditionExpression: "attribute_not_exists(email)",
+      }),
+    );
+    return { updated: true };
+  } catch (error: unknown) {
+    if (error instanceof ConditionalCheckFailedException) {
+      return { updated: false };
+    }
+    throw error;
+  }
+}
+
+type SetPaidMembershipInput = {
+  netId: string;
+  dynamoClient: DynamoDBClient;
+  entraToken: string;
+  paidMemberGroup: string;
+};
+
+type SetPaidMembershipOutput = {
+  updated: boolean;
+};
+
+export async function setPaidMembership({
+  netId,
+  dynamoClient,
+  entraToken,
+  paidMemberGroup,
+}: SetPaidMembershipInput): Promise<SetPaidMembershipOutput> {
+  const dynamoResult = await setPaidMembershipInTable(
+    netId,
+    dynamoClient,
+    "core-api-provisioned",
   );
+  if (!dynamoResult.updated) {
+    const inEntra = await checkPaidMembershipFromEntra(
+      netId,
+      entraToken,
+      paidMemberGroup,
+    );
+    if (inEntra) {
+      return { updated: false };
+    }
+  }
+  await modifyGroup(
+    entraToken,
+    `${netId}@illinois.edu`,
+    paidMemberGroup,
+    EntraGroupActions.ADD,
+  );
+
+  return { updated: true };
 }
