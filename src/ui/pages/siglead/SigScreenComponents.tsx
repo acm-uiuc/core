@@ -33,12 +33,6 @@ const renderSigLink = (org: string, index: number) => {
       label={org}
       variant="filled"
       active={index % 2 === 0}
-      // color="blue"
-      // style={{
-      //   // color: "lightgray",
-      //   backgroundColor: "DodgerBlue",
-      //   opacity: 0.5
-      // }}
       rightSection={
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <span>MemberCount[{index}]</span>
