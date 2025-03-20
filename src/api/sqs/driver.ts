@@ -1,6 +1,9 @@
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { environmentConfig, genericConfig } from "common/config.js";
-import { parseSQSPayload } from "common/types/sqsMessage.js";
+import {
+  AvailableSQSFunctions,
+  parseSQSPayload,
+} from "common/types/sqsMessage.js";
 
 const queueUrl = environmentConfig["dev"].SqsQueueUrl;
 const sqsClient = new SQSClient({
@@ -8,7 +11,7 @@ const sqsClient = new SQSClient({
 });
 
 const payload = parseSQSPayload({
-  function: "ping",
+  function: AvailableSQSFunctions.Ping,
   payload: {},
   metadata: {
     reqId: "1",

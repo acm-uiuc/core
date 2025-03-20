@@ -24,6 +24,17 @@ Resources:
             - "AppDLQ"
             - "Arn"
         maxReceiveCount: 3
+  SalesEmailQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${QueueName}-sales
+      VisibilityTimeout: !Ref MessageTimeout
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - "AppDLQ"
+            - "Arn"
+        maxReceiveCount: 3
 
 Outputs:
   MainQueueArn:
@@ -37,4 +48,10 @@ Outputs:
     Value:
       Fn::GetAtt:
       - AppDLQ
+      - Arn
+  SalesEmailQueueArn:
+    Description: Sales Email Queue Arn
+    Value:
+      Fn::GetAtt:
+      - SalesEmailQueue
       - Arn
