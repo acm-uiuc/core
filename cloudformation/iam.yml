@@ -242,6 +242,34 @@ Resources:
                     ses:Recipients:
                       - "*@illinois.edu"
 
+
+  EdgeLambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action: "sts:AssumeRole"
+          - Effect: Allow
+            Principal:
+              Service: "edgelambda.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: lambda-edge
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource:
+                  - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}-edge:*
+
 Outputs:
   MainFunctionRoleArn:
     Description: Main API IAM role ARN
@@ -254,3 +282,8 @@ Outputs:
   EntraFunctionRoleArn:
     Description: Entra IAM role ARN
     Value: !GetAtt EntraLambdaIAMRole.Arn
+
+  EdgeFunctionRoleArn:
+    Description: Edge IAM role ARN
+    Value: !GetAtt EdgeLambdaIAMRole.Arn
+
