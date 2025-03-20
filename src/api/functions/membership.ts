@@ -6,33 +6,9 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
-import { FastifyBaseLogger } from "fastify";
 import { isUserInGroup, modifyGroup } from "./entraId.js";
 import { EntraGroupError } from "common/errors/index.js";
 import { EntraGroupActions } from "common/types/iam.js";
-
-export async function checkPaidMembership(
-  endpoint: string,
-  log: FastifyBaseLogger,
-  netId: string,
-) {
-  const membershipApiPayload = (await (
-    await fetch(`${endpoint}?netId=${netId}`)
-  ).json()) as { netId: string; isPaidMember: boolean };
-  log.trace(`Got Membership API Payload for ${netId}: ${membershipApiPayload}`);
-  try {
-    return membershipApiPayload["isPaidMember"];
-  } catch (e: unknown) {
-    if (!(e instanceof Error)) {
-      log.error(
-        "Failed to get response from membership API (unknown error type.)",
-      );
-      throw e;
-    }
-    log.error(`Failed to get response from membership API: ${e.toString()}`);
-    throw e;
-  }
-}
 
 export async function checkPaidMembershipFromTable(
   netId: string,
@@ -140,6 +116,7 @@ export async function setPaidMembership({
     `${netId}@illinois.edu`,
     paidMemberGroup,
     EntraGroupActions.ADD,
+    dynamoClient,
   );
 
   return { updated: true };

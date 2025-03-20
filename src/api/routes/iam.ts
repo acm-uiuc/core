@@ -314,12 +314,24 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       );
       const addResults = await Promise.allSettled(
         request.body.add.map((email) =>
-          modifyGroup(entraIdToken, email, groupId, EntraGroupActions.ADD),
+          modifyGroup(
+            entraIdToken,
+            email,
+            groupId,
+            EntraGroupActions.ADD,
+            fastify.dynamoClient,
+          ),
         ),
       );
       const removeResults = await Promise.allSettled(
         request.body.remove.map((email) =>
-          modifyGroup(entraIdToken, email, groupId, EntraGroupActions.REMOVE),
+          modifyGroup(
+            entraIdToken,
+            email,
+            groupId,
+            EntraGroupActions.REMOVE,
+            fastify.dynamoClient,
+          ),
         ),
       );
       const response: Record<string, Record<string, string>[]> = {

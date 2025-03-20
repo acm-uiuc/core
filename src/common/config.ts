@@ -85,7 +85,7 @@ const environmentConfig: EnvironmentConfigType = {
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
     PasskitSerialNumber: "0",
     MembershipApiEndpoint:
-      "https://infra-membership-api.aws.qa.acmuiuc.org/api/v1/checkMembership",
+      "https://core.aws.qa.acmuiuc.org/api/v1/membership",
     EmailDomain: "aws.qa.acmuiuc.org",
     SqsQueueUrl:
       "https://sqs.us-east-1.amazonaws.com/427040638965/infra-core-api-sqs",
@@ -104,7 +104,7 @@ const environmentConfig: EnvironmentConfigType = {
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
     PasskitSerialNumber: "0",
     MembershipApiEndpoint:
-      "https://infra-membership-api.aws.acmuiuc.org/api/v1/checkMembership",
+      "https://core.acm.illinois.edu/api/v1/membership",
     EmailDomain: "acm.illinois.edu",
     SqsQueueUrl:
       "https://sqs.us-east-1.amazonaws.com/298118738376/infra-core-api-sqs",

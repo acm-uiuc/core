@@ -26,6 +26,7 @@ import {
 import { UserProfileDataBase } from "common/types/msGraphApi.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { checkPaidMembershipFromTable } from "./membership.js";
 
 function validateGroupId(groupId: string): boolean {
   const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
@@ -198,6 +199,7 @@ export async function resolveEmailToOid(
  * @param email - The email address of the user to add or remove.
  * @param group - The group ID to take action on.
  * @param action - Whether to add or remove the user from the group.
+ * @param dynamoClient - DynamoDB client
  * @throws {EntraGroupError} If the group action fails.
  * @returns {Promise<boolean>} True if the action was successful.
  */
@@ -206,6 +208,7 @@ export async function modifyGroup(
   email: string,
   group: string,
   action: EntraGroupActions,
+  dynamoClient: DynamoDBClient,
 ): Promise<boolean> {
   email = email.toLowerCase().replace(/\s/g, "");
   if (!email.endsWith("@illinois.edu")) {
@@ -228,14 +231,8 @@ export async function modifyGroup(
     action === EntraGroupActions.ADD
   ) {
     const netId = email.split("@")[0];
-    const response = await fetch(
-      `https://membership.acm.illinois.edu/api/v1/checkMembership?netId=${netId}`,
-    );
-    const membershipStatus = (await response.json()) as {
-      netId: string;
-      isPaidMember: boolean;
-    };
-    if (!membershipStatus["isPaidMember"]) {
+    const isPaidMember = checkPaidMembershipFromTable(netId, dynamoClient); // we assume users have been provisioned into the table.
+    if (!isPaidMember) {
       throw new EntraGroupError({
         message: `${netId} is not a paid member. This group requires that all members are paid members.`,
         group,

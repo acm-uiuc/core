@@ -5,7 +5,7 @@ import {
   ValidationError,
 } from "../../common/errors/index.js";
 import { z } from "zod";
-import { checkPaidMembership } from "../functions/membership.js";
+import { checkPaidMembershipFromTable } from "../functions/membership.js";
 import {
   AvailableSQSFunctions,
   SQSPayload,
@@ -62,10 +62,9 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
       const isPaidMember =
         (fastify.runEnvironment === "dev" &&
           request.query.email === "testinguser@illinois.edu") ||
-        (await checkPaidMembership(
-          fastify.environmentConfig.MembershipApiEndpoint,
-          request.log,
+        (await checkPaidMembershipFromTable(
           request.query.email.replace("@illinois.edu", ""),
+          fastify.dynamoClient,
         ));
       if (!isPaidMember) {
         throw new UnauthenticatedError({
