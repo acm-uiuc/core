@@ -59,6 +59,18 @@ vi.mock(
             return false;
         }
       }),
+      checkPaidMembershipFromEntra: vi.fn(
+        async (netId, _entraToken, _paidMemberGroup) => {
+          switch (netId) {
+            case "valid":
+              return true;
+            case "eadon2":
+              return true;
+            default:
+              return false;
+          }
+        },
+      ),
     };
   },
 );
