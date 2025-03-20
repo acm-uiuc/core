@@ -8,7 +8,6 @@ import { FastifyPluginAsync } from "fastify";
 import {
   BaseError,
   InternalServerError,
-  UnauthenticatedError,
   ValidationError,
 } from "common/errors/index.js";
 import { getEntraIdToken } from "api/functions/entraId.js";
@@ -22,11 +21,17 @@ import { getSecretValue } from "api/plugins/auth.js";
 import stripe, { Stripe } from "stripe";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import rawbody, { RawBodyPluginOptions } from "fastify-raw-body";
 
 const NONMEMBER_CACHE_SECONDS = 1800; // 30 minutes
 const MEMBER_CACHE_SECONDS = 43200; // 12 hours
 
 const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
+  await fastify.register(rawbody, {
+    field: "rawBody",
+    global: false,
+    runFirst: true,
+  });
   const getAuthorizedClients = async () => {
     if (roleArns.Entra) {
       fastify.log.info(
@@ -190,47 +195,42 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         .send({ netId, isPaidMember: false });
     });
   };
-
   fastify.post(
     "/provision",
-    {
-      preParsing: async (request, _reply, payload) => {
-        try {
-          const sig = request.headers["stripe-signature"];
-          if (!sig || typeof sig !== "string") {
-            throw new Error("Missing or invalid Stripe signature");
-          }
-
-          if (!Buffer.isBuffer(payload) && typeof payload !== "string") {
-            throw new Error("Invalid payload format");
-          }
-          const secretApiConfig =
-            (await getSecretValue(
-              fastify.secretsManagerClient,
-              genericConfig.ConfigSecretName,
-            )) || {};
-          if (!secretApiConfig) {
-            throw new InternalServerError({
-              message: "Could not connect to Stripe.",
-            });
-          }
-          stripe.webhooks.constructEvent(
-            payload.toString(),
-            sig,
-            secretApiConfig.stripe_endpoint_secret as string,
-          );
-        } catch (err: unknown) {
-          if (err instanceof BaseError) {
-            throw err;
-          }
-          throw new UnauthenticatedError({
-            message: "Stripe webhook could not be validated.",
+    { config: { rawBody: true } },
+    async (request, reply) => {
+      let event: Stripe.Event;
+      if (!request.rawBody) {
+        throw new ValidationError({ message: "Could not get raw body." });
+      }
+      try {
+        const sig = request.headers["stripe-signature"];
+        if (!sig || typeof sig !== "string") {
+          throw new Error("Missing or invalid Stripe signature");
+        }
+        const secretApiConfig =
+          (await getSecretValue(
+            fastify.secretsManagerClient,
+            genericConfig.ConfigSecretName,
+          )) || {};
+        if (!secretApiConfig) {
+          throw new InternalServerError({
+            message: "Could not connect to Stripe.",
           });
         }
-      },
-    },
-    async (request, reply) => {
-      const event = request.body as Stripe.Event;
+        event = stripe.webhooks.constructEvent(
+          request.rawBody,
+          sig,
+          secretApiConfig.stripe_endpoint_secret as string,
+        );
+      } catch (err: unknown) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        throw new ValidationError({
+          message: "Stripe webhook could not be validated.",
+        });
+      }
       switch (event.type) {
         case "checkout.session.completed":
           if (
