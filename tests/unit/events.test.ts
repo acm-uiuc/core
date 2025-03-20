@@ -1,5 +1,9 @@
 import { afterAll, expect, test, beforeEach, vi } from "vitest";
-import { ScanCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  ScanCommand,
+  DynamoDBClient,
+  QueryCommand,
+} from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import { EventGetResponse } from "../../src/api/routes/events.js";
@@ -7,6 +11,8 @@ import {
   dynamoTableData,
   dynamoTableDataUnmarshalled,
   dynamoTableDataUnmarshalledUpcomingOnly,
+  infraEventsOnly,
+  infraEventsOnlyUnmarshalled,
 } from "./mockEventData.testdata.js";
 import { secretObject } from "./secret.testdata.js";
 
@@ -56,6 +62,30 @@ test("Test upcoming only", async () => {
   expect(response.statusCode).toBe(200);
   const responseDataJson = (await response.json()) as EventGetResponse;
   expect(responseDataJson).toEqual(dynamoTableDataUnmarshalledUpcomingOnly);
+});
+
+test("Test host filter", async () => {
+  ddbMock.on(ScanCommand).rejects();
+  ddbMock.on(QueryCommand).resolves({ Items: infraEventsOnly as any });
+  const response = await app.inject({
+    method: "GET",
+    url: "/api/v1/events?host=Infrastructure Committee",
+  });
+  expect(response.statusCode).toBe(200);
+  const responseDataJson = (await response.json()) as EventGetResponse;
+  expect(responseDataJson).toEqual(infraEventsOnlyUnmarshalled);
+  expect(ddbMock.commandCalls(QueryCommand)).toHaveLength(1);
+  const queryCommandCall = ddbMock.commandCalls(QueryCommand)[0].args[0].input;
+  expect(queryCommandCall).toEqual({
+    TableName: "infra-core-api-events",
+    ExpressionAttributeValues: {
+      ":host": {
+        S: "Infrastructure Committee",
+      },
+    },
+    KeyConditionExpression: "host = :host",
+    IndexName: "HostIndex",
+  });
 });
 
 afterAll(async () => {

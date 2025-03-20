@@ -1,3 +1,4 @@
+import { InternalServerError } from "common/errors/index.js";
 import Stripe from "stripe";
 
 export type StripeLinkCreateParams = {
@@ -7,6 +8,15 @@ export type StripeLinkCreateParams = {
   contactEmail: string;
   createdBy: string;
   stripeApiKey: string;
+};
+
+export type StripeCheckoutSessionCreateParams = {
+  successUrl?: string;
+  returnUrl?: string;
+  customerEmail?: string;
+  stripeApiKey: string;
+  items: { price: string; quantity: number }[];
+  initiator: string;
 };
 
 /**
@@ -52,4 +62,36 @@ export const createStripeLink = async ({
     productId: product.id,
     priceId: price.id,
   };
+};
+
+export const createCheckoutSession = async ({
+  successUrl,
+  returnUrl,
+  stripeApiKey,
+  customerEmail,
+  items,
+  initiator,
+}: StripeCheckoutSessionCreateParams): Promise<string> => {
+  const stripe = new Stripe(stripeApiKey);
+  const payload: Stripe.Checkout.SessionCreateParams = {
+    success_url: successUrl || "",
+    cancel_url: returnUrl || "",
+    payment_method_types: ["card"],
+    line_items: items.map((item) => ({
+      price: item.price,
+      quantity: item.quantity,
+    })),
+    mode: "payment",
+    customer_email: customerEmail,
+    metadata: {
+      initiator,
+    },
+  };
+  const session = await stripe.checkout.sessions.create(payload);
+  if (!session.url) {
+    throw new InternalServerError({
+      message: "Could not create Stripe checkout session.",
+    });
+  }
+  return session.url;
 };

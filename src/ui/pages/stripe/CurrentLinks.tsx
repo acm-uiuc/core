@@ -9,6 +9,7 @@ import {
   Skeleton,
   Table,
   Title,
+  Text,
 } from '@mantine/core';
 import { IconAlertCircle, IconAlertTriangle } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
@@ -16,6 +17,11 @@ import { GetInvoiceLinksResponse } from '@common/types/stripe';
 import { notifications } from '@mantine/notifications';
 import { useAuth } from '@ui/components/AuthContext';
 import pluralize from 'pluralize';
+import dayjs from 'dayjs';
+
+const HumanFriendlyDate = ({ date }: { date: string | Date }) => {
+  return <Text size="sm">{dayjs(date).format('MMMM D, YYYY')}</Text>;
+};
 
 interface StripeCurrentLinksPanelProps {
   getLinks: () => Promise<GetInvoiceLinksResponse>;
@@ -82,7 +88,9 @@ export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = (
           <NumberFormatter prefix="$" value={data.invoiceAmountUsd / 100} thousandSeparator />
         </Table.Td>
         <Table.Td>{data.userId.replace(userData!.email!, 'You')}</Table.Td>
-        <Table.Td>{data.createdAt === null ? 'Unknown' : data.createdAt}</Table.Td>
+        <Table.Td>
+          {data.createdAt === null ? 'Unknown' : HumanFriendlyDate({ date: data.createdAt })}
+        </Table.Td>
         <Table.Td>
           <CopyButton value={data.link}>
             {({ copied, copy }) => (

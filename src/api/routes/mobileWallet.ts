@@ -5,7 +5,7 @@ import {
   ValidationError,
 } from "../../common/errors/index.js";
 import { z } from "zod";
-import { checkPaidMembership } from "../functions/membership.js";
+import { checkPaidMembershipFromTable } from "../functions/membership.js";
 import {
   AvailableSQSFunctions,
   SQSPayload,
@@ -13,6 +13,7 @@ import {
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { genericConfig } from "../../common/config.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import rateLimiter from "api/plugins/rateLimiter.js";
 
 const queuedResponseJsonSchema = zodToJsonSchema(
   z.object({
@@ -21,6 +22,11 @@ const queuedResponseJsonSchema = zodToJsonSchema(
 );
 
 const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
+  fastify.register(rateLimiter, {
+    limit: 5,
+    duration: 30,
+    rateLimitIdentifier: "mobileWallet",
+  });
   fastify.post<{ Querystring: { email: string } }>(
     "/membership",
     {
@@ -53,11 +59,13 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
           message: "Email query parameter is not a valid email",
         });
       }
-      const isPaidMember = await checkPaidMembership(
-        fastify.environmentConfig.MembershipApiEndpoint,
-        request.log,
-        request.query.email.replace("@illinois.edu", ""),
-      );
+      const isPaidMember =
+        (fastify.runEnvironment === "dev" &&
+          request.query.email === "testinguser@illinois.edu") ||
+        (await checkPaidMembershipFromTable(
+          request.query.email.replace("@illinois.edu", ""),
+          fastify.dynamoClient,
+        ));
       if (!isPaidMember) {
         throw new UnauthenticatedError({
           message: `${request.query.email} is not a paid member.`,

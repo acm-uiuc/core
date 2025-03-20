@@ -3,12 +3,24 @@ import { EventsGetResponse } from "../../src/api/routes/events.js";
 import { createJwt } from "./utils.js";
 import { describe } from "node:test";
 
-const baseEndpoint = `https://infra-core-api.aws.qa.acmuiuc.org`;
+const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
 test("getting events", async () => {
   const response = await fetch(`${baseEndpoint}/api/v1/events`);
   expect(response.status).toBe(200);
   const responseJson = (await response.json()) as EventsGetResponse;
   expect(responseJson.length).greaterThan(0);
+});
+
+test("getting events for a given host", async () => {
+  const response = await fetch(`${baseEndpoint}/api/v1/events?host=ACM`);
+  expect(response.status).toBe(200);
+
+  const responseJson = (await response.json()) as EventsGetResponse;
+  expect(responseJson.length).toBeGreaterThan(0);
+
+  responseJson.forEach((event) => {
+    expect(event.host).toBe("ACM");
+  });
 });
 
 describe("Event lifecycle tests", async () => {

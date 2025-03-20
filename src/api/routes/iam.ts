@@ -18,8 +18,8 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from "../../common/errors/index.js";
-import { PutItemCommand } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../../common/config.js";
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { genericConfig, roleArns } from "../../common/config.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import {
   InviteUserPostRequest,
@@ -38,8 +38,40 @@ import {
   AUTH_DECISION_CACHE_SECONDS,
   getGroupRoles,
 } from "../functions/authorization.js";
+import { getRoleCredentials } from "api/functions/sts.js";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
+  const getAuthorizedClients = async () => {
+    if (roleArns.Entra) {
+      fastify.log.info(
+        `Attempting to assume Entra role ${roleArns.Entra} to get the Entra token...`,
+      );
+      const credentials = await getRoleCredentials(roleArns.Entra);
+      const clients = {
+        smClient: new SecretsManagerClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
+        dynamoClient: new DynamoDBClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
+      };
+      fastify.log.info(
+        `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
+      );
+      return clients;
+    } else {
+      fastify.log.debug(
+        "Did not assume Entra role as no env variable was present",
+      );
+      return {
+        smClient: fastify.secretsManagerClient,
+        dynamoClient: fastify.dynamoClient,
+      };
+    }
+  };
   fastify.patch<{ Body: ProfilePatchRequest }>(
     "/profile",
     {
@@ -58,10 +90,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       const userOid = request.tokenPayload["oid"];
       const entraIdToken = await getEntraIdToken(
-        {
-          smClient: fastify.secretsManagerClient,
-          dynamoClient: fastify.dynamoClient,
-        },
+        await getAuthorizedClients(),
         fastify.environmentConfig.AadValidClientId,
       );
       await patchUserProfile(
@@ -193,10 +222,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const emails = request.body.emails;
       const entraIdToken = await getEntraIdToken(
-        {
-          smClient: fastify.secretsManagerClient,
-          dynamoClient: fastify.dynamoClient,
-        },
+        await getAuthorizedClients(),
         fastify.environmentConfig.AadValidClientId,
       );
       if (!entraIdToken) {
@@ -283,20 +309,29 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const entraIdToken = await getEntraIdToken(
-        {
-          smClient: fastify.secretsManagerClient,
-          dynamoClient: fastify.dynamoClient,
-        },
+        await getAuthorizedClients(),
         fastify.environmentConfig.AadValidClientId,
       );
       const addResults = await Promise.allSettled(
         request.body.add.map((email) =>
-          modifyGroup(entraIdToken, email, groupId, EntraGroupActions.ADD),
+          modifyGroup(
+            entraIdToken,
+            email,
+            groupId,
+            EntraGroupActions.ADD,
+            fastify.dynamoClient,
+          ),
         ),
       );
       const removeResults = await Promise.allSettled(
         request.body.remove.map((email) =>
-          modifyGroup(entraIdToken, email, groupId, EntraGroupActions.REMOVE),
+          modifyGroup(
+            entraIdToken,
+            email,
+            groupId,
+            EntraGroupActions.REMOVE,
+            fastify.dynamoClient,
+          ),
         ),
       );
       const response: Record<string, Record<string, string>[]> = {
@@ -410,10 +445,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const entraIdToken = await getEntraIdToken(
-        {
-          smClient: fastify.secretsManagerClient,
-          dynamoClient: fastify.dynamoClient,
-        },
+        await getAuthorizedClients(),
         fastify.environmentConfig.AadValidClientId,
       );
       const response = await listGroupMembers(entraIdToken, groupId);

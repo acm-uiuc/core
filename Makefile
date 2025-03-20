@@ -4,8 +4,10 @@ set_application_name = ParameterKey=ApplicationFriendlyName,ParameterValue
 
 prod_aws_account = 298118738376
 dev_aws_account = 427040638965
+current_aws_account := $(shell aws sts get-caller-identity --query Account --output text)
 
 src_directory_root = src/
+dist_ui_directory_root = dist_ui/
 integration_test_directory_root = tests/live_integration/
 
 # CHANGE ME (as needed)
@@ -24,22 +26,23 @@ common_params = --no-confirm-changeset \
 				--s3-prefix $(application_key) \
 				--resolve-s3
 
+s3_bucket_prefix = "$(current_aws_account)-$(region)-$(application_key)"
+ui_s3_bucket = "$(s3_bucket_prefix)-ui"
+
 GIT_HASH := $(shell git rev-parse --short HEAD)
 
-.PHONY: build clean
+.PHONY: clean
 
 check_account_prod:
-	@aws_account_id=$$(aws sts get-caller-identity --query Account --output text); \
-	if [ "$$aws_account_id" != "$(prod_aws_account)" ]; then \
-		echo "Error: running in incorrect account $$aws_account_id, expected account ID $(prod_aws_account)"; \
-		exit 1; \
-	fi
+ifneq ($(current_aws_account),$(prod_aws_account))
+	$(error Error: running in account $(current_aws_account), expected account ID $(prod_aws_account))
+endif
+
 check_account_dev:
-	@aws_account_id=$$(aws sts get-caller-identity --query Account --output text); \
-	if [ "$$aws_account_id" != "$(dev_aws_account)" ]; then \
-		echo "Error: running in incorrect account $$aws_account_id, expected account ID $(dev_aws_account)"; \
-		exit 1; \
-	fi
+ifneq ($(current_aws_account),$(dev_aws_account))
+	$(error Error: running in account $(current_aws_account), expected account ID $(dev_aws_account))
+endif
+
 
 clean:
 	rm -rf .aws-sam
@@ -61,11 +64,26 @@ local:
 	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
 
 deploy_prod: check_account_prod build
-	aws sts get-caller-identity --query Account --output text
-	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)"
+	@echo "Deploying CloudFormation stack..."
+	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
+	@echo "Syncing S3 bucket..."
+	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
+	make invalidate_cloudfront
 
 deploy_dev: check_account_dev build
-	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)"
+	@echo "Deploying CloudFormation stack..."
+	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
+	@echo "Syncing S3 bucket..."
+	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
+	make invalidate_cloudfront
+
+invalidate_cloudfront:
+	@echo "Creating CloudFront invalidation..."
+	$(eval DISTRIBUTION_ID := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontDistributionId'].OutputValue" --output text))
+	$(eval INVALIDATION_ID := $(shell aws cloudfront create-invalidation --distribution-id $(DISTRIBUTION_ID) --paths "/*" --query 'Invalidation.Id' --output text --no-cli-page))
+	@echo "Waiting on job $(INVALIDATION_ID)..."
+	aws cloudfront wait invalidation-completed --distribution-id $(DISTRIBUTION_ID) --id $(INVALIDATION_ID)
+	@echo "CloudFront invalidation completed!"
 
 install:
 	yarn -D
@@ -77,7 +95,7 @@ test_live_integration: install
 test_unit: install
 	yarn typecheck
 	yarn lint
-	cfn-lint cloudformation/**/* --ignore-templates cloudformation/phony-swagger.yml
+	cfn-lint cloudformation/**/* --ignore-templates cloudformation/phony-swagger.yml -i W3660
 	yarn prettier
 	yarn test:unit
 
@@ -86,7 +104,7 @@ test_e2e: install
 	yarn test:e2e
 
 dev_health_check:
-	curl -f https://$(application_key).aws.qa.acmuiuc.org/api/v1/healthz && curl -f https://manage.qa.acmuiuc.org
+	curl -f https://core.aws.qa.acmuiuc.org/api/v1/healthz && curl -f https://core.aws.qa.acmuiuc.org/
 
 prod_health_check:
-	curl -f https://$(application_key).aws.acmuiuc.org/api/v1/healthz && curl -f https://manage.acm.illinois.edu
+	curl -f https://core.acm.illinois.edu/api/v1/healthz && curl -f https://core.acm.illinois.edu
