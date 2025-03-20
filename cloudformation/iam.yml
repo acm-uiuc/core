@@ -16,6 +16,9 @@ Parameters:
   SqsQueueArn:
     Type: String
 
+Conditions:
+  IsDev: !Equals [!Ref RunEnvironment, "dev"]
+
 Resources:
   # Managed Policy for Common Lambda Permissions
   CommonLambdaManagedPolicy:
@@ -254,6 +257,12 @@ Resources:
                   StringEquals:
                     ses:FromAddress:
                       Fn::Sub: "sales@${SesEmailDomain}"
+                  ForAllValues:StringLike:
+                    ses:Recipients:
+                      - !If
+                        - IsDev
+                        - "*@illinois.edu"
+                        - "*"
 
 
   EdgeLambdaIAMRole:

@@ -243,7 +243,7 @@ MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="${boundary}"
 From: ACM @ UIUC <${senderEmail}>
 To: ${payload.email}
-Subject: ${subject}
+Subject: Your ACM @ UIUC Purchase
 
 --${boundary}
 Content-Type: text/html; charset="UTF-8"
