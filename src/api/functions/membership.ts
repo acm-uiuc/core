@@ -10,6 +10,29 @@ import { isUserInGroup, modifyGroup } from "./entraId.js";
 import { EntraGroupError } from "common/errors/index.js";
 import { EntraGroupActions } from "common/types/iam.js";
 
+export async function checkExternalMembership(
+  netId: string,
+  list: string,
+  dynamoClient: DynamoDBClient,
+): Promise<boolean> {
+  const { Items } = await dynamoClient.send(
+    new QueryCommand({
+      TableName: genericConfig.ExternalMembershipTableName,
+      KeyConditionExpression: "#pk = :pk",
+      ExpressionAttributeNames: {
+        "#pk": "netid_list",
+      },
+      ExpressionAttributeValues: marshall({
+        ":pk": `${netId}_${list}`,
+      }),
+    }),
+  );
+  if (!Items || Items.length == 0) {
+    return false;
+  }
+  return true;
+}
+
 export async function checkPaidMembershipFromTable(
   netId: string,
   dynamoClient: DynamoDBClient,

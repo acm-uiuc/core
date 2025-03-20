@@ -1,4 +1,5 @@
 import {
+  checkExternalMembership,
   checkPaidMembershipFromEntra,
   checkPaidMembershipFromTable,
   setPaidMembershipInTable,
@@ -14,7 +15,7 @@ import { getEntraIdToken } from "api/functions/entraId.js";
 import { genericConfig, roleArns } from "common/config.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { createCheckoutSession } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
@@ -70,9 +71,9 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
     });
     fastify.get<{
       Body: undefined;
-      Querystring: { netId: string };
+      Params: { netId: string };
     }>("/checkout/:netId", async (request, reply) => {
-      const netId = (request.params as Record<string, string>).netId;
+      const netId = request.params.netId;
       if (!validateNetId(netId)) {
         throw new ValidationError({
           message: `${netId} is not a valid Illinois NetID!`,
@@ -143,18 +144,38 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
     });
     fastify.get<{
       Body: undefined;
-      Querystring: { netId: string };
+      Querystring: { list?: string };
+      Params: { netId: string };
     }>("/:netId", async (request, reply) => {
-      const netId = (request.params as Record<string, string>).netId;
+      const netId = request.params.netId;
+      const list = request.query.list || "acmpaid";
       if (!validateNetId(netId)) {
         throw new ValidationError({
           message: `${netId} is not a valid Illinois NetID!`,
         });
       }
-      if (fastify.nodeCache.get(`isMember_${netId}`) !== undefined) {
+      if (fastify.nodeCache.get(`isMember_${netId}_${list}`) !== undefined) {
         return reply.header("X-ACM-Data-Source", "cache").send({
           netId,
-          isPaidMember: fastify.nodeCache.get(`isMember_${netId}`),
+          list: list === "acmpaid" ? undefined : list,
+          isPaidMember: fastify.nodeCache.get(`isMember_${netId}_${list}`),
+        });
+      }
+      if (list !== "acmpaid") {
+        const isMember = await checkExternalMembership(
+          netId,
+          list,
+          fastify.dynamoClient,
+        );
+        fastify.nodeCache.set(
+          `isMember_${netId}_${list}`,
+          isMember,
+          MEMBER_CACHE_SECONDS,
+        );
+        return reply.header("X-ACM-Data-Source", "dynamo").send({
+          netId,
+          list,
+          isPaidMember: isMember,
         });
       }
       const isDynamoMember = await checkPaidMembershipFromTable(
@@ -162,7 +183,11 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         fastify.dynamoClient,
       );
       if (isDynamoMember) {
-        fastify.nodeCache.set(`isMember_${netId}`, true, MEMBER_CACHE_SECONDS);
+        fastify.nodeCache.set(
+          `isMember_${netId}_${list}`,
+          true,
+          MEMBER_CACHE_SECONDS,
+        );
         return reply
           .header("X-ACM-Data-Source", "dynamo")
           .send({ netId, isPaidMember: true });
@@ -178,7 +203,11 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         paidMemberGroup,
       );
       if (isAadMember) {
-        fastify.nodeCache.set(`isMember_${netId}`, true, MEMBER_CACHE_SECONDS);
+        fastify.nodeCache.set(
+          `isMember_${netId}_${list}`,
+          true,
+          MEMBER_CACHE_SECONDS,
+        );
         reply
           .header("X-ACM-Data-Source", "aad")
           .send({ netId, isPaidMember: true });
@@ -186,7 +215,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         return;
       }
       fastify.nodeCache.set(
-        `isMember_${netId}`,
+        `isMember_${netId}_${list}`,
         false,
         NONMEMBER_CACHE_SECONDS,
       );
