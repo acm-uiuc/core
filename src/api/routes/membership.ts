@@ -248,7 +248,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
               {
                 function: AvailableSQSFunctions.ProvisionNewMember,
                 metadata: {
-                  initiator: event.data.object.id,
+                  initiator: event.id,
                   reqId: request.id,
                 },
                 payload: {
