@@ -71,7 +71,7 @@ const genericConfig: GenericConfigType = {
   IAMTablePrefix: "infra-core-api-iam",
   ProtectedEntraIDGroups: [infraChairsGroupId, officersGroupId],
   MembershipTableName: "infra-core-api-membership-provisioning",
-  ExternalMembershipTableName: "infra-membership-api-external-lists"
+  ExternalMembershipTableName: "infra-core-api-membership-external"
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
