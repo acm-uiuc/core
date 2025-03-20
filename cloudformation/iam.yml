@@ -241,6 +241,19 @@ Resources:
                   ForAllValues:StringLike:
                     ses:Recipients:
                       - "*@illinois.edu"
+        - PolicyName: ses-sales
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Effect: Allow
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    ses:FromAddress:
+                      Fn::Sub: "sales@${SesEmailDomain}"
 
 
   EdgeLambdaIAMRole:
