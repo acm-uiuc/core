@@ -69,13 +69,16 @@ describe("Test Modify Group and List Group Routes", () => {
       "validuser1@illinois.edu",
       "test-group-id",
       EntraGroupActions.ADD,
+      expect.any(Object), // Matches any object
     );
+
     expect(modifyGroup).toHaveBeenNthCalledWith(
       2,
       "ey.test.token",
       "validuser2@illinois.edu",
       "test-group-id",
       EntraGroupActions.REMOVE,
+      expect.any(Object), // Matches any object
     );
     expect(response.body.success).toEqual([
       { email: "validuser1@illinois.edu" },

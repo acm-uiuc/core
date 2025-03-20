@@ -44,3 +44,21 @@ vi.mock(
     };
   },
 );
+
+vi.mock(
+  import("../../src/api/functions/membership.js"),
+  async (importOriginal) => {
+    const mod = await importOriginal();
+    return {
+      ...mod,
+      checkPaidMembershipFromTable: vi.fn(async (netId, _dynamoClient) => {
+        switch (netId) {
+          case "valid":
+            return true;
+          default:
+            return false;
+        }
+      }),
+    };
+  },
+);
