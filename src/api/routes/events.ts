@@ -124,7 +124,27 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         const upcomingOnly = request.query?.upcomingOnly || false;
         const host = request.query?.host;
         const ts = request.query?.ts; // we only use this to disable cache control
+
         try {
+          const ifNoneMatch = request.headers["if-none-match"];
+          if (ifNoneMatch) {
+            const etag = await getCacheCounter(
+              fastify.dynamoClient,
+              "events-etag-all",
+            );
+
+            if (
+              ifNoneMatch === `"${etag.toString()}"` ||
+              ifNoneMatch === etag.toString()
+            ) {
+              return reply
+                .code(304)
+                .header("ETag", etag)
+                .header("Cache-Control", CLIENT_HTTP_CACHE_POLICY)
+                .send();
+            }
+            reply.header("etag", etag);
+          }
           let command;
           if (host) {
             command = new QueryCommand({
@@ -142,11 +162,14 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               TableName: genericConfig.EventsDynamoTableName,
             });
           }
-          const etag = await getCacheCounter(
-            fastify.dynamoClient,
-            "events-etag-all",
-          );
-          reply.header("etag", etag);
+          if (!ifNoneMatch) {
+            const etag = await getCacheCounter(
+              fastify.dynamoClient,
+              "events-etag-all",
+            );
+            reply.header("etag", etag);
+          }
+
           const response = await fastify.dynamoClient.send(command);
           const items = response.Items?.map((item) => unmarshall(item));
           const currentTimeChicago = moment().tz("America/Chicago");
@@ -386,7 +409,30 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     async (request: FastifyRequest<EventGetRequest>, reply) => {
       const id = request.params.id;
       const ts = request.query?.ts;
+
       try {
+        // Check If-None-Match header
+        const ifNoneMatch = request.headers["if-none-match"];
+        if (ifNoneMatch) {
+          const etag = await getCacheCounter(
+            fastify.dynamoClient,
+            `events-etag-${id}`,
+          );
+
+          if (
+            ifNoneMatch === `"${etag.toString()}"` ||
+            ifNoneMatch === etag.toString()
+          ) {
+            return reply
+              .code(304)
+              .header("ETag", etag)
+              .header("Cache-Control", CLIENT_HTTP_CACHE_POLICY)
+              .send();
+          }
+
+          reply.header("etag", etag);
+        }
+
         const response = await fastify.dynamoClient.send(
           new GetItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
@@ -401,11 +447,17 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         if (!ts) {
           reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
         }
-        const etag = await getCacheCounter(
-          fastify.dynamoClient,
-          `events-etag-${id}`,
-        );
-        return reply.header("etag", etag).send(item);
+
+        // Only get the etag now if we didn't already get it above
+        if (!ifNoneMatch) {
+          const etag = await getCacheCounter(
+            fastify.dynamoClient,
+            `events-etag-${id}`,
+          );
+          reply.header("etag", etag);
+        }
+
+        return reply.send(item);
       } catch (e) {
         if (e instanceof BaseError) {
           throw e;
