@@ -54,7 +54,7 @@ const getAuthorizedClients = async (
 
 export const emailMembershipPassHandler: SQSHandlerFunction<
   AvailableSQSFunctions.EmailMembershipPass
-> = async (payload, _metadata, logger) => {
+> = async (payload, metadata, logger) => {
   const email = payload.email;
   const commonConfig = { region: genericConfig.AwsRegion };
   const clients = await getAuthorizedClients(logger, commonConfig);
@@ -68,6 +68,7 @@ export const emailMembershipPassHandler: SQSHandlerFunction<
     environmentConfig[runEnvironment],
     runEnvironment,
     email,
+    metadata.initiator,
     logger,
     userProfile.displayName,
   );
