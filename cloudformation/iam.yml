@@ -76,8 +76,6 @@ Resources:
           - Sid: DynamoDBCacheAccess
             Effect: Allow
             Action:
-              - dynamodb:BatchGetItem
-              - dynamodb:BatchWriteItem
               - dynamodb:ConditionCheckItem
               - dynamodb:PutItem
               - dynamodb:DescribeTable
@@ -87,14 +85,6 @@ Resources:
               - dynamodb:UpdateItem
             Resource:
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
-            Condition:
-              ForAllValues:StringLike:
-                dynamodb:LeadingKeys:
-                  - etag-events-* # add any keys that must be accessible
-                dynamodb:Attributes:
-                  - primaryKey
-                  - expireAt
-                  - "*"
 
           - Sid: DynamoDBRateLimitTableAccess
             Effect: Allow
@@ -187,28 +177,6 @@ Resources:
                 Effect: Allow
                 Resource:
                   - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-entra*
-              - Action:
-                  - dynamodb:BatchGetItem
-                  - dynamodb:GetItem
-                  - dynamodb:Query
-                  - dynamodb:DescribeTable
-                  - dynamodb:BatchWriteItem
-                  - dynamodb:ConditionCheckItem
-                  - dynamodb:PutItem
-                  - dynamodb:DeleteItem
-                  - dynamodb:UpdateItem
-                Effect: Allow
-                Resource:
-                  - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
-                Condition:
-                  ForAllValues:StringEquals:
-                    dynamodb:LeadingKeys:
-                      - entra_id_access_token # add any keys that must be accessible
-                  ForAllValues:StringLike:
-                    dynamodb:Attributes:
-                      - primaryKey
-                      - expireAt
-                      - "*"
 
   # SQS Lambda IAM Role
   SqsLambdaIAMRole:
