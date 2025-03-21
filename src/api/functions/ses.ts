@@ -78,7 +78,7 @@ export function generateMembershipEmailCommand(
     </head>
 <body>
     <div class="gutter" style="padding: 30px;">&nbsp;</div>
-    <img src="https://acm-brand-images.s3.amazonaws.com/banner-blue.png" style="height: 100px; width: 210px; align-self: center;"/>
+    <img src="https://static.acm.illinois.edu/banner-blue.png" style="height: 100px; width: 210px; align-self: center;"/>
     <br />
     <div class="wrap">
         <h2 style="text-align: center;">Welcome</h2>
@@ -212,7 +212,7 @@ export function generateSalesEmail(
 </head>
 <body>
     <div class="gutter" style="padding: 30px;">&nbsp;</div>
-    <img src="https://acm-brand-images.s3.amazonaws.com/banner-blue.png" style="height: 100px; width: 210px; align-self: center;"/>
+    <img src="https://static.acm.illinois.edu/banner-blue.png" style="height: 100px; width: 210px; align-self: center;"/>
     <br />
     <div class="wrap">
         <h2 style="text-align: center;">${subject}</h2>
