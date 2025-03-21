@@ -91,7 +91,6 @@ Resources:
               ForAllValues:StringLike:
                 dynamodb:LeadingKeys:
                   - etag-events-* # add any keys that must be accessible
-              ForAllValues:StringLike:
                 dynamodb:Attributes:
                   - primaryKey
                   - expireAt
