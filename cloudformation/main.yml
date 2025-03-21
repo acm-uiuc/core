@@ -563,6 +563,9 @@ Resources:
       EvaluationPeriods: 1
       ComparisonOperator: "GreaterThanThreshold"
       Threshold: 0
+      Dimensions:
+        - Name: QueueName
+          Value: !Sub ${ApplicationPrefix}-sqs-dlq
       AlarmActions:
         - !Ref AlertSNSArn
 
