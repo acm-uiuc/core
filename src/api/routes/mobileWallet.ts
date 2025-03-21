@@ -75,7 +75,7 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
         {
           function: AvailableSQSFunctions.EmailMembershipPass,
           metadata: {
-            initiator: "public",
+            initiator: request.ip,
             reqId: request.id,
           },
           payload: {
