@@ -46,6 +46,7 @@
     "passkit-generator": "^3.3.1",
     "pino": "^9.6.0",
     "pluralize": "^8.0.0",
+    "qrcode": "^1.5.4",
     "stripe": "^17.6.0",
     "uuid": "^11.0.5",
     "zod": "^3.23.8",
@@ -55,6 +56,7 @@
   "devDependencies": {
     "@tsconfig/node22": "^22.0.0",
     "@types/aws-lambda": "^8.10.147",
+    "@types/qrcode": "^1.5.5",
     "nodemon": "^3.1.9"
   }
 }

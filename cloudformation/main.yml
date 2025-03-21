@@ -258,6 +258,17 @@ Resources:
       FunctionResponseTypes:
         - ReportBatchItemFailures
 
+  SQSLambdaEventMappingSales:
+    Type: AWS::Lambda::EventSourceMapping
+    DependsOn:
+      - AppSqsLambdaFunction
+    Properties:
+      BatchSize: 5
+      EventSourceArn: !GetAtt AppSQSQueues.Outputs.SalesEmailQueueArn
+      FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+
   MembershipRecordsTable:
     Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
@@ -765,3 +776,7 @@ Outputs:
   CloudfrontDistributionId:
     Description: Cloudfront Distribution ID
     Value: !GetAtt AppFrontendCloudfrontDistribution.Id
+
+  SalesEmailQueueArn:
+    Description: Sales Email Queue Arn
+    Value: !GetAtt AppSQSQueues.Outputs.SalesEmailQueueArn
