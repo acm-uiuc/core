@@ -358,6 +358,12 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       await deleteCacheCounter(fastify.dynamoClient, `events-etag-${id}`);
+      await atomicIncrementCacheCounter(
+        fastify.dynamoClient,
+        "events-etag-all",
+        1,
+        false,
+      );
       request.log.info(
         { type: "audit", actor: request.username, target: id },
         `deleted event "${id}"`,

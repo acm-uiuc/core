@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { vi, afterEach } from "vitest";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
@@ -99,4 +99,80 @@ ddbMock.on(QueryCommand).callsFake((command) => {
     });
   }
   return Promise.reject(new Error("Table not mocked"));
+});
+
+let mockCacheStore = new Map();
+
+vi.mock(import("../../src/api/functions/cache.js"), async (importOriginal) => {
+  const mod = await importOriginal();
+
+  // Create mock functions
+  const getItemFromCacheMock = vi.fn(async (_, key) => {
+    const item = mockCacheStore.get(key);
+    if (!item) return null;
+
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (item.expireAt < currentTime) {
+      mockCacheStore.delete(key);
+      return null;
+    }
+
+    return item;
+  });
+
+  const insertItemIntoCacheMock = vi.fn(async (_, key, value, expireAt) => {
+    const item = {
+      primaryKey: key,
+      expireAt: Math.floor(expireAt.getTime() / 1000),
+      ...value,
+    };
+    mockCacheStore.set(key, item);
+  });
+
+  const atomicIncrementCacheCounterMock = vi.fn(
+    async (_, key, amount, returnOld = false) => {
+      let item = mockCacheStore.get(key);
+      const oldValue = item?.counterValue || 0;
+      const newValue = oldValue + amount;
+
+      // Create or update the item
+      if (!item) {
+        item = { primaryKey: key, counterValue: newValue };
+      } else {
+        item.counterValue = newValue;
+      }
+
+      mockCacheStore.set(key, item);
+      return returnOld ? oldValue : newValue;
+    },
+  );
+
+  const getCacheCounterMock = vi.fn(async (_, key, defaultValue = 0) => {
+    const item = mockCacheStore.get(key);
+    return item?.counterValue !== undefined ? item.counterValue : defaultValue;
+  });
+
+  const deleteCacheCounterMock = vi.fn(async (_, key) => {
+    const item = mockCacheStore.get(key);
+    if (!item) return null;
+
+    const counterValue =
+      item.counterValue !== undefined ? item.counterValue : 0;
+    mockCacheStore.delete(key);
+    return counterValue;
+  });
+
+  // Clear cache store when mocks are reset
+  afterEach(() => {
+    mockCacheStore.clear();
+  });
+
+  return {
+    ...mod,
+    getItemFromCache: getItemFromCacheMock,
+    insertItemIntoCache: insertItemIntoCacheMock,
+    atomicIncrementCacheCounter: atomicIncrementCacheCounterMock,
+    getCacheCounter: getCacheCounterMock,
+    deleteCacheCounter: deleteCacheCounterMock,
+  };
 });
