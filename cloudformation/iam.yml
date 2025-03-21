@@ -88,9 +88,9 @@ Resources:
             Resource:
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
             Condition:
-              ForAllValues:StringEquals:
+              ForAllValues:StringLike:
                 dynamodb:LeadingKeys:
-                  - testing # add any keys that must be accessible
+                  - etag-events-* # add any keys that must be accessible
               ForAllValues:StringLike:
                 dynamodb:Attributes:
                   - primaryKey

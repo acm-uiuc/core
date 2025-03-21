@@ -24,6 +24,11 @@ import { randomUUID } from "crypto";
 import moment from "moment-timezone";
 import { IUpdateDiscord, updateDiscord } from "../functions/discord.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
+import {
+  atomicIncrementCacheCounter,
+  deleteCacheCounter,
+  getCacheCounter,
+} from "api/functions/cache.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
 const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
@@ -137,6 +142,11 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               TableName: genericConfig.EventsDynamoTableName,
             });
           }
+          const etag = await getCacheCounter(
+            fastify.dynamoClient,
+            "events-etag-all",
+          );
+          reply.header("etag", etag);
           const response = await fastify.dynamoClient.send(command);
           const items = response.Items?.map((item) => unmarshall(item));
           const currentTimeChicago = moment().tz("America/Chicago");
@@ -277,6 +287,18 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
           throw new DiscordEventError({});
         }
+        await atomicIncrementCacheCounter(
+          fastify.dynamoClient,
+          `events-etag-${entryUUID}`,
+          1,
+          false,
+        );
+        await atomicIncrementCacheCounter(
+          fastify.dynamoClient,
+          "events-etag-all",
+          1,
+          false,
+        );
         reply.status(201).send({
           id: entryUUID,
           resource: `/api/v1/events/${entryUUID}`,
@@ -335,6 +357,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           message: "Failed to delete event from Dynamo table.",
         });
       }
+      await deleteCacheCounter(fastify.dynamoClient, `events-etag-${id}`);
       request.log.info(
         { type: "audit", actor: request.username, target: id },
         `deleted event "${id}"`,
@@ -372,7 +395,11 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         if (!ts) {
           reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
         }
-        return reply.send(item);
+        const etag = await getCacheCounter(
+          fastify.dynamoClient,
+          `events-etag-${id}`,
+        );
+        return reply.header("etag", etag).send(item);
       } catch (e) {
         if (e instanceof BaseError) {
           throw e;

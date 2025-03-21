@@ -1,7 +1,10 @@
 import {
+  DeleteItemCommand,
   DynamoDBClient,
+  GetItemCommand,
   PutItemCommand,
   QueryCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -51,4 +54,80 @@ export async function insertItemIntoCache(
       Item: marshall(item),
     }),
   );
+}
+
+export async function atomicIncrementCacheCounter(
+  dynamoClient: DynamoDBClient,
+  key: string,
+  amount: number,
+  returnOld: boolean = false,
+): Promise<number> {
+  const response = await dynamoClient.send(
+    new UpdateItemCommand({
+      TableName: genericConfig.CacheDynamoTableName,
+      Key: marshall({
+        primaryKey: key,
+      }),
+      UpdateExpression: "ADD #counterValue :increment",
+      ExpressionAttributeNames: {
+        "#counterValue": "counterValue",
+      },
+      ExpressionAttributeValues: marshall({
+        ":increment": amount,
+      }),
+      ReturnValues: returnOld ? "UPDATED_OLD" : "UPDATED_NEW",
+    }),
+  );
+
+  if (!response.Attributes) {
+    return returnOld ? 0 : amount;
+  }
+
+  const value = unmarshall(response.Attributes).counter;
+  return typeof value === "number" ? value : 0;
+}
+
+export async function getCacheCounter(
+  dynamoClient: DynamoDBClient,
+  key: string,
+  defaultValue: number = 0,
+): Promise<number> {
+  const response = await dynamoClient.send(
+    new GetItemCommand({
+      TableName: genericConfig.CacheDynamoTableName,
+      Key: marshall({
+        primaryKey: key,
+      }),
+      ProjectionExpression: "counterValue", // Only retrieve the value attribute
+    }),
+  );
+
+  if (!response.Item) {
+    return defaultValue;
+  }
+
+  const value = unmarshall(response.Item).counterValue;
+  return typeof value === "number" ? value : defaultValue;
+}
+
+export async function deleteCacheCounter(
+  dynamoClient: DynamoDBClient,
+  key: string,
+): Promise<number | null> {
+  const params = {
+    TableName: genericConfig.CacheDynamoTableName,
+    Key: marshall({
+      primaryKey: key,
+    }),
+    ReturnValue: "ALL_OLD",
+  };
+
+  const response = await dynamoClient.send(new DeleteItemCommand(params));
+
+  if (response.Attributes) {
+    const item = unmarshall(response.Attributes);
+    const value = item.counterValue;
+    return typeof value === "number" ? value : 0;
+  }
+  return null;
 }
