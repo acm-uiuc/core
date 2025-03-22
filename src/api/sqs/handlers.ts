@@ -109,7 +109,12 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
   });
   if (updated) {
     logger.info(
-      { type: "audit", actor: metadata.initiator, target: email },
+      {
+        type: "audit",
+        module: "provisionNewMember",
+        actor: metadata.initiator,
+        target: email,
+      },
       "marked user as a paid member.",
     );
     logger.info(

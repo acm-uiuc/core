@@ -327,7 +327,12 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           resource: `/api/v1/events/${entryUUID}`,
         });
         request.log.info(
-          { type: "audit", actor: request.username, target: entryUUID },
+          {
+            type: "audit",
+            module: "events",
+            actor: request.username,
+            target: entryUUID,
+          },
           `${verb} event "${entryUUID}"`,
         );
       } catch (e: unknown) {
@@ -388,7 +393,12 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         false,
       );
       request.log.info(
-        { type: "audit", actor: request.username, target: id },
+        {
+          type: "audit",
+          module: "events",
+          actor: request.username,
+          target: id,
+        },
         `deleted event "${id}"`,
       );
     },
