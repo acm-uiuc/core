@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import {
+  ConditionalCheckFailedException,
   QueryCommand,
   ScanCommand,
   UpdateItemCommand,
@@ -300,14 +301,17 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               stripe_pi: { S: ticketId },
             },
             UpdateExpression: "SET fulfilled = :true_val",
-            ConditionExpression: "#email = :email_val",
+            ConditionExpression:
+              "#email = :email_val AND (attribute_not_exists(fulfilled) OR fulfilled = :false_val) AND (attribute_not_exists(refunded) OR refunded = :false_val)",
             ExpressionAttributeNames: {
               "#email": "email",
             },
             ExpressionAttributeValues: {
               ":true_val": { BOOL: true },
+              ":false_val": { BOOL: false },
               ":email_val": { S: request.body.email },
             },
+            ReturnValuesOnConditionCheckFailure: "ALL_OLD",
             ReturnValues: "ALL_OLD",
           });
           break;
@@ -319,12 +323,16 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               ticket_id: { S: ticketId },
             },
             UpdateExpression: "SET #used = :trueValue",
+            ConditionExpression:
+              "(attribute_not_exists(#used) OR #used = :falseValue) AND (attribute_not_exists(refunded) OR refunded = :falseValue)",
             ExpressionAttributeNames: {
               "#used": "used",
             },
             ExpressionAttributeValues: {
               ":trueValue": { BOOL: true },
+              ":falseValue": { BOOL: false },
             },
+            ReturnValuesOnConditionCheckFailure: "ALL_OLD",
             ReturnValues: "ALL_OLD",
           });
           break;
@@ -342,16 +350,6 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
         const attributes = unmarshall(ticketEntry.Attributes);
-        if (attributes["refunded"]) {
-          throw new TicketNotValidError({
-            message: "Ticket was already refunded.",
-          });
-        }
-        if (attributes["used"] || attributes["fulfilled"]) {
-          throw new TicketNotValidError({
-            message: "Ticket has already been used.",
-          });
-        }
         if (request.body.type === "ticket") {
           const rawData = attributes["ticketholder_netid"];
           const isEmail = validateEmail(attributes["ticketholder_netid"]);
@@ -376,65 +374,41 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         if (e instanceof BaseError) {
           throw e;
         }
-        if (e.name === "ConditionalCheckFailedException") {
+        if (e instanceof ConditionalCheckFailedException) {
+          if (e.Item) {
+            const unmarshalled = unmarshall(e.Item);
+            if (unmarshalled["fulfilled"] || unmarshalled["used"]) {
+              throw new TicketNotValidError({
+                message: "Ticket has already been used.",
+              });
+            }
+            if (unmarshalled["refunded"]) {
+              throw new TicketNotValidError({
+                message: "Ticket was already refunded.",
+              });
+            }
+          }
           throw new TicketNotFoundError({
-            message: "Ticket does not exist",
+            message: "Ticket does not exist.",
           });
         }
         throw new DatabaseFetchError({
           message: "Could not set ticket to used - database operation failed",
         });
       }
-      const response = {
+      reply.send({
         valid: true,
         type: request.body.type,
         ticketId,
         purchaserData,
-      };
-      switch (request.body.type) {
-        case "merch":
-          ticketId = request.body.stripePi;
-          command = new UpdateItemCommand({
-            TableName: genericConfig.MerchStorePurchasesTableName,
-            Key: {
-              stripe_pi: { S: ticketId },
-            },
-            UpdateExpression:
-              "SET scannerEmail = :scanner_email, scanISOTimestamp = :scan_time",
-            ConditionExpression: "email = :email_val",
-            ExpressionAttributeValues: {
-              ":scanner_email": { S: request.username },
-              ":scan_time": { S: new Date().toISOString() },
-              ":email_val": { S: request.body.email },
-            },
-          });
-          break;
-
-        case "ticket":
-          ticketId = request.body.ticketId;
-          command = new UpdateItemCommand({
-            TableName: genericConfig.TicketPurchasesTableName,
-            Key: {
-              ticket_id: { S: ticketId },
-            },
-            UpdateExpression:
-              "SET scannerEmail = :scanner_email, scanISOTimestamp = :scan_time",
-            ExpressionAttributeValues: {
-              ":scanner_email": { S: request.username },
-              ":scan_time": { S: new Date().toISOString() },
-            },
-          });
-          break;
-
-        default:
-          throw new ValidationError({
-            message: `Unknown verification type!`,
-          });
-      }
-      await fastify.dynamoClient.send(command);
-      reply.send(response);
+      });
       request.log.info(
-        { type: "audit", actor: request.username, target: ticketId },
+        {
+          type: "audit",
+          module: "tickets",
+          actor: request.username,
+          target: ticketId,
+        },
         `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
       );
     },

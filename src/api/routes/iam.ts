@@ -201,7 +201,12 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       reply.send({ message: "OK" });
       request.log.info(
-        { type: "audit", actor: request.username, target: groupId },
+        {
+          type: "audit",
+          module: "iam",
+          actor: request.username,
+          target: groupId,
+        },
         `set target roles to ${request.body.roles.toString()}`,
       );
     },
@@ -241,13 +246,23 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const result = results[i];
         if (result.status === "fulfilled") {
           request.log.info(
-            { type: "audit", actor: request.username, target: emails[i] },
+            {
+              type: "audit",
+              module: "iam",
+              actor: request.username,
+              target: emails[i],
+            },
             "invited user to Entra ID tenant.",
           );
           response.success.push({ email: emails[i] });
         } else {
           request.log.info(
-            { type: "audit", actor: request.username, target: emails[i] },
+            {
+              type: "audit",
+              module: "iam",
+              actor: request.username,
+              target: emails[i],
+            },
             "failed to invite user to Entra ID tenant.",
           );
           if (result.reason instanceof EntraInvitationError) {
@@ -345,6 +360,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           request.log.info(
             {
               type: "audit",
+              module: "iam",
               actor: request.username,
               target: request.body.add[i],
             },
@@ -354,6 +370,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           request.log.info(
             {
               type: "audit",
+              module: "iam",
               actor: request.username,
               target: request.body.add[i],
             },
@@ -379,6 +396,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           request.log.info(
             {
               type: "audit",
+              module: "iam",
               actor: request.username,
               target: request.body.remove[i],
             },
@@ -388,6 +406,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           request.log.info(
             {
               type: "audit",
+              module: "iam",
               actor: request.username,
               target: request.body.add[i],
             },
