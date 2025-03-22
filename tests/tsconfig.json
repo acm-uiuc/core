@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "NodeNext",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "../dist/tests",
+    "rootDir": ".",
+    "resolveJsonModule": true,
+  },
+  "include": [
+    "./e2e/**/*.ts",
+    "./live/**/*.ts",
+    "./unit/**/*.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../dist"
+  ]
+}
