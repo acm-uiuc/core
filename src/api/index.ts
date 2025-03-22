@@ -2,6 +2,7 @@
 import { randomUUID } from "crypto";
 import fastify, { FastifyInstance } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
+import fastifyStatic from "@fastify/static";
 import fastifyAuthPlugin from "./plugins/auth.js";
 import protectedRoute from "./routes/protected.js";
 import errorHandlerPlugin from "./plugins/errorHandler.js";
@@ -24,12 +25,13 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import mobileWalletRoute from "./routes/mobileWallet.js";
 import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
+import path from "path"; // eslint-disable-line import/no-nodejs-modules
 
 dotenv.config();
 
 const now = () => Date.now();
 
-async function init() {
+async function init(prettyPrint: boolean = false) {
   const dynamoClient = new DynamoDBClient({
     region: genericConfig.AwsRegion,
   });
@@ -37,10 +39,21 @@ async function init() {
   const secretsManagerClient = new SecretsManagerClient({
     region: genericConfig.AwsRegion,
   });
-
+  const transport = prettyPrint
+    ? {
+        target: "pino-pretty",
+        options: {
+          colorize: true,
+          translateTime: "SYS:standard",
+          ignore: "pid,hostname",
+          singleLine: false,
+        },
+      }
+    : undefined;
   const app: FastifyInstance = fastify({
     logger: {
       level: process.env.LOG_LEVEL || "info",
+      transport,
     },
     rewriteUrl: (req) => {
       const url = req.url;
@@ -71,6 +84,10 @@ async function init() {
   await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);
   await app.register(errorHandlerPlugin);
+  await app.register(fastifyStatic, {
+    root: path.join(__dirname, "public"),
+    prefix: "/",
+  });
   if (!process.env.RunEnvironment) {
     process.env.RunEnvironment = "dev";
   }
@@ -104,7 +121,6 @@ async function init() {
     );
     done();
   });
-  app.get("/", (_, reply) => reply.send("Welcome to the ACM @ UIUC Core API!"));
   app.get("/api/v1/healthz", (_, reply) => reply.send({ message: "UP" }));
   await app.register(
     async (api, _options) => {
@@ -143,7 +159,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     );
     process.exit(1);
   }
-  const app = await init();
+  const app = await init(true);
   app.listen({ port: 8080 }, async (err) => {
     /* eslint no-console: ["error", {"allow": ["log", "error"]}] */
     if (err) console.error(err);
