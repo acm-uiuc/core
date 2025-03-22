@@ -292,7 +292,7 @@ describe("Test ticket purchase verification", async () => {
         ticketId: "nonexistentticketid123456789",
       });
     const responseDataJson = response.body;
-    expect(response.statusCode).toEqual(400);
+    expect(response.statusCode).toEqual(404);
     expect(responseDataJson).toEqual({
       error: true,
       id: 108,
@@ -444,7 +444,7 @@ describe("Test merch purchase verification", async () => {
         stripePi: "pi_nonexistent123456",
       });
     const responseDataJson = response.body;
-    expect(response.statusCode).toEqual(400);
+    expect(response.statusCode).toEqual(404);
     expect(responseDataJson).toEqual({
       error: true,
       id: 108,
@@ -478,7 +478,7 @@ describe("Test merch purchase verification", async () => {
         stripePi: "pi_8J4NrYdA3S7cW8Ty92FnGJ6L",
       });
     const responseDataJson = response.body;
-    expect(response.statusCode).toEqual(400);
+    expect(response.statusCode).toEqual(404);
     expect(responseDataJson).toEqual({
       error: true,
       id: 108,
