@@ -168,8 +168,8 @@ export const LinkShortener: React.FC = () => {
       await api.delete(`/api/v1/linkry/redir/${encodedSlug}`);
       setLinkList((prevEvents) => prevEvents.filter((link) => link.slug !== slug));
       notifications.show({
-        title: 'Event deleted',
-        message: 'The event was successfully deleted.',
+        title: 'Link deleted',
+        message: 'The link was deleted successfully.',
       });
       close();
     } catch (error) {
