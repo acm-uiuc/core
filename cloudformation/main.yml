@@ -28,11 +28,11 @@ Parameters:
     AllowedValues: [true, false]
   SqsLambdaTimeout:
     Description: How long the SQS lambda is permitted to run (in seconds)
-    Default: 300
+    Default: 180
     Type: Number
   SqsMessageTimeout:
-    Description: MessageVisibilityTimeout for the SQS Lambda queue (should be at least 6xSqsLambdaTimeout)
-    Default: 1800
+    Description: MessageVisibilityTimeout for the SQS Lambda queue (should be at least (numMaxRetry + 1)*SqsLambdaTimeout)
+    Default: 720
     Type: Number
   S3BucketPrefix:
     Description: S3 bucket prefix which will ensure global uniqueness
