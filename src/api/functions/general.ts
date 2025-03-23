@@ -1,7 +1,7 @@
 export function pollUntilNoError<T>(
   fn: () => Promise<T>,
   timeout: number,
-  interval: number = 1000
+  interval: number = 1000,
 ): Promise<T> {
   const start = Date.now();
 

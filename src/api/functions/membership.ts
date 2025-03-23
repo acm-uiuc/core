@@ -6,7 +6,12 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
-import { addToTenant, isUserInGroup, modifyGroup, resolveEmailToOid } from "./entraId.js";
+import {
+  addToTenant,
+  isUserInGroup,
+  modifyGroup,
+  resolveEmailToOid,
+} from "./entraId.js";
 import { EntraGroupError } from "common/errors/index.js";
 import { EntraGroupActions } from "common/types/iam.js";
 import { pollUntilNoError } from "./general.js";
@@ -139,7 +144,11 @@ export async function setPaidMembership({
   await addToTenant(entraToken, email);
   // Poll every 4 seconds for up to 30 seconds to see if the email was added to the tenant.
   // If this still errors, SQS will retry, and if that still errors we'll find it in the DLQ
-  await pollUntilNoError(() => resolveEmailToOid(entraToken, email), 30000, 4000);
+  await pollUntilNoError(
+    () => resolveEmailToOid(entraToken, email),
+    30000,
+    4000,
+  );
   await modifyGroup(
     entraToken,
     email,
