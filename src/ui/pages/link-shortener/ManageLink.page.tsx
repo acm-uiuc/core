@@ -70,6 +70,8 @@ type LinkPostRequest = z.infer<typeof requestBodySchema>;
 export const ManageLinkPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
   const [accessGroup, setAccessGroup] = useState<any[]>();
 
   useEffect(() => {
@@ -106,6 +108,7 @@ export const ManageLinkPage: React.FC = () => {
     // Fetch event data and populate form
     const startForm = async () => {
       try {
+        setIsLoading(true);
         const response = await api.get(`/api/v1/linkry/linkdata/${slug}`);
         const linkData = response.data;
         const formValues = {
@@ -114,6 +117,7 @@ export const ManageLinkPage: React.FC = () => {
           redirect: linkData.redirect,
         };
         form.setValues(formValues);
+        setIsLoading(false);
       } catch (error) {
         console.error('Error fetching event data:', error);
         notifications.show({
@@ -147,7 +151,9 @@ export const ManageLinkPage: React.FC = () => {
       };
 
       const linkURL = isEditing ? `/api/v1/linkry/redir/${slug}` : '/api/v1/linkry/redir';
-      const response = await api.post(linkURL, realValues);
+      const response = isEditing
+        ? await api.patch(linkURL, realValues)
+        : await api.post(linkURL, realValues);
       notifications.show({
         title: isEditing ? 'Link updated!' : 'Link created!',
         message: isEditing
@@ -159,7 +165,7 @@ export const ManageLinkPage: React.FC = () => {
       setIsSubmitting(false);
       console.error('Error creating/editing link:', error);
       notifications.show({
-        message: 'Failed to create/edit link',
+        message: isEditing ? 'Failed to Edit Link' : 'Failed to Create Link',
       });
     }
   };
@@ -192,6 +198,22 @@ export const ManageLinkPage: React.FC = () => {
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_MANAGER] }}>
+      <Box
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(255, 255, 255, 0.7)', // semi-transparent background
+          display: isLoading ? 'flex' : 'none',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999, // make sure it’s on top
+        }}
+      >
+        <Loader size={48} color="blue" />
+      </Box>
       <Box display="flex" ta="center" mt="1.5rem">
         <Title order={2}>{isEditing ? 'Edit' : 'Add'} Link</Title>
         <Button variant="subtle" ml="auto" onClick={handleFormClose}>
@@ -201,14 +223,14 @@ export const ManageLinkPage: React.FC = () => {
       <Box maw={650} mx="auto" mt="100px">
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <TextInput
-            label="Paste URL to be Shortened"
+            label={isEditing ? 'Edit URL Here' : 'Paste URL to be Shortened'}
             withAsterisk
             mt="xl"
             {...form.getInputProps('redirect')}
           />
 
           <TextInput
-            label="Enter or Generate a Shortened URL"
+            label={isEditing ? 'Edit Shortened URL Here' : 'Enter or Generate a Shortened URL'}
             withAsterisk
             leftSectionWidth={'230px'}
             rightSectionWidth={'150px'}
@@ -218,16 +240,18 @@ export const ManageLinkPage: React.FC = () => {
               </Button>
             }
             rightSection={
-              <Button variant="filled" ml="auto" color="blue" onClick={generateRandomSlug}>
-                Random URL
-              </Button>
+              !isEditing && (
+                <Button variant="filled" ml="auto" color="blue" onClick={generateRandomSlug}>
+                  Random URL
+                </Button>
+              )
             }
             mt="xl"
             {...{ ...form.getInputProps('slug'), onChange: handleSlug }}
           />
 
           <MultiSelect
-            label="Select Access Groups"
+            label={isEditing ? 'Change Access Group Here' : 'Select Access Groups'}
             withAsterisk
             data={accessGroup}
             mt="xl"

@@ -51,7 +51,11 @@ const deleteRequest = z.object({
   groups: z.optional(z.array(z.string()).min(1)),
 });
 
-const patchRequest = z.object({ redirect: z.string().url().min(1) });
+const patchRequest = z.object({
+  slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
+  access: z.array(z.string()).min(1),
+  redirect: z.string().url().min(1),
+});
 
 type LinkyCreateRequest = {
   Params: undefined;
@@ -298,11 +302,12 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
+
   fastify.patch<LinkryPatchRequest>(
     "/redir/:slug",
     {
       preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, patchRequest);
+        await fastify.zodValidateBody(request, reply, createRequest);
       },
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [
@@ -314,9 +319,64 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       // make sure that a user can manage this link, either via owning or being in a group that has access to it, or is a LINKS_ADMIN.
       // you can only change the URL it redirects to
-      throw new NotImplementedError({});
+      //throw new NotImplementedError({});
+      /* 1. If there is a patch request, delete the existing records & 
+      add the new ones.. the logic from Post request could be used here. 
+      */
+      const { slug } = request.params;
+      const newSlug = request.body.slug;
+      const newRedirect = request.body.redirect;
+
+      try {
+      } catch (error) {
+        console.error("Error updating slug:", error);
+        reply.code(500).send({ error: "Failed to update slug" });
+      }
+
+      //   console.log("queryParams", queryParams)
+
+      //   const queryCommand = new QueryCommand(queryParams);
+      //   const queryResponse = await dynamoClient.send(queryCommand);
+
+      //   const items = queryResponse.Items || [];
+      //   if (items.length === 0) {
+      //     throw new NotFoundError({ message: "Slug does not exist" });
+      //   }
+
+      //   // Step 2: Prepare the transaction to update the slug
+      //   const TransactItems = items.map((item) => {
+      //     const unmarshalledItem = unmarshall(item);
+      //     const newSlug = `new-${unmarshalledItem.slug}`; // Example: Modify the slug as needed
+
+      //     return {
+      //       Update: {
+      //         TableName: genericConfig.LinkryDynamoTableName,
+      //         Key: marshall({
+      //           slug: unmarshalledItem.slug,
+      //           access: unmarshalledItem.access,
+      //         }),
+      //         UpdateExpression: "SET slug = :newSlug, redirect = :redirect",
+      //         ExpressionAttributeValues: marshall({
+      //           ":newSlug": newSlug,
+      //           ":redirect": redirect,
+      //         }),
+      //       },
+      //     };
+      //   });
+
+      //   // Step 3: Execute the transaction
+      //   await dynamoClient.send(
+      //     new TransactWriteItemsCommand({ TransactItems })
+      //   );
+
+      //   reply.code(200).send({ message: "Slug updated successfully" });
+      // } catch (error) {
+      //   console.error("Error updating slug:", error);
+      //   reply.code(500).send({ error: "Failed to update slug" });
+      // }
     },
   );
+
   fastify.delete<LinkrySlugOnlyRequest>(
     "/redir/:slug",
     {
