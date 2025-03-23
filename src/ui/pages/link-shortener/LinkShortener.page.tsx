@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconCancel, IconCross, IconPlus, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -174,6 +174,16 @@ export const LinkShortener: React.FC = () => {
               }}
             >
               Delete
+            </Button>
+            <Button
+              color="Red"
+              leftSection={<IconCancel />}
+              onClick={() => {
+                setDeleteLinkCandidate(null); // Clear the delete candidate
+                close(); // Close the modal
+              }}
+            >
+              Cancel
             </Button>
           </Group>
         </Modal>
