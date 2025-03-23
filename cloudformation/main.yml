@@ -7,9 +7,13 @@ Parameters:
     Type: String
     AllowedValues: ["dev", "prod"]
   AlertSNSArn:
-    Description: SNS Queue to send alarm alerts to (prod only)
+    Description: SNS Queue to send general alarm alerts to (prod only)
     Type: String
     Default: arn:aws:sns:us-east-1:298118738376:infra-monitor-alerts
+  PriorityAlertSNSArn:
+    Description: SNS Queue to send priority alarm alerts to (prod only)
+    Type: String
+    Default: arn:aws:sns:us-east-1:298118738376:infra-core-api-priority-alerts
   ApplicationPrefix:
     Type: String
     Description: Application prefix, no ending dash
@@ -526,7 +530,7 @@ Resources:
       ComparisonOperator: "LessThanThreshold"
       Threshold: "1"
       AlarmActions:
-        - !Ref AlertSNSArn
+        - !Ref PriorityAlertSNSArn
       Dimensions:
         - Name: "ApiName"
           Value: !Sub ${ApplicationPrefix}-gateway
@@ -545,7 +549,7 @@ Resources:
       ComparisonOperator: "GreaterThanThreshold"
       Threshold: "2"
       AlarmActions:
-        - !Ref AlertSNSArn
+        - !Ref PriorityAlertSNSArn
       Dimensions:
         - Name: "ApiName"
           Value: !Sub ${ApplicationPrefix}-gateway
@@ -567,7 +571,7 @@ Resources:
         - Name: QueueName
           Value: !Sub ${ApplicationPrefix}-sqs-dlq
       AlarmActions:
-        - !Ref AlertSNSArn
+        - !Ref PriorityAlertSNSArn
 
   APILambdaPermission:
     Type: AWS::Lambda::Permission
