@@ -80,9 +80,13 @@ deploy_dev: check_account_dev build
 invalidate_cloudfront:
 	@echo "Creating CloudFront invalidation..."
 	$(eval DISTRIBUTION_ID := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontDistributionId'].OutputValue" --output text))
+	$(eval DISTRIBUTION_ID_2 := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontSecondaryDistributionId'].OutputValue" --output text))
 	$(eval INVALIDATION_ID := $(shell aws cloudfront create-invalidation --distribution-id $(DISTRIBUTION_ID) --paths "/*" --query 'Invalidation.Id' --output text --no-cli-page))
+	$(eval INVALIDATION_ID_2 := $(shell aws cloudfront create-invalidation --distribution-id $(DISTRIBUTION_ID_2) --paths "/*" --query 'Invalidation.Id' --output text --no-cli-page))
 	@echo "Waiting on job $(INVALIDATION_ID)..."
 	aws cloudfront wait invalidation-completed --distribution-id $(DISTRIBUTION_ID) --id $(INVALIDATION_ID)
+	@echo "Waiting on job $(INVALIDATION_ID_2)..."
+	aws cloudfront wait invalidation-completed --distribution-id $(DISTRIBUTION_ID_2) --id $(INVALIDATION_ID_2)
 	@echo "CloudFront invalidation completed!"
 
 install:

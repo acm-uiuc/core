@@ -123,7 +123,7 @@ Resources:
         GWApiId: !Ref AppApiGateway
         GWHostedZoneId:
           !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-        CloudfrontDomain: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
+        CloudfrontDomain: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
 
   LinkryDomainProxy:
     Type: AWS::Serverless::Application
@@ -143,7 +143,7 @@ Resources:
         GWApiId: !Ref AppApiGateway
         GWHostedZoneId:
           !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-        CloudfrontDomain: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
+        CloudfrontDomain: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
 
   CoreUrlProd:
     Type: AWS::Serverless::Application
@@ -626,20 +626,6 @@ Resources:
             - ApiGwConfig
             - !Ref RunEnvironment
             - UiDomainName
-          - !Join
-            - ""
-            - - "go."
-              - !FindInMap
-                - ApiGwConfig
-                - !Ref RunEnvironment
-                - EnvDomainName
-          - !Join
-            - ""
-            - - "ical."
-              - !FindInMap
-                - ApiGwConfig
-                - !Ref RunEnvironment
-                - EnvDomainName
 
         DefaultCacheBehavior:
           TargetOriginId: S3WebsiteOrigin
@@ -767,6 +753,65 @@ Resources:
     Properties:
       FunctionName: !Ref AppFrontendEdgeLambda
 
+  AppIcalCloudfrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - Id: ApiGatewayOrigin
+            DomainName: !Sub "${AppApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
+            OriginPath: "/default"
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+        Enabled: true
+        Aliases:
+          - !Join
+            - ""
+            - - "go."
+              - !FindInMap
+                - ApiGwConfig
+                - !Ref RunEnvironment
+                - EnvDomainName
+          - !Join
+            - ""
+            - - "ical."
+              - !FindInMap
+                - ApiGwConfig
+                - !Ref RunEnvironment
+                - EnvDomainName
+        DefaultCacheBehavior:
+          TargetOriginId: ApiGatewayOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - POST
+            - DELETE
+            - PATCH
+          CachedMethods:
+            - GET
+            - HEAD
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          CachePolicyId: !Ref CloudfrontCachePolicy
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+        ViewerCertificate:
+          AcmCertificateArn: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvCertificateArn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+
+
 Outputs:
   DomainName:
     Description: Domain name that the UI is hosted at
@@ -774,15 +819,28 @@ Outputs:
       - ApiGwConfig
       - !Ref RunEnvironment
       - UiDomainName
+
   CloudfrontCnameTarget:
     Description: CNAME record target to create for the domain name above (create the CNAME manually)
     Value:
       Fn::GetAtt:
         - AppFrontendCloudfrontDistribution
         - DomainName
+
+  CloudfrontSecondaryCnameTarget:
+    Description: CNAME record target to create for the secondary domain names (create the CNAME manually)
+    Value:
+      Fn::GetAtt:
+        - AppIcalCloudfrontDistribution
+        - DomainName
+
   CloudfrontDistributionId:
     Description: Cloudfront Distribution ID
     Value: !GetAtt AppFrontendCloudfrontDistribution.Id
+
+  CloudfrontSecondaryDistributionId:
+    Description: Cloudfront Distribution ID
+    Value: !GetAtt AppIcalCloudfrontDistribution.Id
 
   SalesEmailQueueArn:
     Description: Sales Email Queue Arn
