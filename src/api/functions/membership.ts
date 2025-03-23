@@ -9,7 +9,7 @@ import { genericConfig } from "common/config.js";
 import { addToTenant, isUserInGroup, modifyGroup, resolveEmailToOid } from "./entraId.js";
 import { EntraGroupError } from "common/errors/index.js";
 import { EntraGroupActions } from "common/types/iam.js";
-import { pollUntilNoError, sleep } from "./general.js";
+import { pollUntilNoError } from "./general.js";
 
 export async function checkExternalMembership(
   netId: string,
