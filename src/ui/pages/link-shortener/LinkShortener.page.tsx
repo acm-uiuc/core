@@ -80,7 +80,7 @@ export const LinkShortener: React.FC = () => {
               >
                 {' '}
                 {/* Currently set to localhost for local testing purposes */}
-                {link.redirect}
+                https://go.acm.illinois.edu/{link.slug}
               </Anchor>
             </Table.Td>
             <Table.Td style={wrapTextStyle}>
@@ -119,7 +119,10 @@ export const LinkShortener: React.FC = () => {
                 {/* <Button component="a" href={`/linkry/edit/${link.id}`}>
                   Edit
                 </Button> */}
-                <Button component="a" href={`/link/edit/${encodeURIComponent(link.slug)}`}>
+                <Button
+                  component="a"
+                  href={link.slug ? `/link/edit/${encodeURIComponent(link.slug)}` : '#'}
+                >
                   Edit
                 </Button>
                 <Button
