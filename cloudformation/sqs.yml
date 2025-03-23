@@ -13,6 +13,8 @@ Resources:
     Properties:
       QueueName: !Sub ${QueueName}-dlq
       VisibilityTimeout: !Ref MessageTimeout
+      MessageRetentionPeriod: 1209600
+
   AppQueue:
     Type: AWS::SQS::Queue
     Properties:
