@@ -270,8 +270,8 @@ export const ManageLinkPage: React.FC = () => {
             data={accessGroup}
             mt="xl"
             {...form.getInputProps('access')}
-            onChange={(e) => {
-              form.getInputProps('redirect').onChange(e);
+            onChange={(value) => {
+              form.setFieldValue('access', value); // Update the form state
               handleFormChange(); // Mark as edited
             }}
           />
