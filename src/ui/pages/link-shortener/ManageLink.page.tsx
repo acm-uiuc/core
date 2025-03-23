@@ -74,6 +74,8 @@ export const ManageLinkPage: React.FC = () => {
 
   const [accessGroup, setAccessGroup] = useState<any[]>();
 
+  const [isEdited, setIsEdited] = useState<boolean>(false); // Track if the form is edited
+
   useEffect(() => {
     const fetchAccessGroup = async () => {
       try {
@@ -148,6 +150,7 @@ export const ManageLinkPage: React.FC = () => {
       setIsSubmitting(true);
       const realValues = {
         ...values,
+        isEdited: isEdited,
       };
 
       const linkURL = isEditing ? `/api/v1/linkry/redir/${slug}` : '/api/v1/linkry/redir';
@@ -186,6 +189,9 @@ export const ManageLinkPage: React.FC = () => {
     form.setFieldValue('slug', event.currentTarget.value);
   };
 
+  const handleFormChange = () => {
+    setIsEdited(true); // Set the flag to true when any field is changed
+  };
   /*
   const calculateRenderWidth = (str: string) => {
     const span = document.createElement('button');
@@ -227,6 +233,10 @@ export const ManageLinkPage: React.FC = () => {
             withAsterisk
             mt="xl"
             {...form.getInputProps('redirect')}
+            onChange={(e) => {
+              form.getInputProps('redirect').onChange(e);
+              handleFormChange(); // Mark as edited
+            }}
           />
 
           <TextInput
@@ -248,6 +258,10 @@ export const ManageLinkPage: React.FC = () => {
             }
             mt="xl"
             {...{ ...form.getInputProps('slug'), onChange: handleSlug }}
+            onChange={(e) => {
+              form.getInputProps('redirect').onChange(e);
+              handleFormChange(); // Mark as edited
+            }}
           />
 
           <MultiSelect
@@ -256,6 +270,10 @@ export const ManageLinkPage: React.FC = () => {
             data={accessGroup}
             mt="xl"
             {...form.getInputProps('access')}
+            onChange={(e) => {
+              form.getInputProps('redirect').onChange(e);
+              handleFormChange(); // Mark as edited
+            }}
           />
 
           <Button
