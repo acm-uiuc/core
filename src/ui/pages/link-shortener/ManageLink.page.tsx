@@ -23,7 +23,7 @@ import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
-import { IconScale } from '@tabler/icons-react';
+import { IconCancel, IconCross, IconDeviceFloppy, IconScale } from '@tabler/icons-react';
 import { environmentConfig } from '@common/config';
 
 export function capitalizeFirstLetter(string: string) {
@@ -281,21 +281,38 @@ export const ManageLinkPage: React.FC = () => {
             }}
           />
 
-          <Button
-            type="submit"
-            mt="30px"
-            w="125px"
-            style={{ marginLeft: 'auto', display: 'block' }}
+          <div
+            style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '30px' }}
           >
-            {isSubmitting ? (
-              <>
-                <Loader size={16} color="white" />
-                Submitting...
-              </>
-            ) : (
-              `${isEditing ? 'Save' : 'Create'} Link`
-            )}
-          </Button>
+            <Button
+              type="submit"
+              w="125px"
+              disabled={!isEdited}
+              style={{ marginLeft: 'auto', display: 'block' }}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader size={16} color="white" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  Save
+                  <IconDeviceFloppy size={16} style={{ marginLeft: '8px' }} />
+                </>
+              )}
+            </Button>
+
+            <Button
+              color="red"
+              w="125px"
+              onClick={handleFormClose} // Navigate back or close the form
+              style={{ marginRight: '10px' }} // Add spacing between buttons
+            >
+              <IconCancel size={16} style={{ marginLeft: '8px' }} />
+              Close
+            </Button>
+          </div>
         </form>
       </Box>
     </AuthGuard>

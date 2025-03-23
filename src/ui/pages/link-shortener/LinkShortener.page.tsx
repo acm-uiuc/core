@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCancel, IconCross, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconCancel, IconCross, IconEdit, IconPlus, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -123,7 +123,7 @@ export const LinkShortener: React.FC = () => {
                   component="a"
                   href={link.slug ? `/link/edit/${encodeURIComponent(link.slug)}` : '#'}
                 >
-                  Edit
+                  <IconEdit size={16} />
                 </Button>
                 <Button
                   color="red"
@@ -132,7 +132,7 @@ export const LinkShortener: React.FC = () => {
                     open();
                   }}
                 >
-                  Delete
+                  <IconTrash size={16} />
                 </Button>
               </ButtonGroup>
             </Table.Td>
