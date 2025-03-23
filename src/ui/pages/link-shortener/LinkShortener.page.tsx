@@ -8,6 +8,7 @@ import {
   Transition,
   ButtonGroup,
   Anchor,
+  Badge,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -59,13 +60,19 @@ export const LinkShortener: React.FC = () => {
   const [deleteLinkCandidate, setDeleteLinkCandidate] = useState<LinkryGetResponse | null>(null);
   const navigate = useNavigate();
 
-  const renderTableRow = (link: LinkryGetResponse) => {
+  const renderTableRow = (link: LinkryGetResponse, index: number) => {
     const shouldShow = true;
 
     return (
       <Transition mounted={shouldShow} transition="fade" duration={400} timingFunction="ease">
         {(styles) => (
-          <tr style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}>
+          <tr
+            style={{
+              ...styles,
+              display: shouldShow ? 'table-row' : 'none',
+              backgroundColor: index % 2 === 0 ? '#f0f8ff' : '#ffffff',
+            }}
+          >
             <Table.Td style={wrapTextStyle}>
               <Anchor
                 href={'http://localhost:8080/api/v1/linkry/redir/' + link.slug}
@@ -73,14 +80,41 @@ export const LinkShortener: React.FC = () => {
               >
                 {' '}
                 {/* Currently set to localhost for local testing purposes */}
-                https://go.acm.illinois.edu/{link.slug}
+                {link.redirect}
               </Anchor>
             </Table.Td>
-            <Table.Td style={wrapTextStyle}>{link.redirect}</Table.Td>
-            <Table.Td style={wrapTextStyle}>{link.access}</Table.Td>
+            <Table.Td style={wrapTextStyle}>
+              <Anchor
+                href={'http://localhost:8080/api/v1/linkry/redir/' + link.slug}
+                target="_blank"
+              >
+                {link.redirect}
+              </Anchor>
+            </Table.Td>
+            <Table.Td style={wrapTextStyle}>
+              {link.access
+                ?.split(';') // Split the access string by ";"
+                .map((group, index) => (
+                  <Badge
+                    key={index}
+                    color="#999898"
+                    radius="sm"
+                    style={{ marginRight: '2px', marginBottom: '2px' }}
+                  >
+                    {group.trim()} {/* Trim any extra whitespace */}
+                  </Badge>
+                ))}
+            </Table.Td>
             {/* <Table.Td style={wrapTextStyle}>{dayjs(link.createdAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>
             <Table.Td style={wrapTextStyle}>{dayjs(link.updatedAtUtc).format('MMM D YYYY hh:mm')}</Table.Td> */}
-            <Table.Td>
+            <Table.Td
+              style={{
+                textAlign: 'center',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
               <ButtonGroup>
                 {/* <Button component="a" href={`/linkry/edit/${link.id}`}>
                   Edit
@@ -204,18 +238,20 @@ export const LinkShortener: React.FC = () => {
           {showPrevious ? 'Hide Previous Events' : 'Show Previous Events'}
         </Button> */}
       </div>
-      <Table style={{ tableLayout: 'fixed', width: '100%' }}>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Shortened Link</Table.Th>
-            <Table.Th>Redirect URL</Table.Th>
-            <Table.Th>Access Group</Table.Th>
-            {/* <Table.Th>Created At</Table.Th>
-            <Table.Th>Updated At</Table.Th> */}
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>{linkList.map(renderTableRow)}</Table.Tbody>
-      </Table>
+      <div style={{ width: '100%', overflowX: 'auto' }}>
+        <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Shortened Link</Table.Th>
+              <Table.Th>Redirect URL</Table.Th>
+              <Table.Th>Access Groups</Table.Th>
+              {/* <Table.Th>Created At</Table.Th>
+              <Table.Th>Updated At</Table.Th> */}
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>{linkList.map(renderTableRow)}</Table.Tbody>
+        </Table>
+      </div>
     </AuthGuard>
   );
 };

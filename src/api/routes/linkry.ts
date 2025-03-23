@@ -55,6 +55,7 @@ const patchRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
   access: z.array(z.string()).min(1),
   redirect: z.string().url().min(1),
+  isEdited: z.boolean(),
 });
 
 type LinkyCreateRequest = {
@@ -308,6 +309,58 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     {
       preValidation: async (request, reply) => {
         await fastify.zodValidateBody(request, reply, createRequest);
+
+        const routeAlreadyExists = fastify.hasRoute({
+          url: `/${request.body.slug}`,
+          method: "GET",
+        });
+
+        if (routeAlreadyExists) {
+          //TODO: throw a more appropriate error type (and one that lets the end user see the message)?
+          throw new DatabaseInsertError({
+            message: `Slug ${request.body.slug} is reserved.`,
+          });
+        }
+
+        for (const accessGroup of request.body.access) {
+          if (
+            !fastify.environmentConfig.LinkryGroupList.includes(accessGroup)
+          ) {
+            //TODO: throw a more appropriate error type (and one that lets the end user see the message)?
+            throw new DatabaseInsertError({
+              message: `${accessGroup} is not a valid access group.`,
+            });
+          }
+        }
+
+        //validate that the slug entry does not already exist
+        //TODO: could this just call one of the other routes to prevent duplicating code?
+        try {
+          const queryParams = {
+            TableName: genericConfig.LinkryDynamoTableName,
+            KeyConditionExpression: "slug = :slug",
+            ExpressionAttributeValues: {
+              ":slug": { S: request.params.slug },
+            },
+          };
+
+          const queryCommand = new QueryCommand(queryParams);
+          const queryResponse = await dynamoClient.send(queryCommand);
+          if (queryResponse.Items && queryResponse.Items.length <= 0) {
+            //TODO: throw a different error type so that the user can see the error message?
+            throw new DatabaseInsertError({
+              message: `Slug ${request.params.slug} Does not Exist in Database`,
+            });
+            // }else{
+            //   console.log(`Slug ${request.params.slug} Exist in Database`)
+            //   console.log(request.params.slug)
+          }
+        } catch (e: unknown) {
+          console.log(e);
+          throw new DatabaseFetchError({
+            message: "The Slug does not exist in Database.",
+          });
+        }
       },
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [
@@ -320,17 +373,117 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       // make sure that a user can manage this link, either via owning or being in a group that has access to it, or is a LINKS_ADMIN.
       // you can only change the URL it redirects to
       //throw new NotImplementedError({});
-      /* 1. If there is a patch request, delete the existing records & 
-      add the new ones.. the logic from Post request could be used here. 
-      */
-      const { slug } = request.params;
-      const newSlug = request.body.slug;
-      const newRedirect = request.body.redirect;
+      /* 
 
-      try {
-      } catch (error) {
-        console.error("Error updating slug:", error);
-        reply.code(500).send({ error: "Failed to update slug" });
+      1. It has already been verified that the Slug Exists in the Database
+      2. Update the redirect URL
+      3. Owner Does not Change
+      4. Determing Groups can be Added or Removed
+      5. Perform the update
+
+      */
+
+      if (request.body.isEdited) {
+        //as the request was edited, make updates
+        const { slug } = request.params;
+        const newRedirect = request.body.redirect;
+        const newAccessGroups = request.body.access;
+
+        //get all the owner records from the datbase
+
+        try {
+          // Step 1: Query all records with the given slug
+          const queryParams = {
+            TableName: genericConfig.LinkryDynamoTableName,
+            KeyConditionExpression: "slug = :slug",
+            ExpressionAttributeValues: {
+              ":slug": { S: decodeURIComponent(slug) },
+            },
+          };
+
+          const queryCommand = new QueryCommand(queryParams);
+          const queryResponse = await dynamoClient.send(queryCommand);
+
+          const items = queryResponse.Items || [];
+
+          // Step 2: Identify the OWNER record and update its redirect URL
+          const ownerRecord = items.find((item) =>
+            item.access.S?.startsWith("OWNER#"),
+          );
+
+          if (!ownerRecord) {
+            throw new DatabaseFetchError({ message: "Owner record not found" });
+          }
+
+          const ownerUpdateCommand = {
+            Update: {
+              TableName: genericConfig.LinkryDynamoTableName,
+              Key: marshall({
+                slug: ownerRecord.slug.S,
+                access: ownerRecord.access.S,
+              }),
+              UpdateExpression: "SET redirect = :newRedirect",
+              ExpressionAttributeValues: marshall({
+                ":newRedirect": newRedirect,
+              }),
+            },
+          };
+
+          // Step 3: Identify and delete all GROUP records
+
+          const existingGroupRecords = items.filter((item) =>
+            item.access.S?.startsWith("GROUP#"),
+          );
+
+          const existingGroups = existingGroupRecords.map((record) =>
+            record.access.S?.replace("GROUP#", ""),
+          );
+
+          // Step 4: Determine groups to add and delete
+          const groupsToAdd = newAccessGroups.filter(
+            (group) => !existingGroups.includes(group),
+          );
+          const groupsToDelete = existingGroups.filter(
+            (group) => group !== undefined && !newAccessGroups.includes(group),
+          );
+
+          const deleteGroupCommands = groupsToDelete.map((group) => ({
+            Delete: {
+              TableName: genericConfig.LinkryDynamoTableName,
+              Key: marshall({
+                slug: slug,
+                access: `GROUP#${group}`,
+              }),
+            },
+          }));
+
+          // Step 4: Add new GROUP records
+          const addGroupCommands = groupsToAdd.map((group) => ({
+            Put: {
+              TableName: genericConfig.LinkryDynamoTableName,
+              Item: marshall({
+                slug: slug,
+                access: `GROUP#${group}`,
+              }),
+            },
+          }));
+
+          // Step 5: Perform all operations in a transaction
+          const transactItems = [
+            ownerUpdateCommand, // Update the OWNER record
+            ...deleteGroupCommands, // Delete unnecessary GROUP records
+            ...addGroupCommands, // Add new GROUP records
+          ];
+
+          await dynamoClient.send(
+            new TransactWriteItemsCommand({ TransactItems: transactItems }),
+          );
+
+          reply.code(200).send({ message: "Record Edited successfully" });
+        } catch (error) {
+          console.error("Error updating slug:", error);
+          reply.code(500).send({ error: "Failed to update slug" });
+        }
       }
 
       //   console.log("queryParams", queryParams)
@@ -468,9 +621,30 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         // console.log("******")
         // console.log(request.username)
 
-        const response = await dynamoClient.send(
-          new ScanCommand({ TableName: genericConfig.LinkryDynamoTableName }),
-        );
+        // const isAdmin = request?.includes(AppRoles.LINKS_ADMIN);
+
+        // if (isAdmin) {
+
+        // const response = await dynamoClient.send(
+        //   new ScanCommand({ TableName: genericConfig.LinkryDynamoTableName }),
+        // );
+
+        //console.log(request)
+
+        const command = new QueryCommand({
+          TableName: genericConfig.LinkryDynamoTableName,
+          IndexName: "AccessIndex",
+          KeyConditionExpression: "#access = :accessVal",
+          ExpressionAttributeNames: {
+            "#access": "access",
+          },
+          ExpressionAttributeValues: {
+            ":accessVal": { S: `OWNER#${request.username}` }, // Match OWNER#<username>
+          },
+          ScanIndexForward: false, // Sort in descending order
+        });
+
+        const response = await dynamoClient.send(command);
 
         //TODO: this is where we use the new listGroupIDsByEmail entraId route
 
@@ -484,33 +658,74 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         // };
 
         // const response = await dynamoClient.send(new QueryCommand(params));
-        // console.log(response.Items);
+        //console.log(response.Items);
 
-        const items = response.Items?.map((item) => {
-          const unmarshalledItem = unmarshall(item);
+        const items =
+          response.Items?.map((item) => {
+            const unmarshalledItem = unmarshall(item);
 
-          // Strip '#' from access field
-          if (unmarshalledItem.access) {
-            unmarshalledItem.access =
-              unmarshalledItem.access.split("#")[1] || unmarshalledItem.access;
-          }
+            // Strip '#' from access field
+            if (unmarshalledItem.access) {
+              unmarshalledItem.access =
+                unmarshalledItem.access.split("#")[1] ||
+                unmarshalledItem.access;
+            }
+            return unmarshalledItem;
+          }) || [];
 
-          return unmarshalledItem;
-        });
+        // console.log("items =")
 
-        // Sort items by createdAtUtc in ascending order, need to pass this to dyanmo instead of calcaulting here
-        const sortedItems = items?.sort(
-          (a, b) =>
-            new Date(b.createdAtUtc).getTime() -
-            new Date(a.createdAtUtc).getTime(),
+        // console.log("items =" + items )
+
+        const uniqueSlugs = Array.from(
+          new Set(
+            items
+              .filter((item) => item.slug) // Filter out items without a slug
+              .map((item) => item.slug), // Extract slugs
+          ),
         );
 
-        // Check for the desired condition and respond
-        if (sortedItems?.length === 0) {
-          throw new Error("No Links Found");
-        }
+        console.log("Unique Slugs:", uniqueSlugs);
 
-        reply.send(sortedItems);
+        const results = await Promise.all(
+          uniqueSlugs.map(async (slug) => {
+            const groupQueryCommand = new QueryCommand({
+              TableName: genericConfig.LinkryDynamoTableName,
+              KeyConditionExpression:
+                "#slug = :slugVal AND begins_with(#access, :accessVal)",
+              ExpressionAttributeNames: {
+                "#slug": "slug",
+                "#access": "access",
+              },
+              ExpressionAttributeValues: {
+                ":slugVal": { S: slug },
+                ":accessVal": { S: "GROUP#" },
+              },
+            });
+
+            const groupQueryResponse =
+              await dynamoClient.send(groupQueryCommand);
+            const groupItems = groupQueryResponse.Items?.map((item) =>
+              unmarshall(item),
+            );
+
+            // Combine GROUP# values into a single string separated by ";"
+            const combinedAccessGroups = groupItems
+              ?.map((item) => item.access.replace("GROUP#", ""))
+              .join(";");
+
+            // Find the original record for this slug and add the combined access groups
+            const originalRecord = (items ?? []).find(
+              (item) => item.slug === slug,
+            );
+            return {
+              ...originalRecord,
+              access: combinedAccessGroups || "",
+            };
+          }),
+        );
+
+        reply.send(results);
       } catch (e) {
         if (e instanceof Error) {
           request.log.error("Failed to get from DynamoDB: " + e.toString());

@@ -240,7 +240,11 @@ export const ManageLinkPage: React.FC = () => {
           />
 
           <TextInput
-            label={isEditing ? 'Edit Shortened URL Here' : 'Enter or Generate a Shortened URL'}
+            label={
+              isEditing
+                ? 'Existing shortened URL cannot be edited'
+                : 'Enter or Generate a Shortened URL'
+            }
             withAsterisk
             leftSectionWidth={'230px'}
             rightSectionWidth={'150px'}
@@ -258,8 +262,9 @@ export const ManageLinkPage: React.FC = () => {
             }
             mt="xl"
             {...{ ...form.getInputProps('slug'), onChange: handleSlug }}
+            disabled={isEditing}
             onChange={(e) => {
-              form.getInputProps('redirect').onChange(e);
+              form.getInputProps('slug').onChange(e);
               handleFormChange(); // Mark as edited
             }}
           />
