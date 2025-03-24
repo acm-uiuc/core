@@ -24,6 +24,7 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { randomUUID } from "crypto";
 import { access } from "fs";
 import { AuthError } from "@azure/msal-node";
+import { listGroupIDsByEmail, getEntraIdToken } from "../functions/entraId.js";
 
 const LINKRY_MAX_SLUG_LENGTH = 1000;
 
@@ -677,7 +678,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         // console.log("items =" + items )
 
-        const uniqueSlugs = Array.from(
+        const ownnedUniqueSlugs = Array.from(
           new Set(
             items
               .filter((item) => item.slug) // Filter out items without a slug
@@ -685,10 +686,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ),
         );
 
-        console.log("Unique Slugs:", uniqueSlugs);
+        //console.log("Unique Slugs:", uniqueSlugs);
 
-        const results = await Promise.all(
-          uniqueSlugs.map(async (slug) => {
+        const ownedLinks = await Promise.all(
+          ownnedUniqueSlugs.map(async (slug) => {
             const groupQueryCommand = new QueryCommand({
               TableName: genericConfig.LinkryDynamoTableName,
               KeyConditionExpression:
@@ -701,6 +702,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 ":slugVal": { S: slug },
                 ":accessVal": { S: "GROUP#" },
               },
+              ScanIndexForward: false,
             });
 
             const groupQueryResponse =
@@ -724,6 +726,137 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             };
           }),
         );
+
+        const entraIdToken = await getEntraIdToken(
+          fastify.environmentConfig.AadValidClientId,
+        );
+
+        if (!request.username) {
+          throw new Error("Username is undefined");
+        }
+        const allUserGroupUUIDs = await listGroupIDsByEmail(
+          entraIdToken,
+          request.username,
+        );
+
+        //console.log("********allUserGroupIds =" + allUserGroupUUIDs)
+        const linkryGroupUUIDs = fastify.environmentConfig.LinkryGroupUUIDList;
+
+        const linkryGroupNames = fastify.environmentConfig.LinkryGroupList;
+
+        const userLinkrallUserGroups = allUserGroupUUIDs
+          .filter((groupId) => linkryGroupUUIDs.includes(groupId))
+          .map((groupId) => {
+            const index = linkryGroupUUIDs.indexOf(groupId);
+            return linkryGroupNames[index];
+          });
+
+        //console.log("userLinkrallUserGroups =" + userLinkrallUserGroups)
+
+        const delegatedLinks = await Promise.all(
+          userLinkrallUserGroups.map(async (group) => {
+            // Use ScanCommand to query all records where access starts with "GROUP#[value]"
+            const groupScanCommand = new ScanCommand({
+              TableName: genericConfig.LinkryDynamoTableName,
+              FilterExpression: "begins_with(#access, :accessVal)",
+              ExpressionAttributeNames: {
+                "#access": "access",
+              },
+              ExpressionAttributeValues: {
+                ":accessVal": { S: `GROUP#${group}` },
+              },
+            });
+
+            const groupScanResponse = await dynamoClient.send(groupScanCommand);
+            const groupItems = groupScanResponse.Items?.map((item) =>
+              unmarshall(item),
+            );
+
+            //console.log("groupItems1 = " + JSON.stringify(groupItems));
+
+            // Get unique slugs from groupItems and remove previously seen slugs
+            const delegatedUniqueSlugs = Array.from(
+              new Set(
+                (groupItems ?? [])
+                  .filter(
+                    (item) =>
+                      item.slug && !ownnedUniqueSlugs.includes(item.slug),
+                  ) // Exclude slugs already seen
+                  .map((item) => item.slug), // Extract slugs
+              ),
+            );
+
+            //console.log("Filtered uniqueSlugs=" + delegatedUniqueSlugs);
+
+            // For each unique slug, find the corresponding "OWNER#" record and access groups
+            const ownerRecords = await Promise.all(
+              delegatedUniqueSlugs.map(async (slug) => {
+                // Query for OWNER# record
+                const ownerQueryCommand = new QueryCommand({
+                  TableName: genericConfig.LinkryDynamoTableName,
+                  KeyConditionExpression:
+                    "#slug = :slugVal AND begins_with(#access, :ownerVal)",
+                  ExpressionAttributeNames: {
+                    "#slug": "slug",
+                    "#access": "access",
+                  },
+                  ExpressionAttributeValues: {
+                    ":slugVal": { S: slug }, // Match the delegated unique slug
+                    ":ownerVal": { S: "OWNER#" }, // Match access starting with "OWNER#"
+                  },
+                });
+
+                const ownerQueryResponse =
+                  await dynamoClient.send(ownerQueryCommand);
+                const ownerItems = ownerQueryResponse.Items?.map((item) =>
+                  unmarshall(item),
+                );
+
+                // Query for GROUP# records
+                const groupQueryCommand = new QueryCommand({
+                  TableName: genericConfig.LinkryDynamoTableName,
+                  KeyConditionExpression:
+                    "#slug = :slugVal AND begins_with(#access, :groupVal)",
+                  ExpressionAttributeNames: {
+                    "#slug": "slug",
+                    "#access": "access",
+                  },
+                  ExpressionAttributeValues: {
+                    ":slugVal": { S: slug }, // Match the delegated unique slug
+                    ":groupVal": { S: "GROUP#" }, // Match access starting with "GROUP#"
+                  },
+                });
+
+                const groupQueryResponse =
+                  await dynamoClient.send(groupQueryCommand);
+                const groupItems = groupQueryResponse.Items?.map((item) =>
+                  unmarshall(item),
+                );
+
+                // Combine GROUP# values into a single string separated by ";"
+                const combinedAccessGroups = groupItems
+                  ?.map((item) => item.access.replace("GROUP#", ""))
+                  .join(";");
+
+                // Combine OWNER# record with access groups
+                return ownerItems?.map((ownerItem) => ({
+                  ...ownerItem,
+                  access: `${ownerItem.access};${combinedAccessGroups}`, // Append access groups to OWNER# access
+                }));
+              }),
+            );
+
+            return ownerRecords.flat(); // Flatten the results for this group
+          }),
+        );
+
+        // Flatten the results into a single array
+        const flattenedDelegatedLinks = delegatedLinks.flat();
+
+        const results = {
+          ownedLinks: ownedLinks,
+          delegatedLinks: flattenedDelegatedLinks,
+        };
 
         reply.send(results);
       } catch (e) {

@@ -9,6 +9,7 @@ import {
   ButtonGroup,
   Anchor,
   Badge,
+  Tabs,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -53,7 +54,8 @@ export type LinkryGetResponse = z.infer<typeof getLinkrySchema>;
 //const getLinksSchema = z.array(getLinkrySchema);
 
 export const LinkShortener: React.FC = () => {
-  const [linkList, setLinkList] = useState<LinkryGetResponse[]>([]);
+  const [ownedLinks, setOwnedLinks] = useState<LinkryGetResponse[]>([]);
+  const [delegatedLinks, setDelegatedLinks] = useState<LinkryGetResponse[]>([]);
   const api = useApi('core');
   const [opened, { open, close }] = useDisclosure(false);
   const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false); // Changed default to false
@@ -61,6 +63,88 @@ export const LinkShortener: React.FC = () => {
   const navigate = useNavigate();
 
   const renderTableRow = (link: LinkryGetResponse, index: number) => {
+    const shouldShow = true;
+
+    return (
+      <Transition mounted={shouldShow} transition="fade" duration={10000} timingFunction="ease">
+        {(styles) => (
+          <tr
+            style={{
+              ...styles,
+              display: shouldShow ? 'table-row' : 'none',
+              backgroundColor: index % 2 === 0 ? '#f0f8ff' : '#ffffff',
+            }}
+          >
+            <Table.Td style={wrapTextStyle}>
+              <Anchor
+                href={'http://localhost:8080/api/v1/linkry/redir/' + link.slug}
+                target="_blank"
+              >
+                {' '}
+                {/* Currently set to localhost for local testing purposes */}
+                https://go.acm.illinois.edu/{link.slug}
+              </Anchor>
+            </Table.Td>
+            <Table.Td style={wrapTextStyle}>
+              <Anchor
+                href={'http://localhost:8080/api/v1/linkry/redir/' + link.slug}
+                target="_blank"
+              >
+                {link.redirect}
+              </Anchor>
+            </Table.Td>
+            <Table.Td style={wrapTextStyle}>
+              {link.access
+                ?.split(';') // Split the access string by ";"
+                .map((group, index) => (
+                  <Badge
+                    key={index}
+                    color="#999898"
+                    radius="sm"
+                    style={{ marginRight: '2px', marginBottom: '2px' }}
+                  >
+                    {group.trim()} {/* Trim any extra whitespace */}
+                  </Badge>
+                ))}
+            </Table.Td>
+            {/* <Table.Td style={wrapTextStyle}>{dayjs(link.createdAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>
+            <Table.Td style={wrapTextStyle}>{dayjs(link.updatedAtUtc).format('MMM D YYYY hh:mm')}</Table.Td> */}
+            <Table.Td
+              style={{
+                textAlign: 'center',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <ButtonGroup>
+                {/* <Button component="a" href={`/linkry/edit/${link.id}`}>
+                  Edit
+                </Button> */}
+                <Button
+                  component="a"
+                  href={link.slug ? `/link/edit/${encodeURIComponent(link.slug)}` : '#'}
+                >
+                  <IconEdit size={16} />
+                </Button>
+                <Button
+                  color="red"
+                  onClick={() => {
+                    setDeleteLinkCandidate(link);
+                    open();
+                  }}
+                >
+                  <IconTrash size={16} />
+                </Button>
+              </ButtonGroup>
+            </Table.Td>
+          </tr>
+        )}
+      </Transition>
+    );
+  };
+
+  const renderDelegatedLinks = (link: LinkryGetResponse, index: number) => {
     const shouldShow = true;
 
     return (
@@ -147,7 +231,8 @@ export const LinkShortener: React.FC = () => {
       const response = await api.get('/api/v1/linkry/redir');
       //const upcomingEvents = await api.get('/api/v1/events?upcomingOnly=true');
       //const upcomingEventsSet = new Set(upcomingEvents.data.map((x: EventGetResponse) => x.id));
-      const events = response.data;
+      const ownedLinks = response.data.ownedLinks;
+      const delegatedLinks = response.data.delegatedLinks;
       // events.sort((a: EventGetResponse, b: EventGetResponse) => {
       //   return a.start.localeCompare(b.start);
       // });
@@ -157,7 +242,8 @@ export const LinkShortener: React.FC = () => {
       //   }
       //   return { ...item, upcoming: false };
       // });
-      setLinkList(events);
+      setOwnedLinks(ownedLinks);
+      setDelegatedLinks(delegatedLinks);
     };
     getEvents();
   }, []);
@@ -166,7 +252,7 @@ export const LinkShortener: React.FC = () => {
     try {
       const encodedSlug = encodeURIComponent(slug);
       await api.delete(`/api/v1/linkry/redir/${encodedSlug}`);
-      setLinkList((prevEvents) => prevEvents.filter((link) => link.slug !== slug));
+      setOwnedLinks((prevEvents) => prevEvents.filter((link) => link.slug !== slug));
       notifications.show({
         title: 'Link deleted',
         message: 'The link was deleted successfully.',
@@ -182,7 +268,7 @@ export const LinkShortener: React.FC = () => {
     }
   };
 
-  if (linkList.length === 0) {
+  if (ownedLinks.length === 0) {
     return <FullScreenLoader />;
   }
 
@@ -228,7 +314,10 @@ export const LinkShortener: React.FC = () => {
       <Title order={2} mb="md">
         Link Shortener
       </Title>
-      <div style={{ display: 'flex', columnGap: '1vw', verticalAlign: 'middle' }}>
+
+      <div
+        style={{ display: 'flex', columnGap: '1vw', verticalAlign: 'middle', marginBottom: '20px' }}
+      >
         <Button
           leftSection={<IconPlus size={14} />}
           onClick={() => {
@@ -241,20 +330,55 @@ export const LinkShortener: React.FC = () => {
           {showPrevious ? 'Hide Previous Events' : 'Show Previous Events'}
         </Button> */}
       </div>
-      <div style={{ width: '100%', overflowX: 'auto' }}>
-        <Table style={{ tableLayout: 'fixed', width: '100%' }}>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Shortened Link</Table.Th>
-              <Table.Th>Redirect URL</Table.Th>
-              <Table.Th>Access Groups</Table.Th>
-              {/* <Table.Th>Created At</Table.Th>
-              <Table.Th>Updated At</Table.Th> */}
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>{linkList.map(renderTableRow)}</Table.Tbody>
-        </Table>
-      </div>
+
+      <Tabs
+        defaultValue="owned"
+        styles={{
+          tab: {
+            fontWeight: 'bold',
+            color: 'rgb(34, 139, 230)',
+          },
+        }}
+      >
+        <Tabs.List>
+          <Tabs.Tab value="owned">Owned Links</Tabs.Tab>
+          <Tabs.Tab value="delegated">Delegated Links</Tabs.Tab>
+        </Tabs.List>
+
+        <Tabs.Panel value="owned" pt="xs">
+          <div style={{ width: '100%', overflowX: 'auto' }}>
+            <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Shortened Link</Table.Th>
+                  <Table.Th>Redirect URL</Table.Th>
+                  <Table.Th>Access Groups</Table.Th>
+                  {/* <Table.Th>Created At</Table.Th>
+                  <Table.Th>Updated At</Table.Th> */}
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>{ownedLinks.map(renderTableRow)}</Table.Tbody>
+            </Table>
+          </div>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="delegated" pt="xs">
+          <div style={{ width: '100%', overflowX: 'auto' }}>
+            <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Shortened Link</Table.Th>
+                  <Table.Th>Redirect URL</Table.Th>
+                  <Table.Th>Access Groups</Table.Th>
+                  {/* <Table.Th>Created At</Table.Th>
+                  <Table.Th>Updated At</Table.Th> */}
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>{delegatedLinks.map(renderTableRow)}</Table.Tbody>
+            </Table>
+          </div>
+        </Tabs.Panel>
+      </Tabs>
     </AuthGuard>
   );
 };

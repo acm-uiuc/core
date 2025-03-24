@@ -16,6 +16,7 @@ export type ConfigType = {
   UserRoleMapping: UserRoleMapping;
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
+  LinkryParentGroupId: string
   LinkryGroupList: string[];
   LinkryGroupUUIDList: string[];
 };
@@ -86,6 +87,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
+    LinkryParentGroupId: "Accef2ab4-532c-4989-8041-b8f3449abe0a", //TODO: use id to fetch child groups & 
     LinkryGroupList: [
       "ACM Exec Linkry Test", 
       "ACM Link Shortener Managers Linkry Test", 
@@ -128,6 +130,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
+    LinkryParentGroupId: "need-to-create-one",
     LinkryGroupList: [
       "ACM Exec", 
       "ACM Link Shortener Managers", 
