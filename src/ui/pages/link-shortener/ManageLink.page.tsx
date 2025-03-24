@@ -32,7 +32,7 @@ export function capitalizeFirstLetter(string: string) {
 
 const baseUrl = 'https://go.acm.illinois.edu'; //Move to config in future?
 const slugRegex = new RegExp('^(https?://)?[a-zA-Z0-9-._/]*$');
-const urlRegex = new RegExp('^https?://[a-zA-Z0-9-._/?=]*$');
+const urlRegex = new RegExp('^https://[a-zA-Z0-9-._/?=]*$');
 
 const baseBodySchema = z
   .object({
@@ -48,7 +48,7 @@ const baseBodySchema = z
     redirect: z
       .string()
       .min(1)
-      .regex(urlRegex, 'Invalid URL. Use format: http:// or https://www.example.com')
+      .regex(urlRegex, 'Invalid URL. Use format: https:// or https://www.example.com')
       .optional(),
     createdAtUtc: z.number().optional(),
     updatedAtUtc: z.number().optional(),
@@ -222,9 +222,6 @@ export const ManageLinkPage: React.FC = () => {
       </Box>
       <Box display="flex" ta="center" mt="1.5rem">
         <Title order={2}>{isEditing ? 'Edit' : 'Add'} Link</Title>
-        <Button variant="subtle" ml="auto" onClick={handleFormClose}>
-          Close
-        </Button>
       </Box>
       <Box maw={650} mx="auto" mt="100px">
         <form onSubmit={form.onSubmit(handleSubmit)}>
