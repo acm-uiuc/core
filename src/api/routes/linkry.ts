@@ -745,7 +745,14 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const linkryGroupNames = fastify.environmentConfig.LinkryGroupList;
 
         const userLinkrallUserGroups = allUserGroupUUIDs
-          .filter((groupId) => linkryGroupUUIDs.includes(groupId))
+          .filter((groupId) => {
+            //testing hijack
+            /*console.log(groupId);
+              if (groupId != '99b6b87c-9550-4529-87c1-f40862ab7add') { 
+                return false;
+              } */
+            return linkryGroupUUIDs.includes(groupId);
+          })
           .map((groupId) => {
             const index = linkryGroupUUIDs.indexOf(groupId);
             return linkryGroupNames[index];
