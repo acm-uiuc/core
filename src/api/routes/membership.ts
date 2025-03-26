@@ -24,7 +24,7 @@ import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import rawbody from "fastify-raw-body";
 
-const NONMEMBER_CACHE_SECONDS = 1800; // 30 minutes
+const NONMEMBER_CACHE_SECONDS = 60; // 1 minute
 const MEMBER_CACHE_SECONDS = 43200; // 12 hours
 
 const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
