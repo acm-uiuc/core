@@ -9,6 +9,7 @@ import { FastifyPluginAsync } from "fastify";
 import {
   BaseError,
   InternalServerError,
+  NotImplementedError,
   ValidationError,
 } from "common/errors/index.js";
 import { getEntraIdToken } from "api/functions/entraId.js";
@@ -23,6 +24,7 @@ import stripe, { Stripe } from "stripe";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import rawbody, { RawBodyPluginOptions } from "fastify-raw-body";
+import { ListModificationPatchRequest } from "common/types/membership.js";
 
 const NONMEMBER_CACHE_SECONDS = 1800; // 30 minutes
 const MEMBER_CACHE_SECONDS = 43200; // 12 hours
@@ -73,7 +75,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       Body: undefined;
       Params: { netId: string };
     }>("/checkout/:netId", async (request, reply) => {
-      const netId = request.params.netId;
+      const netId = request.params.netId.toLowerCase();
       if (!validateNetId(netId)) {
         throw new ValidationError({
           message: `${netId} is not a valid Illinois NetID!`,
@@ -147,7 +149,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       Querystring: { list?: string };
       Params: { netId: string };
     }>("/:netId", async (request, reply) => {
-      const netId = request.params.netId;
+      const netId = request.params.netId.toLowerCase();
       const list = request.query.list || "acmpaid";
       if (!validateNetId(netId)) {
         throw new ValidationError({
