@@ -79,13 +79,13 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         await fastify.zodValidateBody(request, reply, entraProfilePatchRequest);
       },
       onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, allAppRoles);
+        await fastify.authorize(request, reply, []);
       },
     },
     async (request, reply) => {
       if (!request.tokenPayload || !request.username) {
-        throw new UnauthorizedError({
-          message: "User does not have the privileges for this task.",
+        throw new InternalServerError({
+          message: "Could not find token payload and/or username.",
         });
       }
       const userOid = request.tokenPayload["oid"];
@@ -99,7 +99,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         userOid,
         request.body,
       );
-      reply.send(201);
+      reply.status(201);
     },
   );
   fastify.get<{
