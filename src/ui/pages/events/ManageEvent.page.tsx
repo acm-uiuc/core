@@ -66,7 +66,7 @@ export const ManageEventPage: React.FC = () => {
     // Fetch event data and populate form
     const getEvent = async () => {
       try {
-        const response = await api.get(`/api/v1/events/${eventId}`);
+        const response = await api.get(`/api/v1/events/${eventId}?ts=${Date.now()}`);
         const eventData = response.data;
         const formValues = {
           title: eventData.title,

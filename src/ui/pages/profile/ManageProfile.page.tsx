@@ -31,7 +31,9 @@ export const ManageProfilePage: React.FC = () => {
     const normalizedName = transformCommaSeperatedName(enhanced.displayName || '');
     const extractedFirstName = enhanced.givenName || normalizedName.split(' ')[0];
     let extractedLastName = enhanced.surname || normalizedName.split(' ')[1];
-    extractedLastName = extractedLastName.slice(1, extractedLastName.length);
+    if (!enhanced.surname) {
+      extractedLastName = extractedLastName.slice(1, extractedLastName.length);
+    }
     return {
       ...enhanced,
       displayName: normalizedName,

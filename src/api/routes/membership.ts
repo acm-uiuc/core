@@ -15,16 +15,16 @@ import { getEntraIdToken } from "api/functions/entraId.js";
 import { genericConfig, roleArns } from "common/config.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { createCheckoutSession } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
 import stripe, { Stripe } from "stripe";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
-import rawbody, { RawBodyPluginOptions } from "fastify-raw-body";
+import rawbody from "fastify-raw-body";
 
-const NONMEMBER_CACHE_SECONDS = 1800; // 30 minutes
+const NONMEMBER_CACHE_SECONDS = 60; // 1 minute
 const MEMBER_CACHE_SECONDS = 43200; // 12 hours
 
 const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
@@ -73,7 +73,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       Body: undefined;
       Params: { netId: string };
     }>("/checkout/:netId", async (request, reply) => {
-      const netId = request.params.netId;
+      const netId = request.params.netId.toLowerCase();
       if (!validateNetId(netId)) {
         throw new ValidationError({
           message: `${netId} is not a valid Illinois NetID!`,
@@ -139,6 +139,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             { price: fastify.environmentConfig.PaidMemberPriceId, quantity: 1 },
           ],
           initiator: "purchase-membership",
+          allowPromotionCodes: true,
         }),
       );
     });
@@ -147,7 +148,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       Querystring: { list?: string };
       Params: { netId: string };
     }>("/:netId", async (request, reply) => {
-      const netId = request.params.netId;
+      const netId = request.params.netId.toLowerCase();
       const list = request.query.list || "acmpaid";
       if (!validateNetId(netId)) {
         throw new ValidationError({

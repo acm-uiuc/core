@@ -21,6 +21,30 @@ describe("Membership API basic checks", async () => {
     expect(wasCached(response.headers.get("x-acm-data-source"))).toBe(true);
   });
   test(
+    "Test that getting member with non-standard casing succeeds",
+    { timeout: 3000 },
+    async () => {
+      const response = await fetch(
+        `${baseEndpoint}/api/v1/membership/DSingh14`,
+        {
+          method: "GET",
+        },
+      );
+
+      expect(response.status).toBe(200);
+
+      const responseBody = await response.json();
+      expect(responseBody).toStrictEqual({
+        netId: "dsingh14",
+        isPaidMember: true,
+      });
+
+      const wasCached = (value: string | null) => value && value !== "aad";
+
+      expect(wasCached(response.headers.get("x-acm-data-source"))).toBe(true);
+    },
+  );
+  test(
     "Test that getting non-members succeeds",
     { timeout: 3000 },
     async () => {

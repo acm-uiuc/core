@@ -20,6 +20,7 @@ import {
 import { ValidationError } from "../../common/errors/index.js";
 import { RunEnvironment } from "../../common/roles.js";
 import { environmentConfig } from "../../common/config.js";
+import { sendSaleEmailhandler } from "./sales.js";
 
 export type SQSFunctionPayloadTypes = {
   [K in keyof typeof sqsPayloadSchemas]: SQSHandlerFunction<K>;
@@ -35,15 +36,21 @@ const handlers: SQSFunctionPayloadTypes = {
   [AvailableSQSFunctions.EmailMembershipPass]: emailMembershipPassHandler,
   [AvailableSQSFunctions.Ping]: pingHandler,
   [AvailableSQSFunctions.ProvisionNewMember]: provisionNewMemberHandler,
+  [AvailableSQSFunctions.SendSaleEmail]: sendSaleEmailhandler,
 };
 export const runEnvironment = process.env.RunEnvironment as RunEnvironment;
 export const currentEnvironmentConfig = environmentConfig[runEnvironment];
+
+const restrictedQueues: Record<string, AvailableSQSFunctions[]> = {
+  "infra-core-api-sqs-sales": [AvailableSQSFunctions.SendSaleEmail],
+};
 
 export const handler = middy()
   .use(eventNormalizerMiddleware())
   .use(sqsPartialBatchFailure())
   .handler((event: SQSEvent, _context: Context, { signal: _signal }) => {
     const recordsPromises = event.Records.map(async (record, _index) => {
+      const sourceQueue = record.eventSourceARN.split(":").slice(-1)[0];
       try {
         let parsedBody = parseSQSPayload(record.body);
         if (parsedBody instanceof ZodError) {
@@ -56,6 +63,13 @@ export const handler = middy()
           });
         }
         parsedBody = parsedBody as AnySQSPayload;
+        if (
+          restrictedQueues[sourceQueue]?.includes(parsedBody.function) === false
+        ) {
+          throw new ValidationError({
+            message: `Queue ${sourceQueue} is not permitted to call the function ${parsedBody.function}!`,
+          });
+        }
         const childLogger = logger.child({
           sqsMessageId: record.messageId,
           metadata: parsedBody.metadata,

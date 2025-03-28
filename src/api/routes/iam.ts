@@ -79,13 +79,13 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         await fastify.zodValidateBody(request, reply, entraProfilePatchRequest);
       },
       onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, allAppRoles);
+        await fastify.authorize(request, reply, []);
       },
     },
     async (request, reply) => {
       if (!request.tokenPayload || !request.username) {
-        throw new UnauthorizedError({
-          message: "User does not have the privileges for this task.",
+        throw new InternalServerError({
+          message: "Could not find token payload and/or username.",
         });
       }
       const userOid = request.tokenPayload["oid"];
@@ -99,7 +99,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         userOid,
         request.body,
       );
-      reply.send(201);
+      reply.status(201);
     },
   );
   fastify.get<{
@@ -201,7 +201,12 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       reply.send({ message: "OK" });
       request.log.info(
-        { type: "audit", actor: request.username, target: groupId },
+        {
+          type: "audit",
+          module: "iam",
+          actor: request.username,
+          target: groupId,
+        },
         `set target roles to ${request.body.roles.toString()}`,
       );
     },
@@ -241,13 +246,23 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const result = results[i];
         if (result.status === "fulfilled") {
           request.log.info(
-            { type: "audit", actor: request.username, target: emails[i] },
+            {
+              type: "audit",
+              module: "iam",
+              actor: request.username,
+              target: emails[i],
+            },
             "invited user to Entra ID tenant.",
           );
           response.success.push({ email: emails[i] });
         } else {
           request.log.info(
-            { type: "audit", actor: request.username, target: emails[i] },
+            {
+              type: "audit",
+              module: "iam",
+              actor: request.username,
+              target: emails[i],
+            },
             "failed to invite user to Entra ID tenant.",
           );
           if (result.reason instanceof EntraInvitationError) {
@@ -345,6 +360,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           request.log.info(
             {
               type: "audit",
+              module: "iam",
               actor: request.username,
               target: request.body.add[i],
             },
@@ -354,6 +370,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           request.log.info(
             {
               type: "audit",
+              module: "iam",
               actor: request.username,
               target: request.body.add[i],
             },
@@ -379,6 +396,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           request.log.info(
             {
               type: "audit",
+              module: "iam",
               actor: request.username,
               target: request.body.remove[i],
             },
@@ -388,6 +406,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           request.log.info(
             {
               type: "audit",
+              module: "iam",
               actor: request.username,
               target: request.body.add[i],
             },

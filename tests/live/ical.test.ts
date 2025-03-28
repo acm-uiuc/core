@@ -4,9 +4,9 @@ import { OrganizationList } from "../../src/common/orgs.js";
 import ical from "node-ical";
 const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const fetchWithRateLimit = async (url) => {
+const fetchWithRateLimit = async (url: string) => {
   const response = await fetch(url);
   expect(response.status).toBe(200);
 
@@ -27,7 +27,7 @@ const fetchWithRateLimit = async (url) => {
   return response;
 };
 
-test("Get calendars with rate limit handling", { timeout: 30000 }, async () => {
+test("Get calendars with rate limit handling", { timeout: 45000 }, async () => {
   for (const org of OrganizationList) {
     const response = await fetchWithRateLimit(
       `${baseEndpoint}/api/v1/ical/${org}`,
@@ -39,4 +39,16 @@ test("Get calendars with rate limit handling", { timeout: 30000 }, async () => {
     const calendar = ical.sync.parseICS(await response.text());
     expect(calendar["vcalendar"]["type"]).toEqual("VCALENDAR");
   }
+});
+
+test("Check that the ical base works", { timeout: 45000 }, async () => {
+  const response = await fetchWithRateLimit(
+    `${baseEndpoint.replace("core", "ical")}/ACM`,
+  );
+  expect(response.status).toBe(200);
+  expect(response.headers.get("Content-Disposition")).toEqual(
+    'attachment; filename="calendar.ics"',
+  );
+  const calendar = ical.sync.parseICS(await response.text());
+  expect(calendar["vcalendar"]["type"]).toEqual("VCALENDAR");
 });

@@ -4,6 +4,7 @@ export enum AvailableSQSFunctions {
   Ping = "ping",
   EmailMembershipPass = "emailMembershipPass",
   ProvisionNewMember = "provisionNewMember",
+  SendSaleEmail = "sendSaleEmail",
 }
 
 const sqsMessageMetadataSchema = z.object({
@@ -42,12 +43,25 @@ export const sqsPayloadSchemas = {
     AvailableSQSFunctions.ProvisionNewMember,
     z.object({ email: z.string().email() }),
   ),
+  [AvailableSQSFunctions.SendSaleEmail]: createSQSSchema(
+    AvailableSQSFunctions.SendSaleEmail,
+    z.object({
+      email: z.string().email(),
+      qrCodeContent: z.string().min(1),
+      itemName: z.string().min(1),
+      quantity: z.number().min(1),
+      size: z.string().optional(),
+      customText: z.string().optional(),
+      type: z.union([z.literal('event'), z.literal('merch')])
+    }),
+  ),
 } as const;
 
 export const sqsPayloadSchema = z.discriminatedUnion("function", [
   sqsPayloadSchemas[AvailableSQSFunctions.Ping],
   sqsPayloadSchemas[AvailableSQSFunctions.EmailMembershipPass],
   sqsPayloadSchemas[AvailableSQSFunctions.ProvisionNewMember],
+  sqsPayloadSchemas[AvailableSQSFunctions.SendSaleEmail],
 ] as const);
 
 export type SQSPayload<T extends AvailableSQSFunctions> = z.infer<
