@@ -366,7 +366,7 @@ export async function listGroupMembers(
  * @throws {EntraUserError} If fetching the user profile fails.
  * @returns {Promise<UserProfileDataBase>} The user's profile information.
  */
-export async function getUserProfile(
+export async function getUserProflile(
   token: string,
   email: string,
 ): Promise<UserProfileDataBase> {

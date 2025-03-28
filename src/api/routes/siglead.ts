@@ -1,4 +1,4 @@
-import { FastifyPluginAsync } from "fastify";
+import { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { allAppRoles, AppRoles } from "../../common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import {
@@ -38,48 +38,42 @@ import {
   AUTH_DECISION_CACHE_SECONDS,
   getGroupRoles,
 } from "../functions/authorization.js";
+import { OrganizationList } from "common/orgs.js";
+import { z } from "zod";
+
+const OrganizationListEnum = z.enum(OrganizationList as [string, ...string[]]);
+export type Org = z.infer<typeof OrganizationListEnum>;
+
+type Member = { name: string; email: string };
+type OrgMembersResponse = { org: Org; members: Member[] };
+
+// const groupMappings = getRunEnvironmentConfig().KnownGroupMappings;
+// const groupOptions = Object.entries(groupMappings).map(([key, value]) => ({
+//   label: userGroupMappings[key as keyof KnownGroups] || key,
+//   value: `${key}_${value}`, // to ensure that the same group for multiple roles still renders
+// }));
 
 const sigleadRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.get<{
-    Querystring: { groupId: string };
-  }>(
-    "/groups/:groupId/roles",
-    {
-      schema: {
-        querystring: {
-          type: "object",
-          properties: {
-            groupId: {
-              type: "string",
-            },
-          },
-        },
+    Reply: OrgMembersResponse[];
+  }>("/groups", async (request, reply) => {
+    const entraIdToken = await getEntraIdToken(
+      {
+        smClient: fastify.secretsManagerClient,
+        dynamoClient: fastify.dynamoClient,
       },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-      },
-    },
-    async (request, reply) => {
-      try {
-        const groupId = (request.params as Record<string, string>).groupId;
-        const roles = await getGroupRoles(
-          fastify.dynamoClient,
-          fastify,
-          groupId,
-        );
-        return reply.send(roles);
-      } catch (e: unknown) {
-        if (e instanceof BaseError) {
-          throw e;
-        }
+      fastify.environmentConfig.AadValidClientId,
+    );
 
-        request.log.error(e);
-        throw new DatabaseFetchError({
-          message: "An error occurred finding the group role mapping.",
-        });
-      }
-    },
-  );
+    const data = await Promise.all(
+      OrganizationList.map(async (org) => {
+        const members: Member[] = await listGroupMembers(entraIdToken, org);
+        return { org, members } as OrgMembersResponse;
+      }),
+    );
+
+    reply.status(200).send(data);
+  });
 
   // fastify.patch<{ Body: ProfilePatchRequest }>(
   //   "/profile",
