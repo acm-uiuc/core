@@ -142,7 +142,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         for (const accessGroup of request.body.access) {
           if (
-            !fastify.environmentConfig.LinkryGroupList.includes(accessGroup)
+            ![
+              ...fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.keys(),
+            ].includes(accessGroup)
           ) {
             //TODO: throw a more appropriate error type (and one that lets the end user see the message)?
             throw new DatabaseInsertError({
@@ -210,9 +212,13 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         //Add GROUP records
         const accessGroups: string[] = request.body.access;
         for (const accessGroup of accessGroups) {
+          const groupUUID: string =
+            fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
+              accessGroup,
+            );
           const groupRecord = {
             slug: request.body.slug,
-            access: "GROUP#" + accessGroup,
+            access: "GROUP#" + groupUUID,
           };
           const GroupPutCommand = {
             Put: {
@@ -277,10 +283,15 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             return item.access.S?.startsWith("OWNER#");
           })[0] || {};
 
-        const accessGroupUUIDs: string[] = [];
+        const accessGroupNames: string[] = [];
         for (const record of items) {
           if (record && record != ownerRecord) {
-            accessGroupUUIDs.push(record.access.S?.split("GROUP#")[1]);
+            const accessGroupUUID: string = record.access.S?.split("GROUP#")[1];
+            accessGroupNames.push(
+              fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
+                accessGroupUUID,
+              ),
+            );
           }
         }
 
@@ -290,7 +301,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ) {
           reply.send({
             slug: ownerRecord.slug.S,
-            access: accessGroupUUIDs,
+            access: accessGroupNames,
             redirect: ownerRecord.redirect.S,
           });
         } else {
@@ -325,7 +336,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         for (const accessGroup of request.body.access) {
           if (
-            !fastify.environmentConfig.LinkryGroupList.includes(accessGroup)
+            ![
+              ...fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.keys(),
+            ].includes(accessGroup)
           ) {
             //TODO: throw a more appropriate error type (and one that lets the end user see the message)?
             throw new DatabaseInsertError({
@@ -563,7 +576,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         const items = queryResponse.Items || [];
 
-        const desiredAccessValues = fastify.environmentConfig.LinkryGroupList;
+        const desiredAccessValues: string[] = [
+          ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
+        ];
 
         //Use the below fastify environement to fetch group names
         //console.log(desiredAccessValues)
@@ -711,10 +726,22 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               unmarshall(item),
             );
 
+            const combinedAccessGroupUUIDs = groupItems?.map((item) =>
+              item.access.replace("GROUP#", ""),
+            );
+
+            const combinedAccessGroupNames: string[] = [];
+
+            for (const accessGroupUUID of combinedAccessGroupUUIDs) {
+              combinedAccessGroupNames.push(
+                fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
+                  accessGroupUUID,
+                ),
+              );
+            }
+
             // Combine GROUP# values into a single string separated by ";"
-            const combinedAccessGroups = groupItems
-              ?.map((item) => item.access.replace("GROUP#", ""))
-              .join(";");
+            const combinedAccessGroups = combinedAccessGroupNames.join(";");
 
             // Find the original record for this slug and add the combined access groups
             const originalRecord = (items ?? []).find(
@@ -740,16 +767,15 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         );
 
         //console.log("********allUserGroupIds =" + allUserGroupUUIDs)
-        const linkryGroupUUIDs = fastify.environmentConfig.LinkryGroupUUIDList;
+        const linkryGroupUUIDs: string[] = [
+          ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
+        ];
 
-        const linkryGroupNames = fastify.environmentConfig.LinkryGroupList;
+        const userLinkrallUserGroups = allUserGroupUUIDs.filter((groupId) =>
+          linkryGroupUUIDs.includes(groupId),
+        );
 
-        const userLinkrallUserGroups = allUserGroupUUIDs
-          .filter((groupId) => linkryGroupUUIDs.includes(groupId))
-          .map((groupId) => {
-            const index = linkryGroupUUIDs.indexOf(groupId);
-            return linkryGroupNames[index];
-          });
+        console.log(allUserGroupUUIDs);
 
         //console.log("userLinkrallUserGroups =" + userLinkrallUserGroups)
 
@@ -833,10 +859,22 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   unmarshall(item),
                 );
 
+                const combinedAccessGroupUUIDs = groupItems?.map((item) =>
+                  item.access.replace("GROUP#", ""),
+                );
+
+                const combinedAccessGroupNames: string[] = [];
+
+                for (const accessGroupUUID of combinedAccessGroupUUIDs) {
+                  combinedAccessGroupNames.push(
+                    fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
+                      accessGroupUUID,
+                    ),
+                  );
+                }
+
                 // Combine GROUP# values into a single string separated by ";"
-                const combinedAccessGroups = groupItems
-                  ?.map((item) => item.access.replace("GROUP#", ""))
-                  .join(";");
+                const combinedAccessGroups = combinedAccessGroupNames.join(";");
 
                 // Combine OWNER# record with access groups
                 return ownerItems?.map((ownerItem) => ({

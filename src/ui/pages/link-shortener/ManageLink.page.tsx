@@ -80,8 +80,8 @@ export const ManageLinkPage: React.FC = () => {
     const fetchAccessGroup = async () => {
       try {
         const config = await getRunEnvironmentConfig();
-        if (config.LinkryGroupList) {
-          setAccessGroup(config.LinkryGroupList);
+        if (config.LinkryGroupNameToGroupUUIDMap) {
+          setAccessGroup([...config.LinkryGroupNameToGroupUUIDMap.keys()]);
         }
       } catch (error) {
         console.error('Failed to fetch access group config:', error);
