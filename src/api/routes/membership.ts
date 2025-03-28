@@ -139,6 +139,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             { price: fastify.environmentConfig.PaidMemberPriceId, quantity: 1 },
           ],
           initiator: "purchase-membership",
+          allowPromotionCodes: true,
         }),
       );
     });
