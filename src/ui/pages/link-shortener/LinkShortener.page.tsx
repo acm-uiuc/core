@@ -24,6 +24,7 @@ import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { AuthGuard } from '@ui/components/AuthGuard';
 import { useApi } from '@ui/util/api';
 import { AppRoles } from '@common/roles.js';
+import { wrap } from 'module';
 
 const repeatOptions = ['weekly', 'biweekly'] as const;
 
@@ -33,6 +34,7 @@ const baseSchema = z.object({
   redirect: z.string().min(1).optional(),
   createdAtUtc: z.number().optional(),
   updatedAtUtc: z.number().optional(),
+  counter: z.number().optional(),
 });
 
 // const requestSchema = baseSchema.extend({
@@ -86,10 +88,7 @@ export const LinkShortener: React.FC = () => {
               </Anchor>
             </Table.Td>
             <Table.Td style={wrapTextStyle}>
-              <Anchor
-                href={'http://localhost:8080/api/v1/linkry/redir/' + link.slug}
-                target="_blank"
-              >
+              <Anchor href={link.redirect} target="_blank">
                 {link.redirect}
               </Anchor>
             </Table.Td>
@@ -107,13 +106,13 @@ export const LinkShortener: React.FC = () => {
                   </Badge>
                 ))}
             </Table.Td>
+            <Table.Td style={wrapTextStyle}>{link.counter || 0}</Table.Td>
             {/* <Table.Td style={wrapTextStyle}>{dayjs(link.createdAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>
             <Table.Td style={wrapTextStyle}>{dayjs(link.updatedAtUtc).format('MMM D YYYY hh:mm')}</Table.Td> */}
             <Table.Td
               style={{
                 textAlign: 'center',
-                display: 'flex',
-                justifyContent: 'center',
+                justifyContent: 'rightcenter',
                 alignItems: 'center',
               }}
             >
@@ -268,9 +267,9 @@ export const LinkShortener: React.FC = () => {
     }
   };
 
-  if (ownedLinks.length === 0) {
+  /*if (ownedLinks.length === 0) {
     return <FullScreenLoader />;
-  }
+  }*/ //Don't know what is this purpose, disable for now...
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
@@ -326,9 +325,6 @@ export const LinkShortener: React.FC = () => {
         >
           Add New Link
         </Button>
-        {/* <Button onClick={togglePrevious}>
-          {showPrevious ? 'Hide Previous Events' : 'Show Previous Events'}
-        </Button> */}
       </div>
 
       <Tabs
@@ -353,6 +349,7 @@ export const LinkShortener: React.FC = () => {
                   <Table.Th>Shortened Link</Table.Th>
                   <Table.Th>Redirect URL</Table.Th>
                   <Table.Th>Access Groups</Table.Th>
+                  <Table.Th>Visit Count</Table.Th>
                   {/* <Table.Th>Created At</Table.Th>
                   <Table.Th>Updated At</Table.Th> */}
                 </Table.Tr>
@@ -370,6 +367,7 @@ export const LinkShortener: React.FC = () => {
                   <Table.Th>Shortened Link</Table.Th>
                   <Table.Th>Redirect URL</Table.Th>
                   <Table.Th>Access Groups</Table.Th>
+                  <Table.Th>Visit Count</Table.Th>
                   {/* <Table.Th>Created At</Table.Th>
                   <Table.Th>Updated At</Table.Th> */}
                 </Table.Tr>

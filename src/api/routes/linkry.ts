@@ -18,6 +18,7 @@ import {
   ScanCommand,
   GetItemCommand,
   TransactWriteItemsCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -25,6 +26,7 @@ import { randomUUID } from "crypto";
 import { access } from "fs";
 import { AuthError } from "@azure/msal-node";
 import { listGroupIDsByEmail, getEntraIdToken } from "../functions/entraId.js";
+import internal from "stream";
 
 const LINKRY_MAX_SLUG_LENGTH = 1000;
 
@@ -44,6 +46,7 @@ const createRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
   access: z.array(z.string()).min(1),
   redirect: z.string().url().min(1),
+  counter: z.number().optional(),
 });
 
 const deleteRequest = z.object({
@@ -57,6 +60,7 @@ const patchRequest = z.object({
   access: z.array(z.string()).min(1),
   redirect: z.string().url().min(1),
   isEdited: z.boolean(),
+  counter: z.number().optional(),
 });
 
 type LinkyCreateRequest = {
@@ -87,6 +91,56 @@ const dynamoClient = new DynamoDBClient({
   region: genericConfig.AwsRegion,
 });
 
+const counterIncrement = async (targetSlug: string) => {
+  const counterQueryParams = {
+    TableName: genericConfig.LinkryDynamoTableName,
+    KeyConditionExpression: "slug = :slug AND begins_with(access, :prefix)",
+    ExpressionAttributeValues: {
+      ":slug": { S: targetSlug },
+      ":prefix": { S: "OWNER#" },
+    },
+  };
+  let currentValue: number = 0;
+  let access: string;
+  try {
+    const command = new QueryCommand(counterQueryParams);
+    const queryResponse = await dynamoClient.send(command);
+    if (
+      !queryResponse ||
+      !queryResponse.Items ||
+      queryResponse.Items.length != 1
+    ) {
+      return;
+    }
+    currentValue = unmarshall(queryResponse.Items[0]).counter || 0; // or 0 so it adds a counter if it is not defined during post.
+    access = unmarshall(queryResponse.Items[0]).access;
+  } catch (e: unknown) {
+    console.error("Error querying : counter increment");
+    console.error(e);
+  }
+  const counterUpdateParams = {
+    TableName: genericConfig.LinkryDynamoTableName,
+    Key: {
+      slug: { S: targetSlug },
+      access: { S: access },
+    },
+    UpdateExpression: "SET #c = :newCounter",
+    ExpressionAttributeNames: {
+      "#c": "counter",
+    },
+    ExpressionAttributeValues: marshall({
+      ":newCounter": currentValue + 1,
+    }),
+  };
+  try {
+    const command = new UpdateItemCommand(counterUpdateParams);
+    await dynamoClient.send(command);
+  } catch (e: unknown) {
+    console.error("Update counter failed");
+    console.log(e);
+  }
+};
+
 const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.get<LinkrySlugOnlyRequest>("/redir/:slug", async (request, reply) => {
     const slug = request.params.slug;
@@ -111,6 +165,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           .status(404)
           .sendFile("404.html");
       }
+      counterIncrement(slug);
       return reply.redirect(unmarshall(result.Items[0]).redirect);
     } catch (e) {
       if (e instanceof BaseError) {
@@ -199,6 +254,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           access: "OWNER#" + request.username,
           updatedAtUtc: creationTime.toISOString(),
           createdAtUtc: creationTime.toISOString(),
+          counter: request.body.counter,
         };
         const OwnerPutCommand = {
           Put: {
@@ -303,6 +359,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             slug: ownerRecord.slug.S,
             access: accessGroupNames,
             redirect: ownerRecord.redirect.S,
+            counter: ownerRecord.counter.N,
           });
         } else {
           throw new AuthError("User does not own slug.");
@@ -321,7 +378,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     {
       preValidation: async (request, reply) => {
         await fastify.zodValidateBody(request, reply, createRequest);
-
+        console.log(request.body.counter);
         const routeAlreadyExists = fastify.hasRoute({
           url: `/${request.body.slug}`,
           method: "GET",
@@ -396,12 +453,16 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       5. Perform the update
 
       */
-
       if (request.body.isEdited) {
         //as the request was edited, make updates
         const { slug } = request.params;
         const newRedirect = request.body.redirect;
-        const newAccessGroups = request.body.access;
+        const newAccessGroups = request.body.access.map((accessGroup) => {
+          return fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
+            accessGroup,
+          ); //Converts frontend groupname to backend UUID
+        });
+        const newCounter = request.body.counter;
 
         //get all the owner records from the datbase
 
@@ -420,6 +481,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
           const items = queryResponse.Items || [];
 
+          //console.log(items)
+
           // Step 2: Identify the OWNER record and update its redirect URL
           const ownerRecord = items.find((item) =>
             item.access.S?.startsWith("OWNER#"),
@@ -436,9 +499,13 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 slug: ownerRecord.slug.S,
                 access: ownerRecord.access.S,
               }),
-              UpdateExpression: "SET redirect = :newRedirect",
+              UpdateExpression: "SET redirect = :newRedirect, #c = :newCounter",
+              ExpressionAttributeNames: {
+                "#c": "counter", //Counter patch for all clear...
+              },
               ExpressionAttributeValues: marshall({
                 ":newRedirect": newRedirect,
+                ":newCounter": newCounter,
               }),
             },
           };
@@ -777,11 +844,12 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               if (groupId != '99b6b87c-9550-4529-87c1-f40862ab7add') { 
                 return false;
               } */
-          return;
-          linkryGroupUUIDs.includes(groupId);
+          return linkryGroupUUIDs.includes(groupId);
         });
 
-        console.log(allUserGroupUUIDs);
+        //console.log(linkryGroupUUIDs);
+
+        //console.log(allUserGroupUUIDs);
 
         //console.log("userLinkrallUserGroups =" + userLinkrallUserGroups)
 

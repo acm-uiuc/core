@@ -8,6 +8,7 @@ import {
   Button,
   Loader,
   TextInputProps,
+  Group,
   getSize,
 } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
@@ -32,7 +33,7 @@ export function capitalizeFirstLetter(string: string) {
 
 const baseUrl = 'https://go.acm.illinois.edu'; //Move to config in future?
 const slugRegex = new RegExp('^(https?://)?[a-zA-Z0-9-._/]*$');
-const urlRegex = new RegExp('^https://[a-zA-Z0-9-._/?=]*$');
+const urlRegex = new RegExp('^https://[a-zA-Z0-9-._/?=&+:]*$');
 
 const baseBodySchema = z
   .object({
@@ -52,6 +53,7 @@ const baseBodySchema = z
       .optional(),
     createdAtUtc: z.number().optional(),
     updatedAtUtc: z.number().optional(),
+    counter: z.number().optional(),
   })
   .superRefine((data, ctx) => {
     if ((data.slug?.length || 0) * 2 >= (data.redirect?.length || 0)) {
@@ -117,6 +119,7 @@ export const ManageLinkPage: React.FC = () => {
           slug: linkData.slug,
           access: linkData.access,
           redirect: linkData.redirect,
+          counter: parseInt(linkData.counter),
         };
         form.setValues(formValues);
         setIsLoading(false);
@@ -137,6 +140,7 @@ export const ManageLinkPage: React.FC = () => {
       slug: '',
       access: [],
       redirect: '',
+      counter: 0,
     },
   });
 
@@ -192,15 +196,11 @@ export const ManageLinkPage: React.FC = () => {
   const handleFormChange = () => {
     setIsEdited(true); // Set the flag to true when any field is changed
   };
-  /*
-  const calculateRenderWidth = (str: string) => {
-    const span = document.createElement('button');
-    document.body.appendChild(span);
-    span.textContent = str;
-    const width = span.offsetWidth;
-    document.body.removeChild(span);
-    return width;
-  }; */ //VERY crude solution...
+
+  const handleReset = () => {
+    form.setFieldValue('counter', 0);
+    handleFormChange();
+  };
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_MANAGER] }}>
@@ -281,11 +281,22 @@ export const ManageLinkPage: React.FC = () => {
           <div
             style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '30px' }}
           >
+            {isEditing && (
+              <Group flex="auto">
+                <TextInput
+                  label={'Visit Count'}
+                  value={form.values.counter}
+                  disabled={true}
+                  style={{ width: '75px' }}
+                />
+                <Button onClick={handleReset}>Reset</Button>
+              </Group>
+            )}
             <Button
-              type="submit"
               w="125px"
               disabled={!isEdited}
               style={{ marginLeft: 'auto', display: 'block' }}
+              type="submit"
             >
               {isSubmitting ? (
                 <>
@@ -306,8 +317,8 @@ export const ManageLinkPage: React.FC = () => {
               onClick={handleFormClose} // Navigate back or close the form
               style={{ marginRight: '10px' }} // Add spacing between buttons
             >
-              <IconCancel size={16} style={{ marginLeft: '8px' }} />
               Close
+              <IconCancel size={16} style={{ marginLeft: '8px' }} />
             </Button>
           </div>
         </form>
