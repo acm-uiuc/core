@@ -92,13 +92,14 @@ export const ManageEventPage: React.FC = () => {
     getEvent();
   }, [eventId, isEditing]);
 
+  const startDate = new Date().setMinutes(0);
   const form = useForm<EventPostRequest>({
     validate: zodResolver(requestBodySchema),
     initialValues: {
       title: '',
       description: '',
-      start: new Date(),
-      end: new Date(new Date().valueOf() + 3.6e6), // 1 hr later
+      start: new Date(startDate),
+      end: new Date(startDate + 3.6e6), // 1 hr later
       location: 'ACM Room (Siebel CS 1104)',
       locationLink: 'https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8',
       host: 'ACM',
@@ -108,21 +109,17 @@ export const ManageEventPage: React.FC = () => {
       paidEventId: undefined,
     },
   });
-
-  const checkPaidEventId = async (paidEventId: string) => {
-    try {
-      const merchEndpoint = getRunEnvironmentConfig().ServiceConfiguration.merch.baseEndpoint;
-      const ticketEndpoint = getRunEnvironmentConfig().ServiceConfiguration.tickets.baseEndpoint;
-      const paidEventHref = paidEventId.startsWith('merch:')
-        ? `${merchEndpoint}/api/v1/merch/details?itemid=${paidEventId.slice(6)}`
-        : `${ticketEndpoint}/api/v1/event/details?eventid=${paidEventId}`;
-      const response = await api.get(paidEventHref);
-      return Boolean(response.status < 299 && response.status >= 200);
-    } catch (error) {
-      console.error('Error validating paid event ID:', error);
-      return false;
+  useEffect(() => {
+    if (form.values.end && form.values.end <= form.values.start) {
+      form.setFieldValue('end', new Date(form.values.start.getTime() + 3.6e6)); // 1 hour after the start date
     }
-  };
+  }, [form.values.start]);
+
+  useEffect(() => {
+    if (form.values.locationLink === '') {
+      form.setFieldValue('locationLink', undefined);
+    }
+  }, [form.values.locationLink]);
 
   const handleSubmit = async (values: EventPostRequest) => {
     try {
