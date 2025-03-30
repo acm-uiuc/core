@@ -79,8 +79,8 @@ export const ViewEventsPage: React.FC = () => {
             <Table.Td>
               {event.title} {event.featured ? <Badge color="green">Featured</Badge> : null}
             </Table.Td>
-            <Table.Td>{dayjs(event.start).format('MMM D YYYY hh:mm')}</Table.Td>
-            <Table.Td>{event.end ? dayjs(event.end).format('MMM D YYYY hh:mm') : 'N/A'}</Table.Td>
+            <Table.Td>{dayjs(event.start).format('MMM D YYYY hh:mm A')}</Table.Td>
+            <Table.Td>{event.end ? dayjs(event.end).format('MMM D YYYY hh:mm A') : 'N/A'}</Table.Td>
             <Table.Td>
               {event.locationLink ? (
                 <Anchor target="_blank" size="sm" href={event.locationLink}>
