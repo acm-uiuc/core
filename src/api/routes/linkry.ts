@@ -19,6 +19,7 @@ import {
   GetItemCommand,
   TransactWriteItemsCommand,
   UpdateItemCommand,
+  AttributeValue,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -34,6 +35,20 @@ type LinkrySlugOnlyRequest = {
   Params: { slug: string };
   Querystring: undefined;
   Body: undefined;
+};
+
+type OwnerRecord = {
+  slug: string;
+  redirect: string;
+  access: string;
+  updatedAtUtc: string;
+  createdAtUtc: string;
+  counter: number;
+};
+
+type AccessRecord = {
+  slug: string;
+  access: string;
 };
 
 const rawRequest = {
@@ -101,7 +116,7 @@ const counterIncrement = async (targetSlug: string) => {
     },
   };
   let currentValue: number = 0;
-  let access: string;
+  let access: string = "";
   try {
     const command = new QueryCommand(counterQueryParams);
     const queryResponse = await dynamoClient.send(command);
@@ -248,13 +263,13 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       try {
         //Add the OWNER record
         const creationTime: Date = new Date();
-        const ownerRecord = {
+        const ownerRecord: OwnerRecord = {
           slug: request.body.slug,
           redirect: request.body.redirect,
           access: "OWNER#" + request.username,
           updatedAtUtc: creationTime.toISOString(),
           createdAtUtc: creationTime.toISOString(),
-          counter: request.body.counter,
+          counter: request.body.counter || 0,
         };
         const OwnerPutCommand = {
           Put: {
@@ -271,8 +286,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           const groupUUID: string =
             fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
               accessGroup,
-            );
-          const groupRecord = {
+            ) || "";
+          const groupRecord: AccessRecord = {
             slug: request.body.slug,
             access: "GROUP#" + groupUUID,
           };
@@ -328,38 +343,45 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const queryResponse = await dynamoClient.send(queryCommand);
 
         const items: object[] = queryResponse.Items || [];
+        const unmarshalledItems: (OwnerRecord | AccessRecord)[] = [];
+        for (const item of items) {
+          unmarshalledItems.push(
+            unmarshall(item as { [key: string]: AttributeValue }) as
+              | OwnerRecord
+              | AccessRecord,
+          );
+        }
         if (items.length == 0)
           throw new DatabaseFetchError({ message: "Slug does not exist" });
 
-        //TODO: translate group UUIDs back to names
         //TODO: cache response;
 
-        const ownerRecord: object =
-          items.filter((item) => {
-            return item.access.S?.startsWith("OWNER#");
-          })[0] || {};
+        const ownerRecord: OwnerRecord = unmarshalledItems.filter(
+          (item): item is OwnerRecord => "redirect" in item,
+        )[0];
 
         const accessGroupNames: string[] = [];
-        for (const record of items) {
+        for (const record of unmarshalledItems) {
           if (record && record != ownerRecord) {
-            const accessGroupUUID: string = record.access.S?.split("GROUP#")[1];
+            const accessGroupUUID: string = record.access.split("GROUP#")[1];
             accessGroupNames.push(
               fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
                 accessGroupUUID,
-              ),
+              ) || "",
             );
           }
         }
 
+        //FIXME: User should also be able to edit if they have an access group
         if (
           ownerRecord &&
-          ownerRecord.access.S?.split("OWNER#")[1] == request.username
+          ownerRecord.access.split("OWNER#")[1] == request.username
         ) {
           reply.send({
-            slug: ownerRecord.slug.S,
+            slug: ownerRecord.slug,
             access: accessGroupNames,
-            redirect: ownerRecord.redirect.S,
-            counter: ownerRecord.counter.N,
+            redirect: ownerRecord.redirect,
+            counter: ownerRecord.counter,
           });
         } else {
           throw new AuthError("User does not own slug.");
@@ -457,11 +479,15 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         //as the request was edited, make updates
         const { slug } = request.params;
         const newRedirect = request.body.redirect;
-        const newAccessGroups = request.body.access.map((accessGroup) => {
-          return fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
-            accessGroup,
-          ); //Converts frontend groupname to backend UUID
-        });
+        const newAccessGroups: string[] = request.body.access.map(
+          (accessGroup) => {
+            return (
+              fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
+                accessGroup,
+              ) || ""
+            ); //Converts frontend groupname to backend UUID
+          },
+        );
         const newCounter = request.body.counter;
 
         //get all the owner records from the datbase
@@ -481,12 +507,23 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
           const items = queryResponse.Items || [];
 
+          const unmarshalledItems: (OwnerRecord | AccessRecord)[] = [];
+          for (const item of items) {
+            unmarshalledItems.push(
+              unmarshall(item as { [key: string]: AttributeValue }) as
+                | OwnerRecord
+                | AccessRecord,
+            );
+          }
+          if (items.length == 0)
+            throw new DatabaseFetchError({ message: "Slug does not exist" });
+
           //console.log(items)
 
           // Step 2: Identify the OWNER record and update its redirect URL
-          const ownerRecord = items.find((item) =>
-            item.access.S?.startsWith("OWNER#"),
-          );
+          const ownerRecord: OwnerRecord = unmarshalledItems.filter(
+            (item): item is OwnerRecord => "redirect" in item,
+          )[0];
 
           if (!ownerRecord) {
             throw new DatabaseFetchError({ message: "Owner record not found" });
@@ -496,8 +533,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             Update: {
               TableName: genericConfig.LinkryDynamoTableName,
               Key: marshall({
-                slug: ownerRecord.slug.S,
-                access: ownerRecord.access.S,
+                slug: ownerRecord.slug,
+                access: ownerRecord.access,
               }),
               UpdateExpression: "SET redirect = :newRedirect, #c = :newCounter",
               ExpressionAttributeNames: {
@@ -512,12 +549,12 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
           // Step 3: Identify and delete all GROUP records
 
-          const existingGroupRecords = items.filter((item) =>
-            item.access.S?.startsWith("GROUP#"),
+          const existingGroupRecords = unmarshalledItems.filter((item) =>
+            item.access.startsWith("GROUP#"),
           );
 
-          const existingGroups = existingGroupRecords.map((record) =>
-            record.access.S?.replace("GROUP#", ""),
+          const existingGroups: string[] = existingGroupRecords.map((record) =>
+            record.access.replace("GROUP#", ""),
           );
 
           // Step 4: Determine groups to add and delete
@@ -793,9 +830,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               unmarshall(item),
             );
 
-            const combinedAccessGroupUUIDs = groupItems?.map((item) =>
-              item.access.replace("GROUP#", ""),
-            );
+            const combinedAccessGroupUUIDs: string[] =
+              groupItems?.map((item) => item.access.replace("GROUP#", "")) ||
+              [];
 
             const combinedAccessGroupNames: string[] = [];
 
@@ -803,7 +840,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               combinedAccessGroupNames.push(
                 fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
                   accessGroupUUID,
-                ),
+                ) || "",
               );
             }
 
@@ -933,9 +970,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   unmarshall(item),
                 );
 
-                const combinedAccessGroupUUIDs = groupItems?.map((item) =>
-                  item.access.replace("GROUP#", ""),
-                );
+                const combinedAccessGroupUUIDs: string[] =
+                  groupItems?.map((item) =>
+                    item.access.replace("GROUP#", ""),
+                  ) || [];
 
                 const combinedAccessGroupNames: string[] = [];
 
@@ -943,7 +981,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   combinedAccessGroupNames.push(
                     fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
                       accessGroupUUID,
-                    ),
+                    ) || "",
                   );
                 }
 
