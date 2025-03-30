@@ -912,6 +912,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   unmarshall(item),
                 );
 
+                //console.log(ownerItems)
+
                 // Query for GROUP# records
                 const groupQueryCommand = new QueryCommand({
                   TableName: genericConfig.LinkryDynamoTableName,
