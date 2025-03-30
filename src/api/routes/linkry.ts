@@ -372,10 +372,32 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
 
-        //FIXME: User should also be able to edit if they have an access group
+        const entraIdToken = await getEntraIdToken(
+          fastify.environmentConfig.AadValidClientId,
+        );
+
+        if (!request.username) {
+          throw new Error("Username is undefined");
+        }
+
+        const allUserGroupUUIDs = await listGroupIDsByEmail(
+          entraIdToken,
+          request.username,
+        );
+
+        const linkryGroupUUIDs: string[] = [
+          ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
+        ] as string[];
+
+        const userLinkryGroups = allUserGroupUUIDs.filter((groupId) =>
+          linkryGroupUUIDs.includes(groupId),
+        );
+
+        //FIXME: User should also be able to edit if they have an access group - Done
         if (
-          ownerRecord &&
-          ownerRecord.access.split("OWNER#")[1] == request.username
+          (ownerRecord &&
+            ownerRecord.access.split("OWNER#")[1] == request.username) ||
+          userLinkryGroups.length > 0
         ) {
           reply.send({
             slug: ownerRecord.slug,
