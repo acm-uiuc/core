@@ -286,7 +286,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           const groupUUID: string =
             fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
               accessGroup,
-            ) || "";
+            ) as string;
           const groupRecord: AccessRecord = {
             slug: request.body.slug,
             access: "GROUP#" + groupUUID,
@@ -367,7 +367,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             accessGroupNames.push(
               fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
                 accessGroupUUID,
-              ) || "",
+              ) as string,
             );
           }
         }
@@ -481,11 +481,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const newRedirect = request.body.redirect;
         const newAccessGroups: string[] = request.body.access.map(
           (accessGroup) => {
-            return (
-              fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
-                accessGroup,
-              ) || ""
-            ); //Converts frontend groupname to backend UUID
+            return fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
+              accessGroup,
+            ) as string; //Converts frontend groupname to backend UUID
           },
         );
         const newCounter = request.body.counter;
@@ -682,7 +680,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         const desiredAccessValues: string[] = [
           ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
-        ];
+        ] as string[];
 
         //Use the below fastify environement to fetch group names
         //console.log(desiredAccessValues)
@@ -840,7 +838,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               combinedAccessGroupNames.push(
                 fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
                   accessGroupUUID,
-                ) || "",
+                ) as string,
               );
             }
 
@@ -873,7 +871,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         //console.log("********allUserGroupIds =" + allUserGroupUUIDs)
         const linkryGroupUUIDs: string[] = [
           ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
-        ];
+        ] as string[];
 
         const userLinkrallUserGroups = allUserGroupUUIDs.filter((groupId) => {
           //testing hijack
@@ -981,7 +979,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   combinedAccessGroupNames.push(
                     fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
                       accessGroupUUID,
-                    ) || "",
+                    ) as string,
                   );
                 }
 
