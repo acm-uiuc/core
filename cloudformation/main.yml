@@ -337,37 +337,37 @@ Resources:
           Projection:
             ProjectionType: ALL
 
-  # RoomRequestUpdatesTable:
-  #   Type: "AWS::DynamoDB::Table"
-  #   DeletionPolicy: "Retain"
-  #   UpdateReplacePolicy: "Retain"
-  #   Properties:
-  #     BillingMode: "PAY_PER_REQUEST"
-  #     TableName: infra-core-api-room-requests-status
-  #     DeletionProtectionEnabled: true
-  #     PointInTimeRecoverySpecification:
-  #       PointInTimeRecoveryEnabled: !If [IsProd, true, false]
-  #     AttributeDefinitions:
-  #       - AttributeName: requestId
-  #         AttributeType: S
-  #       - AttributeName: semesterId
-  #         AttributeType: S
-  #       - AttributeName: createdAt#status
-  #         AttributeType: S
-  #     KeySchema:
-  #       - AttributeName: requestId
-  #         KeyType: HASH
-  #       - AttributeName: createdAt#status
-  #         KeyType: RANGE
-  #     GlobalSecondaryIndexes:
-  #       - IndexName: SemesterId
-  #         KeySchema:
-  #           - AttributeName: semesterId
-  #             KeyType: HASH
-  #           - AttributeName: requestId
-  #             KeyType: RANGE
-  #         Projection:
-  #          ProjectionType: ALL
+  RoomRequestUpdatesTable:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: infra-core-api-room-requests-status
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
+      AttributeDefinitions:
+        - AttributeName: requestId
+          AttributeType: S
+        - AttributeName: semesterId
+          AttributeType: S
+        - AttributeName: createdAt#status
+          AttributeType: S
+      KeySchema:
+        - AttributeName: requestId
+          KeyType: HASH
+        - AttributeName: createdAt#status
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: SemesterId
+          KeySchema:
+            - AttributeName: semesterId
+              KeyType: HASH
+            - AttributeName: requestId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
 
 
 
