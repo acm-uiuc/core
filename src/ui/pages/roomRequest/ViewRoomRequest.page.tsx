@@ -1,18 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Title, Tabs, GridCol, Grid, Timeline, Text, Tooltip } from '@mantine/core';
+import { Container, Title, Grid, Timeline, Text, Tooltip } from '@mantine/core';
 import { AuthGuard } from '@ui/components/AuthGuard';
 import { AppRoles } from '@common/roles';
 import { useApi } from '@ui/util/api';
-import ExistingRoomRequests from './ExistingRoomRequests';
 import NewRoomRequest from './NewRoomRequest';
-import {
-  RoomRequestFormValues,
-  RoomRequestGetResponse,
-  RoomRequestStatus,
-} from '@common/types/roomRequest';
+import { RoomRequestGetResponse } from '@common/types/roomRequest';
 import { useParams } from 'react-router-dom';
-import { IconGitBranch } from '@tabler/icons-react';
-import { capitalizeFirstLetter } from '../events/ManageEvent.page';
 import { formatStatus, getStatusIcon } from './roomRequestUtils';
 import moment from 'moment-timezone';
 

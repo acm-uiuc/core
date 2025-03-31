@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { RoomRequestGetAllResponse } from '@common/types/roomRequest';
-import { Anchor, Loader, Table } from '@mantine/core';
+import { Loader, Table } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { formatStatus } from './roomRequestUtils';
 
