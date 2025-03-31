@@ -318,11 +318,20 @@ Resources:
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: !If [IsProd, true, false]
       AttributeDefinitions:
-        - AttributeName: id
+        - AttributeName: requestId
+          AttributeType: S
+        - AttributeName: userId
           AttributeType: S
       KeySchema:
-        - AttributeName: id
+        - AttributeName: requestId
           KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserIdIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
 
   IamGroupRolesTable:
     Type: "AWS::DynamoDB::Table"
