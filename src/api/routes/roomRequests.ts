@@ -8,7 +8,14 @@ import {
 } from "common/types/roomRequest.js";
 import { AppRoles } from "common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { randomUUID } from "crypto";
+import {
+  BaseError,
+  DatabaseInsertError,
+  InternalServerError,
+} from "common/errors/index.js";
+import { PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { genericConfig } from "common/config.js";
+import { marshall } from "@aws-sdk/util-dynamodb";
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -30,9 +37,31 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
     },
     async (request, reply) => {
-      const id = randomUUID().toString();
+      const requestId = request.id;
+      if (!request.username) {
+        throw new InternalServerError({
+          message: "Could not retrieve username.",
+        });
+      }
+      const body = { ...request.body, requestId, userId: request.username };
+      try {
+        await fastify.dynamoClient.send(
+          new PutItemCommand({
+            TableName: genericConfig.RoomRequestsTableName,
+            Item: marshall(body),
+          }),
+        );
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        request.log.error(e);
+        throw new DatabaseInsertError({
+          message: "Could not save room request.",
+        });
+      }
       reply.status(201).send({
-        id,
+        id: requestId,
         status: RoomRequestStatus.CREATED,
       });
     },

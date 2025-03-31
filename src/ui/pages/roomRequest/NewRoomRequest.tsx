@@ -562,7 +562,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             Back
           </Button>
         )}
-        {active !== numSteps && <Button onClick={nextStep}>Next step</Button>}
+        {active !== numSteps && (
+          <Button onClick={nextStep}>{active === numSteps - 1 ? 'Review' : 'Next'}</Button>
+        )}
         {active === numSteps && !disabled && (
           <Button onClick={handleSubmit} color="green">
             {isSubmitting ? (
