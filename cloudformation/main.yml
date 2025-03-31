@@ -324,8 +324,6 @@ Resources:
           AttributeType: S
         - AttributeName: semesterId
           AttributeType: S
-        - AttributeName: requestId
-          AttributeType: S
       KeySchema:
         - AttributeName: semesterId
           KeyType: HASH
