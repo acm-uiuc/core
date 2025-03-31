@@ -64,7 +64,11 @@ export const roomRequestStatusUpdate = z.object({
   notes: z.optional(z.string().min(1).max(1000))
 })
 
-export const roomRequestSchema = z.object({
+export const roomRequestBaseSchema = z.object({
+  host: z.enum(OrganizationList),
+  title: z.string().min(2, "Title must have at least 2 characters"),
+})
+export const roomRequestSchema = roomRequestBaseSchema.extend({
   host: z.enum(OrganizationList),
   semester: z.string().regex(/^(fa|sp|su|wi)\d{2}$/, "Invalid semester provided"),
   title: z.string().min(2, "Title must have at least 2 characters"),

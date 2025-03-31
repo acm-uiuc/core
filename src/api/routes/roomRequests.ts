@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
+  roomRequestBaseSchema,
   RoomRequestFormValues,
   roomRequestPostResponse,
   roomRequestSchema,
@@ -10,19 +11,81 @@ import { AppRoles } from "common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   BaseError,
+  DatabaseFetchError,
   DatabaseInsertError,
   InternalServerError,
 } from "common/errors/index.js";
-import { PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { PutItemCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "common/config.js";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { z } from "zod";
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
-    limit: 5,
+    limit: 20,
     duration: 30,
     rateLimitIdentifier: "roomRequests",
   });
+  fastify.get<{
+    Body: undefined;
+    Params: { semesterId: string };
+  }>(
+    "/:semesterId",
+    {
+      schema: {
+        response: {
+          200: zodToJsonSchema(
+            z.array(
+              roomRequestBaseSchema.extend({ requestId: z.string().uuid() }),
+            ),
+          ),
+        },
+      },
+      onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_CREATE]);
+      },
+    },
+    async (request, reply) => {
+      const semesterId = request.params.semesterId;
+      if (!request.username) {
+        throw new InternalServerError({
+          message: "Could not retrieve username.",
+        });
+      }
+      let command: QueryCommand;
+      if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
+        command = new QueryCommand({
+          TableName: genericConfig.RoomRequestsTableName,
+          KeyConditionExpression: "semesterId = :semesterValue",
+          ExpressionAttributeValues: {
+            ":semesterValue": { S: semesterId },
+          },
+        });
+      } else {
+        command = new QueryCommand({
+          TableName: genericConfig.RoomRequestsTableName,
+          KeyConditionExpression: "semesterId = :semesterValue",
+          FilterExpression: "begins_with(#hashKey, :username)",
+          ExpressionAttributeNames: {
+            "#hashKey": "userId#requestId",
+          },
+          ProjectionExpression: "requestId, host, title",
+          ExpressionAttributeValues: {
+            ":semesterValue": { S: semesterId },
+            ":username": { S: request.username },
+          },
+        });
+      }
+      const response = await fastify.dynamoClient.send(command);
+      if (!response.Items) {
+        throw new DatabaseFetchError({
+          message: "Could not get room requests.",
+        });
+      }
+      const items = response.Items.map((x) => unmarshall(x));
+      return reply.status(200).send(items);
+    },
+  );
   fastify.post<{ Body: RoomRequestFormValues }>(
     "/",
     {
