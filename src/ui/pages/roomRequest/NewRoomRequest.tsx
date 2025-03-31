@@ -131,13 +131,13 @@ const YesNoField: React.FC<YesNoFieldProps> = ({
 interface NewRoomRequestProps {
   createRoomRequest?: (payload: RoomRequestFormValues) => Promise<RoomRequestPostResponse>;
   initialValues?: RoomRequestFormValues;
-  disabled?: boolean;
+  viewOnly?: boolean;
 }
 
 const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   createRoomRequest,
   initialValues,
-  disabled,
+  viewOnly,
 }) => {
   const [active, setActive] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -147,7 +147,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   const semesterValues = semesterOptions.map((x) => x.value);
 
   const form = useForm<RoomRequestFormValues>({
-    enhanceGetInputProps: () => ({ readOnly: disabled }),
+    enhanceGetInputProps: () => ({ readOnly: viewOnly }),
     initialValues: initialValues || {
       host: '',
       title: '',
@@ -171,7 +171,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     },
 
     validate: (values) => {
-      if (disabled) {
+      if (viewOnly) {
         return {};
       }
       if (active === 0) {
@@ -279,7 +279,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   }, [form.values.locationType]);
 
   const handleSubmit = async () => {
-    if (disabled) {
+    if (viewOnly) {
       return;
     }
     const apiFormValues = { ...form.values };
@@ -563,7 +563,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             {...form.getInputProps('comments')}
           />
         </Stepper.Step>
-        {!disabled && (
+        {!viewOnly && (
           <Stepper.Completed>
             Click the Submit button to submit the following room request:
             <Code block mt="xl">
@@ -579,10 +579,10 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
           </Button>
         )}
         {active !== numSteps &&
-          (disabled && active === numSteps - 1 ? null : (
+          (viewOnly && active === numSteps - 1 ? null : (
             <Button onClick={nextStep}>{active === numSteps - 1 ? 'Review' : 'Next'}</Button>
           ))}
-        {active === numSteps && !disabled && (
+        {active === numSteps && !viewOnly && (
           <Button onClick={handleSubmit} color="green">
             {isSubmitting ? (
               <>

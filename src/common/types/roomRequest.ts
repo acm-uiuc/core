@@ -52,6 +52,7 @@ export const spaceTypeOptions = [
 
 export enum RoomRequestStatus {
   CREATED = "created",
+  MORE_INFORMATION_NEEDED = "more_information_needed",
   REJECTED_BY_ACM = "rejected_by_acm",
   SUBMITTED = "submitted",
   APPROVED = "approved",
