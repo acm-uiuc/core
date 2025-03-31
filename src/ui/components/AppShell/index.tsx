@@ -67,7 +67,7 @@ export const navItems = [
     validRoles: [AppRoles.STRIPE_LINK_CREATOR],
   },
   {
-    link: '/roomRequest',
+    link: '/roomRequests',
     name: 'Room Requests',
     icon: IconDoor,
     description: null,

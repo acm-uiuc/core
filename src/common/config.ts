@@ -39,6 +39,7 @@ export type GenericConfigType = {
   MerchStoreMetadataTableName: string;
   IAMTablePrefix: string;
   ProtectedEntraIDGroups: string[]; // these groups are too privileged to be modified via this portal and must be modified directly in Entra ID.
+  RoomRequestsTableName: string;
 };
 
 type EnvironmentConfigType = {
@@ -71,7 +72,8 @@ const genericConfig: GenericConfigType = {
   IAMTablePrefix: "infra-core-api-iam",
   ProtectedEntraIDGroups: [infraChairsGroupId, officersGroupId],
   MembershipTableName: "infra-core-api-membership-provisioning",
-  ExternalMembershipTableName: "infra-core-api-membership-external"
+  ExternalMembershipTableName: "infra-core-api-membership-external",
+  RoomRequestsTableName: "infra-core-api-room-requests"
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
