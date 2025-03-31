@@ -43,7 +43,13 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not retrieve username.",
         });
       }
-      const body = { ...request.body, requestId, userId: request.username };
+      const body = {
+        ...request.body,
+        requestId,
+        userId: request.username,
+        "userId#requestId": `${request.username}#${requestId}`,
+        semesterId: request.body.semester,
+      };
       try {
         await fastify.dynamoClient.send(
           new PutItemCommand({

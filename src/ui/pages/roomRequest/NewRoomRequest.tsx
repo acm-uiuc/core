@@ -22,6 +22,7 @@ import {
   spaceTypeOptions,
   RoomRequestFormValues,
   RoomRequestPostResponse,
+  getSemesters,
 } from '@common/types/roomRequest';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
@@ -142,6 +143,8 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const numSteps = 4;
   const navigate = useNavigate();
+  const semesterOptions = getSemesters();
+  const semesterValues = semesterOptions.map((x) => x.value);
 
   const form = useForm<RoomRequestFormValues>({
     enhanceGetInputProps: () => ({ disabled }),
@@ -149,6 +152,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
       host: '',
       title: '',
       theme: '',
+      semester: '',
       description: '',
       hostingMinors: undefined,
       locationType: 'in-person',
@@ -181,6 +185,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 ? null
                 : 'Your description is too long.'
               : 'At least 10 words are required.',
+          semester: semesterValues.includes(values.semester) ? null : 'Invalid semester selected.',
         };
       }
 
@@ -331,6 +336,14 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     <>
       <Stepper active={active}>
         <Stepper.Step label="Step 1" description="Basic Information">
+          <Select
+            label="Semester"
+            placeholder="Select event semester"
+            withAsterisk
+            searchable
+            data={semesterOptions}
+            {...form.getInputProps('semester')}
+          />
           <Select
             label="Event Host"
             placeholder="Select host organization"

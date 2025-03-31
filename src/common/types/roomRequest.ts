@@ -13,6 +13,33 @@ export const eventThemeOptions = [
   "Spirituality"
 ] as [string, ...string[]];
 
+export function getSemesters() {
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+
+  let semesters = [];
+  let currentSemester = '';
+
+  if (currentMonth >= 1 && currentMonth <= 5) {
+    currentSemester = 'Spring';
+  } else if (currentMonth >= 6 && currentMonth <= 12) {
+    currentSemester = 'Fall';
+  }
+
+  if (currentSemester === 'Spring') {
+    semesters.push({ value: `sp${currentYear.toString().slice(-2)}`, label: `Spring ${currentYear}` });
+    semesters.push({ value: `fa${currentYear.toString().slice(-2)}`, label: `Fall ${currentYear}` });
+    semesters.push({ value: `sp${(currentYear + 1).toString().slice(-2)}`, label: `Spring ${currentYear + 1}` });
+  } else if (currentSemester === 'Fall') {
+    semesters.push({ value: `fa${currentYear.toString().slice(-2)}`, label: `Fall ${currentYear}` });
+    semesters.push({ value: `sp${(currentYear + 1).toString().slice(-2)}`, label: `Spring ${currentYear + 1}` });
+    semesters.push({ value: `fa${(currentYear + 1).toString().slice(-2)}`, label: `Fall ${currentYear + 1}` });
+  }
+
+  return semesters;
+}
+
 export const spaceTypeOptions = [
   { value: "campus_classroom", label: "Campus Classroom" },
   { value: "campus_performance", label: "Campus Performance Space *" },
@@ -33,6 +60,7 @@ export enum RoomRequestStatus {
 
 export const roomRequestSchema = z.object({
   host: z.enum(OrganizationList),
+  semester: z.string().regex(/^(fa|sp|su|wi)\d{2}$/, "Invalid semester provided"),
   title: z.string().min(2, "Title must have at least 2 characters"),
   theme: z.enum(eventThemeOptions),
   description: z.string()
