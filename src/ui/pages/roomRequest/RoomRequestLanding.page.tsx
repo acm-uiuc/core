@@ -50,24 +50,24 @@ export const ManageRoomRequestsPage: React.FC = () => {
             <Tabs.Tab value="new_requests">New Request</Tabs.Tab>
           </Tabs.List>
 
-          <Select
-            label="Select Semester"
-            placeholder="Select semester to view room requests"
-            searchable
-            value={semester}
-            onChange={(val) => {
-              setIsLoading(true);
-              setSemester(val);
-              setIsLoading(false);
-            }}
-            data={semesterOptions}
-          />
-
           {isLoading ? (
             <Loader size={16} />
           ) : (
             <Tabs.Panel value="existing_requests">
-              <br />
+              <Select
+                label="Select Semester"
+                placeholder="Select semester to view room requests"
+                searchable
+                value={semester}
+                onChange={(val) => {
+                  setIsLoading(true);
+                  setSemester(val);
+                  setIsLoading(false);
+                }}
+                data={semesterOptions}
+                mt="sm"
+                mb="sm"
+              />
               {semester && (
                 <ExistingRoomRequests getRoomRequests={getRoomRequests} semester={semester} />
               )}
