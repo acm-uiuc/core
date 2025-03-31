@@ -13,6 +13,34 @@ export const eventThemeOptions = [
   "Spirituality"
 ] as [string, ...string[]];
 
+
+export function getPreviousSemesters() {
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+
+  let semesters = [];
+  let currentSemester = '';
+
+  if (currentMonth >= 1 && currentMonth <= 5) {
+    currentSemester = 'Spring';
+  } else if (currentMonth >= 6 && currentMonth <= 12) {
+    currentSemester = 'Fall';
+  }
+
+  if (currentSemester === 'Spring') {
+    semesters.push({ value: `fa${(currentYear - 1).toString().slice(-2)}`, label: `Fall ${currentYear - 1}` });
+    semesters.push({ value: `sp${(currentYear - 1).toString().slice(-2)}`, label: `Spring ${currentYear - 1}` });
+    semesters.push({ value: `fa${(currentYear - 2).toString().slice(-2)}`, label: `Fall ${currentYear - 2}` });
+  } else if (currentSemester === 'Fall') {
+    semesters.push({ value: `sp${currentYear.toString().slice(-2)}`, label: `Spring ${currentYear}` });
+    semesters.push({ value: `fa${(currentYear - 1).toString().slice(-2)}`, label: `Fall ${currentYear - 1}` });
+    semesters.push({ value: `sp${(currentYear - 1).toString().slice(-2)}`, label: `Spring ${currentYear - 1}` });
+  }
+
+  return semesters.reverse();
+}
+
 export function getSemesters() {
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();

@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { Container, Title, Tabs } from '@mantine/core';
+import React, { useEffect, useState } from 'react';
+import { Container, Title, Tabs, Select, Loader } from '@mantine/core';
 import { AuthGuard } from '@ui/components/AuthGuard';
 import { AppRoles } from '@common/roles';
 import { useApi } from '@ui/util/api';
 import ExistingRoomRequests from './ExistingRoomRequests';
 import NewRoomRequest from './NewRoomRequest';
 import {
+  getPreviousSemesters,
+  getSemesters,
   RoomRequestFormValues,
   RoomRequestGetAllResponse,
   RoomRequestPostResponse,
@@ -13,8 +15,10 @@ import {
 
 export const ManageRoomRequestsPage: React.FC = () => {
   const api = useApi('core');
-  const [semester, setSemester] = useState<string>('sp25');
-
+  const [semester, setSemester] = useState<string | null>(null); // TODO: Create a selector for this
+  const [isLoading, setIsLoading] = useState(false);
+  const nextSemesters = getSemesters();
+  const semesterOptions = [...getPreviousSemesters(), ...nextSemesters];
   const createRoomRequest = async (
     payload: RoomRequestFormValues
   ): Promise<RoomRequestPostResponse> => {
@@ -27,6 +31,9 @@ export const ManageRoomRequestsPage: React.FC = () => {
     return response.data;
   };
 
+  useEffect(() => {
+    setSemester(nextSemesters[0].value);
+  }, []);
   return (
     <AuthGuard
       resourceDef={{
@@ -43,10 +50,29 @@ export const ManageRoomRequestsPage: React.FC = () => {
             <Tabs.Tab value="new_requests">New Request</Tabs.Tab>
           </Tabs.List>
 
-          <Tabs.Panel value="existing_requests">
-            <br />
-            <ExistingRoomRequests getRoomRequests={getRoomRequests} semester={semester} />
-          </Tabs.Panel>
+          <Select
+            label="Select Semester"
+            placeholder="Select semester to view room requests"
+            searchable
+            value={semester}
+            onChange={(val) => {
+              setIsLoading(true);
+              setSemester(val);
+              setIsLoading(false);
+            }}
+            data={semesterOptions}
+          />
+
+          {isLoading ? (
+            <Loader size={16} />
+          ) : (
+            <Tabs.Panel value="existing_requests">
+              <br />
+              {semester && (
+                <ExistingRoomRequests getRoomRequests={getRoomRequests} semester={semester} />
+              )}
+            </Tabs.Panel>
+          )}
 
           <Tabs.Panel value="new_requests">
             <br />
