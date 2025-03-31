@@ -129,16 +129,23 @@ const YesNoField: React.FC<YesNoFieldProps> = ({
 
 interface NewRoomRequestProps {
   createRoomRequest: (payload: RoomRequestFormValues) => Promise<RoomRequestPostResponse>;
+  initialValues?: RoomRequestFormValues;
+  disabled?: boolean;
 }
 
-const NewRoomRequest: React.FC<NewRoomRequestProps> = ({ createRoomRequest }) => {
+const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
+  createRoomRequest,
+  initialValues,
+  disabled,
+}) => {
   const [active, setActive] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const numSteps = 4;
   const navigate = useNavigate();
 
   const form = useForm<RoomRequestFormValues>({
-    initialValues: {
+    enhanceGetInputProps: () => ({ disabled }),
+    initialValues: initialValues || {
       host: '',
       title: '',
       theme: '',
@@ -160,6 +167,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({ createRoomRequest }) =>
     },
 
     validate: (values) => {
+      if (disabled) {
+        return {};
+      }
       if (active === 0) {
         return {
           host: OrganizationList.includes(values.host) ? null : 'Invalid organization selected.',
@@ -264,6 +274,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({ createRoomRequest }) =>
   }, [form.values.locationType]);
 
   const handleSubmit = async () => {
+    if (disabled) {
+      return;
+    }
     const apiFormValues = { ...form.values };
     Object.keys(apiFormValues).forEach((key) => {
       const value = apiFormValues[key as keyof RoomRequestFormValues];
@@ -534,15 +547,15 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({ createRoomRequest }) =>
             {...form.getInputProps('comments')}
           />
         </Stepper.Step>
-
-        <Stepper.Completed>
-          Click the Submit button to submit the following room request:
-          <Code block mt="xl">
-            {JSON.stringify(form.values, null, 2)}
-          </Code>
-        </Stepper.Completed>
+        {!disabled && (
+          <Stepper.Completed>
+            Click the Submit button to submit the following room request:
+            <Code block mt="xl">
+              {JSON.stringify(form.values, null, 2)}
+            </Code>
+          </Stepper.Completed>
+        )}
       </Stepper>
-
       <Group justify="flex-end" mt="xl">
         {active !== 0 && (
           <Button variant="default" onClick={prevStep}>
@@ -550,7 +563,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({ createRoomRequest }) =>
           </Button>
         )}
         {active !== numSteps && <Button onClick={nextStep}>Next step</Button>}
-        {active === numSteps && (
+        {active === numSteps && !disabled && (
           <Button onClick={handleSubmit} color="green">
             {isSubmitting ? (
               <>
