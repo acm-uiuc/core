@@ -307,6 +307,39 @@ Resources:
         - AttributeName: netid_list
           KeyType: HASH
 
+  RoomRequestsTable:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: infra-core-api-room-requests
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
+      AttributeDefinitions:
+        - AttributeName: userId#requestId
+          AttributeType: S
+        - AttributeName: requestId
+          AttributeType: S
+        - AttributeName: semesterId
+          AttributeType: S
+        - AttributeName: requestId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: semesterId
+          KeyType: HASH
+        - AttributeName: userId#requestId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: RequestIdIndex
+          KeySchema:
+            - AttributeName: requestId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+
   IamGroupRolesTable:
     Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
