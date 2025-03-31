@@ -6,6 +6,8 @@ import {
   roomRequestPostResponse,
   roomRequestSchema,
   RoomRequestStatus,
+  RoomRequestStatusUpdatePostBody,
+  roomRequestStatusUpdateRequest,
 } from "common/types/roomRequest.js";
 import { AppRoles } from "common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -26,6 +28,51 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     duration: 30,
     rateLimitIdentifier: "roomRequests",
   });
+  fastify.post<{
+    Body: RoomRequestStatusUpdatePostBody;
+    Params: { requestId: string; semesterId: string };
+  }>(
+    "/:semesterId/:requestId/status",
+    {
+      onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_UPDATE]);
+      },
+      preValidation: async (request, reply) => {
+        await fastify.zodValidateBody(
+          request,
+          reply,
+          roomRequestStatusUpdateRequest,
+        );
+      },
+    },
+    async (request, reply) => {
+      const requestId = request.params.requestId;
+      const semesterId = request.params.semesterId;
+      const createdAt = new Date().toISOString();
+      const command = new PutItemCommand({
+        TableName: genericConfig.RoomRequestsStatusTableName,
+        Item: marshall({
+          requestId,
+          semesterId,
+          "createdAt#status": `${createdAt}#${request.body.status}`,
+          createdBy: request.username,
+          ...request.body,
+        }),
+      });
+      try {
+        await fastify.dynamoClient.send(command);
+      } catch (e) {
+        request.log.error(e);
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        throw new DatabaseInsertError({
+          message: "Could not save status update.",
+        });
+      }
+      return reply.status(201);
+    },
+  );
   fastify.get<{
     Body: undefined;
     Params: { semesterId: string };

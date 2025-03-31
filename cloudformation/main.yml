@@ -352,12 +352,12 @@ Resources:
           AttributeType: S
         - AttributeName: semesterId
           AttributeType: S
-        - AttributeName: createdAt
+        - AttributeName: createdAt#status
           AttributeType: S
       KeySchema:
         - AttributeName: requestId
           KeyType: HASH
-        - AttributeName: createdAt
+        - AttributeName: createdAt#status
           KeyType: RANGE
       GlobalSecondaryIndexes:
         - IndexName: SemesterId

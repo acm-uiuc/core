@@ -40,6 +40,7 @@ export type GenericConfigType = {
   IAMTablePrefix: string;
   ProtectedEntraIDGroups: string[]; // these groups are too privileged to be modified via this portal and must be modified directly in Entra ID.
   RoomRequestsTableName: string;
+  RoomRequestsStatusTableName: string;
 };
 
 type EnvironmentConfigType = {
@@ -73,7 +74,8 @@ const genericConfig: GenericConfigType = {
   ProtectedEntraIDGroups: [infraChairsGroupId, officersGroupId],
   MembershipTableName: "infra-core-api-membership-provisioning",
   ExternalMembershipTableName: "infra-core-api-membership-external",
-  RoomRequestsTableName: "infra-core-api-room-requests"
+  RoomRequestsTableName: "infra-core-api-room-requests",
+  RoomRequestsStatusTableName: "infra-core-api-room-requests-status"
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {

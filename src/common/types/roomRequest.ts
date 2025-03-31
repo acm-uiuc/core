@@ -57,11 +57,15 @@ export enum RoomRequestStatus {
   APPROVED = "approved",
   REJECTED_BY_UIUC = "rejected_by_uiuc"
 }
-export const roomRequestStatusUpdate = z.object({
+
+export const roomRequestStatusUpdateRequest = z.object({
   status: z.nativeEnum(RoomRequestStatus),
+  notes: z.optional(z.string().min(1).max(1000))
+})
+
+export const roomRequestStatusUpdate = roomRequestStatusUpdateRequest.extend({
   createdAt: z.string().datetime(),
   createdBy: z.string().email(),
-  notes: z.optional(z.string().min(1).max(1000))
 })
 
 export const roomRequestBaseSchema = z.object({
@@ -112,3 +116,5 @@ export type RoomRequestPostResponse = z.infer<typeof roomRequestPostResponse>;
 export type RoomRequestStatusUpdate = z.infer<typeof roomRequestStatusUpdate>;
 
 export type RoomRequestGetResponse = z.infer<typeof roomRequestGetResponse>;
+
+export type RoomRequestStatusUpdatePostBody = z.infer<typeof roomRequestStatusUpdateRequest>;
