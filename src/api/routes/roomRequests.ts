@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
+  roomGetResponse,
   roomRequestBaseSchema,
   RoomRequestFormValues,
   roomRequestPostResponse,
@@ -17,7 +18,11 @@ import {
   DatabaseInsertError,
   InternalServerError,
 } from "common/errors/index.js";
-import { PutItemCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
+import {
+  PutItemCommand,
+  QueryCommand,
+  TransactWriteItemsCommand,
+} from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { z } from "zod";
@@ -81,11 +86,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     {
       schema: {
         response: {
-          200: zodToJsonSchema(
-            z.array(
-              roomRequestBaseSchema.extend({ requestId: z.string().uuid() }),
-            ),
-          ),
+          200: zodToJsonSchema(roomGetResponse),
         },
       },
       onRequest: async (request, reply) => {
@@ -116,7 +117,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ExpressionAttributeNames: {
             "#hashKey": "userId#requestId",
           },
-          ProjectionExpression: "requestId, host, title",
+          ProjectionExpression: "requestId, host, title, semester",
           ExpressionAttributeValues: {
             ":semesterValue": { S: semesterId },
             ":username": { S: request.username },
@@ -129,8 +130,49 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not get room requests.",
         });
       }
-      const items = response.Items.map((x) => unmarshall(x));
-      return reply.status(200).send(items);
+      const items = response.Items.map((x) => {
+        const item = unmarshall(x) as {
+          host: string;
+          title: string;
+          requestId: string;
+          status: string;
+        };
+        const statusPromise = fastify.dynamoClient.send(
+          new QueryCommand({
+            TableName: genericConfig.RoomRequestsStatusTableName,
+            KeyConditionExpression: "requestId = :requestId",
+            ExpressionAttributeValues: {
+              ":requestId": { S: item.requestId },
+            },
+            ProjectionExpression: "#status",
+            ExpressionAttributeNames: {
+              "#status": "status",
+            },
+            ScanIndexForward: false,
+            Limit: 1,
+          }),
+        );
+
+        return statusPromise.then((statusResponse) => {
+          if (
+            !statusResponse ||
+            !statusResponse.Items ||
+            statusResponse.Items.length == 0
+          ) {
+            return "unknown";
+          }
+          const statuses = statusResponse.Items.map((s) => unmarshall(s));
+          const latestStatus = statuses.length > 0 ? statuses[0].status : null;
+          return {
+            ...item,
+            status: latestStatus,
+          };
+        });
+      });
+
+      const itemsWithStatus = await Promise.all(items);
+
+      return reply.status(200).send(itemsWithStatus);
     },
   );
   fastify.post<{ Body: RoomRequestFormValues }>(
@@ -161,12 +203,31 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         semesterId: request.body.semester,
       };
       try {
-        await fastify.dynamoClient.send(
-          new PutItemCommand({
-            TableName: genericConfig.RoomRequestsTableName,
-            Item: marshall(body),
-          }),
-        );
+        const createdAt = new Date().toISOString();
+        const transactionCommand = new TransactWriteItemsCommand({
+          TransactItems: [
+            {
+              Put: {
+                TableName: genericConfig.RoomRequestsTableName,
+                Item: marshall(body),
+              },
+            },
+            {
+              Put: {
+                TableName: genericConfig.RoomRequestsStatusTableName,
+                Item: marshall({
+                  requestId,
+                  semesterId: request.body.semester,
+                  "createdAt#status": `${createdAt}#${RoomRequestStatus.CREATED}`,
+                  createdBy: request.username,
+                  status: RoomRequestStatus.CREATED,
+                  notes: "This request was created by the user.",
+                }),
+              },
+            },
+          ],
+        });
+        await fastify.dynamoClient.send(transactionCommand);
       } catch (e) {
         if (e instanceof BaseError) {
           throw e;
@@ -180,6 +241,100 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         id: requestId,
         status: RoomRequestStatus.CREATED,
       });
+    },
+  );
+  fastify.get<{
+    Body: undefined;
+    Params: { requestId: string; semesterId: string };
+  }>(
+    "/:semesterId/:requestId",
+    {
+      onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_CREATE]);
+      },
+    },
+    async (request, reply) => {
+      const requestId = request.params.requestId;
+      const semesterId = request.params.semesterId;
+      let command;
+      if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
+        command = new QueryCommand({
+          TableName: genericConfig.RoomRequestsTableName,
+          IndexName: "RequestIdIndex",
+          KeyConditionExpression: "requestId = :requestId",
+          FilterExpression: "semesterId = :semesterId",
+          ExpressionAttributeValues: {
+            ":requestId": { S: requestId },
+            ":semesterId": { S: semesterId },
+          },
+          Limit: 1,
+        });
+      } else {
+        command = new QueryCommand({
+          TableName: genericConfig.RoomRequestsTableName,
+          KeyConditionExpression:
+            "semesterId = :semesterId AND #userIdRequestId = :userRequestId",
+          ExpressionAttributeValues: {
+            ":userRequestId": { S: `${request.username}#${requestId}` },
+            ":semesterId": { S: semesterId },
+          },
+          ExpressionAttributeNames: {
+            "#userIdRequestId": "userId#requestId",
+          },
+          Limit: 1,
+        });
+      }
+      try {
+        const resp = await fastify.dynamoClient.send(command);
+        if (!resp.Items || resp.Count != 1) {
+          throw new DatabaseFetchError({
+            message: "Recieved no response.",
+          });
+        }
+        // this isn't atomic, but that's fine - a little inconsistency on this isn't a problem.
+        try {
+          const statusesResponse = await fastify.dynamoClient.send(
+            new QueryCommand({
+              TableName: genericConfig.RoomRequestsStatusTableName,
+              KeyConditionExpression: "requestId = :requestId",
+              ExpressionAttributeValues: {
+                ":requestId": { S: requestId },
+              },
+              ProjectionExpression: "#createdAt,#notes,#createdBy",
+              ExpressionAttributeNames: {
+                "#createdBy": "createdBy",
+                "#createdAt": "createdAt#status",
+                "#notes": "notes",
+              },
+            }),
+          );
+          const updates = statusesResponse.Items?.map((x) => {
+            const unmarshalled = unmarshall(x);
+            return {
+              createdBy: unmarshalled["createdBy"],
+              createdAt: unmarshalled["createdAt#status"].split("#")[0],
+              status: unmarshalled["createdAt#status"].split("#")[1],
+              notes: unmarshalled["notes"],
+            };
+          });
+          return reply
+            .status(200)
+            .send({ data: unmarshall(resp.Items[0]), updates });
+        } catch (e) {
+          request.log.error(e);
+          throw new DatabaseFetchError({
+            message: "Could not get request status.",
+          });
+        }
+      } catch (e) {
+        request.log.error(e);
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        throw new DatabaseInsertError({
+          message: "Could not find by ID.",
+        });
+      }
     },
   );
 };

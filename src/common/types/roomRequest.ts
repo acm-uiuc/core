@@ -71,11 +71,9 @@ export const roomRequestStatusUpdate = roomRequestStatusUpdateRequest.extend({
 export const roomRequestBaseSchema = z.object({
   host: z.enum(OrganizationList),
   title: z.string().min(2, "Title must have at least 2 characters"),
+  semester: z.string().regex(/^(fa|sp|su|wi)\d{2}$/, "Invalid semester provided"),
 })
 export const roomRequestSchema = roomRequestBaseSchema.extend({
-  host: z.enum(OrganizationList),
-  semester: z.string().regex(/^(fa|sp|su|wi)\d{2}$/, "Invalid semester provided"),
-  title: z.string().min(2, "Title must have at least 2 characters"),
   theme: z.enum(eventThemeOptions),
   description: z.string()
     .min(10, "Description must have at least 10 words")
@@ -108,7 +106,7 @@ export const roomRequestPostResponse = z.object({
 
 export const roomRequestGetResponse = z.object({
   data: roomRequestSchema,
-  statusUpdates: z.array(roomRequestStatusUpdate),
+  updates: z.array(roomRequestStatusUpdate),
 })
 
 export type RoomRequestPostResponse = z.infer<typeof roomRequestPostResponse>;
@@ -118,3 +116,9 @@ export type RoomRequestStatusUpdate = z.infer<typeof roomRequestStatusUpdate>;
 export type RoomRequestGetResponse = z.infer<typeof roomRequestGetResponse>;
 
 export type RoomRequestStatusUpdatePostBody = z.infer<typeof roomRequestStatusUpdateRequest>;
+
+export const roomGetResponse = z.array(
+  roomRequestBaseSchema.extend({ requestId: z.string().uuid(), status: z.nativeEnum(RoomRequestStatus) }),
+);
+
+export type RoomRequestGetAllResponse = z.infer<typeof roomGetResponse>;

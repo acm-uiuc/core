@@ -129,7 +129,7 @@ const YesNoField: React.FC<YesNoFieldProps> = ({
 };
 
 interface NewRoomRequestProps {
-  createRoomRequest: (payload: RoomRequestFormValues) => Promise<RoomRequestPostResponse>;
+  createRoomRequest?: (payload: RoomRequestFormValues) => Promise<RoomRequestPostResponse>;
   initialValues?: RoomRequestFormValues;
   disabled?: boolean;
 }
@@ -147,7 +147,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   const semesterValues = semesterOptions.map((x) => x.value);
 
   const form = useForm<RoomRequestFormValues>({
-    enhanceGetInputProps: () => ({ disabled }),
+    enhanceGetInputProps: () => ({ readOnly: disabled }),
     initialValues: initialValues || {
       host: '',
       title: '',
@@ -290,6 +290,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
       }
     });
     try {
+      if (!createRoomRequest) {
+        return;
+      }
       setIsSubmitting(true);
       const response = await createRoomRequest(apiFormValues);
       notifications.show({
@@ -575,9 +578,10 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             Back
           </Button>
         )}
-        {active !== numSteps && (
-          <Button onClick={nextStep}>{active === numSteps - 1 ? 'Review' : 'Next'}</Button>
-        )}
+        {active !== numSteps &&
+          (disabled && active === numSteps - 1 ? null : (
+            <Button onClick={nextStep}>{active === numSteps - 1 ? 'Review' : 'Next'}</Button>
+          ))}
         {active === numSteps && !disabled && (
           <Button onClick={handleSubmit} color="green">
             {isSubmitting ? (
