@@ -152,7 +152,9 @@ export const ViewRoomRequest: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <Text size="sm">No status updates can be made at this time.</Text>
+                    <Text size="sm">
+                      This request has been finalized. No status updates can be made at this time.
+                    </Text>
                   </>
                 )}
               </>
