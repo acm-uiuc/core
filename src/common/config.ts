@@ -138,4 +138,22 @@ const roleArns = {
 
 export const EVENT_CACHED_DURATION = 120;
 
-export { genericConfig, environmentConfig, roleArns };
+type NotificationRecipientsType = {
+  [env in RunEnvironment]: {
+    OfficerBoard: string;
+    InfraChairs: string;
+  };
+};
+
+const notificationRecipients: NotificationRecipientsType = {
+  dev: {
+    OfficerBoard: 'infra@acm.illinois.edu',
+    InfraChairs: 'infra@acm.illinois.edu',
+  },
+  prod: {
+    OfficerBoard: 'officers@acm.illinois.edu',
+    InfraChairs: 'infra@acm.illinois.edu',
+  }
+}
+
+export { genericConfig, environmentConfig, roleArns, notificationRecipients };

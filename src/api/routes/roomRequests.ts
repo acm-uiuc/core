@@ -23,9 +23,11 @@ import {
   QueryCommand,
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "common/config.js";
+import { genericConfig, notificationRecipients } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { z } from "zod";
+import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -241,6 +243,38 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         id: requestId,
         status: RoomRequestStatus.CREATED,
       });
+      const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> = {
+        function: AvailableSQSFunctions.EmailNotifications,
+        metadata: {
+          initiator: request.username,
+          reqId: request.id,
+        },
+        payload: {
+          to: [notificationRecipients[fastify.runEnvironment].OfficerBoard],
+          subject: "A new room request has been created",
+          content: `${request.username} created a room reservation request. Please log into the ACM management portal for more information.\n\n\nACM @ UIUC Core`,
+        },
+      };
+      if (!fastify.sqsClient) {
+        fastify.sqsClient = new SQSClient({
+          region: genericConfig.AwsRegion,
+        });
+      }
+      const result = await fastify.sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+          MessageBody: JSON.stringify(sqsPayload),
+        }),
+      );
+      if (!result.MessageId) {
+        request.log.error(result);
+        throw new InternalServerError({
+          message: "Could not add room reservation email to queue.",
+        });
+      }
+      request.log.info(
+        `Queued room reservation email to SQS with message ID ${result.MessageId}`,
+      );
     },
   );
   fastify.get<{
