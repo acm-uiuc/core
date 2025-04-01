@@ -77,7 +77,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not save status update.",
         });
       }
-      return reply.status(201);
+      return reply.status(201).send();
     },
   );
   fastify.get<{

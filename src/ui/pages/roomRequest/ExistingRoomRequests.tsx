@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { RoomRequestGetAllResponse } from '@common/types/roomRequest';
-import { Loader, Table } from '@mantine/core';
+import { Badge, Loader, Table } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
-import { formatStatus } from './roomRequestUtils';
+import { formatStatus, getStatusColor } from './roomRequestUtils';
 
 interface ExistingRoomRequestsProps {
   getRoomRequests: (semester: string) => Promise<RoomRequestGetAllResponse>;
@@ -43,7 +43,9 @@ const ExistingRoomRequests: React.FC<ExistingRoomRequestsProps> = ({
                     {item.title}
                   </Table.Td>
                   <Table.Td>{item.host}</Table.Td>
-                  <Table.Td>{formatStatus(item.status)}</Table.Td>
+                  <Table.Td>
+                    <Badge color={getStatusColor(item.status)}>{formatStatus(item.status)}</Badge>
+                  </Table.Td>
                 </Table.Tr>
               );
             })}

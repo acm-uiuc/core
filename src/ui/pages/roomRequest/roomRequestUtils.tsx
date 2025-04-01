@@ -29,5 +29,24 @@ export const formatStatus = (status: RoomRequestStatus) => {
   if (status === RoomRequestStatus.SUBMITTED) {
     return 'Submitted to UIUC';
   }
-  return capitalizeFirstLetter(status).replaceAll('_', ' ').replaceAll('uiuc', 'UIUC');
+  return capitalizeFirstLetter(status)
+    .replaceAll('_', ' ')
+    .replaceAll('uiuc', 'UIUC')
+    .replaceAll('acm', 'ACM');
+};
+
+export const getStatusColor = (status: RoomRequestStatus) => {
+  switch (status) {
+    case RoomRequestStatus.APPROVED:
+      return 'green';
+    case RoomRequestStatus.REJECTED_BY_UIUC:
+    case RoomRequestStatus.REJECTED_BY_ACM:
+      return 'red';
+    case RoomRequestStatus.SUBMITTED:
+      return 'orange';
+    case RoomRequestStatus.MORE_INFORMATION_NEEDED:
+      return 'yellow';
+    default:
+      return 'black';
+  }
 };
