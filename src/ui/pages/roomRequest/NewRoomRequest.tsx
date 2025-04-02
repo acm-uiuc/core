@@ -14,8 +14,10 @@ import {
   Paper,
   Text,
   Loader,
+  Checkbox,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
+import { DateInput, DateTimePicker } from '@mantine/dates';
 import { OrganizationList } from '@common/orgs';
 import {
   eventThemeOptions,
@@ -23,6 +25,8 @@ import {
   RoomRequestFormValues,
   RoomRequestPostResponse,
   getSemesters,
+  roomRequestSchema,
+  specificRoomSetupRooms,
 } from '@common/types/roomRequest';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
@@ -113,7 +117,7 @@ const YesNoField: React.FC<YesNoFieldProps> = ({
         if (val === 'yes') {
           form.setFieldValue(field, true);
         } else if (val === 'no') {
-          form.setFieldValue(field, null);
+          form.setFieldValue(field, false);
         } else {
           form.setFieldValue(field, undefined);
         }
@@ -134,6 +138,12 @@ interface NewRoomRequestProps {
   viewOnly?: boolean;
 }
 
+const recurrencePatternOptions = [
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'biweekly', label: 'Bi-weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
+
 const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   createRoomRequest,
   initialValues,
@@ -146,6 +156,12 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   const semesterOptions = getSemesters();
   const semesterValues = semesterOptions.map((x) => x.value);
 
+  // Initialize with today's date and times
+  let startingDate = new Date();
+  startingDate = new Date(startingDate.setMinutes(0));
+  startingDate = new Date(startingDate.setDate(startingDate.getDate() + 1));
+  const oneHourAfterStarting = new Date(startingDate.getTime() + 60 * 60 * 1000);
+
   const form = useForm<RoomRequestFormValues>({
     enhanceGetInputProps: () => ({ readOnly: viewOnly }),
     initialValues: initialValues || {
@@ -154,6 +170,12 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
       theme: '',
       semester: '',
       description: '',
+      eventStart: startingDate,
+      eventEnd: oneHourAfterStarting,
+      isRecurring: false,
+      recurrencePattern: undefined,
+      recurrenceEndDate: undefined,
+      setupNeeded: false,
       hostingMinors: undefined,
       locationType: 'in-person',
       spaceType: '',
@@ -171,94 +193,76 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     },
 
     validate: (values) => {
+      // Get all validation errors from zod, which returns ReactNode
+      const allErrors: Record<string, React.ReactNode> = zodResolver(roomRequestSchema)(values);
+
+      // If in view mode, return no errors
       if (viewOnly) {
         return {};
       }
-      if (active === 0) {
-        return {
-          host: OrganizationList.includes(values.host) ? null : 'Invalid organization selected.',
-          title: values.title.length > 1 ? null : 'Title cannot be blank.',
-          theme: eventThemeOptions.includes(values.theme) ? null : 'Invalid theme selected.',
-          description:
-            values.description.split(' ').length >= 10
-              ? values.description.length <= 1000
-                ? null
-                : 'Your description is too long.'
-              : 'At least 10 words are required.',
-          semester: semesterValues.includes(values.semester) ? null : 'Invalid semester selected.',
-        };
+
+      // Define which fields belong to each step
+      const step0Fields = [
+        'host',
+        'title',
+        'theme',
+        'semester',
+        'description',
+        'eventStart',
+        'eventEnd',
+        'isRecurring',
+        'recurrencePattern',
+        'recurrenceEndDate',
+        'setupNeeded',
+        'setupMinutesBefore',
+      ];
+
+      const step1Fields = [
+        'locationType',
+        'hostingMinors',
+        'onCampusPartners',
+        'offCampusPartners',
+        'nonIllinoisSpeaker',
+        'nonIllinoisAttendees',
+      ];
+
+      const step2Fields = [
+        'spaceType',
+        'specificRoom',
+        'estimatedAttendees',
+        'seatsNeeded',
+        'setupDetails',
+      ];
+
+      const step3Fields = ['foodOrDrink', 'crafting', 'comments'];
+
+      // Filter errors based on current step
+      const currentStepFields =
+        active === 0
+          ? step0Fields
+          : active === 1
+            ? step1Fields
+            : active === 2
+              ? step2Fields
+              : active === 3
+                ? step3Fields
+                : [];
+
+      // Skip Room Requirements validation if the event is virtual
+      if (active === 2 && values.locationType === 'virtual') {
+        return {};
       }
 
-      if (active === 1) {
-        const errors: Record<string, string | null> = {
-          locationType: values.locationType ? null : 'You must select an option.',
-          hostingMinors: values.hostingMinors !== undefined ? null : 'Please select an option.',
-          onCampusPartners:
-            values.onCampusPartners !== undefined ? null : 'Please select an option.',
-          offCampusPartners:
-            values.offCampusPartners !== undefined ? null : 'Please select an option.',
-          nonIllinoisSpeaker:
-            values.nonIllinoisSpeaker !== undefined ? null : 'Please select an option.',
-          nonIllinoisAttendees:
-            values.nonIllinoisAttendees !== undefined ? null : 'Please select an option.',
-        };
-
-        // Check if conditional fields have values when they should
-        if (values.onCampusPartners === '') {
-          errors.onCampusPartners = 'Please provide details about on-campus partners.';
+      // Return only errors for the current step
+      // Using 'as' to tell TypeScript that we're intentionally returning ReactNode as errors
+      const filteredErrors = {} as Record<string, React.ReactNode>;
+      for (const key in allErrors) {
+        if (currentStepFields.includes(key)) {
+          filteredErrors[key] = allErrors[key];
         }
-
-        if (values.offCampusPartners === '') {
-          errors.offCampusPartners = 'Please provide details about off-campus partners.';
-        }
-
-        if (values.nonIllinoisSpeaker === '') {
-          errors.nonIllinoisSpeaker = 'Please provide details about non-UIUC speakers.';
-        }
-
-        if (values.nonIllinoisAttendees === 0) {
-          errors.nonIllinoisAttendees = 'Percentage must be greater than 0.';
-        }
-
-        return errors;
       }
 
-      if (active === 2 && (values.locationType === 'in-person' || values.locationType === 'both')) {
-        const errors: Record<string, string | null> = {
-          spaceType:
-            values.spaceType && values.spaceType.length > 0 ? null : 'Please select a space type.',
-          specificRoom:
-            values.specificRoom && values.specificRoom?.length > 0
-              ? null
-              : 'Please provide details about the room location.',
-          estimatedAttendees:
-            values.estimatedAttendees && values.estimatedAttendees > 0
-              ? null
-              : 'Please provide an estimated number of attendees.',
-          seatsNeeded:
-            values.seatsNeeded && values.seatsNeeded > 0
-              ? !values.estimatedAttendees || values.seatsNeeded >= values.estimatedAttendees
-                ? null
-                : 'Number of seats must be greater than or equal to number of attendees.'
-              : 'Please specify how many seats you need.',
-          setupDetails: values.setupDetails !== undefined ? null : 'Please make a selection.',
-        };
-
-        if (values.setupDetails === '') {
-          errors.setupDetails = 'Please provide setup details.';
-        }
-
-        return errors;
-      }
-
-      if (active === 3) {
-        return {
-          foodOrDrink: values.foodOrDrink !== undefined ? null : 'You must select an option.',
-          crafting: values.crafting !== undefined ? null : 'You must select an option.',
-        };
-      }
-
-      return {};
+      return filteredErrors;
     },
   });
 
@@ -277,6 +281,14 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
       form.setFieldValue('setupDetails', undefined);
     }
   }, [form.values.locationType]);
+
+  // Handle clearing recurrence fields if isRecurring is toggled off
+  useEffect(() => {
+    if (!form.values.isRecurring) {
+      form.setFieldValue('recurrencePattern', undefined);
+      form.setFieldValue('recurrenceEndDate', undefined);
+    }
+  }, [form.values.isRecurring]);
 
   const handleSubmit = async () => {
     if (viewOnly) {
@@ -376,6 +388,86 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             placeholder="Tell us a bit about your event!"
             {...form.getInputProps('description')}
           />
+
+          <DateTimePicker
+            label="Event Start"
+            placeholder="Select date and time"
+            withAsterisk
+            valueFormat="MM-DD-YYYY h:mm A [Urbana Time]"
+            mt="sm"
+            clearable={false}
+            minDate={startingDate}
+            {...form.getInputProps('eventStart')}
+          />
+
+          <DateTimePicker
+            label="Event End"
+            placeholder="Select date and time"
+            withAsterisk
+            valueFormat="MM-DD-YYYY h:mm A [Urbana Time]"
+            mt="sm"
+            clearable={false}
+            minDate={startingDate}
+            {...form.getInputProps('eventEnd')}
+          />
+
+          <Checkbox
+            label="This is a recurring event"
+            mt="sm"
+            checked={form.values.isRecurring}
+            onChange={(event) => form.setFieldValue('isRecurring', event.currentTarget.checked)}
+          />
+
+          {form.values.isRecurring && (
+            <>
+              <Select
+                label="Recurrence Pattern"
+                withAsterisk
+                mt="sm"
+                data={recurrencePatternOptions}
+                placeholder="Select how often this event repeats"
+                {...form.getInputProps('recurrencePattern')}
+              />
+
+              <DateInput
+                label="Recurrence End Date"
+                description="The last occurance will occur on this date (inclusive)"
+                withAsterisk
+                mt="sm"
+                placeholder="When does this recurring event end?"
+                minDate={
+                  form.values.eventEnd
+                    ? new Date(
+                        new Date(form.values.eventEnd).setDate(
+                          new Date(form.values.eventEnd).getDate()
+                        )
+                      )
+                    : new Date()
+                }
+                {...form.getInputProps('recurrenceEndDate')}
+              />
+            </>
+          )}
+
+          <Checkbox
+            label="I need setup time before the event"
+            mt="xl"
+            checked={form.values.setupNeeded}
+            onChange={(event) => form.setFieldValue('setupNeeded', event.currentTarget.checked)}
+          />
+
+          {form.values.setupNeeded && (
+            <NumberInput
+              label="Minutes needed for setup before event"
+              description="How many minutes before the event start time do you need access to the room?"
+              min={5}
+              max={60}
+              step={5}
+              mt="xs"
+              key={form.key('setupMinutesBefore')}
+              {...form.getInputProps('setupMinutesBefore')}
+            />
+          )}
         </Stepper.Step>
 
         <Stepper.Step label="Step 2" description="Compliance Information">
@@ -496,6 +588,13 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 description="* denotes possible additional cost."
                 withAsterisk
                 {...form.getInputProps('spaceType')}
+                onChange={(value) => {
+                  console.log('clearing');
+                  if (specificRoomSetupRooms.includes(value)) {
+                    form.setFieldValue('setupDetails', undefined);
+                  }
+                  form.setFieldValue('spaceType', value);
+                }}
               >
                 {spaceTypeOptions.map((option) => (
                   <Radio key={option.value} value={option.value} label={option.label} mt="xs" />
@@ -513,7 +612,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
 
               <NumberInput
                 mt="md"
-                label="Estimated number of attendees"
+                label="Estimated number of in-person attendees"
                 withAsterisk
                 placeholder="Enter estimated attendees"
                 min={1}
@@ -528,25 +627,26 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 min={1}
                 {...form.getInputProps('seatsNeeded')}
               />
-
-              <ConditionalField
-                label="Do you require a specific room setup?"
-                description="Only available for Illini Union, Campus Rec, and Performance Spaces"
-                field="setupDetails"
-                form={form}
-                conditionalContent={
-                  <Textarea
-                    mt="xs"
-                    label="Setup Details"
-                    description="Please describe the specific setup requirements you need."
-                    withAsterisk
-                    placeholder="Describe your setup requirements"
-                    value={form.values.setupDetails || ''}
-                    onChange={(e) => form.setFieldValue('setupDetails', e.currentTarget.value)}
-                    error={form.errors.setupDetails}
-                  />
-                }
-              />
+              {form.values.spaceType && specificRoomSetupRooms.includes(form.values.spaceType) && (
+                <ConditionalField
+                  label="Do you require a specific room setup?"
+                  description="Only available for Illini Union, Campus Rec, and Performance Spaces"
+                  field="setupDetails"
+                  form={form}
+                  conditionalContent={
+                    <Textarea
+                      mt="xs"
+                      label="Setup Details"
+                      description="Please describe the specific setup requirements you need."
+                      withAsterisk
+                      placeholder="Describe your setup requirements"
+                      value={form.values.setupDetails || ''}
+                      onChange={(e) => form.setFieldValue('setupDetails', e.currentTarget.value)}
+                      error={form.errors.setupDetails}
+                    />
+                  }
+                />
+              )}
             </>
           )}
         </Stepper.Step>
