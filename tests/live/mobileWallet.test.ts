@@ -1,6 +1,6 @@
 import { expect, test, describe } from "vitest";
 
-const baseEndpoint = `https://infra-core-api.aws.qa.acmuiuc.org`;
+const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
 
 describe("Mobile pass issuance", async () => {
   test(

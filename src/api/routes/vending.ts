@@ -17,7 +17,7 @@ const vendingPlugin: FastifyPluginAsync = async (fastify, _options) => {
           slots: ["A1"],
           id: "ronitpic",
           name: "A Picture of Ronit",
-          image_url: "https://acm-brand-images.s3.amazonaws.com/ronit.jpeg",
+          image_url: "https://static.acm.illinois.edu/ronit.jpeg",
           price: 999,
           calories: null,
           fat: null,

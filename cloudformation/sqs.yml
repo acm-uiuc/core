@@ -13,10 +13,23 @@ Resources:
     Properties:
       QueueName: !Sub ${QueueName}-dlq
       VisibilityTimeout: !Ref MessageTimeout
+      MessageRetentionPeriod: 1209600
+
   AppQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Ref QueueName
+      VisibilityTimeout: !Ref MessageTimeout
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - "AppDLQ"
+            - "Arn"
+        maxReceiveCount: 3
+  SalesEmailQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${QueueName}-sales
       VisibilityTimeout: !Ref MessageTimeout
       RedrivePolicy:
         deadLetterTargetArn:
@@ -37,4 +50,10 @@ Outputs:
     Value:
       Fn::GetAtt:
       - AppDLQ
+      - Arn
+  SalesEmailQueueArn:
+    Description: Sales Email Queue Arn
+    Value:
+      Fn::GetAtt:
+      - SalesEmailQueue
       - Arn

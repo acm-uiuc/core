@@ -16,6 +16,7 @@ import moment from "moment";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
 import { OrganizationList } from "../../common/orgs.js";
 import { EventRepeatOptions } from "./events.js";
+import rateLimiter from "api/plugins/rateLimiter.js";
 
 const repeatingIcalMap: Record<EventRepeatOptions, ICalEventJSONRepeatingData> =
   {
@@ -34,6 +35,11 @@ function generateHostName(host: string) {
 }
 
 const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
+  fastify.register(rateLimiter, {
+    limit: OrganizationList.length,
+    duration: 30,
+    rateLimitIdentifier: "ical",
+  });
   fastify.get("/:host?", async (request, reply) => {
     const host = (request.params as Record<string, string>).host;
     let queryParams: QueryCommandInput = {

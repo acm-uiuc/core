@@ -13,19 +13,6 @@ import { v4 as uuidv4 } from "uuid";
 const smMock = mockClient(SecretsManagerClient);
 const sqsMock = mockClient(SQSClient);
 
-vi.mock("../../src/api/functions/membership.js", () => {
-  return {
-    checkPaidMembership: vi.fn(
-      (_endpoint: string, _log: any, netId: string) => {
-        if (netId === "valid") {
-          return true;
-        }
-        return false;
-      },
-    ),
-  };
-});
-
 vi.mock("../../src/api/functions/entraId.js", () => {
   return {
     getEntraIdToken: vi.fn().mockImplementation(async () => {

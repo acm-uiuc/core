@@ -10,7 +10,7 @@ import {
   QueryCommand,
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../../common/config.js";
+import { EVENT_CACHED_DURATION, genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import {
   BaseError,
@@ -23,11 +23,15 @@ import {
 import { randomUUID } from "crypto";
 import moment from "moment-timezone";
 import { IUpdateDiscord, updateDiscord } from "../functions/discord.js";
-
-// POST
+import rateLimiter from "api/plugins/rateLimiter.js";
+import {
+  atomicIncrementCacheCounter,
+  deleteCacheCounter,
+  getCacheCounter,
+} from "api/functions/cache.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
-const EVENT_CACHE_SECONDS = 90;
+const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
 export type EventRepeatOptions = (typeof repeatOptions)[number];
 
 const baseSchema = z.object({
@@ -58,6 +62,12 @@ const postRequestSchema = requestSchema.refine(
 export type EventPostRequest = z.infer<typeof postRequestSchema>;
 type EventGetRequest = {
   Params: { id: string };
+  Querystring: { ts?: number };
+  Body: undefined;
+};
+
+type EventDeleteRequest = {
+  Params: { id: string };
   Querystring: undefined;
   Body: undefined;
 };
@@ -79,9 +89,139 @@ const getEventJsonSchema = zodToJsonSchema(getEventSchema);
 
 const getEventsSchema = z.array(getEventSchema);
 export type EventsGetResponse = z.infer<typeof getEventsSchema>;
-type EventsGetQueryParams = { upcomingOnly?: boolean };
+type EventsGetRequest = {
+  Body: undefined;
+  Querystring?: {
+    upcomingOnly?: boolean;
+    host?: string;
+    ts?: number;
+  };
+};
 
 const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
+  const limitedRoutes: FastifyPluginAsync = async (fastify) => {
+    fastify.register(rateLimiter, {
+      limit: 30,
+      duration: 60,
+      rateLimitIdentifier: "events",
+    });
+    fastify.get<EventsGetRequest>(
+      "/",
+      {
+        schema: {
+          querystring: {
+            type: "object",
+            properties: {
+              upcomingOnly: { type: "boolean" },
+              host: { type: "string" },
+              ts: { type: "number" },
+            },
+          },
+          response: { 200: getEventsSchema },
+        },
+      },
+      async (request: FastifyRequest<EventsGetRequest>, reply) => {
+        const upcomingOnly = request.query?.upcomingOnly || false;
+        const host = request.query?.host;
+        const ts = request.query?.ts; // we only use this to disable cache control
+
+        try {
+          const ifNoneMatch = request.headers["if-none-match"];
+          if (ifNoneMatch) {
+            const etag = await getCacheCounter(
+              fastify.dynamoClient,
+              "events-etag-all",
+            );
+
+            if (
+              ifNoneMatch === `"${etag.toString()}"` ||
+              ifNoneMatch === etag.toString()
+            ) {
+              return reply
+                .code(304)
+                .header("ETag", etag)
+                .header("Cache-Control", CLIENT_HTTP_CACHE_POLICY)
+                .send();
+            }
+            reply.header("etag", etag);
+          }
+          let command;
+          if (host) {
+            command = new QueryCommand({
+              TableName: genericConfig.EventsDynamoTableName,
+              ExpressionAttributeValues: {
+                ":host": {
+                  S: host,
+                },
+              },
+              KeyConditionExpression: "host = :host",
+              IndexName: "HostIndex",
+            });
+          } else {
+            command = new ScanCommand({
+              TableName: genericConfig.EventsDynamoTableName,
+            });
+          }
+          if (!ifNoneMatch) {
+            const etag = await getCacheCounter(
+              fastify.dynamoClient,
+              "events-etag-all",
+            );
+            reply.header("etag", etag);
+          }
+
+          const response = await fastify.dynamoClient.send(command);
+          const items = response.Items?.map((item) => unmarshall(item));
+          const currentTimeChicago = moment().tz("America/Chicago");
+          let parsedItems = getEventsSchema.parse(items);
+          if (upcomingOnly) {
+            parsedItems = parsedItems.filter((item) => {
+              try {
+                if (item.repeats && !item.repeatEnds) {
+                  return true;
+                }
+                if (!item.repeats) {
+                  const end = item.end || item.start;
+                  const momentEnds = moment.tz(end, "America/Chicago");
+                  const diffTime = currentTimeChicago.diff(momentEnds);
+                  return Boolean(
+                    diffTime <= genericConfig.UpcomingEventThresholdSeconds,
+                  );
+                }
+                const momentRepeatEnds = moment.tz(
+                  item.repeatEnds,
+                  "America/Chicago",
+                );
+                const diffTime = currentTimeChicago.diff(momentRepeatEnds);
+                return Boolean(
+                  diffTime <= genericConfig.UpcomingEventThresholdSeconds,
+                );
+              } catch (e: unknown) {
+                request.log.warn(
+                  `Could not compute upcoming event status for event ${item.title}: ${e instanceof Error ? e.toString() : e} `,
+                );
+                return false;
+              }
+            });
+          }
+          if (!ts) {
+            reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
+          }
+          return reply.send(parsedItems);
+        } catch (e: unknown) {
+          if (e instanceof Error) {
+            request.log.error("Failed to get from DynamoDB: " + e.toString());
+          } else {
+            request.log.error(`Failed to get from DynamoDB.${e} `);
+          }
+          throw new DatabaseFetchError({
+            message: "Failed to get events from Dynamo table.",
+          });
+        }
+      },
+    );
+  };
+
   fastify.post<{ Body: EventPostRequest }>(
     "/:id?",
     {
@@ -115,14 +255,15 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               message: `${userProvidedId} is not a valid event ID.`,
             });
           }
+          originalEvent = unmarshall(originalEvent);
         }
         const entry = {
           ...request.body,
           id: entryUUID,
-          createdBy: request.username,
-          createdAt: originalEvent
-            ? originalEvent.createdAt || new Date().toISOString()
-            : new Date().toISOString(),
+          createdAt:
+            originalEvent && originalEvent.createdAt
+              ? originalEvent.createdAt
+              : new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
         await fastify.dynamoClient.send(
@@ -169,12 +310,29 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
           throw new DiscordEventError({});
         }
+        await atomicIncrementCacheCounter(
+          fastify.dynamoClient,
+          `events-etag-${entryUUID}`,
+          1,
+          false,
+        );
+        await atomicIncrementCacheCounter(
+          fastify.dynamoClient,
+          "events-etag-all",
+          1,
+          false,
+        );
         reply.status(201).send({
           id: entryUUID,
           resource: `/api/v1/events/${entryUUID}`,
         });
         request.log.info(
-          { type: "audit", actor: request.username, target: entryUUID },
+          {
+            type: "audit",
+            module: "events",
+            actor: request.username,
+            target: entryUUID,
+          },
           `${verb} event "${entryUUID}"`,
         );
       } catch (e: unknown) {
@@ -190,51 +348,6 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
-  fastify.get<EventGetRequest>(
-    "/:id",
-    {
-      schema: {
-        response: { 200: getEventJsonSchema },
-      },
-    },
-    async (request: FastifyRequest<EventGetRequest>, reply) => {
-      const id = request.params.id;
-      try {
-        const response = await fastify.dynamoClient.send(
-          new QueryCommand({
-            TableName: genericConfig.EventsDynamoTableName,
-            KeyConditionExpression: "#id = :id",
-            ExpressionAttributeNames: {
-              "#id": "id",
-            },
-            ExpressionAttributeValues: marshall({ ":id": id }),
-          }),
-        );
-        const items = response.Items?.map((item) => unmarshall(item));
-        if (items?.length !== 1) {
-          throw new NotFoundError({
-            endpointName: request.url,
-          });
-        }
-        reply.send(items[0]);
-      } catch (e: unknown) {
-        if (e instanceof BaseError) {
-          throw e;
-        }
-        if (e instanceof Error) {
-          request.log.error("Failed to get from DynamoDB: " + e.toString());
-        }
-        throw new DatabaseFetchError({
-          message: "Failed to get event from Dynamo table.",
-        });
-      }
-    },
-  );
-  type EventDeleteRequest = {
-    Params: { id: string };
-    Querystring: undefined;
-    Body: undefined;
-  };
   fastify.delete<EventDeleteRequest>(
     "/:id",
     {
@@ -272,104 +385,100 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           message: "Failed to delete event from Dynamo table.",
         });
       }
+      await deleteCacheCounter(fastify.dynamoClient, `events-etag-${id}`);
+      await atomicIncrementCacheCounter(
+        fastify.dynamoClient,
+        "events-etag-all",
+        1,
+        false,
+      );
       request.log.info(
-        { type: "audit", actor: request.username, target: id },
+        {
+          type: "audit",
+          module: "events",
+          actor: request.username,
+          target: id,
+        },
         `deleted event "${id}"`,
       );
     },
   );
-  type EventsGetRequest = {
-    Body: undefined;
-    Querystring?: EventsGetQueryParams;
-  };
-  fastify.get<EventsGetRequest>(
-    "/",
+  fastify.get<EventGetRequest>(
+    "/:id",
     {
       schema: {
         querystring: {
           type: "object",
           properties: {
-            upcomingOnly: { type: "boolean" },
+            ts: { type: "number" },
           },
         },
-        response: { 200: getEventsSchema },
+        response: { 200: getEventJsonSchema },
       },
     },
-    async (request: FastifyRequest<EventsGetRequest>, reply) => {
-      const upcomingOnly = request.query?.upcomingOnly || false;
-      const cachedResponse = fastify.nodeCache.get(
-        `events-upcoming_only=${upcomingOnly}`,
-      );
-      if (cachedResponse) {
-        return reply
-          .header(
-            "cache-control",
-            "public, max-age=7200, stale-while-revalidate=900, stale-if-error=86400",
-          )
-          .header("acm-cache-status", "hit")
-          .send(cachedResponse);
-      }
+    async (request: FastifyRequest<EventGetRequest>, reply) => {
+      const id = request.params.id;
+      const ts = request.query?.ts;
+
       try {
-        const response = await fastify.dynamoClient.send(
-          new ScanCommand({ TableName: genericConfig.EventsDynamoTableName }),
-        );
-        const items = response.Items?.map((item) => unmarshall(item));
-        const currentTimeChicago = moment().tz("America/Chicago");
-        let parsedItems = getEventsSchema.parse(items);
-        if (upcomingOnly) {
-          parsedItems = parsedItems.filter((item) => {
-            try {
-              if (item.repeats && !item.repeatEnds) {
-                return true;
-              }
-              if (!item.repeats) {
-                const end = item.end || item.start;
-                const momentEnds = moment.tz(end, "America/Chicago");
-                const diffTime = currentTimeChicago.diff(momentEnds);
-                return Boolean(
-                  diffTime <= genericConfig.UpcomingEventThresholdSeconds,
-                );
-              }
-              const momentRepeatEnds = moment.tz(
-                item.repeatEnds,
-                "America/Chicago",
-              );
-              const diffTime = currentTimeChicago.diff(momentRepeatEnds);
-              return Boolean(
-                diffTime <= genericConfig.UpcomingEventThresholdSeconds,
-              );
-            } catch (e: unknown) {
-              request.log.warn(
-                `Could not compute upcoming event status for event ${item.title}: ${e instanceof Error ? e.toString() : e} `,
-              );
-              return false;
-            }
-          });
+        // Check If-None-Match header
+        const ifNoneMatch = request.headers["if-none-match"];
+        if (ifNoneMatch) {
+          const etag = await getCacheCounter(
+            fastify.dynamoClient,
+            `events-etag-${id}`,
+          );
+
+          if (
+            ifNoneMatch === `"${etag.toString()}"` ||
+            ifNoneMatch === etag.toString()
+          ) {
+            return reply
+              .code(304)
+              .header("ETag", etag)
+              .header("Cache-Control", CLIENT_HTTP_CACHE_POLICY)
+              .send();
+          }
+
+          reply.header("etag", etag);
         }
-        fastify.nodeCache.set(
-          `events-upcoming_only=${upcomingOnly}`,
-          parsedItems,
-          EVENT_CACHE_SECONDS,
+
+        const response = await fastify.dynamoClient.send(
+          new GetItemCommand({
+            TableName: genericConfig.EventsDynamoTableName,
+            Key: marshall({ id }),
+          }),
         );
-        reply
-          .header(
-            "cache-control",
-            "public, max-age=7200, stale-while-revalidate=900, stale-if-error=86400",
-          )
-          .header("acm-cache-status", "miss")
-          .send(parsedItems);
-      } catch (e: unknown) {
-        if (e instanceof Error) {
-          request.log.error("Failed to get from DynamoDB: " + e.toString());
-        } else {
-          request.log.error(`Failed to get from DynamoDB.${e} `);
+        const item = response.Item ? unmarshall(response.Item) : null;
+        if (!item) {
+          throw new NotFoundError({ endpointName: request.url });
+        }
+
+        if (!ts) {
+          reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
+        }
+
+        // Only get the etag now if we didn't already get it above
+        if (!ifNoneMatch) {
+          const etag = await getCacheCounter(
+            fastify.dynamoClient,
+            `events-etag-${id}`,
+          );
+          reply.header("etag", etag);
+        }
+
+        return reply.send(item);
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
         }
         throw new DatabaseFetchError({
-          message: "Failed to get events from Dynamo table.",
+          message: "Failed to get event from Dynamo table.",
         });
       }
     },
   );
+  fastify.register(limitedRoutes);
 };
 
 export default eventsPlugin;

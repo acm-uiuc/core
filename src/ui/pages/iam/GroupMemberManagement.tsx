@@ -32,6 +32,8 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
   const [confirmationModal, setConfirmationModal] = useState(false);
   const loadMembers = async () => {
     try {
+      setIsLoading(true);
+      setMembers([]);
       const memberList = await fetchMembers();
       setMembers(memberList);
     } catch (error) {
