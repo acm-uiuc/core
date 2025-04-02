@@ -162,35 +162,43 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   startingDate = new Date(startingDate.setDate(startingDate.getDate() + 1));
   const oneHourAfterStarting = new Date(startingDate.getTime() + 60 * 60 * 1000);
 
-  const form = useForm<RoomRequestFormValues>({
+  type InterimRoomRequestFormValues = {
+    [K in keyof RoomRequestFormValues]: RoomRequestFormValues[K] extends any
+      ? RoomRequestFormValues[K] | undefined
+      : RoomRequestFormValues[K];
+  };
+
+  const form = useForm<InterimRoomRequestFormValues>({
     enhanceGetInputProps: () => ({ readOnly: viewOnly }),
-    initialValues: initialValues || {
-      host: '',
-      title: '',
-      theme: '',
-      semester: '',
-      description: '',
-      eventStart: startingDate,
-      eventEnd: oneHourAfterStarting,
-      isRecurring: false,
-      recurrencePattern: undefined,
-      recurrenceEndDate: undefined,
-      setupNeeded: false,
-      hostingMinors: undefined,
-      locationType: 'in-person',
-      spaceType: '',
-      specificRoom: '',
-      estimatedAttendees: undefined,
-      seatsNeeded: undefined,
-      setupDetails: undefined,
-      onCampusPartners: undefined,
-      offCampusPartners: undefined,
-      nonIllinoisSpeaker: undefined,
-      nonIllinoisAttendees: undefined,
-      foodOrDrink: undefined,
-      crafting: undefined,
-      comments: '',
-    },
+    initialValues:
+      initialValues ||
+      ({
+        host: '',
+        title: '',
+        theme: '',
+        semester: '',
+        description: '',
+        eventStart: startingDate,
+        eventEnd: oneHourAfterStarting,
+        isRecurring: false,
+        recurrencePattern: undefined,
+        recurrenceEndDate: undefined,
+        setupNeeded: false,
+        hostingMinors: undefined,
+        locationType: undefined,
+        spaceType: '',
+        specificRoom: '',
+        estimatedAttendees: undefined,
+        seatsNeeded: undefined,
+        setupDetails: undefined,
+        onCampusPartners: undefined,
+        offCampusPartners: undefined,
+        nonIllinoisSpeaker: undefined,
+        nonIllinoisAttendees: undefined,
+        foodOrDrink: undefined,
+        crafting: undefined,
+        comments: '',
+      } as InterimRoomRequestFormValues),
 
     validate: (values) => {
       // Get all validation errors from zod, which returns ReactNode
@@ -306,7 +314,8 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         return;
       }
       setIsSubmitting(true);
-      const response = await createRoomRequest(apiFormValues);
+      const values = await roomRequestSchema.parseAsync(apiFormValues);
+      const response = await createRoomRequest(values);
       notifications.show({
         title: 'Room Request Submitted',
         message: `The request ID is ${response.id}.`,
