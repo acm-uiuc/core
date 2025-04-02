@@ -15,7 +15,7 @@ export const emailNotificationsHandler: SQSHandlerFunction<
   AvailableSQSFunctions.EmailNotifications
 > = async (payload, metadata, logger) => {
   const { to, cc, bcc, content, subject } = payload;
-  const senderEmail = `notifications@${currentEnvironmentConfig["EmailDomain"]}`;
+  const senderEmail = `ACM @ UIUC <notifications@${currentEnvironmentConfig["EmailDomain"]}>`;
   logger.info("Constructing email...");
   const command = new SendEmailCommand({
     Source: senderEmail,

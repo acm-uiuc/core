@@ -9,6 +9,7 @@ type ValueOrArray<T> = T | ArrayOfValueOrArray<T>;
 type AzureRoleMapping = Record<string, readonly AppRoles[]>;
 
 export type ConfigType = {
+  UserFacingUrl: string;
   AzureRoleMapping: AzureRoleMapping;
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
@@ -80,6 +81,7 @@ const genericConfig: GenericConfigType = {
 
 const environmentConfig: EnvironmentConfigType = {
   dev: {
+    UserFacingUrl: "https://core.aws.qa.acmuiuc.org",
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
       "https://merch-pwa.pages.dev",
@@ -99,6 +101,7 @@ const environmentConfig: EnvironmentConfigType = {
     PaidMemberPriceId: "price_1R4TcTDGHrJxx3mKI6XF9cNG",
   },
   prod: {
+    UserFacingUrl: "https://core.acm.illinois.edu",
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,

@@ -251,8 +251,8 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         },
         payload: {
           to: [notificationRecipients[fastify.runEnvironment].OfficerBoard],
-          subject: "A new room request has been created",
-          content: `${request.username} created a room reservation request. Please log into the ACM management portal for more information.\n\n\nACM @ UIUC Core`,
+          subject: "New Room Reservation Request",
+          content: `A new room reservation request has been created (${request.body.host} | ${request.body.title}). Please visit https://${fastify.environmentConfig["UserFacingUrl"]}/roomRequests/${request.body.semester}/${requestId} to view details.`,
         },
       };
       if (!fastify.sqsClient) {
