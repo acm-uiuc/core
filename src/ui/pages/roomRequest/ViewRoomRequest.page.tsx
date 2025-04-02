@@ -23,7 +23,8 @@ import {
   RoomRequestStatusUpdatePostBody,
 } from '@common/types/roomRequest';
 import { useParams } from 'react-router-dom';
-import { formatStatus, getStatusColor, getStatusIcon } from './roomRequestUtils';
+import { getStatusColor, getStatusIcon } from './roomRequestUtils';
+import { formatStatus } from '@common/types/roomRequest';
 import moment from 'moment-timezone';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
