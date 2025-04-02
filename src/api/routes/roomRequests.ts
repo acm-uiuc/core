@@ -316,7 +316,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         payload: {
           to: [notificationRecipients[fastify.runEnvironment].OfficerBoard],
           subject: "New Room Reservation Request",
-          content: `A new room reservation request has been created (${request.body.host} | ${request.body.title}). Please visit https://${fastify.environmentConfig["UserFacingUrl"]}/roomRequests/${request.body.semester}/${requestId} to view details.`,
+          content: `A new room reservation request has been created (${request.body.host} | ${request.body.title}). Please visit ${fastify.environmentConfig["UserFacingUrl"]}/roomRequests/${request.body.semester}/${requestId} to view details.`,
         },
       };
       if (!fastify.sqsClient) {

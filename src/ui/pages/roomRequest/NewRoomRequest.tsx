@@ -316,7 +316,16 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         return;
       }
       setIsSubmitting(true);
-      const values = await roomRequestSchema.parseAsync(apiFormValues);
+      let values;
+      try {
+        values = await roomRequestSchema.parseAsync(apiFormValues);
+      } catch (e) {
+        notifications.show({
+          title: 'Submission failed to validate',
+          message: 'Check the browser console for more details.',
+        });
+        throw e;
+      }
       const response = await createRoomRequest(values);
       notifications.show({
         title: 'Room Request Submitted',

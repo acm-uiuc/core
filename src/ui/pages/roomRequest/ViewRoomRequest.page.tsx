@@ -19,6 +19,7 @@ import { useApi } from '@ui/util/api';
 import NewRoomRequest from './NewRoomRequest';
 import {
   RoomRequestGetResponse,
+  roomRequestSchema,
   RoomRequestStatus,
   RoomRequestStatusUpdatePostBody,
 } from '@common/types/roomRequest';
@@ -48,7 +49,11 @@ export const ViewRoomRequest: React.FC = () => {
   };
   const updateData = async () => {
     const response = await api.get(`/api/v1/roomRequests/${semesterId}/${requestId}`);
-    setData(response.data);
+    const parsed = {
+      data: await roomRequestSchema.parseAsync(response.data.data),
+      updates: response.data.updates,
+    };
+    setData(parsed);
   };
   const submitStatusChange = async () => {
     try {

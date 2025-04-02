@@ -155,11 +155,11 @@ export const roomRequestBaseSchema = z.object({
 
 export const roomRequestSchema = roomRequestBaseSchema
   .extend({
-    eventStart: z.date({
+    eventStart: z.coerce.date({
       required_error: "Event start date and time is required",
       invalid_type_error: "Event start must be a valid date and time",
     }),
-    eventEnd: z.date({
+    eventEnd: z.coerce.date({
       required_error: "Event end date and time is required",
       invalid_type_error: "Event end must be a valid date and time",
     }),
@@ -184,17 +184,17 @@ export const roomRequestSchema = roomRequestBaseSchema
     // Existing fields
     hostingMinors: z.boolean(),
     locationType: z.enum(["in-person", "virtual", "both"]),
-    spaceType: z.string(),
-    specificRoom: z.string().optional(),
+    spaceType: z.string().min(1),
+    specificRoom: z.string().min(1),
     estimatedAttendees: z.number().positive(),
-    seatsNeeded: z.number().positive().optional(),
-    setupDetails: z.string().nullable().optional(),
-    onCampusPartners: z.string().nullable(),
-    offCampusPartners: z.string().nullable(),
-    nonIllinoisSpeaker: z.string().nullable(),
-    nonIllinoisAttendees: z.number().nullable(),
-    foodOrDrink: z.boolean().nullable(),
-    crafting: z.boolean().nullable(),
+    seatsNeeded: z.number().positive(),
+    setupDetails: z.string().min(1).nullable().optional(),
+    onCampusPartners: z.string().min(1).nullable(),
+    offCampusPartners: z.string().min(1).nullable(),
+    nonIllinoisSpeaker: z.string().min(1).nullable(),
+    nonIllinoisAttendees: z.number().min(1).nullable(),
+    foodOrDrink: z.boolean(),
+    crafting: z.boolean(),
     comments: z.string().optional(),
   })
   .refine(
