@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { RoomRequestGetAllResponse } from '@common/types/roomRequest';
 import { Badge, Loader, Table } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
-import { formatStatus, getStatusColor } from './roomRequestUtils';
+import { getStatusColor } from './roomRequestUtils';
+import { formatStatus } from '@common/types/roomRequest';
 
 interface ExistingRoomRequestsProps {
   getRoomRequests: (semester: string) => Promise<RoomRequestGetAllResponse>;

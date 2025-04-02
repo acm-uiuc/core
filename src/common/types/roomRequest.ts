@@ -384,3 +384,17 @@ export const roomGetResponse = z.array(
 );
 
 export type RoomRequestGetAllResponse = z.infer<typeof roomGetResponse>;
+
+export function capitalizeFirstLetter(string: string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+export const formatStatus = (status: RoomRequestStatus) => {
+  if (status === RoomRequestStatus.SUBMITTED) {
+    return 'Submitted to UIUC';
+  }
+  return capitalizeFirstLetter(status)
+    .replaceAll('_', ' ')
+    .replaceAll('uiuc', 'UIUC')
+    .replaceAll('acm', 'ACM');
+};

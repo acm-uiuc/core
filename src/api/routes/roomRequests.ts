@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
+  formatStatus,
   roomGetResponse,
   roomRequestBaseSchema,
   RoomRequestFormValues,
@@ -17,6 +18,7 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   InternalServerError,
+  UnauthenticatedError,
 } from "common/errors/index.js";
 import {
   PutItemCommand,
@@ -53,8 +55,38 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
     },
     async (request, reply) => {
+      if (!request.username) {
+        throw new InternalServerError({
+          message: "Could not get username from request.",
+        });
+      }
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
+      const getReservationData = new QueryCommand({
+        TableName: genericConfig.RoomRequestsStatusTableName,
+        KeyConditionExpression: "requestId = :requestId",
+        FilterExpression: "#statusKey = :status",
+        ExpressionAttributeNames: {
+          "#statusKey": "status",
+        },
+        ExpressionAttributeValues: {
+          ":status": { S: RoomRequestStatus.CREATED },
+          ":requestId": { S: requestId },
+        },
+      });
+      const createdNotified =
+        await fastify.dynamoClient.send(getReservationData);
+      if (!createdNotified.Items || createdNotified.Count == 0) {
+        throw new InternalServerError({
+          message: "Could not find original reservation request details",
+        });
+      }
+      const originalRequestor = unmarshall(createdNotified.Items[0]).createdBy;
+      if (!originalRequestor) {
+        throw new InternalServerError({
+          message: "Could not find original reservation requestor",
+        });
+      }
       const createdAt = new Date().toISOString();
       const command = new PutItemCommand({
         TableName: genericConfig.RoomRequestsStatusTableName,
@@ -77,6 +109,38 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not save status update.",
         });
       }
+      const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> = {
+        function: AvailableSQSFunctions.EmailNotifications,
+        metadata: {
+          initiator: request.username,
+          reqId: request.id,
+        },
+        payload: {
+          to: [originalRequestor],
+          subject: "Room Reservation Request Status Change",
+          content: `Your Room Reservation Request has been been moved to status "${formatStatus(request.body.status)}". Please visit ${fastify.environmentConfig["UserFacingUrl"]}/roomRequests/${semesterId}/${requestId} to view details.`,
+        },
+      };
+      if (!fastify.sqsClient) {
+        fastify.sqsClient = new SQSClient({
+          region: genericConfig.AwsRegion,
+        });
+      }
+      const result = await fastify.sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+          MessageBody: JSON.stringify(sqsPayload),
+        }),
+      );
+      if (!result.MessageId) {
+        request.log.error(result);
+        throw new InternalServerError({
+          message: "Could not add room reservation email to queue.",
+        });
+      }
+      request.log.info(
+        `Queued room reservation email to SQS with message ID ${result.MessageId}`,
+      );
       return reply.status(201).send();
     },
   );
