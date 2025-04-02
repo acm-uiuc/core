@@ -269,7 +269,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
           filteredErrors[key] = allErrors[key];
         }
       }
-
+      if (Object.keys(filteredErrors).length > 0) {
+        console.warn(filteredErrors);
+      }
       return filteredErrors;
     },
   });
@@ -462,7 +464,12 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             label="I need setup time before the event"
             mt="xl"
             checked={form.values.setupNeeded}
-            onChange={(event) => form.setFieldValue('setupNeeded', event.currentTarget.checked)}
+            onChange={(event) => {
+              form.setFieldValue('setupNeeded', event.currentTarget.checked);
+              if (!event.currentTarget.checked) {
+                form.setFieldValue('setupMinutesBefore', undefined);
+              }
+            }}
           />
 
           {form.values.setupNeeded && (
@@ -598,10 +605,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 withAsterisk
                 {...form.getInputProps('spaceType')}
                 onChange={(value) => {
-                  console.log('clearing');
-                  if (specificRoomSetupRooms.includes(value)) {
-                    form.setFieldValue('setupDetails', undefined);
-                  }
+                  form.setFieldValue('setupDetails', undefined);
                   form.setFieldValue('spaceType', value);
                 }}
               >

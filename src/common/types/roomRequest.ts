@@ -266,14 +266,16 @@ export const roomRequestSchema = roomRequestBaseSchema
   )
   .refine(
     (data) => {
-      return (
-        data.setupDetails &&
-        data.spaceType &&
-        !specificRoomSetupRooms.includes(data.spaceType)
-      );
+      if (data.setupDetails === undefined && specificRoomSetupRooms.includes(data.spaceType)) {
+        return false;
+      }
+      if (data.setupDetails && !specificRoomSetupRooms.includes(data.spaceType)) {
+        return false;
+      }
+      return true;
     },
     {
-      message: "Setup details can only be specified for allowed space types.",
+      message: "Invalid setup details response.",
       path: ["setupDetails"],
     },
   )
@@ -319,20 +321,6 @@ export const roomRequestSchema = roomRequestBaseSchema
           message:
             "Number of seats must be greater than or equal to number of attendees",
           path: ["seatsNeeded"],
-        });
-      }
-
-      if (data.setupDetails === undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Please make a selection",
-          path: ["setupDetails"],
-        });
-      } else if (data.setupDetails === "") {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Please provide setup details",
-          path: ["setupDetails"],
         });
       }
     }
