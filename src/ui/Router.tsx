@@ -19,6 +19,8 @@ import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
 import { ManageIamPage } from './pages/iam/ManageIam.page';
 import { ManageProfilePage } from './pages/profile/ManageProfile.page';
 import { ManageStripeLinksPage } from './pages/stripe/ViewLinks.page';
+import { ManageRoomRequestsPage } from './pages/roomRequest/RoomRequestLanding.page';
+import { ViewRoomRequest } from './pages/roomRequest/ViewRoomRequest.page';
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -161,6 +163,14 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/stripe',
     element: <ManageStripeLinksPage />,
+  },
+  {
+    path: '/roomRequests',
+    element: <ManageRoomRequestsPage />,
+  },
+  {
+    path: '/roomRequests/:semesterId/:requestId',
+    element: <ViewRoomRequest />,
   },
   // Catch-all route for authenticated users shows 404 page
   {

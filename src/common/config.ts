@@ -9,6 +9,7 @@ type ValueOrArray<T> = T | ArrayOfValueOrArray<T>;
 type AzureRoleMapping = Record<string, readonly AppRoles[]>;
 
 export type ConfigType = {
+  UserFacingUrl: string;
   AzureRoleMapping: AzureRoleMapping;
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
@@ -39,6 +40,8 @@ export type GenericConfigType = {
   MerchStoreMetadataTableName: string;
   IAMTablePrefix: string;
   ProtectedEntraIDGroups: string[]; // these groups are too privileged to be modified via this portal and must be modified directly in Entra ID.
+  RoomRequestsTableName: string;
+  RoomRequestsStatusTableName: string;
 };
 
 type EnvironmentConfigType = {
@@ -71,11 +74,14 @@ const genericConfig: GenericConfigType = {
   IAMTablePrefix: "infra-core-api-iam",
   ProtectedEntraIDGroups: [infraChairsGroupId, officersGroupId],
   MembershipTableName: "infra-core-api-membership-provisioning",
-  ExternalMembershipTableName: "infra-core-api-membership-external"
+  ExternalMembershipTableName: "infra-core-api-membership-external",
+  RoomRequestsTableName: "infra-core-api-room-requests",
+  RoomRequestsStatusTableName: "infra-core-api-room-requests-status"
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
   dev: {
+    UserFacingUrl: "https://core.aws.qa.acmuiuc.org",
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
       "https://merch-pwa.pages.dev",
@@ -95,6 +101,7 @@ const environmentConfig: EnvironmentConfigType = {
     PaidMemberPriceId: "price_1R4TcTDGHrJxx3mKI6XF9cNG",
   },
   prod: {
+    UserFacingUrl: "https://core.acm.illinois.edu",
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
@@ -134,4 +141,22 @@ const roleArns = {
 
 export const EVENT_CACHED_DURATION = 120;
 
-export { genericConfig, environmentConfig, roleArns };
+type NotificationRecipientsType = {
+  [env in RunEnvironment]: {
+    OfficerBoard: string;
+    InfraChairs: string;
+  };
+};
+
+const notificationRecipients: NotificationRecipientsType = {
+  dev: {
+    OfficerBoard: 'infra@acm.illinois.edu',
+    InfraChairs: 'infra@acm.illinois.edu',
+  },
+  prod: {
+    OfficerBoard: 'officers@acm.illinois.edu',
+    InfraChairs: 'infra@acm.illinois.edu',
+  }
+}
+
+export { genericConfig, environmentConfig, roleArns, notificationRecipients };
