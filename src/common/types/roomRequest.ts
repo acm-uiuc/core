@@ -132,7 +132,7 @@ export enum RoomRequestStatus {
 
 export const roomRequestStatusUpdateRequest = z.object({
   status: z.nativeEnum(RoomRequestStatus),
-  notes: z.optional(z.string().min(1).max(1000)),
+  notes: z.string().min(1).max(1000),
 });
 
 export const roomRequestStatusUpdate = roomRequestStatusUpdateRequest.extend({
