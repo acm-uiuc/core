@@ -177,7 +177,7 @@ export const roomRequestSchema = roomRequestBaseSchema
     // Recurring event fields
     isRecurring: z.boolean().default(false),
     recurrencePattern: z.enum(["weekly", "biweekly", "monthly"]).optional(),
-    recurrenceEndDate: z.date().optional(),
+    recurrenceEndDate: z.coerce.date().optional(),
     // Setup time fields
     setupNeeded: z.boolean().default(false),
     setupMinutesBefore: z.number().min(5).max(60).optional(),
