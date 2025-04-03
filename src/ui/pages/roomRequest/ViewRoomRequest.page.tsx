@@ -22,12 +22,13 @@ import {
   roomRequestSchema,
   RoomRequestStatus,
   RoomRequestStatusUpdatePostBody,
+  roomRequestStatusUpdateRequest,
 } from '@common/types/roomRequest';
 import { useParams } from 'react-router-dom';
 import { getStatusColor, getStatusIcon } from './roomRequestUtils';
 import { formatStatus } from '@common/types/roomRequest';
 import moment from 'moment-timezone';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 
@@ -35,14 +36,9 @@ export const ViewRoomRequest: React.FC = () => {
   const { semesterId, requestId } = useParams();
   const [data, setData] = useState<RoomRequestGetResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const newStatusForm = useForm<{ status: RoomRequestStatus | null; notes?: string }>({
-    initialValues: { status: null },
-    validate: {
-      status: (value) =>
-        value && Object.keys(RoomRequestStatus).includes(value) ? null : 'Please select a status.',
-      notes: (value) =>
-        value && value.length <= 1000 ? null : 'Please limit your response to 1000 characters.',
-    },
+  const newStatusForm = useForm<{ status: RoomRequestStatus | null; notes: string }>({
+    initialValues: { status: null, notes: '' },
+    validate: zodResolver(roomRequestStatusUpdateRequest),
   });
   const handleStatusChange = async (payload: RoomRequestStatusUpdatePostBody) => {
     await api.post(`/api/v1/roomRequests/${semesterId}/${requestId}/status`, payload);
@@ -57,6 +53,10 @@ export const ViewRoomRequest: React.FC = () => {
   };
   const submitStatusChange = async () => {
     try {
+      newStatusForm.validate();
+      if (!newStatusForm.isValid()) {
+        return;
+      }
       setIsSubmitting(true);
       await handleStatusChange(newStatusForm.values as RoomRequestStatusUpdatePostBody);
       notifications.show({
@@ -138,12 +138,13 @@ export const ViewRoomRequest: React.FC = () => {
                     {newStatusForm.values.status && (
                       <>
                         <Textarea
-                          label="Event Description"
+                          label="Status Message"
+                          withAsterisk
                           description="Max 1000 characters."
                           placeholder="Provide any requisite details needed to use the room."
                           {...newStatusForm.getInputProps('notes')}
                         />
-                        <Button onClick={submitStatusChange} color="green">
+                        <Button mt="md" onClick={submitStatusChange} color="green">
                           {isSubmitting ? (
                             <>
                               <Loader size={16} color="white" />
