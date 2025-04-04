@@ -45,7 +45,7 @@ const baseBodySchema = z
         "Invalid input: Only alphanumeric characters, '-', '_', '/', and '.' are allowed"
       )
       .optional(),
-    access: z.array(z.string()).min(1, 'Choose at least 1 access group').optional(),
+    access: z.array(z.string()).optional(),
     redirect: z
       .string()
       .min(1)
@@ -267,7 +267,7 @@ export const ManageLinkPage: React.FC = () => {
           />
 
           <MultiSelect
-            label={isEditing ? 'Change Access Group Here' : 'Select Access Groups'}
+            label={isEditing ? 'Change Access Group(s) Here' : 'Select Access Group(s)'}
             withAsterisk
             data={accessGroup}
             mt="xl"

@@ -93,18 +93,22 @@ export const LinkShortener: React.FC = () => {
               </Anchor>
             </Table.Td>
             <Table.Td style={wrapTextStyle}>
-              {link.access
-                ?.split(';') // Split the access string by ";"
-                .map((group, index) => (
-                  <Badge
-                    key={index}
-                    color="#999898"
-                    radius="sm"
-                    style={{ marginRight: '2px', marginBottom: '2px' }}
-                  >
-                    {group.trim()} {/* Trim any extra whitespace */}
-                  </Badge>
-                ))}
+              {link.access && link.access.length > 0 ? (
+                link.access
+                  .split(';') // Split the access string by ";"
+                  .map((group, index) => (
+                    <Badge
+                      key={index}
+                      color="#999898"
+                      radius="sm"
+                      style={{ marginRight: '2px', marginBottom: '2px' }}
+                    >
+                      {group.trim()} {/* Trim any extra whitespace */}
+                    </Badge>
+                  ))
+              ) : (
+                <></>
+              )}
             </Table.Td>
             <Table.Td style={wrapTextStyle}>{link.counter || 0}</Table.Td>
             {/* <Table.Td style={wrapTextStyle}>{dayjs(link.createdAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>

@@ -57,14 +57,14 @@ const getRequest = z.object({
 
 const createRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
-  access: z.array(z.string()).min(1),
+  access: z.array(z.string()),
   redirect: z.string().url().min(1),
   counter: z.number().optional(),
 });
 
 const patchRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
-  access: z.array(z.string()).min(1),
+  access: z.array(z.string()),
   redirect: z.string().url().min(1),
   isEdited: z.boolean(),
   counter: z.number().optional(),
