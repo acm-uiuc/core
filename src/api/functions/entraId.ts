@@ -8,6 +8,7 @@ import {
   officersGroupTestingId,
 } from "../../common/config.js";
 import {
+  BaseError,
   EntraFetchError,
   EntraGroupError,
   EntraInvitationError,
@@ -25,6 +26,7 @@ import {
 import { UserProfileDataBase } from "common/types/msGraphApi.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { checkPaidMembershipFromTable } from "./membership.js";
 
 function validateGroupId(groupId: string): boolean {
   const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
@@ -37,7 +39,7 @@ export async function getEntraIdToken(
   scopes: string[] = ["https://graph.microsoft.com/.default"],
 ) {
   const secretApiConfig =
-    (await getSecretValue(clients.smClient, genericConfig.ConfigSecretName)) ||
+    (await getSecretValue(clients.smClient, genericConfig.EntraSecretName)) ||
     {};
   if (
     !secretApiConfig.entra_id_private_key ||
@@ -90,6 +92,9 @@ export async function getEntraIdToken(
     }
     return result?.accessToken ?? null;
   } catch (error) {
+    if (error instanceof BaseError) {
+      throw error;
+    }
     throw new InternalServerError({
       message: `Failed to acquire token: ${error}`,
     });
@@ -194,6 +199,7 @@ export async function resolveEmailToOid(
  * @param email - The email address of the user to add or remove.
  * @param group - The group ID to take action on.
  * @param action - Whether to add or remove the user from the group.
+ * @param dynamoClient - DynamoDB client
  * @throws {EntraGroupError} If the group action fails.
  * @returns {Promise<boolean>} True if the action was successful.
  */
@@ -202,6 +208,7 @@ export async function modifyGroup(
   email: string,
   group: string,
   action: EntraGroupActions,
+  dynamoClient: DynamoDBClient,
 ): Promise<boolean> {
   email = email.toLowerCase().replace(/\s/g, "");
   if (!email.endsWith("@illinois.edu")) {
@@ -224,14 +231,8 @@ export async function modifyGroup(
     action === EntraGroupActions.ADD
   ) {
     const netId = email.split("@")[0];
-    const response = await fetch(
-      `https://membership.acm.illinois.edu/api/v1/checkMembership?netId=${netId}`,
-    );
-    const membershipStatus = (await response.json()) as {
-      netId: string;
-      isPaidMember: boolean;
-    };
-    if (!membershipStatus["isPaidMember"]) {
+    const isPaidMember = checkPaidMembershipFromTable(netId, dynamoClient); // we assume users have been provisioned into the table.
+    if (!isPaidMember) {
       throw new EntraGroupError({
         message: `${netId} is not a paid member. This group requires that all members are paid members.`,
         group,
@@ -444,6 +445,63 @@ export async function patchUserProfile(
     throw new EntraPatchError({
       message: error instanceof Error ? error.message : String(error),
       email,
+    });
+  }
+}
+
+/**
+ * Checks if a user is a member of an Entra ID group.
+ * @param token - Entra ID token authorized to take this action.
+ * @param email - The email address of the user to check.
+ * @param group - The group ID to check membership in.
+ * @throws {EntraGroupError} If the membership check fails.
+ * @returns {Promise<boolean>} True if the user is a member of the group, false otherwise.
+ */
+export async function isUserInGroup(
+  token: string,
+  email: string,
+  group: string,
+): Promise<boolean> {
+  email = email.toLowerCase().replace(/\s/g, "");
+  if (!email.endsWith("@illinois.edu")) {
+    throw new EntraGroupError({
+      group,
+      message: "User's domain must be illinois.edu to check group membership.",
+    });
+  }
+  try {
+    const oid = await resolveEmailToOid(token, email);
+    const url = `https://graph.microsoft.com/v1.0/groups/${group}/members/${oid}`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.ok) {
+      return true; // User is in the group
+    } else if (response.status === 404) {
+      return false; // User is not in the group
+    }
+
+    const errorData = (await response.json()) as {
+      error?: { message?: string };
+    };
+    throw new EntraGroupError({
+      message: errorData?.error?.message ?? response.statusText,
+      group,
+    });
+  } catch (error) {
+    if (error instanceof EntraGroupError) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    throw new EntraGroupError({
+      message,
+      group,
     });
   }
 }

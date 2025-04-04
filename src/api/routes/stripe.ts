@@ -139,6 +139,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       request.log.info(
         {
           type: "audit",
+          module: "stripe",
           actor: request.username,
           target: `Link ${linkId} | Invoice ${invoiceId}`,
         },

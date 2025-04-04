@@ -11,6 +11,7 @@ import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
+import { EVENT_CACHED_DURATION } from '@common/config';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -65,7 +66,7 @@ export const ManageEventPage: React.FC = () => {
     // Fetch event data and populate form
     const getEvent = async () => {
       try {
-        const response = await api.get(`/api/v1/events/${eventId}`);
+        const response = await api.get(`/api/v1/events/${eventId}?ts=${Date.now()}`);
         const eventData = response.data;
         const formValues = {
           title: eventData.title,
@@ -91,13 +92,14 @@ export const ManageEventPage: React.FC = () => {
     getEvent();
   }, [eventId, isEditing]);
 
+  const startDate = new Date().setMinutes(0);
   const form = useForm<EventPostRequest>({
     validate: zodResolver(requestBodySchema),
     initialValues: {
       title: '',
       description: '',
-      start: new Date(),
-      end: new Date(new Date().valueOf() + 3.6e6), // 1 hr later
+      start: new Date(startDate),
+      end: new Date(startDate + 3.6e6), // 1 hr later
       location: 'ACM Room (Siebel CS 1104)',
       locationLink: 'https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8',
       host: 'ACM',
@@ -107,21 +109,17 @@ export const ManageEventPage: React.FC = () => {
       paidEventId: undefined,
     },
   });
-
-  const checkPaidEventId = async (paidEventId: string) => {
-    try {
-      const merchEndpoint = getRunEnvironmentConfig().ServiceConfiguration.merch.baseEndpoint;
-      const ticketEndpoint = getRunEnvironmentConfig().ServiceConfiguration.tickets.baseEndpoint;
-      const paidEventHref = paidEventId.startsWith('merch:')
-        ? `${merchEndpoint}/api/v1/merch/details?itemid=${paidEventId.slice(6)}`
-        : `${ticketEndpoint}/api/v1/event/details?eventid=${paidEventId}`;
-      const response = await api.get(paidEventHref);
-      return Boolean(response.status < 299 && response.status >= 200);
-    } catch (error) {
-      console.error('Error validating paid event ID:', error);
-      return false;
+  useEffect(() => {
+    if (form.values.end && form.values.end <= form.values.start) {
+      form.setFieldValue('end', new Date(form.values.start.getTime() + 3.6e6)); // 1 hour after the start date
     }
-  };
+  }, [form.values.start]);
+
+  useEffect(() => {
+    if (form.values.locationLink === '') {
+      form.setFieldValue('locationLink', undefined);
+    }
+  }, [form.values.locationLink]);
 
   const handleSubmit = async (values: EventPostRequest) => {
     try {
@@ -138,10 +136,10 @@ export const ManageEventPage: React.FC = () => {
       };
 
       const eventURL = isEditing ? `/api/v1/events/${eventId}` : '/api/v1/events';
-      const response = await api.post(eventURL, realValues);
+      await api.post(eventURL, realValues);
       notifications.show({
         title: isEditing ? 'Event updated!' : 'Event created!',
-        message: isEditing ? undefined : `The event ID is "${response.data.id}".`,
+        message: `Changes may take up to ${Math.ceil(EVENT_CACHED_DURATION / 60)} minutes to reflect to users.`,
       });
       navigate('/events/manage');
     } catch (error) {

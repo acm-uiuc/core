@@ -18,6 +18,7 @@ import {
   IconTicket,
   IconLock,
   IconUsers,
+  IconDoor,
 } from '@tabler/icons-react';
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -65,6 +66,13 @@ export const navItems = [
     icon: IconUsers,
     description: null,
     validRoles: [AppRoles.SIGLEAD_MANAGER],
+  },
+  {
+    link: '/roomRequests',
+    name: 'Room Requests',
+    icon: IconDoor,
+    description: null,
+    validRoles: [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_UPDATE],
   },
 ];
 

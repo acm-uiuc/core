@@ -215,7 +215,6 @@ export class EntraFetchError extends BaseError<"EntraFetchError"> {
   }
 }
 
-
 export class EntraPatchError extends BaseError<"EntraPatchError"> {
   email: string;
   constructor({ message, email }: { message?: string; email: string }) {

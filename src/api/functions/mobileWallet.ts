@@ -34,6 +34,7 @@ export async function issueAppleWalletMembershipCard(
   environmentConfig: ConfigType,
   runEnvironment: RunEnvironment,
   email: string,
+  initiator: string,
   logger: pino.Logger,
   name?: string,
 ) {
@@ -104,7 +105,7 @@ export async function issueAppleWalletMembershipCard(
     pkpass.backFields.push({
       label: "Verification URL",
       key: "iss",
-      value: `https://membership.acm.illinois.edu/verify/${email.split("@")[0]}`,
+      value: "https://membership.acm.illinois.edu",
     });
   } else {
     pkpass.backFields.push({
@@ -117,7 +118,7 @@ export async function issueAppleWalletMembershipCard(
   pkpass.backFields.push({ label: "Membership ID", key: "id", value: email });
   const buffer = pkpass.getAsBuffer();
   logger.info(
-    { type: "audit", actor: email, target: email },
+    { type: "audit", module: "mobileWallet", actor: initiator, target: email },
     "Created membership verification pass",
   );
   return buffer;

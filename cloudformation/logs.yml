@@ -15,3 +15,9 @@ Resources:
         Fn::Sub: /aws/lambda/${LambdaFunctionName}
       RetentionInDays:
         Ref: LogRetentionDays
+  EdgeLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/${LambdaFunctionName}-edge
+      RetentionInDays: 7

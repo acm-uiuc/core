@@ -1,6 +1,7 @@
 import { build, context } from 'esbuild';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import copyStaticFiles from 'esbuild-copy-static-files';
 
 const isWatching = !!process.argv.includes('--watch')
 const nodePackage = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'));
@@ -24,7 +25,6 @@ const buildOptions = {
   },
   banner: {
     js: `
-      import path from 'path';
       import { fileURLToPath } from 'url';
       import { createRequire as topLevelCreateRequire } from 'module';
       const require = topLevelCreateRequire(import.meta.url);
@@ -32,6 +32,10 @@ const buildOptions = {
       const __dirname = path.dirname(__filename);
     `.trim(),
   }, // Banner for compatibility with CommonJS
+    plugins: [copyStaticFiles({
+      src: './public',
+      dest: resolve(process.cwd(), '../', '../', 'dist_devel', 'public'),
+    })],
 };
 
 if (isWatching) {

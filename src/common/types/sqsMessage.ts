@@ -3,6 +3,9 @@ import { z, ZodError, ZodType } from "zod";
 export enum AvailableSQSFunctions {
   Ping = "ping",
   EmailMembershipPass = "emailMembershipPass",
+  ProvisionNewMember = "provisionNewMember",
+  SendSaleEmail = "sendSaleEmail",
+  EmailNotifications = "emailNotifications"
 }
 
 const sqsMessageMetadataSchema = z.object({
@@ -16,9 +19,12 @@ const baseSchema = z.object({
   metadata: sqsMessageMetadataSchema,
 });
 
-const createSQSSchema = <T extends AvailableSQSFunctions, P extends ZodType<any>>(
+const createSQSSchema = <
+  T extends AvailableSQSFunctions,
+  P extends ZodType<any>,
+>(
   func: T,
-  payloadSchema: P
+  payloadSchema: P,
 ) =>
   baseSchema.extend({
     function: z.literal(func),
@@ -26,21 +32,48 @@ const createSQSSchema = <T extends AvailableSQSFunctions, P extends ZodType<any>
   });
 
 export const sqsPayloadSchemas = {
-  [AvailableSQSFunctions.Ping]: createSQSSchema(AvailableSQSFunctions.Ping, z.object({})),
+  [AvailableSQSFunctions.Ping]: createSQSSchema(
+    AvailableSQSFunctions.Ping,
+    z.object({}),
+  ),
   [AvailableSQSFunctions.EmailMembershipPass]: createSQSSchema(
     AvailableSQSFunctions.EmailMembershipPass,
-    z.object({ email: z.string().email() })
+    z.object({ email: z.string().email() }),
   ),
+  [AvailableSQSFunctions.ProvisionNewMember]: createSQSSchema(
+    AvailableSQSFunctions.ProvisionNewMember,
+    z.object({ email: z.string().email() }),
+  ),
+  [AvailableSQSFunctions.SendSaleEmail]: createSQSSchema(
+    AvailableSQSFunctions.SendSaleEmail,
+    z.object({
+      email: z.string().email(),
+      qrCodeContent: z.string().min(1),
+      itemName: z.string().min(1),
+      quantity: z.number().min(1),
+      size: z.string().optional(),
+      customText: z.string().optional(),
+      type: z.union([z.literal('event'), z.literal('merch')])
+    }),
+  ),
+  [AvailableSQSFunctions.EmailNotifications]: createSQSSchema(
+    AvailableSQSFunctions.EmailNotifications, z.object({
+      to: z.array(z.string().email()).min(1),
+      cc: z.optional(z.array(z.string().email()).min(1)),
+      bcc: z.optional(z.array(z.string().email()).min(1)),
+      subject: z.string().min(1),
+      content: z.string().min(1),
+    })
+  )
 } as const;
 
-export const sqsPayloadSchema = z.discriminatedUnion(
-  "function",
-  [
-    sqsPayloadSchemas[AvailableSQSFunctions.Ping],
-    sqsPayloadSchemas[AvailableSQSFunctions.EmailMembershipPass],
-  ] as const
-);
-
+export const sqsPayloadSchema = z.discriminatedUnion("function", [
+  sqsPayloadSchemas[AvailableSQSFunctions.Ping],
+  sqsPayloadSchemas[AvailableSQSFunctions.EmailMembershipPass],
+  sqsPayloadSchemas[AvailableSQSFunctions.ProvisionNewMember],
+  sqsPayloadSchemas[AvailableSQSFunctions.SendSaleEmail],
+  sqsPayloadSchemas[AvailableSQSFunctions.EmailNotifications],
+] as const);
 
 export type SQSPayload<T extends AvailableSQSFunctions> = z.infer<
   (typeof sqsPayloadSchemas)[T]
