@@ -403,7 +403,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             counter: ownerRecord.counter,
           });
         } else {
-          throw new AuthError("User does not own slug.");
+          throw new AuthError(
+            "User does not have permission to fetch slug details.",
+          );
         }
       } catch (e: unknown) {
         console.log(e);
@@ -445,24 +447,82 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
 
-        //validate that the slug entry does not already exist
+        //validate that the slug entry already exists
         //TODO: could this just call one of the other routes to prevent duplicating code?
         try {
+          const slug = request.body.slug;
+          // Query to get all items with the specified slug
           const queryParams = {
             TableName: genericConfig.LinkryDynamoTableName,
             KeyConditionExpression: "slug = :slug",
             ExpressionAttributeValues: {
-              ":slug": { S: request.params.slug },
+              ":slug": { S: decodeURIComponent(slug) },
             },
           };
 
           const queryCommand = new QueryCommand(queryParams);
           const queryResponse = await dynamoClient.send(queryCommand);
-          if (queryResponse.Items && queryResponse.Items.length <= 0) {
-            //TODO: throw a different error type so that the user can see the error message?
-            throw new DatabaseInsertError({
-              message: `Slug ${request.params.slug} Does not Exist in Database`,
-            });
+
+          const items: object[] = queryResponse.Items || [];
+          const unmarshalledItems: (OwnerRecord | AccessRecord)[] = [];
+          for (const item of items) {
+            unmarshalledItems.push(
+              unmarshall(item as { [key: string]: AttributeValue }) as
+                | OwnerRecord
+                | AccessRecord,
+            );
+          }
+          if (items.length == 0)
+            throw new DatabaseFetchError({ message: "Slug does not exist" });
+
+          //TODO: cache response;
+
+          const ownerRecord: OwnerRecord = unmarshalledItems.filter(
+            (item): item is OwnerRecord => "redirect" in item,
+          )[0];
+
+          const accessGroupNames: string[] = [];
+          for (const record of unmarshalledItems) {
+            if (record && record != ownerRecord) {
+              const accessGroupUUID: string = record.access.split("GROUP#")[1];
+              accessGroupNames.push(
+                fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
+                  accessGroupUUID,
+                ) as string,
+              );
+            }
+          }
+
+          const entraIdToken = await getEntraIdToken(
+            fastify.environmentConfig.AadValidClientId,
+          );
+
+          if (!request.username) {
+            throw new Error("Username is undefined");
+          }
+
+          const allUserGroupUUIDs = await listGroupIDsByEmail(
+            entraIdToken,
+            request.username,
+          );
+
+          const linkryGroupUUIDs: string[] = [
+            ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
+          ] as string[];
+
+          const userLinkryGroups = allUserGroupUUIDs.filter((groupId) =>
+            linkryGroupUUIDs.includes(groupId),
+          );
+
+          if (
+            (ownerRecord &&
+              ownerRecord.access.split("OWNER#")[1] == request.username) ||
+            userLinkryGroups.length > 0
+          ) {
+          } else {
+            throw new AuthError(
+              "User does not have permission to manage slug.",
+            );
           }
         } catch (e: unknown) {
           console.log(e);
@@ -481,7 +541,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       // make sure that a user can manage this link, either via owning or being in a group that has access to it, or is a LINKS_ADMIN.
       // you can only change the URL it redirects to
-      //throw new NotImplementedError({});
       /* 
 
       1. It has already been verified that the Slug Exists in the Database
@@ -491,6 +550,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       5. Perform the update
 
       */
+      //TODO: make sure the user has permission to manage this link
+
       if (request.body.isEdited) {
         //as the request was edited, make updates
         const { slug } = request.params;
@@ -629,6 +690,79 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           AppRoles.LINKS_MANAGER,
           AppRoles.LINKS_ADMIN,
         ]);
+
+        const { slug: slug } = request.params;
+        // Query to get all items with the specified slug
+        const queryParams = {
+          TableName: genericConfig.LinkryDynamoTableName,
+          KeyConditionExpression: "slug = :slug",
+          ExpressionAttributeValues: {
+            ":slug": { S: decodeURIComponent(slug) },
+          },
+        };
+
+        const queryCommand = new QueryCommand(queryParams);
+        const queryResponse = await dynamoClient.send(queryCommand);
+
+        const items: object[] = queryResponse.Items || [];
+        const unmarshalledItems: (OwnerRecord | AccessRecord)[] = [];
+        for (const item of items) {
+          unmarshalledItems.push(
+            unmarshall(item as { [key: string]: AttributeValue }) as
+              | OwnerRecord
+              | AccessRecord,
+          );
+        }
+        if (items.length == 0)
+          throw new DatabaseFetchError({ message: "Slug does not exist" });
+
+        //TODO: cache response;
+
+        const ownerRecord: OwnerRecord = unmarshalledItems.filter(
+          (item): item is OwnerRecord => "redirect" in item,
+        )[0];
+
+        const accessGroupNames: string[] = [];
+        for (const record of unmarshalledItems) {
+          if (record && record != ownerRecord) {
+            const accessGroupUUID: string = record.access.split("GROUP#")[1];
+            accessGroupNames.push(
+              fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
+                accessGroupUUID,
+              ) as string,
+            );
+          }
+        }
+
+        const entraIdToken = await getEntraIdToken(
+          fastify.environmentConfig.AadValidClientId,
+        );
+
+        if (!request.username) {
+          throw new Error("Username is undefined");
+        }
+
+        const allUserGroupUUIDs = await listGroupIDsByEmail(
+          entraIdToken,
+          request.username,
+        );
+
+        const linkryGroupUUIDs: string[] = [
+          ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
+        ] as string[];
+
+        const userLinkryGroups = allUserGroupUUIDs.filter((groupId) =>
+          linkryGroupUUIDs.includes(groupId),
+        );
+
+        if (
+          (ownerRecord &&
+            ownerRecord.access.split("OWNER#")[1] == request.username) ||
+          userLinkryGroups.length > 0
+        ) {
+        } else {
+          throw new AuthError("User does not have permission to delete slug.");
+        }
       },
     },
     async (request, reply) => {
