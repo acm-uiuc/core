@@ -1010,6 +1010,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 // Combine GROUP# values into a single string separated by ";"
                 const combinedAccessGroups = combinedAccessGroupNames.join(";");
 
+                //console.log(combinedAccessGroups);
+
                 // Combine OWNER# record with access groups
                 return ownerItems?.map((ownerItem) => ({
                   ...ownerItem,
@@ -1025,9 +1027,22 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         // Flatten the results into a single array
         const flattenedDelegatedLinks = delegatedLinks.flat();
 
+        const delegatedUniqueSlugs = //find the unique slug in the delegated links
+          new Set<string>(flattenedDelegatedLinks.map((item) => item.slug));
+
+        const uniqueFlattenedDelegatedLinks = flattenedDelegatedLinks.filter(
+          (item) => {
+            if (delegatedUniqueSlugs.has(item.slug)) {
+              //filter the delegated links to only show one entry per unique slug per delegated link
+              delegatedUniqueSlugs.delete(item.slug);
+              return true;
+            }
+          },
+        );
+
         const results = {
           ownedLinks: ownedLinks,
-          delegatedLinks: flattenedDelegatedLinks,
+          delegatedLinks: uniqueFlattenedDelegatedLinks,
         };
 
         reply.send(results);
