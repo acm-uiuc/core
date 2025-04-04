@@ -51,28 +51,20 @@ type AccessRecord = {
   access: string;
 };
 
-const rawRequest = {
-  slug: z.string().min(1),
-  redirect: z.string().url().min(1),
-  groups: z.optional(z.array(z.string()).min(1)),
-};
+const getRequest = z.object({
+  slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
+});
 
 const createRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
-  access: z.array(z.string()).min(1),
+  access: z.array(z.string()),
   redirect: z.string().url().min(1),
   counter: z.number().optional(),
 });
 
-const deleteRequest = z.object({
-  slug: z.string().min(1),
-  redirect: z.optional(z.string().url().min(1)),
-  groups: z.optional(z.array(z.string()).min(1)),
-});
-
 const patchRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
-  access: z.array(z.string()).min(1),
+  access: z.array(z.string()),
   redirect: z.string().url().min(1),
   isEdited: z.boolean(),
   counter: z.number().optional(),
@@ -90,10 +82,10 @@ type LinkryGetRequest = {
   Body: undefined;
 };
 
-type LinkyDeleteRequest = {
-  Params: undefined;
+type LinkryDeleteRequest = {
+  Params: { slug: string };
   Querystring: undefined;
-  Body: z.infer<typeof deleteRequest>;
+  Body: undefined;
 };
 
 type LinkryPatchRequest = {
@@ -157,41 +149,49 @@ const counterIncrement = async (targetSlug: string) => {
 };
 
 const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.get<LinkrySlugOnlyRequest>("/redir/:slug", async (request, reply) => {
-    const slug = request.params.slug;
-    const command = new QueryCommand({
-      TableName: genericConfig.LinkryDynamoTableName,
-      KeyConditionExpression:
-        "#slug = :slugVal AND begins_with(#access, :accessVal)",
-      ExpressionAttributeNames: {
-        "#slug": "slug",
-        "#access": "access",
+  fastify.get<LinkrySlugOnlyRequest>(
+    "/redir/:slug",
+    {
+      preValidation: async (request, reply) => {
+        await fastify.zodValidateBody(request, reply, getRequest);
       },
-      ExpressionAttributeValues: {
-        ":slugVal": { S: slug },
-        ":accessVal": { S: "OWNER#" },
-      },
-    });
-    try {
-      const result = await dynamoClient.send(command);
-      if (!result || !result.Items || result.Items.length === 0) {
-        return reply
-          .headers({ "content-type": "text/html" })
-          .status(404)
-          .sendFile("404.html");
-      }
-      counterIncrement(slug);
-      return reply.redirect(unmarshall(result.Items[0]).redirect);
-    } catch (e) {
-      if (e instanceof BaseError) {
-        throw e;
-      }
-      request.log.error(e);
-      throw new DatabaseFetchError({
-        message: "Could not retrieve mapping, please try again later.",
+    },
+    async (request, reply) => {
+      const slug = request.params.slug;
+      const command = new QueryCommand({
+        TableName: genericConfig.LinkryDynamoTableName,
+        KeyConditionExpression:
+          "#slug = :slugVal AND begins_with(#access, :accessVal)",
+        ExpressionAttributeNames: {
+          "#slug": "slug",
+          "#access": "access",
+        },
+        ExpressionAttributeValues: {
+          ":slugVal": { S: slug },
+          ":accessVal": { S: "OWNER#" },
+        },
       });
-    }
-  });
+      try {
+        const result = await dynamoClient.send(command);
+        if (!result || !result.Items || result.Items.length === 0) {
+          return reply
+            .headers({ "content-type": "text/html" })
+            .status(404)
+            .sendFile("404.html");
+        }
+        counterIncrement(slug);
+        return reply.redirect(unmarshall(result.Items[0]).redirect);
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        request.log.error(e);
+        throw new DatabaseFetchError({
+          message: "Could not retrieve mapping, please try again later.",
+        });
+      }
+    },
+  );
   fastify.post<LinkyCreateRequest>(
     "/redir",
     {
@@ -317,9 +317,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.get<LinkryGetRequest>(
     "/linkdata/:slug",
     {
-      /*preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, getRequest);
-      },*/
+      //No need to prevalidate body, it is empty
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [
           AppRoles.LINKS_MANAGER,
@@ -393,7 +391,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           linkryGroupUUIDs.includes(groupId),
         );
 
-        //FIXME: User should also be able to edit if they have an access group - Done
         if (
           (ownerRecord &&
             ownerRecord.access.split("OWNER#")[1] == request.username) ||
@@ -406,7 +403,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             counter: ownerRecord.counter,
           });
         } else {
-          throw new AuthError("User does not own slug.");
+          throw new AuthError(
+            "User does not have permission to fetch slug details.",
+          );
         }
       } catch (e: unknown) {
         console.log(e);
@@ -448,27 +447,82 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
 
-        //validate that the slug entry does not already exist
+        //validate that the slug entry already exists
         //TODO: could this just call one of the other routes to prevent duplicating code?
         try {
+          const slug = request.body.slug;
+          // Query to get all items with the specified slug
           const queryParams = {
             TableName: genericConfig.LinkryDynamoTableName,
             KeyConditionExpression: "slug = :slug",
             ExpressionAttributeValues: {
-              ":slug": { S: request.params.slug },
+              ":slug": { S: decodeURIComponent(slug) },
             },
           };
 
           const queryCommand = new QueryCommand(queryParams);
           const queryResponse = await dynamoClient.send(queryCommand);
-          if (queryResponse.Items && queryResponse.Items.length <= 0) {
-            //TODO: throw a different error type so that the user can see the error message?
-            throw new DatabaseInsertError({
-              message: `Slug ${request.params.slug} Does not Exist in Database`,
-            });
-            // }else{
-            //   console.log(`Slug ${request.params.slug} Exist in Database`)
-            //   console.log(request.params.slug)
+
+          const items: object[] = queryResponse.Items || [];
+          const unmarshalledItems: (OwnerRecord | AccessRecord)[] = [];
+          for (const item of items) {
+            unmarshalledItems.push(
+              unmarshall(item as { [key: string]: AttributeValue }) as
+                | OwnerRecord
+                | AccessRecord,
+            );
+          }
+          if (items.length == 0)
+            throw new DatabaseFetchError({ message: "Slug does not exist" });
+
+          //TODO: cache response;
+
+          const ownerRecord: OwnerRecord = unmarshalledItems.filter(
+            (item): item is OwnerRecord => "redirect" in item,
+          )[0];
+
+          const accessGroupNames: string[] = [];
+          for (const record of unmarshalledItems) {
+            if (record && record != ownerRecord) {
+              const accessGroupUUID: string = record.access.split("GROUP#")[1];
+              accessGroupNames.push(
+                fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
+                  accessGroupUUID,
+                ) as string,
+              );
+            }
+          }
+
+          const entraIdToken = await getEntraIdToken(
+            fastify.environmentConfig.AadValidClientId,
+          );
+
+          if (!request.username) {
+            throw new Error("Username is undefined");
+          }
+
+          const allUserGroupUUIDs = await listGroupIDsByEmail(
+            entraIdToken,
+            request.username,
+          );
+
+          const linkryGroupUUIDs: string[] = [
+            ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
+          ] as string[];
+
+          const userLinkryGroups = allUserGroupUUIDs.filter((groupId) =>
+            linkryGroupUUIDs.includes(groupId),
+          );
+
+          if (
+            (ownerRecord &&
+              ownerRecord.access.split("OWNER#")[1] == request.username) ||
+            userLinkryGroups.length > 0
+          ) {
+          } else {
+            throw new AuthError(
+              "User does not have permission to manage slug.",
+            );
           }
         } catch (e: unknown) {
           console.log(e);
@@ -487,7 +541,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       // make sure that a user can manage this link, either via owning or being in a group that has access to it, or is a LINKS_ADMIN.
       // you can only change the URL it redirects to
-      //throw new NotImplementedError({});
       /* 
 
       1. It has already been verified that the Slug Exists in the Database
@@ -497,6 +550,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       5. Perform the update
 
       */
+      //TODO: make sure the user has permission to manage this link
+
       if (request.body.isEdited) {
         //as the request was edited, make updates
         const { slug } = request.params;
@@ -623,63 +678,91 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           reply.code(500).send({ error: "Failed to update slug" });
         }
       }
-
-      //   console.log("queryParams", queryParams)
-
-      //   const queryCommand = new QueryCommand(queryParams);
-      //   const queryResponse = await dynamoClient.send(queryCommand);
-
-      //   const items = queryResponse.Items || [];
-      //   if (items.length === 0) {
-      //     throw new NotFoundError({ message: "Slug does not exist" });
-      //   }
-
-      //   // Step 2: Prepare the transaction to update the slug
-      //   const TransactItems = items.map((item) => {
-      //     const unmarshalledItem = unmarshall(item);
-      //     const newSlug = `new-${unmarshalledItem.slug}`; // Example: Modify the slug as needed
-
-      //     return {
-      //       Update: {
-      //         TableName: genericConfig.LinkryDynamoTableName,
-      //         Key: marshall({
-      //           slug: unmarshalledItem.slug,
-      //           access: unmarshalledItem.access,
-      //         }),
-      //         UpdateExpression: "SET slug = :newSlug, redirect = :redirect",
-      //         ExpressionAttributeValues: marshall({
-      //           ":newSlug": newSlug,
-      //           ":redirect": redirect,
-      //         }),
-      //       },
-      //     };
-      //   });
-
-      //   // Step 3: Execute the transaction
-      //   await dynamoClient.send(
-      //     new TransactWriteItemsCommand({ TransactItems })
-      //   );
-
-      //   reply.code(200).send({ message: "Slug updated successfully" });
-      // } catch (error) {
-      //   console.error("Error updating slug:", error);
-      //   reply.code(500).send({ error: "Failed to update slug" });
-      // }
     },
   );
 
-  fastify.delete<LinkrySlugOnlyRequest>(
+  fastify.delete<LinkryDeleteRequest>(
     "/redir/:slug",
     {
-      //no need of pre valiation, the route itself is prevalidating
-      // preValidation: async (request, reply) => {
-      //   await fastify.zodValidateBody(request, reply, deleteRequest);
-      // },
+      // No need to prevalidate body, it is empty
       onRequest: async (request, reply) => {
-        // await fastify.authorize(request, reply, [
-        //   AppRoles.LINKS_MANAGER,
-        //   AppRoles.LINKS_ADMIN,
-        // ]);
+        await fastify.authorize(request, reply, [
+          AppRoles.LINKS_MANAGER,
+          AppRoles.LINKS_ADMIN,
+        ]);
+
+        const { slug: slug } = request.params;
+        // Query to get all items with the specified slug
+        const queryParams = {
+          TableName: genericConfig.LinkryDynamoTableName,
+          KeyConditionExpression: "slug = :slug",
+          ExpressionAttributeValues: {
+            ":slug": { S: decodeURIComponent(slug) },
+          },
+        };
+
+        const queryCommand = new QueryCommand(queryParams);
+        const queryResponse = await dynamoClient.send(queryCommand);
+
+        const items: object[] = queryResponse.Items || [];
+        const unmarshalledItems: (OwnerRecord | AccessRecord)[] = [];
+        for (const item of items) {
+          unmarshalledItems.push(
+            unmarshall(item as { [key: string]: AttributeValue }) as
+              | OwnerRecord
+              | AccessRecord,
+          );
+        }
+        if (items.length == 0)
+          throw new DatabaseFetchError({ message: "Slug does not exist" });
+
+        //TODO: cache response;
+
+        const ownerRecord: OwnerRecord = unmarshalledItems.filter(
+          (item): item is OwnerRecord => "redirect" in item,
+        )[0];
+
+        const accessGroupNames: string[] = [];
+        for (const record of unmarshalledItems) {
+          if (record && record != ownerRecord) {
+            const accessGroupUUID: string = record.access.split("GROUP#")[1];
+            accessGroupNames.push(
+              fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
+                accessGroupUUID,
+              ) as string,
+            );
+          }
+        }
+
+        const entraIdToken = await getEntraIdToken(
+          fastify.environmentConfig.AadValidClientId,
+        );
+
+        if (!request.username) {
+          throw new Error("Username is undefined");
+        }
+
+        const allUserGroupUUIDs = await listGroupIDsByEmail(
+          entraIdToken,
+          request.username,
+        );
+
+        const linkryGroupUUIDs: string[] = [
+          ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
+        ] as string[];
+
+        const userLinkryGroups = allUserGroupUUIDs.filter((groupId) =>
+          linkryGroupUUIDs.includes(groupId),
+        );
+
+        if (
+          (ownerRecord &&
+            ownerRecord.access.split("OWNER#")[1] == request.username) ||
+          userLinkryGroups.length > 0
+        ) {
+        } else {
+          throw new AuthError("User does not have permission to delete slug.");
+        }
       },
     },
     async (request, reply) => {
@@ -703,9 +786,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const desiredAccessValues: string[] = [
           ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
         ] as string[];
-
-        //Use the below fastify environement to fetch group names
-        //console.log(desiredAccessValues)
 
         const filteredItems = items.filter((item) => {
           if (item.access.S?.startsWith("OWNER#")) {
@@ -758,8 +838,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       // if a links manager, show all my links + links I can manage
 
       try {
-        // console.log("******")
-        // console.log(request.username)
+        //TODO: admin response
 
         // const isAdmin = request?.includes(AppRoles.LINKS_ADMIN);
 
@@ -786,20 +865,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         const response = await dynamoClient.send(command);
 
-        //TODO: this is where we use the new listGroupIDsByEmail entraId route
-
-        // const params = {
-        //   TableName: genericConfig.LinkryDynamoTableName, // Replace with your actual table name
-        //   IndexName: "AccessIndex",   // Your GSI name
-        //   KeyConditionExpression: "access = :accessValue",
-        //   ExpressionAttributeValues: {
-        //     ":accessValue": { S: `OWNER#${request.username}` }
-        //   }
-        // };
-
-        // const response = await dynamoClient.send(new QueryCommand(params));
-        //console.log(response.Items);
-
         const items =
           response.Items?.map((item) => {
             const unmarshalledItem = unmarshall(item);
@@ -813,10 +878,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             return unmarshalledItem;
           }) || [];
 
-        // console.log("items =")
-
-        // console.log("items =" + items )
-
         const ownnedUniqueSlugs = Array.from(
           new Set(
             items
@@ -824,8 +885,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               .map((item) => item.slug), // Extract slugs
           ),
         );
-
-        //console.log("Unique Slugs:", uniqueSlugs);
 
         const ownedLinks = await Promise.all(
           ownnedUniqueSlugs.map(async (slug) => {
@@ -890,25 +949,13 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           request.username,
         );
 
-        //console.log("********allUserGroupIds =" + allUserGroupUUIDs)
         const linkryGroupUUIDs: string[] = [
           ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
         ] as string[];
 
         const userLinkrallUserGroups = allUserGroupUUIDs.filter((groupId) => {
-          //testing hijack
-          /*console.log(groupId);
-              if (groupId != '99b6b87c-9550-4529-87c1-f40862ab7add') { 
-                return false;
-              } */
           return linkryGroupUUIDs.includes(groupId);
         });
-
-        //console.log(linkryGroupUUIDs);
-
-        //console.log(allUserGroupUUIDs);
-
-        //console.log("userLinkrallUserGroups =" + userLinkrallUserGroups)
 
         const delegatedLinks = await Promise.all(
           userLinkrallUserGroups.map(async (group) => {
@@ -929,8 +976,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               unmarshall(item),
             );
 
-            //console.log("groupItems1 = " + JSON.stringify(groupItems));
-
             // Get unique slugs from groupItems and remove previously seen slugs
             const delegatedUniqueSlugs = Array.from(
               new Set(
@@ -942,8 +987,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   .map((item) => item.slug), // Extract slugs
               ),
             );
-
-            //console.log("Filtered uniqueSlugs=" + delegatedUniqueSlugs);
 
             // For each unique slug, find the corresponding "OWNER#" record and access groups
             const ownerRecords = await Promise.all(
@@ -968,8 +1011,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 const ownerItems = ownerQueryResponse.Items?.map((item) =>
                   unmarshall(item),
                 );
-
-                //console.log(ownerItems)
 
                 // Query for GROUP# records
                 const groupQueryCommand = new QueryCommand({
