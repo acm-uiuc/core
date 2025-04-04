@@ -27,6 +27,7 @@ import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
 import path from "path"; // eslint-disable-line import/no-nodejs-modules
 import sigleadRoutes from "./routes/siglead.js";
+import roomRequestRoutes from "./routes/roomRequests.js";
 
 dotenv.config();
 
@@ -135,6 +136,7 @@ async function init(prettyPrint: boolean = false) {
       api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
       api.register(stripeRoutes, { prefix: "/stripe" });
       api.register(sigleadRoutes, { prefix: "/siglead" });
+      api.register(roomRequestRoutes, { prefix: "/roomRequests" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }

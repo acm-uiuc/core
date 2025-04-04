@@ -72,6 +72,14 @@ Resources:
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-provisioning
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-external
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests-status
+              # Index accesses
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-purchase-history/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests-status/index/*
 
           - Sid: DynamoDBCacheAccess
             Effect: Allow
@@ -93,15 +101,6 @@ Resources:
               - dynamodb:UpdateItem
             Resource:
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-rate-limiter
-
-          - Sid: DynamoDBIndexAccess
-            Effect: Allow
-            Action:
-              - dynamodb:Query
-            Resource:
-              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/index/*
-              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/index/*
-              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-purchase-history/index/*
 
           - Sid: DynamoDBStreamAccess
             Effect: Allow
@@ -211,6 +210,19 @@ Resources:
                   ForAllValues:StringLike:
                     ses:Recipients:
                       - "*@illinois.edu"
+        - PolicyName: ses-notifications
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Effect: Allow
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    ses:FromAddress:
+                      Fn::Sub: "notifications@${SesEmailDomain}"
         - PolicyName: ses-sales
           PolicyDocument:
             Version: "2012-10-17"
