@@ -1,4 +1,14 @@
-import { Title, Box, TextInput, Textarea, Switch, Select, Button, Loader } from '@mantine/core';
+import {
+  Title,
+  Box,
+  TextInput,
+  Textarea,
+  Switch,
+  Select,
+  Button,
+  Loader,
+  Container,
+} from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { useForm, zodResolver } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -11,7 +21,7 @@ import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
-import { ScreenComponent, SigTable } from './SigScreenComponents';
+import { ScreenComponent } from './SigScreenComponents';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -156,9 +166,11 @@ export const ManageSigLeadsPage: React.FC = () => {
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.IAM_ADMIN] }}>
-      <Title order={2}>SigLead Management System</Title>
-      <ScreenComponent />
-      {/* <SigTable /> */}
+      <Container>
+        <Title order={2}>SigLead Management System</Title>
+        <ScreenComponent />
+        {/* <SigTable /> */}
+      </Container>
     </AuthGuard>
   );
 };
