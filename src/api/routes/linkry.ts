@@ -822,6 +822,83 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
   );
 
   fastify.get<NoDataRequest>(
+    "/admin/redir",
+    {
+      onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, [AppRoles.LINKS_ADMIN]);
+      },
+    },
+    async (request, reply) => {
+      try {
+        // Fetch all links from the database
+        const scanCommand = new ScanCommand({
+          TableName: genericConfig.LinkryDynamoTableName,
+        });
+
+        const scanResponse = await dynamoClient.send(scanCommand);
+
+        // Unmarshall the results
+        const items = scanResponse.Items || [];
+        const unmarshalledItems = items.map((item) =>
+          unmarshall(item as { [key: string]: AttributeValue }),
+        );
+
+        // Group links by slug and consolidate access values
+        const groupedLinks: Record<string, any> = {};
+
+        unmarshalledItems.forEach((item) => {
+          const slug = item.slug;
+          let access = item.access;
+
+          // Extract the owner from the access field if it starts with "OWNER#"
+          let owner = null;
+          if (access.startsWith("OWNER#")) {
+            owner = access.replace("OWNER#", ""); // Remove "OWNER#" prefix
+            access = null; // Clear the access field for owner records
+          }
+
+          // Convert GROUP# values to names using the mapping
+          if (access && access.startsWith("GROUP#")) {
+            const groupUUID = access.replace("GROUP#", "");
+            access =
+              fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
+                groupUUID,
+              ) || groupUUID; // Fallback to UUID if no mapping is found
+          }
+
+          if (!groupedLinks[slug]) {
+            groupedLinks[slug] = {
+              slug,
+              redirect: item.redirect || null,
+              owner: owner, // Set the owner attribute
+              access: new Set<string>(), // Use a Set to avoid duplicate access values
+              counter: item.counter || 0,
+            };
+          }
+
+          if (access) {
+            groupedLinks[slug].access.add(access); // Add access value to the Set
+          }
+        });
+
+        // Convert grouped links to an array and join access values into a single string
+        const result = Object.values(groupedLinks).map((link) => ({
+          ...link,
+          access: Array.from(link.access).join(";"), // Convert Set to string
+        }));
+
+        // Send the results back to the client
+        reply.code(200).send({ adminLinks: result });
+      } catch (error) {
+        console.error("Error fetching links:", error);
+        reply
+          .code(500)
+          .send({ error: "Failed to fetch links from the database." });
+      }
+    },
+  );
+
+  fastify.get<NoDataRequest>(
     "/redir",
     {
       onRequest: async (request, reply) => {
