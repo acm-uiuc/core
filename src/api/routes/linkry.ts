@@ -52,7 +52,7 @@ type AccessRecord = {
 };
 
 const getRequest = z.object({
-  slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
+  slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH).optional(),
 });
 
 const createRequest = z.object({
@@ -850,7 +850,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         //console.log(request)
 
-        const command = new QueryCommand({
+        const fetchAllOwnerRecords = new QueryCommand({
           TableName: genericConfig.LinkryDynamoTableName,
           IndexName: "AccessIndex",
           KeyConditionExpression: "#access = :accessVal",
@@ -863,11 +863,11 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ScanIndexForward: false, // Sort in descending order
         });
 
-        const response = await dynamoClient.send(command);
+        const allOwnerRecords = await dynamoClient.send(fetchAllOwnerRecords);
 
         const items =
-          response.Items?.map((item) => {
-            const unmarshalledItem = unmarshall(item);
+          allOwnerRecords.Items?.map((ownerRecord) => {
+            const unmarshalledItem = unmarshall(ownerRecord);
 
             // Strip '#' from access field
             if (unmarshalledItem.access) {
