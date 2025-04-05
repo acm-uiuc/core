@@ -1056,7 +1056,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 // Combine OWNER# record with access groups
                 return ownerItems?.map((ownerItem) => ({
                   ...ownerItem,
-                  access: `${ownerItem.access.split("#")[1]};${combinedAccessGroups}`, // Append access groups to OWNER# access
+                  access: combinedAccessGroups, // Append access groups to OWNER# access
                 }));
               }),
             );
