@@ -33,7 +33,7 @@ export function capitalizeFirstLetter(string: string) {
 
 const baseUrl = 'https://go.acm.illinois.edu'; //Move to config in future?
 const slugRegex = new RegExp('^(https?://)?[a-zA-Z0-9-._/]*$');
-const urlRegex = new RegExp('^https://[a-zA-Z0-9-._/?=&+:]*$');
+const urlRegex = new RegExp('^https?://[a-zA-Z0-9-._/?=&+:]*$');
 
 const baseBodySchema = z
   .object({

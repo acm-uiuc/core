@@ -850,6 +850,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         //console.log(request)
 
+        //fetching owned links
+
         const fetchAllOwnerRecords = new QueryCommand({
           TableName: genericConfig.LinkryDynamoTableName,
           IndexName: "AccessIndex",
@@ -865,7 +867,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         const allOwnerRecords = await dynamoClient.send(fetchAllOwnerRecords);
 
-        const items =
+        const unmarshalledOwnerRecords =
           allOwnerRecords.Items?.map((ownerRecord) => {
             const unmarshalledItem = unmarshall(ownerRecord);
 
@@ -880,13 +882,13 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         const ownnedUniqueSlugs = Array.from(
           new Set(
-            items
+            unmarshalledOwnerRecords
               .filter((item) => item.slug) // Filter out items without a slug
               .map((item) => item.slug), // Extract slugs
           ),
         );
 
-        const ownedLinks = await Promise.all(
+        const ownedLinksGroupsConcatenated = await Promise.all(
           ownnedUniqueSlugs.map(async (slug) => {
             const groupQueryCommand = new QueryCommand({
               TableName: genericConfig.LinkryDynamoTableName,
@@ -927,7 +929,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             const combinedAccessGroups = combinedAccessGroupNames.join(";");
 
             // Find the original record for this slug and add the combined access groups
-            const originalRecord = (items ?? []).find(
+            const originalRecord = (unmarshalledOwnerRecords ?? []).find(
               (item) => item.slug === slug,
             );
             return {
@@ -937,6 +939,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }),
         );
 
+        //fetching delegated links
         const entraIdToken = await getEntraIdToken(
           fastify.environmentConfig.AadValidClientId,
         );
@@ -944,21 +947,24 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         if (!request.username) {
           throw new Error("Username is undefined");
         }
-        const allUserGroupUUIDs = await listGroupIDsByEmail(
+
+        const uUIDsOfAllTheGroupsUserIsMemberOf = await listGroupIDsByEmail(
           entraIdToken,
           request.username,
         );
 
-        const linkryGroupUUIDs: string[] = [
+        const allLinkryGroupUUIDs: string[] = [
           ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
         ] as string[];
 
-        const userLinkrallUserGroups = allUserGroupUUIDs.filter((groupId) => {
-          return linkryGroupUUIDs.includes(groupId);
-        });
+        const userLinkrAllUserGroups = uUIDsOfAllTheGroupsUserIsMemberOf.filter(
+          (groupId) => {
+            return allLinkryGroupUUIDs.includes(groupId);
+          },
+        );
 
         const delegatedLinks = await Promise.all(
-          userLinkrallUserGroups.map(async (group) => {
+          userLinkrAllUserGroups.map(async (group) => {
             // Use ScanCommand to query all records where access starts with "GROUP#[value]"
             const groupScanCommand = new ScanCommand({
               TableName: genericConfig.LinkryDynamoTableName,
@@ -972,6 +978,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             });
 
             const groupScanResponse = await dynamoClient.send(groupScanCommand);
+
             const groupItems = groupScanResponse.Items?.map((item) =>
               unmarshall(item),
             );
@@ -1082,7 +1089,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         );
 
         const results = {
-          ownedLinks: ownedLinks,
+          ownedLinks: ownedLinksGroupsConcatenated,
           delegatedLinks: uniqueFlattenedDelegatedLinks,
         };
 
