@@ -1,5 +1,6 @@
 import {
   Text,
+  Box,
   Title,
   Button,
   Table,
@@ -10,6 +11,7 @@ import {
   Anchor,
   Badge,
   Tabs,
+  Loader,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -56,6 +58,7 @@ export type LinkryGetResponse = z.infer<typeof getLinkrySchema>;
 //const getLinksSchema = z.array(getLinkrySchema);
 
 export const LinkShortener: React.FC = () => {
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [ownedLinks, setOwnedLinks] = useState<LinkryGetResponse[]>([]);
   const [delegatedLinks, setDelegatedLinks] = useState<LinkryGetResponse[]>([]);
   const api = useApi('core');
@@ -231,11 +234,13 @@ export const LinkShortener: React.FC = () => {
 
   useEffect(() => {
     const getEvents = async () => {
+      setIsLoading(true);
       const response = await api.get('/api/v1/linkry/redir');
       //const upcomingEvents = await api.get('/api/v1/events?upcomingOnly=true');
       //const upcomingEventsSet = new Set(upcomingEvents.data.map((x: EventGetResponse) => x.id));
       const ownedLinks = response.data.ownedLinks;
       const delegatedLinks = response.data.delegatedLinks;
+      setIsLoading(false);
       // events.sort((a: EventGetResponse, b: EventGetResponse) => {
       //   return a.start.localeCompare(b.start);
       // });
@@ -254,8 +259,10 @@ export const LinkShortener: React.FC = () => {
   const deleteLink = async (slug: string) => {
     try {
       const encodedSlug = encodeURIComponent(slug);
+      setIsLoading(true);
       await api.delete(`/api/v1/linkry/redir/${encodedSlug}`);
       setOwnedLinks((prevEvents) => prevEvents.filter((link) => link.slug !== slug));
+      setIsLoading(false);
       notifications.show({
         title: 'Link deleted',
         message: 'The link was deleted successfully.',
@@ -277,6 +284,22 @@ export const LinkShortener: React.FC = () => {
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
+      <Box
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(255, 255, 255, 0.7)', // semi-transparent background
+          display: isLoading ? 'flex' : 'none',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999, // make sure it’s on top
+        }}
+      >
+        <Loader size={48} color="blue" />
+      </Box>
       {deleteLinkCandidate && (
         <Modal
           opened={opened}

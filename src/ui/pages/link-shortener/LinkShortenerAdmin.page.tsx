@@ -1,5 +1,6 @@
 import {
   Text,
+  Box,
   Title,
   Button,
   Table,
@@ -9,6 +10,7 @@ import {
   ButtonGroup,
   Anchor,
   Badge,
+  Loader,
   Tabs,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -62,6 +64,7 @@ export type LinkryAdminGetResponse = z.infer<typeof getLinkryAdminSchema>;
 //const getLinksSchema = z.array(getLinkrySchema);
 
 export const LinkShortenerAdmin: React.FC = () => {
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [adminLinks, setAdminLinks] = useState<LinkryAdminGetResponse[]>([]);
   const api = useApi('core');
   const [opened, { open, close }] = useDisclosure(false);
@@ -257,8 +260,10 @@ export const LinkShortenerAdmin: React.FC = () => {
 
   useEffect(() => {
     const getEvents = async () => {
+      setIsLoading(true);
       const response = await api.get('/api/v1/linkry/admin/redir');
       const adminLinks = response.data.adminLinks;
+      setIsLoading(false);
       setAdminLinks(adminLinks);
     };
     getEvents();
@@ -267,8 +272,10 @@ export const LinkShortenerAdmin: React.FC = () => {
   const deleteLink = async (slug: string) => {
     try {
       const encodedSlug = encodeURIComponent(slug);
+      setIsLoading(true);
       await api.delete(`/api/v1/linkry/redir/${encodedSlug}`);
       setAdminLinks((prevEvents) => prevEvents.filter((link) => link.slug !== slug));
+      setIsLoading(false);
       notifications.show({
         title: 'Link deleted',
         message: 'The link was deleted successfully.',
@@ -286,6 +293,22 @@ export const LinkShortenerAdmin: React.FC = () => {
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
+      <Box
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(255, 255, 255, 0.7)', // semi-transparent background
+          display: isLoading ? 'flex' : 'none',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999, // make sure it’s on top
+        }}
+      >
+        <Loader size={48} color="blue" />
+      </Box>
       {deleteLinkCandidate && (
         <Modal
           opened={opened}
