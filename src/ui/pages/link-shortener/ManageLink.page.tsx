@@ -167,7 +167,9 @@ export const ManageLinkPage: React.FC = () => {
           ? undefined
           : `The Link: ${realValues.redirect}, ${realValues.slug} ${realValues.access}".`,
       });
-      navigate('/link-shortener');
+      navigate(
+        new URLSearchParams(window.location.search).get('previousPage') || '/link-shortener'
+      );
     } catch (error) {
       setIsSubmitting(false);
       console.error('Error creating/editing link:', error);
