@@ -346,7 +346,7 @@ export const LinkShortener: React.FC = () => {
         </Modal>
       )}
       <Title order={2} mb="md">
-        Link Shortener
+        User Links
       </Title>
 
       <div
