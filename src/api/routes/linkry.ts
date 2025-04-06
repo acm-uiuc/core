@@ -845,6 +845,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         // Group links by slug and consolidate access values
         const groupedLinks: Record<string, any> = {};
+        const ownerLinks: Record<string, any> = {};
 
         unmarshalledItems.forEach((item) => {
           const slug = item.slug;
@@ -876,8 +877,21 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             };
           }
 
+          if (!ownerLinks[slug]) {
+            ownerLinks[slug] = {
+              slug,
+              redirect: item.redirect || null,
+              owner: new Set<string>(), // Use a Set to avoid duplicate access values
+              counter: item.counter || 0,
+            };
+          }
+
           if (access) {
             groupedLinks[slug].access.add(access); // Add access value to the Set
+          }
+
+          if (owner) {
+            ownerLinks[slug].owner.add(owner || ""); // Add access value to the Set
           }
         });
 
@@ -885,6 +899,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const result = Object.values(groupedLinks).map((link) => ({
           ...link,
           access: Array.from(link.access).join(";"), // Convert Set to string
+          owner:
+            Array.from(ownerLinks[link.slug]?.owner || []).join(";") ||
+            link.owner, // Convert Set to string or keep original owner
         }));
 
         // Send the results back to the client
