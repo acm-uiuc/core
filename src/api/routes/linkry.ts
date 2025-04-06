@@ -886,7 +886,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             };
           }
 
-          if (access) {
+          if (access && !access.startsWith("OWNER#")) {
             groupedLinks[slug].access.add(access); // Add access value to the Set
           }
         });
