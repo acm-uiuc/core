@@ -355,7 +355,7 @@ export const LinkShortenerAdmin: React.FC = () => {
         </Modal>
       )}
       <Title order={2} mb="md">
-        Link Shortener
+        Admin Links
       </Title>
 
       <div

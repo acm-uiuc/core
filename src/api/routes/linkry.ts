@@ -855,7 +855,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           let owner = null;
           if (access.startsWith("OWNER#")) {
             owner = access.replace("OWNER#", ""); // Remove "OWNER#" prefix
-            access = null; // Clear the access field for owner records
+            //access = null; // Clear the access field for owner records
           }
 
           // Convert GROUP# values to names using the mapping
@@ -877,11 +877,11 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             };
           }
 
-          if (!ownerLinks[slug]) {
+          if (!ownerLinks[slug] && item.access.startsWith("OWNER#")) {
             ownerLinks[slug] = {
               slug,
               redirect: item.redirect || null,
-              owner: new Set<string>(), // Use a Set to avoid duplicate access values
+              owner: owner,
               counter: item.counter || 0,
             };
           }
@@ -889,18 +889,25 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           if (access) {
             groupedLinks[slug].access.add(access); // Add access value to the Set
           }
+        });
 
-          if (owner) {
-            ownerLinks[slug].owner.add(owner || ""); // Add access value to the Set
+        // Iterate through groupedLinks and replace the redirect URL with the one from ownerLinks
+        Object.keys(groupedLinks).forEach((slug) => {
+          //console.log(ownerLinks[slug] )
+          if (ownerLinks[slug] && ownerLinks[slug].redirect) {
+            groupedLinks[slug].redirect = ownerLinks[slug].redirect; // Replace redirect URL
           }
         });
+
+        // console.log(groupedLinks)
 
         // Convert grouped links to an array and join access values into a single string
         const result = Object.values(groupedLinks).map((link) => ({
           ...link,
           access: Array.from(link.access).join(";"), // Convert Set to string
+
           owner:
-            Array.from(ownerLinks[link.slug]?.owner || []).join(";") ||
+            Array.from(ownerLinks[link.slug]?.owner || []).join("") ||
             link.owner, // Convert Set to string or keep original owner
         }));
 
