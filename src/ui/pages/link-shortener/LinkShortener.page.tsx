@@ -129,7 +129,11 @@ export const LinkShortener: React.FC = () => {
                 </Button> */}
                 <Button
                   component="a"
-                  href={link.slug ? `/link/edit/${encodeURIComponent(link.slug)}` : '#'}
+                  href={
+                    link.slug
+                      ? `/link/edit/${encodeURIComponent(link.slug)}?previousPage=${window.location.pathname}`
+                      : '#'
+                  }
                 >
                   <IconEdit size={16} />
                 </Button>
@@ -211,7 +215,11 @@ export const LinkShortener: React.FC = () => {
                 </Button> */}
                 <Button
                   component="a"
-                  href={link.slug ? `/link/edit/${encodeURIComponent(link.slug)}` : '#'}
+                  href={
+                    link.slug
+                      ? `/link/edit/${encodeURIComponent(link.slug)}?previousPage=${window.location.pathname}`
+                      : '#'
+                  }
                 >
                   <IconEdit size={16} />
                 </Button>
@@ -351,6 +359,15 @@ export const LinkShortener: React.FC = () => {
           }}
         >
           Add New Link
+        </Button>
+        <Button
+          leftSection={<IconEdit size={14} />}
+          onClick={() => {
+            navigate('/link-shortener/admin');
+          }}
+          color="teal"
+        >
+          Admin Panel
         </Button>
       </div>
 

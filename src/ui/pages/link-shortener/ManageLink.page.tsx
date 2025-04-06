@@ -178,7 +178,7 @@ export const ManageLinkPage: React.FC = () => {
   };
 
   const handleFormClose = () => {
-    navigate('/link-shortener');
+    navigate(new URLSearchParams(window.location.search).get('previousPage') || '/link-shortener');
   };
 
   const generateRandomSlug = () => {
