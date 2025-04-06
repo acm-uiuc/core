@@ -974,7 +974,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             return unmarshalledItem;
           }) || [];
 
-        const ownnedUniqueSlugs = Array.from(
+        const ownedUniqueSlugs = Array.from(
           new Set(
             unmarshalledOwnerRecords
               .filter((item) => item.slug) // Filter out items without a slug
@@ -983,7 +983,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         );
 
         const ownedLinksGroupsConcatenated = await Promise.all(
-          ownnedUniqueSlugs.map(async (slug) => {
+          ownedUniqueSlugs.map(async (slug) => {
             const groupQueryCommand = new QueryCommand({
               TableName: genericConfig.LinkryDynamoTableName,
               KeyConditionExpression:
@@ -1059,10 +1059,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         const delegatedLinks = await Promise.all(
           userLinkrAllUserGroups.map(async (group) => {
-            // Use ScanCommand to query all records where access starts with "GROUP#[value]"
+            // Use ScanCommand to query all records where access with value "GROUP#[value]"
             const groupScanCommand = new ScanCommand({
               TableName: genericConfig.LinkryDynamoTableName,
-              FilterExpression: "begins_with(#access, :accessVal)",
+              FilterExpression: "#access=:accessVal",
               ExpressionAttributeNames: {
                 "#access": "access",
               },
@@ -1073,24 +1073,24 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
             const groupScanResponse = await dynamoClient.send(groupScanCommand);
 
-            const groupItems = groupScanResponse.Items?.map((item) =>
-              unmarshall(item),
+            const allRecordsForUserLinkryGroup = groupScanResponse.Items?.map(
+              (item) => unmarshall(item),
             );
 
             // Get unique slugs from groupItems and remove previously seen slugs
             const delegatedUniqueSlugs = Array.from(
               new Set(
-                (groupItems ?? [])
+                (allRecordsForUserLinkryGroup ?? [])
                   .filter(
                     (item) =>
-                      item.slug && !ownnedUniqueSlugs.includes(item.slug),
+                      item.slug && !ownedUniqueSlugs.includes(item.slug),
                   ) // Exclude slugs already seen
                   .map((item) => item.slug), // Extract slugs
               ),
             );
 
             // For each unique slug, find the corresponding "OWNER#" record and access groups
-            const ownerRecords = await Promise.all(
+            const allFormattedOwnerRecordsForDelegatedLinks = await Promise.all(
               delegatedUniqueSlugs.map(async (slug) => {
                 // Query for OWNER# record
                 const ownerQueryCommand = new QueryCommand({
@@ -1109,9 +1109,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
                 const ownerQueryResponse =
                   await dynamoClient.send(ownerQueryCommand);
-                const ownerItems = ownerQueryResponse.Items?.map((item) =>
-                  unmarshall(item),
-                );
+
+                const allOwnerRecordsForDelegatedLinks =
+                  ownerQueryResponse.Items?.map((item) => unmarshall(item));
 
                 // Query for GROUP# records
                 const groupQueryCommand = new QueryCommand({
@@ -1134,14 +1134,14 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   unmarshall(item),
                 );
 
-                const combinedAccessGroupUUIDs: string[] =
+                const combinedAccessGroupUUIDsForUserLinkryGroup: string[] =
                   groupItems?.map((item) =>
                     item.access.replace("GROUP#", ""),
                   ) || [];
 
                 const combinedAccessGroupNames: string[] = [];
 
-                for (const accessGroupUUID of combinedAccessGroupUUIDs) {
+                for (const accessGroupUUID of combinedAccessGroupUUIDsForUserLinkryGroup) {
                   combinedAccessGroupNames.push(
                     fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
                       accessGroupUUID,
@@ -1155,14 +1155,14 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 //console.log(combinedAccessGroups);
 
                 // Combine OWNER# record with access groups
-                return ownerItems?.map((ownerItem) => ({
+                return allOwnerRecordsForDelegatedLinks?.map((ownerItem) => ({
                   ...ownerItem,
                   access: combinedAccessGroups, // Append access groups to OWNER# access
                 }));
               }),
             );
 
-            return ownerRecords.flat(); // Flatten the results for this group
+            return allFormattedOwnerRecordsForDelegatedLinks.flat(); // Flatten the results for this group
           }),
         );
 
@@ -1170,13 +1170,24 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const flattenedDelegatedLinks = delegatedLinks.flat();
 
         const delegatedUniqueSlugs = //find the unique slug in the delegated links
-          new Set<string>(flattenedDelegatedLinks.map((item) => item.slug));
+          new Set<string>(
+            flattenedDelegatedLinks
+              .filter((item) => item !== undefined && "slug" in item)
+              .map((item) => (item as { slug: string }).slug),
+          );
 
         const uniqueFlattenedDelegatedLinks = flattenedDelegatedLinks.filter(
           (item) => {
-            if (delegatedUniqueSlugs.has(item.slug)) {
+            if (
+              item !== undefined &&
+              "slug" in item &&
+              typeof item.slug === "string" &&
+              delegatedUniqueSlugs.has(item.slug)
+            ) {
               //filter the delegated links to only show one entry per unique slug per delegated link
-              delegatedUniqueSlugs.delete(item.slug);
+              if ("slug" in item) {
+                delegatedUniqueSlugs.delete(item.slug as string);
+              }
               return true;
             }
           },
