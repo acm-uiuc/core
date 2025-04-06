@@ -96,10 +96,13 @@ export const LinkShortenerAdmin: React.FC = () => {
           >
             <Table.Td style={wrapTextStyle}>
               <Anchor
-                href={'http://localhost:8080/api/v1/linkry/redir/' + link.slug}
+                href={
+                  (process.env.NODE_ENV === 'prod'
+                    ? 'https://go.acm.illinois.edu/'
+                    : 'http://localhost:8080/api/v1/linkry/redir/') + link.slug
+                }
                 target="_blank"
               >
-                {' '}
                 {/* Currently set to localhost for local testing purposes */}
                 https://go.acm.illinois.edu/{link.slug}
               </Anchor>
@@ -284,11 +287,22 @@ export const LinkShortenerAdmin: React.FC = () => {
 
   useEffect(() => {
     const getEvents = async () => {
-      setIsLoading(true);
-      const response = await api.get('/api/v1/linkry/admin/redir');
-      const adminLinks = response.data.adminLinks;
-      setIsLoading(false);
-      setAdminLinks(adminLinks);
+      try {
+        setIsLoading(true);
+        const response = await api.get('/api/v1/linkry/admin/redir');
+        const adminLinks = response.data.adminLinks;
+        setIsLoading(false);
+        setAdminLinks(adminLinks);
+      } catch (e: unknown) {
+        notifications.show({
+          title: 'Error accesing admin',
+          message: 'Error retrieving admin informations',
+          color: 'red',
+        });
+        navigate(
+          new URLSearchParams(window.location.search).get('previousPage') || '/link-shortener'
+        );
+      }
     };
     getEvents();
   }, []);
@@ -316,7 +330,7 @@ export const LinkShortenerAdmin: React.FC = () => {
   };
 
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
+    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_ADMIN] }}>
       <Box
         style={{
           position: 'fixed',
