@@ -20,6 +20,7 @@ export type ConfigType = {
   SqsQueueUrl: string;
   PaidMemberGroupId: string;
   PaidMemberPriceId: string;
+  AadValidReadOnlyClientId: string;
 };
 
 export type GenericConfigType = {
@@ -42,6 +43,7 @@ export type GenericConfigType = {
   ProtectedEntraIDGroups: string[]; // these groups are too privileged to be modified via this portal and must be modified directly in Entra ID.
   RoomRequestsTableName: string;
   RoomRequestsStatusTableName: string;
+  EntraReadOnlySecretName: string;
 };
 
 type EnvironmentConfigType = {
@@ -49,7 +51,7 @@ type EnvironmentConfigType = {
 };
 
 export const infraChairsGroupId = "c0702752-50da-49da-83d4-bcbe6f7a9b1b";
-export const officersGroupId = "ff49e948-4587-416b-8224-65147540d5fc";
+export const officersGroupId = "c4ddcc9f-a9c0-47e7-98c1-f1b345d53121";
 export const officersGroupTestingId = "0e6e9199-506f-4ede-9d1b-e73f6811c9e5";
 export const execCouncilGroupId = "ad81254b-4eeb-4c96-8191-3acdce9194b1";
 export const execCouncilTestingGroupId = "dbe18eb2-9675-46c4-b1ef-749a6db4fedd";
@@ -64,6 +66,7 @@ const genericConfig: GenericConfigType = {
   CacheDynamoTableName: "infra-core-api-cache",
   ConfigSecretName: "infra-core-api-config",
   EntraSecretName: "infra-core-api-entra",
+  EntraReadOnlySecretName: "infra-core-api-ro-entra",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
   AwsRegion: process.env.AWS_REGION || "us-east-1",
   EntraTenantId: "c8d9148f-9a59-4db3-827d-42ea0c2b6e2e",
@@ -99,6 +102,7 @@ const environmentConfig: EnvironmentConfigType = {
       "https://sqs.us-east-1.amazonaws.com/427040638965/infra-core-api-sqs",
     PaidMemberGroupId: "9222451f-b354-4e64-ba28-c0f367a277c2",
     PaidMemberPriceId: "price_1R4TcTDGHrJxx3mKI6XF9cNG",
+    AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba"
   },
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
@@ -119,6 +123,7 @@ const environmentConfig: EnvironmentConfigType = {
       "https://sqs.us-east-1.amazonaws.com/298118738376/infra-core-api-sqs",
     PaidMemberGroupId: "172fd9ee-69f0-4384-9786-41ff1a43cf8e",
     PaidMemberPriceId: "price_1MUGIRDiGOXU9RuSChPYK6wZ",
+    AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba"
   },
 };
 
