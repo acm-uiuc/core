@@ -14,6 +14,7 @@ export type ConfigType = {
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
   LinkryParentGroupId: string
+  LinkryBaseUrl: string
   LinkryGroupNameToGroupUUIDMap: Map<String, String>;
   LinkryGroupUUIDToGroupNameMap: Map<String, String>;
   PasskitIdentifier: string;
@@ -96,6 +97,7 @@ const environmentConfig: EnvironmentConfigType = {
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryParentGroupId: "Accef2ab4-532c-4989-8041-b8f3449abe0a", //TODO: use id to fetch child groups & 
+    LinkryBaseUrl: "http://localhost:8080/api/v1/linkry/redir/", 
     LinkryGroupNameToGroupUUIDMap: new Map([
       ["ACM Exec Linkry Test", "6d0bf289-71e3-4b8f-929b-63d93c2e0533"],
       ["ACM Link Shortener Managers Linkry Test", "a93bc2ad-b2b4-47bf-aa32-603dda8f6fdd"], 
@@ -129,6 +131,7 @@ const environmentConfig: EnvironmentConfigType = {
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
     LinkryParentGroupId: "need-to-create-one",
+    LinkryBaseUrl: "https://go.acm.illinois.edu/" , 
     LinkryGroupNameToGroupUUIDMap: new Map([
         ['ACM Exec', 'ad81254b-4eeb-4c96-8191-3acdce9194b1'],
         ['ACM Link Shortener Managers', '270c2d58-11f6-4c45-a217-d46a035fe853'],

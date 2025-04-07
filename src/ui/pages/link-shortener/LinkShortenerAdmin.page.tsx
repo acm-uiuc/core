@@ -12,6 +12,7 @@ import {
   Badge,
   Loader,
   Tabs,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -71,6 +72,7 @@ export const LinkShortenerAdmin: React.FC = () => {
   const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false); // Changed default to false
   const [deleteLinkCandidate, setDeleteLinkCandidate] = useState<LinkryGetResponse | null>(null);
   const navigate = useNavigate();
+  const { colorScheme } = useMantineColorScheme();
 
   const renderTableRow = (link: LinkryGetResponse, index: number) => {
     const shouldShow = true;
@@ -82,15 +84,25 @@ export const LinkShortenerAdmin: React.FC = () => {
             style={{
               ...styles,
               display: shouldShow ? 'table-row' : 'none',
-              backgroundColor: index % 2 === 0 ? '#f0f8ff' : '#ffffff',
+              backgroundColor:
+                colorScheme === 'dark'
+                  ? index % 2 === 0
+                    ? '#333333'
+                    : '#444444'
+                  : index % 2 === 0
+                    ? '#f0f8ff'
+                    : '#ffffff',
             }}
           >
             <Table.Td style={wrapTextStyle}>
               <Anchor
-                href={'http://localhost:8080/api/v1/linkry/redir/' + link.slug}
+                href={
+                  (process.env.NODE_ENV === 'prod'
+                    ? 'https://go.acm.illinois.edu/'
+                    : 'http://localhost:8080/api/v1/linkry/redir/') + link.slug
+                }
                 target="_blank"
               >
-                {' '}
                 {/* Currently set to localhost for local testing purposes */}
                 https://go.acm.illinois.edu/{link.slug}
               </Anchor>
@@ -189,7 +201,14 @@ export const LinkShortenerAdmin: React.FC = () => {
             style={{
               ...styles,
               display: shouldShow ? 'table-row' : 'none',
-              backgroundColor: index % 2 === 0 ? '#f0f8ff' : '#ffffff',
+              backgroundColor:
+                colorScheme === 'dark'
+                  ? index % 2 === 0
+                    ? '#333333'
+                    : '#444444'
+                  : index % 2 === 0
+                    ? '#f0f8ff'
+                    : '#ffffff',
             }}
           >
             <Table.Td style={wrapTextStyle}>
@@ -268,11 +287,22 @@ export const LinkShortenerAdmin: React.FC = () => {
 
   useEffect(() => {
     const getEvents = async () => {
-      setIsLoading(true);
-      const response = await api.get('/api/v1/linkry/admin/redir');
-      const adminLinks = response.data.adminLinks;
-      setIsLoading(false);
-      setAdminLinks(adminLinks);
+      try {
+        setIsLoading(true);
+        const response = await api.get('/api/v1/linkry/admin/redir');
+        const adminLinks = response.data.adminLinks;
+        setIsLoading(false);
+        setAdminLinks(adminLinks);
+      } catch (e: unknown) {
+        notifications.show({
+          title: 'Error accesing admin',
+          message: 'Error retrieving admin informations',
+          color: 'red',
+        });
+        navigate(
+          new URLSearchParams(window.location.search).get('previousPage') || '/link-shortener'
+        );
+      }
     };
     getEvents();
   }, []);

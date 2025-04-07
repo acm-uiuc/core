@@ -291,7 +291,9 @@ export const ManageLinkPage: React.FC = () => {
                   disabled={true}
                   style={{ width: '75px' }}
                 />
-                <Button onClick={handleReset}>Reset</Button>
+                <Button disabled={form.values.counter == 0} onClick={handleReset}>
+                  Reset
+                </Button>
               </Group>
             )}
             <Button

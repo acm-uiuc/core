@@ -12,6 +12,7 @@ import {
   Badge,
   Tabs,
   Loader,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -66,6 +67,7 @@ export const LinkShortener: React.FC = () => {
   const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false); // Changed default to false
   const [deleteLinkCandidate, setDeleteLinkCandidate] = useState<LinkryGetResponse | null>(null);
   const navigate = useNavigate();
+  const { colorScheme } = useMantineColorScheme();
 
   const renderTableRow = (link: LinkryGetResponse, index: number) => {
     const shouldShow = true;
@@ -77,12 +79,23 @@ export const LinkShortener: React.FC = () => {
             style={{
               ...styles,
               display: shouldShow ? 'table-row' : 'none',
-              backgroundColor: index % 2 === 0 ? '#f0f8ff' : '#ffffff',
+              backgroundColor:
+                colorScheme === 'dark'
+                  ? index % 2 === 0
+                    ? '#333333'
+                    : '#444444'
+                  : index % 2 === 0
+                    ? '#f0f8ff'
+                    : '#ffffff',
             }}
           >
             <Table.Td style={wrapTextStyle}>
               <Anchor
-                href={'http://localhost:8080/api/v1/linkry/redir/' + link.slug}
+                href={
+                  (process.env.NODE_ENV === 'prod'
+                    ? 'https://go.acm.illinois.edu/'
+                    : 'http://localhost:8080/api/v1/linkry/redir/') + link.slug
+                }
                 target="_blank"
               >
                 {' '}
