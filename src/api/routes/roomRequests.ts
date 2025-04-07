@@ -3,7 +3,6 @@ import rateLimiter from "api/plugins/rateLimiter.js";
 import {
   formatStatus,
   roomGetResponse,
-  roomRequestBaseSchema,
   RoomRequestFormValues,
   roomRequestPostResponse,
   roomRequestSchema,
@@ -18,7 +17,6 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   InternalServerError,
-  UnauthenticatedError,
 } from "common/errors/index.js";
 import {
   PutItemCommand,
@@ -27,7 +25,6 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig, notificationRecipients } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
-import { z } from "zod";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 

@@ -37,10 +37,13 @@ export async function getEntraIdToken(
   clients: { smClient: SecretsManagerClient; dynamoClient: DynamoDBClient },
   clientId: string,
   scopes: string[] = ["https://graph.microsoft.com/.default"],
+  secretName?: string,
 ) {
+  if (!secretName) {
+    secretName = genericConfig.EntraSecretName;
+  }
   const secretApiConfig =
-    (await getSecretValue(clients.smClient, genericConfig.EntraSecretName)) ||
-    {};
+    (await getSecretValue(clients.smClient, secretName)) || {};
   if (
     !secretApiConfig.entra_id_private_key ||
     !secretApiConfig.entra_id_thumbprint
@@ -55,7 +58,7 @@ export async function getEntraIdToken(
   ).toString("utf8");
   const cachedToken = await getItemFromCache(
     clients.dynamoClient,
-    "entra_id_access_token",
+    `entra_id_access_token_${secretName}`,
   );
   if (cachedToken) {
     return cachedToken["token"] as string;
@@ -85,7 +88,7 @@ export async function getEntraIdToken(
     if (result?.accessToken) {
       await insertItemIntoCache(
         clients.dynamoClient,
-        "entra_id_access_token",
+        `entra_id_access_token_${secretName}`,
         { token: result?.accessToken },
         date,
       );
