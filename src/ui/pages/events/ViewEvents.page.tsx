@@ -1,4 +1,15 @@
-import { Text, Button, Table, Modal, Group, Transition, ButtonGroup } from '@mantine/core';
+import {
+  Text,
+  Button,
+  Table,
+  Modal,
+  Group,
+  Transition,
+  ButtonGroup,
+  Title,
+  Badge,
+  Anchor,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
@@ -53,16 +64,33 @@ export const ViewEventsPage: React.FC = () => {
     const shouldShow = event.upcoming || (!event.upcoming && showPrevious);
 
     return (
-      <Transition mounted={shouldShow} transition="fade" duration={400} timingFunction="ease">
+      <Transition
+        mounted={shouldShow}
+        transition="fade"
+        duration={400}
+        timingFunction="ease"
+        key={`${event.id}-tr-transition`}
+      >
         {(styles) => (
-          <tr style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}>
-            <Table.Td>{event.title}</Table.Td>
-            <Table.Td>{dayjs(event.start).format('MMM D YYYY hh:mm')}</Table.Td>
-            <Table.Td>{event.end ? dayjs(event.end).format('MMM D YYYY hh:mm') : 'N/A'}</Table.Td>
-            <Table.Td>{event.location}</Table.Td>
-            <Table.Td>{event.description}</Table.Td>
+          <tr
+            style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}
+            key={`${event.id}-tr`}
+          >
+            <Table.Td>
+              {event.title} {event.featured ? <Badge color="green">Featured</Badge> : null}
+            </Table.Td>
+            <Table.Td>{dayjs(event.start).format('MMM D YYYY hh:mm A')}</Table.Td>
+            <Table.Td>{event.end ? dayjs(event.end).format('MMM D YYYY hh:mm A') : 'N/A'}</Table.Td>
+            <Table.Td>
+              {event.locationLink ? (
+                <Anchor target="_blank" size="sm" href={event.locationLink}>
+                  {event.location}
+                </Anchor>
+              ) : (
+                event.location
+              )}
+            </Table.Td>
             <Table.Td>{event.host}</Table.Td>
-            <Table.Td>{event.featured ? 'Yes' : 'No'}</Table.Td>
             <Table.Td>{capitalizeFirstLetter(event.repeats || 'Never')}</Table.Td>
             <Table.Td>
               <ButtonGroup>
@@ -88,8 +116,9 @@ export const ViewEventsPage: React.FC = () => {
 
   useEffect(() => {
     const getEvents = async () => {
-      const response = await api.get('/api/v1/events');
-      const upcomingEvents = await api.get('/api/v1/events?upcomingOnly=true');
+      // setting ts lets us tell cloudfront I want fresh data
+      const response = await api.get(`/api/v1/events?ts=${Date.now()}`);
+      const upcomingEvents = await api.get(`/api/v1/events?upcomingOnly=true&ts=${Date.now()}`);
       const upcomingEventsSet = new Set(upcomingEvents.data.map((x: EventGetResponse) => x.id));
       const events = response.data;
       events.sort((a: EventGetResponse, b: EventGetResponse) => {
@@ -131,6 +160,9 @@ export const ViewEventsPage: React.FC = () => {
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
+      <Title order={1} mb={'md'}>
+        Event Management
+      </Title>
       {deleteCandidate && (
         <Modal
           opened={opened}
@@ -176,9 +208,7 @@ export const ViewEventsPage: React.FC = () => {
             <Table.Th>Start</Table.Th>
             <Table.Th>End</Table.Th>
             <Table.Th>Location</Table.Th>
-            <Table.Th>Description</Table.Th>
             <Table.Th>Host</Table.Th>
-            <Table.Th>Featured</Table.Th>
             <Table.Th>Repeats</Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>

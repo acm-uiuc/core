@@ -3,7 +3,10 @@
     "plugin:prettier/recommended",
     "plugin:@typescript-eslint/recommended"
   ],
-  "plugins": ["import"],
+  "plugins": [
+    "import",
+    "prettier"
+  ],
   "rules": {
     "import/no-unresolved": "error",
     "import/extensions": [
@@ -32,27 +35,38 @@
   },
   "settings": {
     "import/parsers": {
-      "@typescript-eslint/parser": [".ts", ".tsx", ".js", ".jsx"]
+      "@typescript-eslint/parser": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx"
+      ]
     },
     "import/resolver": {
       "typescript": {
         "alwaysTryTypes": true,
         "project": [
           "src/api/tsconfig.json", // Path to tsconfig.json in src/api
-          "src/ui/tsconfig.json"   // Path to tsconfig.json in src/ui
+          "src/ui/tsconfig.json" // Path to tsconfig.json in src/ui
         ]
       }
     }
   },
   "overrides": [
     {
-      "files": ["*.test.ts", "*.testdata.ts"],
+      "files": [
+        "*.test.ts",
+        "*.testdata.ts"
+      ],
       "rules": {
         "@typescript-eslint/no-explicit-any": "off"
       }
     },
     {
-      "files": ["src/ui/*", "src/ui/**/*"],
+      "files": [
+        "src/ui/*",
+        "src/ui/**/*"
+      ],
       "rules": {
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/no-unused-vars": "off"

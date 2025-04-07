@@ -1,6 +1,7 @@
 import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
 import {
   AttributeValue,
+  ConditionalCheckFailedException,
   DynamoDBClient,
   QueryCommand,
   ScanCommand,
@@ -204,10 +205,19 @@ describe("Test ticket purchase verification", async () => {
     });
   });
   test("Sad path: fulfilling an already-fulfilled ticket item fails", async () => {
-    ddbMock
-      .on(UpdateItemCommand)
-      .resolvesOnce({ Attributes: fulfilledMerchItem1 })
-      .resolvesOnce({});
+    const conditionalError = new ConditionalCheckFailedException({
+      message: "The conditional request failed",
+      $metadata: {},
+    });
+    (conditionalError as any).Item = {
+      ticket_id: {
+        S: "975b4470cf37d7cf20fd404a711513fd1d1e68259ded27f10727d1384961843d",
+      },
+      used: { BOOL: true },
+      refunded: { BOOL: false },
+    };
+
+    ddbMock.on(UpdateItemCommand).rejects(conditionalError);
 
     const testJwt = createJwt();
     await app.ready();
@@ -226,6 +236,68 @@ describe("Test ticket purchase verification", async () => {
       id: 109,
       message: "Ticket has already been used.",
       name: "TicketNotValidError",
+    });
+  });
+
+  test("Sad path: ticket was refunded", async () => {
+    const conditionalError = new ConditionalCheckFailedException({
+      message: "The conditional request failed",
+      $metadata: {},
+    });
+    (conditionalError as any).Item = {
+      ticket_id: {
+        S: "975b4470cf37d7cf20fd404a711513fd1d1e68259ded27f10727d1384961843d",
+      },
+      used: { BOOL: false },
+      refunded: { BOOL: true },
+    };
+
+    ddbMock.on(UpdateItemCommand).rejects(conditionalError);
+
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .post("/api/v1/tickets/checkIn")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        type: "ticket",
+        ticketId:
+          "975b4470cf37d7cf20fd404a711513fd1d1e68259ded27f10727d1384961843d",
+      });
+    const responseDataJson = response.body;
+    expect(response.statusCode).toEqual(400);
+    expect(responseDataJson).toEqual({
+      error: true,
+      id: 109,
+      message: "Ticket was already refunded.",
+      name: "TicketNotValidError",
+    });
+  });
+
+  test("Sad path: ticket does not exist", async () => {
+    const conditionalError = new ConditionalCheckFailedException({
+      message: "The conditional request failed",
+      $metadata: {},
+    });
+
+    ddbMock.on(UpdateItemCommand).rejects(conditionalError);
+
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .post("/api/v1/tickets/checkIn")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        type: "ticket",
+        ticketId: "nonexistentticketid123456789",
+      });
+    const responseDataJson = response.body;
+    expect(response.statusCode).toEqual(404);
+    expect(responseDataJson).toEqual({
+      error: true,
+      id: 108,
+      message: "Ticket does not exist.",
+      name: "TicketNotFoundError",
     });
   });
 });
@@ -287,10 +359,18 @@ describe("Test merch purchase verification", async () => {
     });
   });
   test("Sad path: fulfilling a refunded merch item fails", async () => {
-    ddbMock
-      .on(UpdateItemCommand)
-      .resolvesOnce({ Attributes: refundedMerchItem })
-      .resolvesOnce({});
+    const conditionalError = new ConditionalCheckFailedException({
+      message: "The conditional request failed",
+      $metadata: {},
+    });
+    (conditionalError as any).Item = {
+      stripe_pi: { S: "pi_6T9QvUwR2IOj4CyF35DsXK7P" },
+      email: { S: "testing2@illinois.edu" },
+      fulfilled: { BOOL: false },
+      refunded: { BOOL: true },
+    };
+
+    ddbMock.on(UpdateItemCommand).rejects(conditionalError);
 
     const testJwt = createJwt();
     await app.ready();
@@ -312,10 +392,18 @@ describe("Test merch purchase verification", async () => {
     });
   });
   test("Sad path: fulfilling an already-fulfilled merch item fails", async () => {
-    ddbMock
-      .on(UpdateItemCommand)
-      .resolvesOnce({ Attributes: fulfilledMerchItem1 })
-      .resolvesOnce({});
+    const conditionalError = new ConditionalCheckFailedException({
+      message: "The conditional request failed",
+      $metadata: {},
+    });
+    (conditionalError as any).Item = {
+      stripe_pi: { S: "pi_3Q5GewDiGOXU9RuS16txRR5D" },
+      email: { S: "testing0@illinois.edu" },
+      fulfilled: { BOOL: true },
+      refunded: { BOOL: false },
+    };
+
+    ddbMock.on(UpdateItemCommand).rejects(conditionalError);
 
     const testJwt = createJwt();
     await app.ready();
@@ -334,6 +422,68 @@ describe("Test merch purchase verification", async () => {
       id: 109,
       message: "Ticket has already been used.",
       name: "TicketNotValidError",
+    });
+  });
+
+  test("Sad path: merch item does not exist", async () => {
+    const conditionalError = new ConditionalCheckFailedException({
+      message: "The conditional request failed",
+      $metadata: {},
+    });
+
+    ddbMock.on(UpdateItemCommand).rejects(conditionalError);
+
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .post("/api/v1/tickets/checkIn")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        type: "merch",
+        email: "nonexistent@illinois.edu",
+        stripePi: "pi_nonexistent123456",
+      });
+    const responseDataJson = response.body;
+    expect(response.statusCode).toEqual(404);
+    expect(responseDataJson).toEqual({
+      error: true,
+      id: 108,
+      message: "Ticket does not exist.",
+      name: "TicketNotFoundError",
+    });
+  });
+
+  test("Sad path: wrong email for merch item", async () => {
+    const conditionalError = new ConditionalCheckFailedException({
+      message: "The conditional request failed",
+      $metadata: {},
+    });
+    (conditionalError as any).Item = {
+      stripe_pi: { S: "pi_8J4NrYdA3S7cW8Ty92FnGJ6L" },
+      email: { S: "testing1@illinois.edu" },
+      fulfilled: { BOOL: false },
+      refunded: { BOOL: false },
+    };
+
+    ddbMock.on(UpdateItemCommand).rejects(conditionalError);
+
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .post("/api/v1/tickets/checkIn")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        type: "merch",
+        email: "wrong@illinois.edu",
+        stripePi: "pi_8J4NrYdA3S7cW8Ty92FnGJ6L",
+      });
+    const responseDataJson = response.body;
+    expect(response.statusCode).toEqual(404);
+    expect(responseDataJson).toEqual({
+      error: true,
+      id: 108,
+      message: "Ticket does not exist.",
+      name: "TicketNotFoundError",
     });
   });
 });
@@ -375,4 +525,5 @@ afterAll(async () => {
 beforeEach(() => {
   ddbMock.reset();
   vi.useFakeTimers();
+  (app as any).nodeCache.flushAll();
 });

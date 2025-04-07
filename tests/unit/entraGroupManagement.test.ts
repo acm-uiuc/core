@@ -42,7 +42,8 @@ const app = await init();
 
 describe("Test Modify Group and List Group Routes", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    (app as any).nodeCache.flushAll();
+    vi.clearAllMocks();
     smMock.on(GetSecretValueCommand).resolves({
       SecretString: JSON.stringify({ jwt_key: "test_jwt_key" }),
     });
@@ -68,13 +69,16 @@ describe("Test Modify Group and List Group Routes", () => {
       "validuser1@illinois.edu",
       "test-group-id",
       EntraGroupActions.ADD,
+      expect.any(Object), // Matches any object
     );
+
     expect(modifyGroup).toHaveBeenNthCalledWith(
       2,
       "ey.test.token",
       "validuser2@illinois.edu",
       "test-group-id",
       EntraGroupActions.REMOVE,
+      expect.any(Object), // Matches any object
     );
     expect(response.body.success).toEqual([
       { email: "validuser1@illinois.edu" },
@@ -130,7 +134,8 @@ describe("Test Modify Group and List Group Routes", () => {
     await app.close();
   });
   beforeEach(() => {
-    vi.resetAllMocks();
+    (app as any).nodeCache.flushAll();
+    vi.clearAllMocks();
     vi.useFakeTimers();
     (getEntraIdToken as any).mockImplementation(async () => {
       return "ey.test.token";

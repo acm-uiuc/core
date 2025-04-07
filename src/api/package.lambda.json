@@ -1,0 +1,15 @@
+{
+  "name": "infra-core-api",
+  "version": "1.0.0",
+  "description": "ACM@UIUC Infra - Sample AWS Lambda in Node",
+  "main": "index.js",
+  "author": "ACM@UIUC",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "dependencies": {
+    "moment-timezone": "^0.5.45",
+    "passkit-generator": "^3.3.1",
+    "fastify": "^5.1.0"
+  },
+  "devDependencies": {}
+}

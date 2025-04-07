@@ -192,6 +192,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
+
   fastify.post<LinkyCreateRequest>(
     "/redir",
     {
@@ -371,6 +372,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }
 
         const entraIdToken = await getEntraIdToken(
+          {
+            smClient: fastify.secretsManagerClient,
+            dynamoClient: fastify.dynamoClient,
+          },
           fastify.environmentConfig.AadValidClientId,
         );
 
@@ -494,6 +499,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
 
           const entraIdToken = await getEntraIdToken(
+            {
+              smClient: fastify.secretsManagerClient,
+              dynamoClient: fastify.dynamoClient,
+            },
             fastify.environmentConfig.AadValidClientId,
           );
 
@@ -735,6 +744,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }
 
         const entraIdToken = await getEntraIdToken(
+          {
+            smClient: fastify.secretsManagerClient,
+            dynamoClient: fastify.dynamoClient,
+          },
           fastify.environmentConfig.AadValidClientId,
         );
 
@@ -1042,6 +1055,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         //fetching delegated links
         const entraIdToken = await getEntraIdToken(
+          {
+            smClient: fastify.secretsManagerClient,
+            dynamoClient: fastify.dynamoClient,
+          },
           fastify.environmentConfig.AadValidClientId,
         );
 
@@ -1180,7 +1197,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           new Set<string>(
             flattenedDelegatedLinks
               .filter((item) => item !== undefined && "slug" in item)
-              .map((item) => (item as { slug: string }).slug),
+              .map((item) =>
+                "slug" in item ? (item as { slug: string }).slug : undefined,
+              )
+              .filter((slug): slug is string => slug !== undefined),
           );
 
         const uniqueFlattenedDelegatedLinks = flattenedDelegatedLinks.filter(

@@ -1,21 +1,31 @@
-import { execCouncilGroupId, execCouncilTestingGroupId } from '@common/config';
+import {
+  commChairsGroupId,
+  commChairsTestingGroupId,
+  execCouncilGroupId,
+  execCouncilTestingGroupId,
+  miscTestingGroupId,
+} from '@common/config';
 
 export const runEnvironments = ['dev', 'prod', 'local-dev'] as const;
 // local dev should be used when you want to test against a local instance of the API
 
-export const services = ['core', 'tickets', 'merch'] as const;
+export const services = ['core', 'tickets', 'merch', 'msGraphApi'] as const;
 export type RunEnvironment = (typeof runEnvironments)[number];
 export type ValidServices = (typeof services)[number];
 export type ValidService = ValidServices;
+
+export type KnownGroups = {
+  Exec: string;
+  CommChairs: string;
+  StripeLinkCreators: string;
+};
 
 export type ConfigType = {
   AadValidClientId: string;
   ServiceConfiguration: Record<ValidServices, ServiceConfiguration>;
   LinkryGroupNameToGroupUUIDMap: Map<string, string>;
   LinkryGroupUUIDToGroupNameMap: Map<string, string>;
-  KnownGroupMappings: {
-    Exec: string;
-  };
+  KnownGroupMappings: KnownGroups;
 };
 
 export type ServiceConfiguration = {
@@ -63,9 +73,17 @@ const environmentConfig: EnvironmentConfigType = {
         friendlyName: 'Merch Sales Service (Prod)',
         baseEndpoint: 'https://merchapi.acm.illinois.edu',
       },
+      msGraphApi: {
+        friendlyName: 'Microsoft Graph API',
+        baseEndpoint: 'https://graph.microsoft.com',
+        loginScope: 'https://graph.microsoft.com/.default',
+        apiId: 'https://graph.microsoft.com',
+      },
     },
     KnownGroupMappings: {
       Exec: execCouncilTestingGroupId,
+      CommChairs: commChairsTestingGroupId,
+      StripeLinkCreators: miscTestingGroupId,
     },
   },
   dev: {
@@ -85,7 +103,7 @@ const environmentConfig: EnvironmentConfigType = {
     ServiceConfiguration: {
       core: {
         friendlyName: 'Core Management Service (NonProd)',
-        baseEndpoint: 'https://infra-core-api.aws.qa.acmuiuc.org',
+        baseEndpoint: 'https://core.aws.qa.acmuiuc.org',
         authCheckRoute: '/api/v1/protected',
         loginScope: 'api://39c28870-94e4-47ee-b4fb-affe0bf96c9f/ACM.Events.Login',
         apiId: 'api://39c28870-94e4-47ee-b4fb-affe0bf96c9f',
@@ -98,9 +116,17 @@ const environmentConfig: EnvironmentConfigType = {
         friendlyName: 'Merch Sales Service (Prod)',
         baseEndpoint: 'https://merchapi.acm.illinois.edu',
       },
+      msGraphApi: {
+        friendlyName: 'Microsoft Graph API',
+        baseEndpoint: 'https://graph.microsoft.com',
+        loginScope: 'https://graph.microsoft.com/.default',
+        apiId: 'https://graph.microsoft.com',
+      },
     },
     KnownGroupMappings: {
       Exec: execCouncilTestingGroupId,
+      CommChairs: commChairsTestingGroupId,
+      StripeLinkCreators: miscTestingGroupId,
     },
   },
   prod: {
@@ -120,7 +146,7 @@ const environmentConfig: EnvironmentConfigType = {
     ServiceConfiguration: {
       core: {
         friendlyName: 'Core Management Service',
-        baseEndpoint: 'https://infra-core-api.aws.acmuiuc.org',
+        baseEndpoint: 'https://core.acm.illinois.edu',
         authCheckRoute: '/api/v1/protected',
         loginScope: 'api://5e08cf0f-53bb-4e09-9df2-e9bdc3467296/ACM.Events.Login',
         apiId: 'api://5e08cf0f-53bb-4e09-9df2-e9bdc3467296',
@@ -133,9 +159,17 @@ const environmentConfig: EnvironmentConfigType = {
         friendlyName: 'Merch Sales Service',
         baseEndpoint: 'https://merchapi.acm.illinois.edu',
       },
+      msGraphApi: {
+        friendlyName: 'Microsoft Graph API',
+        baseEndpoint: 'https://graph.microsoft.com',
+        loginScope: 'https://graph.microsoft.com/.default',
+        apiId: 'https://graph.microsoft.com',
+      },
     },
     KnownGroupMappings: {
       Exec: execCouncilGroupId,
+      CommChairs: commChairsGroupId,
+      StripeLinkCreators: '675203eb-fbb9-4789-af2f-e87a3243f8e6',
     },
   },
 } as const;

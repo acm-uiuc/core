@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import fastify, { FastifyInstance } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
+import fastifyStatic from "@fastify/static";
 import fastifyAuthPlugin from "./plugins/auth.js";
 import protectedRoute from "./routes/protected.js";
 import errorHandlerPlugin from "./plugins/errorHandler.js";
@@ -18,18 +19,43 @@ import iamRoutes from "./routes/iam.js";
 import ticketsPlugin from "./routes/tickets.js";
 import paidEventsPlugin from "./routes/paidEvents.js";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
+import NodeCache from "node-cache";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import mobileWalletRoute from "./routes/mobileWallet.js";
+import stripeRoutes from "./routes/stripe.js";
+import membershipPlugin from "./routes/membership.js";
+import path from "path"; // eslint-disable-line import/no-nodejs-modules
+import roomRequestRoutes from "./routes/roomRequests.js";
 import linkryRoutes from "./routes/linkry.js";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 dotenv.config();
 
 const now = () => Date.now();
 
-async function init() {
+async function init(prettyPrint: boolean = false) {
+  const dynamoClient = new DynamoDBClient({
+    region: genericConfig.AwsRegion,
+  });
+
+  const secretsManagerClient = new SecretsManagerClient({
+    region: genericConfig.AwsRegion,
+  });
+  const transport = prettyPrint
+    ? {
+        target: "pino-pretty",
+        options: {
+          colorize: true,
+          translateTime: "SYS:standard",
+          ignore: "pid,hostname",
+          singleLine: false,
+        },
+      }
+    : undefined;
   const app: FastifyInstance = fastify({
     logger: {
       level: process.env.LOG_LEVEL || "info",
+      transport,
     },
     rewriteUrl: (req) => {
       const url = req.url;
@@ -58,14 +84,15 @@ async function init() {
   });
   const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
   const __dirname = path.dirname(__filename);
-  await app.register(import("@fastify/static"), {
-    root: path.join(__dirname, "public"),
-  });
 
   await app.register(fastifyAuthPlugin);
   await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);
   await app.register(errorHandlerPlugin);
+  await app.register(fastifyStatic, {
+    root: path.join(__dirname, "public"),
+    prefix: "/",
+  });
   if (!process.env.RunEnvironment) {
     process.env.RunEnvironment = "dev";
   }
@@ -77,6 +104,9 @@ async function init() {
   app.runEnvironment = process.env.RunEnvironment as RunEnvironment;
   app.environmentConfig =
     environmentConfig[app.runEnvironment as RunEnvironment];
+  app.nodeCache = new NodeCache({ checkperiod: 30 });
+  app.dynamoClient = dynamoClient;
+  app.secretsManagerClient = secretsManagerClient;
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;
@@ -96,7 +126,6 @@ async function init() {
     );
     done();
   });
-  app.get("/", (_, reply) => reply.send("Welcome to the ACM @ UIUC Core API!"));
   app.get("/api/v1/healthz", (_, reply) => reply.send({ message: "UP" }));
   await app.register(
     async (api, _options) => {
@@ -104,10 +133,14 @@ async function init() {
       api.register(eventsPlugin, { prefix: "/events" });
       api.register(paidEventsPlugin, { prefix: "/paidEvents" });
       api.register(organizationsPlugin, { prefix: "/organizations" });
+      api.register(membershipPlugin, { prefix: "/membership" });
       api.register(icalPlugin, { prefix: "/ical" });
       api.register(iamRoutes, { prefix: "/iam" });
       api.register(ticketsPlugin, { prefix: "/tickets" });
       api.register(linkryRoutes, { prefix: "/linkry" });
+      api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
+      api.register(stripeRoutes, { prefix: "/stripe" });
+      api.register(roomRequestRoutes, { prefix: "/roomRequests" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }
@@ -117,7 +150,7 @@ async function init() {
   await app.register(cors, {
     origin: app.environmentConfig.ValidCorsOrigins,
   });
-
+  app.log.info("Initialized new Fastify instance...");
   return app;
 }
 
@@ -134,7 +167,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     );
     process.exit(1);
   }
-  const app = await init();
+  const app = await init(true);
   app.listen({ port: 8080 }, async (err) => {
     /* eslint no-console: ["error", {"allow": ["log", "error"]}] */
     if (err) console.error(err);

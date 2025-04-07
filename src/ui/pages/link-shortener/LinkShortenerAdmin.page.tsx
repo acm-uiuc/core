@@ -300,7 +300,7 @@ export const LinkShortenerAdmin: React.FC = () => {
   };
 
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
+    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_ADMIN] }}>
       <Box
         style={{
           position: 'fixed',

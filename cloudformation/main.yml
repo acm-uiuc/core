@@ -1,15 +1,19 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Events API v2
+Description: ACM Core Management Platform
 Transform: AWS::Serverless-2016-10-31
 
 Parameters:
   RunEnvironment:
     Type: String
-    AllowedValues: [ 'dev', 'prod' ]
+    AllowedValues: ["dev", "prod"]
   AlertSNSArn:
-    Description: SNS Queue to send alarm alerts to (prod only)
+    Description: SNS Queue to send general alarm alerts to (prod only)
     Type: String
     Default: arn:aws:sns:us-east-1:298118738376:infra-monitor-alerts
+  PriorityAlertSNSArn:
+    Description: SNS Queue to send priority alarm alerts to (prod only)
+    Type: String
+    Default: arn:aws:sns:us-east-1:298118738376:infra-core-api-priority-alerts
   ApplicationPrefix:
     Type: String
     Description: Application prefix, no ending dash
@@ -22,32 +26,41 @@ Parameters:
     Default: false
     Type: String
     AllowedValues: [true, false]
+  SqsLambdaTimeout:
+    Description: How long the SQS lambda is permitted to run (in seconds)
+    Default: 180
+    Type: Number
+  SqsMessageTimeout:
+    Description: MessageVisibilityTimeout for the SQS Lambda queue (should be at least (numMaxRetry + 1)*SqsLambdaTimeout)
+    Default: 720
+    Type: Number
+  S3BucketPrefix:
+    Description: S3 bucket prefix which will ensure global uniqueness
+    Type: String
 
 Conditions:
-  IsProd: !Equals [!Ref RunEnvironment, 'prod']
-  IsDev: !Equals [!Ref RunEnvironment, 'dev']
-  ShouldAttachVpc:
-    !Equals [true, !Ref VpcRequired]
+  IsProd: !Equals [!Ref RunEnvironment, "prod"]
+  ShouldAttachVpc: !Equals [true, !Ref VpcRequired]
 
 Mappings:
   General:
     dev:
       LogRetentionDays: 7
+      SesDomain: "aws.qa.acmuiuc.org"
     prod:
       LogRetentionDays: 365
+      SesDomain: "acm.illinois.edu"
   ApiGwConfig:
     dev:
-      ApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
       HostedZoneId: Z04502822NVIA85WM2SML
-      ApiDomainName: "aws.qa.acmuiuc.org"
-      LinkryApiDomainName: "aws.qa.acmuiuc.org"
-      LinkryApiCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
+      UiDomainName: "core.aws.qa.acmuiuc.org"
+      EnvDomainName: "aws.qa.acmuiuc.org"
+      EnvCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
     prod:
-      ApiCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/6142a0e2-d62f-478e-bf15-5bdb616fe705
       HostedZoneId: Z05246633460N5MEB9DBF
-      ApiDomainName: "aws.acmuiuc.org"
-      LinkryApiDomainName: "acm.illinois.edu"
-      LinkryApiCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/aeb93d9e-b0b7-4272-9c12-24ca5058c77e
+      UiDomainName: "core.acm.illinois.edu"
+      EnvDomainName: "acm.illinois.edu"
+      EnvCertificateArn: arn:aws:acm:us-east-1:298118738376:certificate/aeb93d9e-b0b7-4272-9c12-24ca5058c77e
   EnvironmentToCidr:
     dev:
       SecurityGroupIds:
@@ -72,6 +85,8 @@ Resources:
       Parameters:
         RunEnvironment: !Ref RunEnvironment
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
+        SesEmailDomain: !FindInMap [General, !Ref RunEnvironment, SesDomain]
+        SqsQueueArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
 
   AppLogGroups:
     Type: AWS::Serverless::Application
@@ -79,7 +94,16 @@ Resources:
       Location: ./logs.yml
       Parameters:
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
-        LogRetentionDays: !FindInMap [General, !Ref RunEnvironment, LogRetentionDays]
+        LogRetentionDays:
+          !FindInMap [General, !Ref RunEnvironment, LogRetentionDays]
+
+  AppSQSQueues:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./sqs.yml
+      Parameters:
+        QueueName: !Sub ${ApplicationPrefix}-sqs
+        MessageTimeout: !Ref SqsMessageTimeout
 
   IcalDomainProxy:
     Type: AWS::Serverless::Application
@@ -89,15 +113,17 @@ Resources:
         RunEnvironment: !Ref RunEnvironment
         RecordName: ical
         GWBaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - LinkryApiDomainName
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvDomainName
         GWCertArn: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - LinkryApiCertificateArn
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvCertificateArn
         GWApiId: !Ref AppApiGateway
-        GWHostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+        GWHostedZoneId:
+          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+        CloudfrontDomain: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
 
   LinkryDomainProxy:
     Type: AWS::Serverless::Application
@@ -107,37 +133,75 @@ Resources:
         RunEnvironment: !Ref RunEnvironment
         RecordName: go
         GWBaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - LinkryApiDomainName
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvDomainName
         GWCertArn: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - LinkryApiCertificateArn
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvCertificateArn
         GWApiId: !Ref AppApiGateway
-        GWHostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+        GWHostedZoneId:
+          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+        CloudfrontDomain: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
+
+  CoreUrlProd:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./custom-domain.yml
+      Parameters:
+        RunEnvironment: !Ref RunEnvironment
+        RecordName: core
+        GWBaseDomainName: !FindInMap
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvDomainName
+        GWCertArn: !FindInMap
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvCertificateArn
+        GWApiId: !Ref AppApiGateway
+        GWHostedZoneId:
+          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+        CloudfrontDomain: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
 
   AppApiLambdaFunction:
     Type: AWS::Serverless::Function
     DependsOn:
       - AppLogGroups
     Properties:
-      CodeUri: ../dist
+      Architectures: [arm64]
+      CodeUri: ../dist/lambda
       AutoPublishAlias: live
-      Runtime: nodejs20.x
+      Runtime: nodejs22.x
       Description: !Sub "${ApplicationFriendlyName} API Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-lambda
-      Handler: api/lambda.handler
+      Handler: lambda.handler
       MemorySize: 512
       Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
       Timeout: 60
       Environment:
         Variables:
           RunEnvironment: !Ref RunEnvironment
+          EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
-        SecurityGroupIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SecurityGroupIds], !Ref AWS::NoValue]
-        SubnetIds: !If [ShouldAttachVpc, !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds], !Ref AWS::NoValue]
+        SecurityGroupIds:
+          !If [
+            ShouldAttachVpc,
+            !FindInMap [
+              EnvironmentToCidr,
+              !Ref RunEnvironment,
+              SecurityGroupIds,
+            ],
+            !Ref AWS::NoValue,
+          ]
+        SubnetIds:
+          !If [
+            ShouldAttachVpc,
+            !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds],
+            !Ref AWS::NoValue,
+          ]
       Events:
         ApiEvent:
           Type: Api
@@ -146,11 +210,173 @@ Resources:
             Path: /{proxy+}
             Method: ANY
 
-  IamGroupRolesTable:
-    Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"
+  AppSqsLambdaFunction:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - AppLogGroups
     Properties:
-      BillingMode: 'PAY_PER_REQUEST'
+      Architectures: [arm64]
+      CodeUri: ../dist/sqsConsumer
+      AutoPublishAlias: live
+      Runtime: nodejs22.x
+      Description: !Sub "${ApplicationFriendlyName} SQS Lambda"
+      FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
+      Handler: index.handler
+      MemorySize: 512
+      Role:
+        Fn::GetAtt: AppSecurityRoles.Outputs.SqsFunctionRoleArn
+      Timeout: !Ref SqsLambdaTimeout
+      LoggingConfig:
+        LogGroup: !Sub /aws/lambda/${ApplicationPrefix}-lambda
+      Environment:
+        Variables:
+          RunEnvironment: !Ref RunEnvironment
+          EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
+      VpcConfig:
+        Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
+        SecurityGroupIds:
+          !If [
+            ShouldAttachVpc,
+            !FindInMap [
+              EnvironmentToCidr,
+              !Ref RunEnvironment,
+              SecurityGroupIds,
+            ],
+            !Ref AWS::NoValue,
+          ]
+        SubnetIds:
+          !If [
+            ShouldAttachVpc,
+            !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds],
+            !Ref AWS::NoValue,
+          ]
+
+  SQSLambdaEventMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    DependsOn:
+      - AppSqsLambdaFunction
+    Properties:
+      BatchSize: 5
+      EventSourceArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
+      FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+
+  SQSLambdaEventMappingSales:
+    Type: AWS::Lambda::EventSourceMapping
+    DependsOn:
+      - AppSqsLambdaFunction
+    Properties:
+      BatchSize: 5
+      EventSourceArn: !GetAtt AppSQSQueues.Outputs.SalesEmailQueueArn
+      FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+
+  MembershipRecordsTable:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: infra-core-api-membership-provisioning
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+
+  ExternalMembershipRecordsTable:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: infra-core-api-membership-external
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
+      AttributeDefinitions:
+        - AttributeName: netid_list
+          AttributeType: S
+      KeySchema:
+        - AttributeName: netid_list
+          KeyType: HASH
+
+  RoomRequestsTable:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: infra-core-api-room-requests
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
+      AttributeDefinitions:
+        - AttributeName: userId#requestId
+          AttributeType: S
+        - AttributeName: requestId
+          AttributeType: S
+        - AttributeName: semesterId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: semesterId
+          KeyType: HASH
+        - AttributeName: userId#requestId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: RequestIdIndex
+          KeySchema:
+            - AttributeName: requestId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  RoomRequestUpdatesTable:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: infra-core-api-room-requests-status
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
+      AttributeDefinitions:
+        - AttributeName: requestId
+          AttributeType: S
+        - AttributeName: semesterId
+          AttributeType: S
+        - AttributeName: createdAt#status
+          AttributeType: S
+      KeySchema:
+        - AttributeName: requestId
+          KeyType: HASH
+        - AttributeName: createdAt#status
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: SemesterId
+          KeySchema:
+            - AttributeName: semesterId
+              KeyType: HASH
+            - AttributeName: requestId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+
+
+  IamGroupRolesTable:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
       TableName: infra-core-api-iam-grouproles
       DeletionProtectionEnabled: true
       PointInTimeRecoverySpecification:
@@ -163,10 +389,11 @@ Resources:
           KeyType: HASH
 
   IamUserRolesTable:
-    Type: 'AWS::DynamoDB::Table'
+    Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
     Properties:
-      BillingMode: 'PAY_PER_REQUEST'
+      BillingMode: "PAY_PER_REQUEST"
       TableName: infra-core-api-iam-userroles
       DeletionProtectionEnabled: true
       PointInTimeRecoverySpecification:
@@ -178,11 +405,36 @@ Resources:
         - AttributeName: userEmail
           KeyType: HASH
 
-  EventRecordsTable:
-    Type: 'AWS::DynamoDB::Table'
-    DeletionPolicy: "Retain"
+  RateLimiterTable:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Delete"
+    UpdateReplacePolicy: "Delete"
     Properties:
-      BillingMode: 'PAY_PER_REQUEST'
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: infra-core-api-rate-limiter
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  EventRecordsTable:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
       TableName: infra-core-api-events
       DeletionProtectionEnabled: true
       PointInTimeRecoverySpecification:
@@ -196,12 +448,40 @@ Resources:
         - AttributeName: id
           KeyType: HASH
       GlobalSecondaryIndexes:
-      - IndexName: HostIndex
-        KeySchema:
-        - AttributeName: host
-          KeyType: HASH
-        Projection:
-          ProjectionType: ALL
+        - IndexName: HostIndex
+          KeySchema:
+            - AttributeName: host
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  StripeLinksTable:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: infra-core-api-stripe-links
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: linkId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: "HASH"
+        - AttributeName: linkId
+          KeyType: "RANGE"
+      GlobalSecondaryIndexes:
+        - IndexName: LinkIdIndex
+          KeySchema:
+            - AttributeName: linkId
+              KeyType: "HASH"
+          Projection:
+            ProjectionType: "ALL"
 
   LinkryRecordsTable:
     Type: "AWS::DynamoDB::Table"
@@ -232,10 +512,11 @@ Resources:
             ProjectionType: "ALL"
 
   CacheRecordsTable:
-    Type: 'AWS::DynamoDB::Table'
+    Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
+    UpdateReplacePolicy: "Retain"
     Properties:
-      BillingMode: 'PAY_PER_REQUEST'
+      BillingMode: "PAY_PER_REQUEST"
       TableName: infra-core-api-cache
       DeletionProtectionEnabled: true
       PointInTimeRecoverySpecification:
@@ -257,23 +538,19 @@ Resources:
     Properties:
       Name: !Sub ${ApplicationPrefix}-gateway
       Description: !Sub "${ApplicationFriendlyName} API Gateway"
+      MinimumCompressionSize: 2048 # 2kb to compress
       AlwaysDeploy: True
       DefinitionBody:
         Fn::Transform:
           Name: AWS::Include
           Parameters:
             Location: ./phony-swagger.yml
-      Domain:
-        DomainName: !Sub
-          - "${ApplicationPrefix}.${BaseDomainName}"
-          - BaseDomainName: !FindInMap
-            - ApiGwConfig
-            - !Ref RunEnvironment
-            - ApiDomainName
-        CertificateArn: !FindInMap [ApiGwConfig, !Ref RunEnvironment, ApiCertificateArn]
         Route53:
-          HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+          HostedZoneId:
+            !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
       StageName: default
+      EndpointConfiguration:
+        Type: REGIONAL
       Cors:
         AllowHeaders: "'Content-Type,Authorization,X-Amz-Date'"
         AllowOrigin: "'*'"
@@ -288,7 +565,7 @@ Resources:
       ResponseParameters:
         gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
       ResponseTemplates:
-        application/json: "{\"error\": true, \"message\": \"Resource not found. Check your URL or contact support.\"}"
+        application/json: '{"error": true, "message": "Resource not found. Check your URL or contact support."}'
 
   APIAccessDeniedResponse:
     Type: AWS::ApiGateway::GatewayResponse
@@ -299,7 +576,7 @@ Resources:
       ResponseParameters:
         gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
       ResponseTemplates:
-        application/json: "{\"error\": true, \"message\": \"Access denied. Perhaps reauthenticate and try again?\"}"
+        application/json: '{"error": true, "message": "Access denied. Perhaps reauthenticate and try again?"}'
 
   APIUnauthorizedResponse:
     Type: AWS::ApiGateway::GatewayResponse
@@ -310,45 +587,83 @@ Resources:
       ResponseParameters:
         gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
       ResponseTemplates:
-        application/json: "{\"error\": true, \"message\": \"Request could not be authenticated. Perhaps reauthenticate and try again?\"}"
+        application/json: '{"error": true, "message": "Request could not be authenticated. Perhaps reauthenticate and try again?"}'
 
   AppApiGatewayLatencyAlarm:
-    Type: 'AWS::CloudWatch::Alarm'
+    Type: "AWS::CloudWatch::Alarm"
     Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-gateway-latency-high
-      AlarmDescription: !Sub 'Alarm if ${ApplicationPrefix} API gateway latency is > 3s.'
-      Namespace: 'AWS/ApiGateway'
-      MetricName: 'Latency'
-      Statistic: 'Average'
-      Period: '60'
-      EvaluationPeriods: '1'
-      ComparisonOperator: 'GreaterThanThreshold'
-      Threshold: '3000'
+      AlarmDescription: "Trailing Mean - 95% API gateway latency is > 1.25s for 2 times in 4 minutes."
+      Namespace: "AWS/ApiGateway"
+      MetricName: "Latency"
+      ExtendedStatistic: "tm95"
+      Period: "120"
+      EvaluationPeriods: "2"
+      ComparisonOperator: "GreaterThanThreshold"
+      Threshold: "1250"
       AlarmActions:
         - !Ref AlertSNSArn
       Dimensions:
-        - Name: 'ApiName'
+        - Name: "ApiName"
+          Value: !Sub ${ApplicationPrefix}-gateway
+
+  AppApiGatewayNoRequestsAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub ${ApplicationPrefix}-gateway-no-requests
+      AlarmDescription: "No requests have been received in the past 5 minutes."
+      Namespace: "AWS/ApiGateway"
+      MetricName: "Count"
+      Statistic: "Sum"
+      Period: "300"
+      EvaluationPeriods: "1"
+      ComparisonOperator: "LessThanThreshold"
+      Threshold: "1"
+      AlarmActions:
+        - !Ref PriorityAlertSNSArn
+      Dimensions:
+        - Name: "ApiName"
           Value: !Sub ${ApplicationPrefix}-gateway
 
   AppApiGateway5XXErrorAlarm:
-    Type: 'AWS::CloudWatch::Alarm'
+    Type: "AWS::CloudWatch::Alarm"
     Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-gateway-5xx
-      AlarmDescription: !Sub 'Alarm if ${ApplicationPrefix} API gateway 5XX errors are detected.'
-      Namespace: 'AWS/ApiGateway'
-      MetricName: '5XXError'
-      Statistic: 'Average'
-      Period: '60'
-      EvaluationPeriods: '1'
-      ComparisonOperator: 'GreaterThanThreshold'
-      Threshold: '2'
+      AlarmDescription: "More than 2 API gateway 5XX errors were detected."
+      Namespace: "AWS/ApiGateway"
+      MetricName: "5XXError"
+      Statistic: "Average"
+      Period: "60"
+      EvaluationPeriods: "1"
+      ComparisonOperator: "GreaterThanThreshold"
+      Threshold: "2"
       AlarmActions:
-        - !Ref AlertSNSArn
+        - !Ref PriorityAlertSNSArn
       Dimensions:
-        - Name: 'ApiName'
+        - Name: "ApiName"
           Value: !Sub ${ApplicationPrefix}-gateway
+
+  AppDLQMessagesAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Condition: IsProd
+    Properties:
+      AlarmName: !Sub ${ApplicationPrefix}-sqs-dlq
+      AlarmDescription: "Items are present in the application DLQ, meaning some messages failed to process."
+      Namespace: "AWS/SQS"
+      MetricName: "ApproximateNumberOfMessagesVisible"
+      Statistic: "Maximum"
+      Period: 60
+      EvaluationPeriods: 1
+      ComparisonOperator: "GreaterThanThreshold"
+      Threshold: 0
+      Dimensions:
+        - Name: QueueName
+          Value: !Sub ${ApplicationPrefix}-sqs-dlq
+      AlarmActions:
+        - !Ref PriorityAlertSNSArn
 
   APILambdaPermission:
     Type: AWS::Lambda::Permission
@@ -358,11 +673,267 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn:
         Fn::Join:
-        - ''
-        - - 'arn:aws:execute-api:'
-          - !Ref AWS::Region
-          - ":"
-          - !Ref AWS::AccountId
-          - ":"
-          - !Ref AppApiGateway
-          - "/*/*/*"
+          - ""
+          - - "arn:aws:execute-api:"
+            - !Ref AWS::Region
+            - ":"
+            - !Ref AWS::AccountId
+            - ":"
+            - !Ref AppApiGateway
+            - "/*/*/*"
+
+  AppFrontendS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${S3BucketPrefix}-ui
+      WebsiteConfiguration:
+        IndexDocument: index.html
+
+  CloudFrontOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub "Access identity for ${AppFrontendS3Bucket}"
+
+  AppFrontendCloudfrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - Id: S3WebsiteOrigin
+            DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
+          - Id: ApiGatewayOrigin
+            DomainName: !Sub "${AppApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
+            OriginPath: "/default"
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+        Enabled: true
+        DefaultRootObject: index.html
+        Aliases:
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - UiDomainName
+
+        DefaultCacheBehavior:
+          TargetOriginId: S3WebsiteOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # caching-optimized
+          LambdaFunctionAssociations:
+            - EventType: origin-request
+              LambdaFunctionARN: !Ref AppFrontendEdgeLambdaVersion
+        CacheBehaviors:
+          - PathPattern: "/api/v1/events*"
+            TargetOriginId: ApiGatewayOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - DELETE
+              - PATCH
+            CachedMethods:
+              - GET
+              - HEAD
+            CachePolicyId: !Ref CloudfrontCachePolicy
+            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+          - PathPattern: "/api/*"
+            TargetOriginId: ApiGatewayOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - DELETE
+              - PATCH
+            CachedMethods:
+              - GET
+              - HEAD
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # caching disabled
+            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+        ViewerCertificate:
+          AcmCertificateArn: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvCertificateArn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+
+  AppFrontendS3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AppFrontendS3Bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
+            Action: s3:GetObject
+            Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
+
+  CloudfrontCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: UseOriginCacheControlHeaders-QueryStrings-NoCookies
+        Comment: "UseOriginCacheControlHeaders-QueryStrings but dont cache cookies."
+        DefaultTTL: 0
+        MaxTTL: 31536000
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers:
+              - x-method-override
+              - origin
+              - host
+              - x-http-method
+              - x-http-method-override
+          QueryStringsConfig:
+            QueryStringBehavior: all
+          CookiesConfig:
+            CookieBehavior: none
+
+  AppFrontendEdgeLambda:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - AppLogGroups
+    Properties:
+      FunctionName: !Sub ${ApplicationPrefix}-lambda-edge
+      Handler: "index.handler"
+      Role: !GetAtt AppSecurityRoles.Outputs.EdgeFunctionRoleArn
+      Runtime: nodejs22.x
+      Code:
+        ZipFile: |
+          'use strict';
+          exports.handler = async (event) => {
+              const request = event.Records[0].cf.request;
+              const uri = request.uri;
+              if (!uri.startsWith('/api') && !uri.match(/\.\w+$/)) {
+                  request.uri = "/index.html";
+              }
+              return request;
+          };
+      MemorySize: 128
+      Timeout: 5
+
+  AppFrontendEdgeLambdaVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !Ref AppFrontendEdgeLambda
+
+  AppIcalCloudfrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - Id: ApiGatewayOrigin
+            DomainName: !Sub "${AppApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
+            OriginPath: "/default"
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+        Enabled: true
+        Aliases:
+          - !Join
+            - ""
+            - - "go."
+              - !FindInMap
+                - ApiGwConfig
+                - !Ref RunEnvironment
+                - EnvDomainName
+          - !Join
+            - ""
+            - - "ical."
+              - !FindInMap
+                - ApiGwConfig
+                - !Ref RunEnvironment
+                - EnvDomainName
+        DefaultCacheBehavior:
+          TargetOriginId: ApiGatewayOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - POST
+            - DELETE
+            - PATCH
+          CachedMethods:
+            - GET
+            - HEAD
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          CachePolicyId: !Ref CloudfrontCachePolicy
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+        ViewerCertificate:
+          AcmCertificateArn: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvCertificateArn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+
+
+Outputs:
+  DomainName:
+    Description: Domain name that the UI is hosted at
+    Value: !FindInMap
+      - ApiGwConfig
+      - !Ref RunEnvironment
+      - UiDomainName
+
+  CloudfrontCnameTarget:
+    Description: CNAME record target to create for the domain name above (create the CNAME manually)
+    Value:
+      Fn::GetAtt:
+        - AppFrontendCloudfrontDistribution
+        - DomainName
+
+  CloudfrontSecondaryCnameTarget:
+    Description: CNAME record target to create for the secondary domain names (create the CNAME manually)
+    Value:
+      Fn::GetAtt:
+        - AppIcalCloudfrontDistribution
+        - DomainName
+
+  CloudfrontDistributionId:
+    Description: Cloudfront Distribution ID
+    Value: !GetAtt AppFrontendCloudfrontDistribution.Id
+
+  CloudfrontSecondaryDistributionId:
+    Description: Cloudfront Distribution ID
+    Value: !GetAtt AppIcalCloudfrontDistribution.Id
+
+  SalesEmailQueueArn:
+    Description: Sales Email Queue Arn
+    Value: !GetAtt AppSQSQueues.Outputs.SalesEmailQueueArn

@@ -163,6 +163,16 @@ const dynamoTableData = [
   },
 ];
 
+const infraEventsOnly = dynamoTableData.filter((x) => {
+  return x["host"]["S"] === "Infrastructure Committee";
+});
+
+const infraEventsOnlyUnmarshalled = infraEventsOnly.map((x: any) => {
+  const temp = unmarshall(x);
+  delete temp.createdBy;
+  return temp;
+});
+
 const dynamoTableDataUnmarshalled = dynamoTableData.map((x: any) => {
   const temp = unmarshall(x);
   delete temp.createdBy;
@@ -181,4 +191,6 @@ export {
   dynamoTableData,
   dynamoTableDataUnmarshalled,
   dynamoTableDataUnmarshalledUpcomingOnly,
+  infraEventsOnly,
+  infraEventsOnlyUnmarshalled,
 };

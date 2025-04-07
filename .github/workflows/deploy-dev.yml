@@ -6,7 +6,6 @@ on:
   pull_request:
     branches:
       - main
-    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   test-unit:
@@ -14,64 +13,85 @@ jobs:
     runs-on: ubuntu-latest
     name: Run Unit Tests
     steps:
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
       - uses: actions/checkout@v4
         env:
           HUSKY: "0"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'yarn'
+
+      - name: Restore Yarn Cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          restore-keys: |
+            yarn-modules-${{ runner.os }}-
+
       - name: Set up Python 3.11 for testing
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
+
       - name: Run unit testing
         run: make test_unit
-  deploy-dev:
-    if: github.event.pull_request.draft == false
+
+  deploy-test-dev:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     concurrency:
       group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
     environment: "AWS DEV"
-    name: Deploy to DEV
+    name: Deploy to DEV and Run Tests
     needs:
       - test-unit
     steps:
-      - name: Set up Node for testing
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
       - uses: actions/checkout@v4
         env:
           HUSKY: "0"
+
+      - name: Set up Node for testing
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'yarn'
+
+      - name: Restore Yarn Cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          restore-keys: |
+            yarn-modules-${{ runner.os }}-
+
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
-      - uses: aws-actions/configure-aws-credentials@v2
+
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
+          role-session-name: Core_Dev_Deployment
           aws-region: us-east-1
+
       - name: Publish to AWS
         run: make deploy_dev
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
-      - name: Publish to Cloudflare
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: management-ui-dev
-          directory: dist_ui/
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
 
+<<<<<<< HEAD
   test-dev:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
@@ -93,10 +113,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
+=======
+>>>>>>> ca4496e7001f85a4ab625597558b8b9064395a64
       - name: Run health check
         run: make dev_health_check
+
       - name: Run live testing
         run: make test_live_integration
+        env:
+          JWT_KEY: ${{ secrets.JWT_KEY }}
+
       - name: Run E2E testing
         run: make test_e2e
         env:
