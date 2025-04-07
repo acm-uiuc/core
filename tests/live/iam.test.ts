@@ -31,7 +31,7 @@ test("getting members of a group", async () => {
   }
 });
 
-test("inviting users to tenant", async () => {
+test("inviting users to tenant", { timeout: 60000 }, async () => {
   const token = await createJwt();
   const response = await fetch(`${baseEndpoint}/api/v1/iam/inviteUsers`, {
     method: "POST",
@@ -53,7 +53,7 @@ test("inviting users to tenant", async () => {
 
 test("getting group roles", async () => {
   const token = await createJwt();
-  const response = await fetch(`${baseEndpoint}/api/v1/iam/group/0/roles`, {
+  const response = await fetch(`${baseEndpoint}/api/v1/iam/groups/0/roles`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
