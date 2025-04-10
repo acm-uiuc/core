@@ -31,7 +31,7 @@ import {
 } from "api/functions/cache.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
-const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
+export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
 export type EventRepeatOptions = (typeof repeatOptions)[number];
 
 const baseSchema = z.object({

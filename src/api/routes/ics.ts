@@ -15,8 +15,9 @@ import ical, {
 import moment from "moment";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
 import { OrganizationList } from "../../common/orgs.js";
-import { EventRepeatOptions } from "./events.js";
+import { CLIENT_HTTP_CACHE_POLICY, EventRepeatOptions } from "./events.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
+import { getCacheCounter } from "api/functions/cache.js";
 
 const repeatingIcalMap: Record<EventRepeatOptions, ICalEventJSONRepeatingData> =
   {
@@ -46,6 +47,26 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
       TableName: genericConfig.EventsDynamoTableName,
     };
     let response;
+    const ifNoneMatch = request.headers["if-none-match"];
+    if (ifNoneMatch) {
+      const etag = await getCacheCounter(
+        fastify.dynamoClient,
+        `events-etag-${host || "all"}`,
+      );
+
+      if (
+        ifNoneMatch === `"${etag.toString()}"` ||
+        ifNoneMatch === etag.toString()
+      ) {
+        return reply
+          .code(304)
+          .header("ETag", etag)
+          .header("Cache-Control", CLIENT_HTTP_CACHE_POLICY)
+          .send();
+      }
+
+      reply.header("etag", etag);
+    }
     if (host) {
       if (!OrganizationList.includes(host)) {
         throw new ValidationError({
