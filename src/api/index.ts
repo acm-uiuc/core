@@ -1,3 +1,4 @@
+/* eslint import/no-nodejs-modules: ["error", {"allow": ["crypto"]}] */
 import { randomUUID } from "crypto";
 import fastify, { FastifyInstance } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
@@ -17,7 +18,7 @@ import vendingPlugin from "./routes/vending.js";
 import * as dotenv from "dotenv";
 import iamRoutes from "./routes/iam.js";
 import ticketsPlugin from "./routes/tickets.js";
-import paidEventsPlugin from "./routes/paidEvents.js";
+import linkryRoutes from "./routes/linkry.js";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -27,7 +28,6 @@ import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
 import path from "path"; // eslint-disable-line import/no-nodejs-modules
 import roomRequestRoutes from "./routes/roomRequests.js";
-import linkryRoutes from "./routes/linkry.js";
 
 dotenv.config();
 
@@ -82,9 +82,6 @@ async function init(prettyPrint: boolean = false) {
       return event.requestContext.requestId;
     },
   });
-  const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
-  const __dirname = path.dirname(__filename);
-
   await app.register(fastifyAuthPlugin);
   await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);
@@ -131,7 +128,6 @@ async function init(prettyPrint: boolean = false) {
     async (api, _options) => {
       api.register(protectedRoute, { prefix: "/protected" });
       api.register(eventsPlugin, { prefix: "/events" });
-      api.register(paidEventsPlugin, { prefix: "/paidEvents" });
       api.register(organizationsPlugin, { prefix: "/organizations" });
       api.register(membershipPlugin, { prefix: "/membership" });
       api.register(icalPlugin, { prefix: "/ical" });
