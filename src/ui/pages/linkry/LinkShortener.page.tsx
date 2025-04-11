@@ -10,8 +10,8 @@ import {
   ButtonGroup,
   Anchor,
   Badge,
-  Loader,
   Tabs,
+  Loader,
   useMantineColorScheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -47,11 +47,6 @@ const baseSchema = z.object({
 
 const getLinkrySchema = baseSchema.extend({
   id: z.string(),
-  owner: z.string().min(1),
-});
-
-const getLinkryAdminSchema = baseSchema.extend({
-  id: z.string(),
 });
 
 const wrapTextStyle: React.CSSProperties = {
@@ -61,12 +56,12 @@ const wrapTextStyle: React.CSSProperties = {
 };
 
 export type LinkryGetResponse = z.infer<typeof getLinkrySchema>;
-export type LinkryAdminGetResponse = z.infer<typeof getLinkryAdminSchema>;
 //const getLinksSchema = z.array(getLinkrySchema);
 
-export const LinkShortenerAdmin: React.FC = () => {
+export const LinkShortener: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [adminLinks, setAdminLinks] = useState<LinkryAdminGetResponse[]>([]);
+  const [ownedLinks, setOwnedLinks] = useState<LinkryGetResponse[]>([]);
+  const [delegatedLinks, setDelegatedLinks] = useState<LinkryGetResponse[]>([]);
   const api = useApi('core');
   const [opened, { open, close }] = useDisclosure(false);
   const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false); // Changed default to false
@@ -103,6 +98,7 @@ export const LinkShortenerAdmin: React.FC = () => {
                 }
                 target="_blank"
               >
+                {' '}
                 {/* Currently set to localhost for local testing purposes */}
                 https://go.acm.illinois.edu/{link.slug}
               </Anchor>
@@ -112,26 +108,6 @@ export const LinkShortenerAdmin: React.FC = () => {
                 {link.redirect}
               </Anchor>
             </Table.Td>
-
-            <Table.Td style={wrapTextStyle}>
-              {link.owner && link.owner.length > 0 ? (
-                link.owner
-                  .split(';') // Split the access string by ";"
-                  .map((group, index) => (
-                    <Badge
-                      key={index}
-                      color="#999898"
-                      radius="sm"
-                      style={{ marginRight: '2px', marginBottom: '2px' }}
-                    >
-                      {group.trim()} {/* Trim any extra whitespace */}
-                    </Badge>
-                  ))
-              ) : (
-                <></>
-              )}
-            </Table.Td>
-
             <Table.Td style={wrapTextStyle}>
               {link.access && link.access.length > 0 ? (
                 link.access
@@ -191,7 +167,7 @@ export const LinkShortenerAdmin: React.FC = () => {
     );
   };
 
-  const renderAdminLinks = (link: LinkryGetResponse, index: number) => {
+  const renderDelegatedLinks = (link: LinkryGetResponse, index: number) => {
     const shouldShow = true;
 
     return (
@@ -201,14 +177,7 @@ export const LinkShortenerAdmin: React.FC = () => {
             style={{
               ...styles,
               display: shouldShow ? 'table-row' : 'none',
-              backgroundColor:
-                colorScheme === 'dark'
-                  ? index % 2 === 0
-                    ? '#333333'
-                    : '#444444'
-                  : index % 2 === 0
-                    ? '#f0f8ff'
-                    : '#ffffff',
+              backgroundColor: index % 2 === 0 ? '#f0f8ff' : '#ffffff',
             }}
           >
             <Table.Td style={wrapTextStyle}>
@@ -229,7 +198,6 @@ export const LinkShortenerAdmin: React.FC = () => {
                 {link.redirect}
               </Anchor>
             </Table.Td>
-
             <Table.Td style={wrapTextStyle}>
               {link.access
                 ?.split(';') // Split the access string by ";"
@@ -287,22 +255,24 @@ export const LinkShortenerAdmin: React.FC = () => {
 
   useEffect(() => {
     const getEvents = async () => {
-      try {
-        setIsLoading(true);
-        const response = await api.get('/api/v1/linkry/admin/redir');
-        const adminLinks = response.data.adminLinks;
-        setIsLoading(false);
-        setAdminLinks(adminLinks);
-      } catch (e: unknown) {
-        notifications.show({
-          title: 'Error accesing admin',
-          message: 'Error retrieving admin informations',
-          color: 'red',
-        });
-        navigate(
-          new URLSearchParams(window.location.search).get('previousPage') || '/link-shortener'
-        );
-      }
+      setIsLoading(true);
+      const response = await api.get('/api/v1/linkry/redir');
+      //const upcomingEvents = await api.get('/api/v1/events?upcomingOnly=true');
+      //const upcomingEventsSet = new Set(upcomingEvents.data.map((x: EventGetResponse) => x.id));
+      const ownedLinks = response.data.ownedLinks;
+      const delegatedLinks = response.data.delegatedLinks;
+      setIsLoading(false);
+      // events.sort((a: EventGetResponse, b: EventGetResponse) => {
+      //   return a.start.localeCompare(b.start);
+      // });
+      // const enrichedResponse = response.data.map((item: EventGetResponse) => {
+      //   if (upcomingEventsSet.has(item.id)) {
+      //     return { ...item, upcoming: true };
+      //   }
+      //   return { ...item, upcoming: false };
+      // });
+      setOwnedLinks(ownedLinks);
+      setDelegatedLinks(delegatedLinks);
     };
     getEvents();
   }, []);
@@ -312,7 +282,7 @@ export const LinkShortenerAdmin: React.FC = () => {
       const encodedSlug = encodeURIComponent(slug);
       setIsLoading(true);
       await api.delete(`/api/v1/linkry/redir/${encodedSlug}`);
-      setAdminLinks((prevEvents) => prevEvents.filter((link) => link.slug !== slug));
+      setOwnedLinks((prevEvents) => prevEvents.filter((link) => link.slug !== slug));
       setIsLoading(false);
       notifications.show({
         title: 'Link deleted',
@@ -329,8 +299,14 @@ export const LinkShortenerAdmin: React.FC = () => {
     }
   };
 
+  /*if (ownedLinks.length === 0) {
+    return <FullScreenLoader />;
+  }*/ //Don't know what is this purpose, disable for now...
+
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_ADMIN] }}>
+    <AuthGuard
+      resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_ADMIN, AppRoles.LINKS_MANAGER] }}
+    >
       <Box
         style={{
           position: 'fixed',
@@ -385,7 +361,7 @@ export const LinkShortenerAdmin: React.FC = () => {
         </Modal>
       )}
       <Title order={2} mb="md">
-        Admin Links
+        User Links
       </Title>
 
       <div
@@ -399,15 +375,14 @@ export const LinkShortenerAdmin: React.FC = () => {
         >
           Add New Link
         </Button>
-
         <Button
           leftSection={<IconEdit size={14} />}
           onClick={() => {
-            navigate('/link-shortener');
+            navigate('/linkry/admin');
           }}
           color="teal"
         >
-          Back to User Links
+          Admin Panel
         </Button>
       </div>
 
@@ -421,7 +396,8 @@ export const LinkShortenerAdmin: React.FC = () => {
         }}
       >
         <Tabs.List>
-          <Tabs.Tab value="owned">All Links</Tabs.Tab>
+          <Tabs.Tab value="owned">Owned Links</Tabs.Tab>
+          <Tabs.Tab value="delegated">Delegated Links</Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="owned" pt="xs">
@@ -431,14 +407,31 @@ export const LinkShortenerAdmin: React.FC = () => {
                 <Table.Tr>
                   <Table.Th>Shortened Link</Table.Th>
                   <Table.Th>Redirect URL</Table.Th>
-                  <Table.Th>Owner</Table.Th>
                   <Table.Th>Access Groups</Table.Th>
                   <Table.Th>Visit Count</Table.Th>
-                  {/* <Table.Th>Created On</Table.Th>
-                  <Table.Th>Updated On</Table.Th> */}
+                  {/* <Table.Th>Created At</Table.Th>
+                  <Table.Th>Updated At</Table.Th> */}
                 </Table.Tr>
               </Table.Thead>
-              <Table.Tbody>{adminLinks.map(renderTableRow)}</Table.Tbody>
+              <Table.Tbody>{ownedLinks.map(renderTableRow)}</Table.Tbody>
+            </Table>
+          </div>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="delegated" pt="xs">
+          <div style={{ width: '100%', overflowX: 'auto' }}>
+            <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Shortened Link</Table.Th>
+                  <Table.Th>Redirect URL</Table.Th>
+                  <Table.Th>Access Groups</Table.Th>
+                  <Table.Th>Visit Count</Table.Th>
+                  {/* <Table.Th>Created At</Table.Th>
+                  <Table.Th>Updated At</Table.Th> */}
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>{delegatedLinks.map(renderTableRow)}</Table.Tbody>
             </Table>
           </div>
         </Tabs.Panel>

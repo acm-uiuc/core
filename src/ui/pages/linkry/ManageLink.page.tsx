@@ -128,7 +128,7 @@ export const ManageLinkPage: React.FC = () => {
         notifications.show({
           message: 'Failed to fetch event data, please try again.',
         });
-        navigate('/link-shortener');
+        navigate('/linkry');
       }
     };
     startForm();
@@ -167,9 +167,7 @@ export const ManageLinkPage: React.FC = () => {
           ? undefined
           : `The Link: ${realValues.redirect}, ${realValues.slug} ${realValues.access}".`,
       });
-      navigate(
-        new URLSearchParams(window.location.search).get('previousPage') || '/link-shortener'
-      );
+      navigate(new URLSearchParams(window.location.search).get('previousPage') || '/linkry');
     } catch (error) {
       setIsSubmitting(false);
       console.error('Error creating/editing link:', error);
@@ -180,7 +178,7 @@ export const ManageLinkPage: React.FC = () => {
   };
 
   const handleFormClose = () => {
-    navigate(new URLSearchParams(window.location.search).get('previousPage') || '/link-shortener');
+    navigate(new URLSearchParams(window.location.search).get('previousPage') || '/linkry');
   };
 
   const generateRandomSlug = () => {

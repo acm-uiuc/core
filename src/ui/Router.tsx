@@ -12,13 +12,13 @@ import { LoginPage } from './pages/Login.page';
 import { LogoutPage } from './pages/Logout.page';
 import { ManageEventPage } from './pages/events/ManageEvent.page';
 import { ViewEventsPage } from './pages/events/ViewEvents.page';
-import { LinkShortener } from './pages/link-shortener/LinkShortener.page';
-import { ManageLinkPage } from './pages/link-shortener/ManageLink.page';
+import { LinkShortener } from './pages/linkry/LinkShortener.page';
+import { ManageLinkPage } from './pages/linkry/ManageLink.page';
 import { ScanTicketsPage } from './pages/tickets/ScanTickets.page';
 import { SelectTicketsPage } from './pages/tickets/SelectEventId.page';
 import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
 import { ManageIamPage } from './pages/iam/ManageIam.page';
-import { LinkShortenerAdmin } from './pages/link-shortener/LinkShortenerAdmin.page';
+import { LinkShortenerAdmin } from './pages/linkry/LinkShortenerAdmin.page';
 import { ManageProfilePage } from './pages/profile/ManageProfile.page';
 import { ManageStripeLinksPage } from './pages/stripe/ViewLinks.page';
 import { ManageRoomRequestsPage } from './pages/roomRequest/RoomRequestLanding.page';
@@ -147,11 +147,11 @@ const authenticatedRouter = createBrowserRouter([
     element: <ViewEventsPage />,
   },
   {
-    path: '/link-shortener',
+    path: '/linkry',
     element: <LinkShortener />,
   },
   {
-    path: '/link-shortener/admin',
+    path: '/linkry/admin',
     element: <LinkShortenerAdmin />,
   },
   {
