@@ -383,10 +383,12 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           throw new Error("Username is undefined");
         }
 
-        const allUserGroupUUIDs = await listGroupIDsByEmail(
-          entraIdToken,
-          request.username,
-        );
+        // const allUserGroupUUIDs = await listGroupIDsByEmail(
+        //   entraIdToken,
+        //   request.username,
+        // );
+
+        const allUserGroupUUIDs = request.tokenPayload?.groups ?? [];
 
         const linkryGroupUUIDs: string[] = [
           ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
@@ -510,10 +512,11 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             throw new Error("Username is undefined");
           }
 
-          const allUserGroupUUIDs = await listGroupIDsByEmail(
-            entraIdToken,
-            request.username,
-          );
+          // const allUserGroupUUIDs = await listGroupIDsByEmail(
+          //   entraIdToken,
+          //   request.username,
+          // );
+          const allUserGroupUUIDs = request.tokenPayload?.groups ?? [];
 
           const linkryGroupUUIDs: string[] = [
             ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
@@ -755,10 +758,12 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           throw new Error("Username is undefined");
         }
 
-        const allUserGroupUUIDs = await listGroupIDsByEmail(
-          entraIdToken,
-          request.username,
-        );
+        // const allUserGroupUUIDs = await listGroupIDsByEmail(
+        //   entraIdToken,
+        //   request.username,
+        // );
+
+        const allLinkryGroupUUIDs = request.tokenPayload?.groups ?? [];
 
         const linkryGroupUUIDs: string[] = [
           ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
@@ -946,8 +951,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
     },
     async (request, reply) => {
-      // console.log("******#*#")
-      // console.log(request.headers)
+      //console.log("******#*#")
+      //console.log(request.tokenPayload)
       // if an admin, show all links
       // if a links manager, show all my links + links I can manage
 
@@ -1054,22 +1059,25 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         );
 
         //fetching delegated links
-        const entraIdToken = await getEntraIdToken(
-          {
-            smClient: fastify.secretsManagerClient,
-            dynamoClient: fastify.dynamoClient,
-          },
-          fastify.environmentConfig.AadValidClientId,
-        );
+        // const entraIdToken = await getEntraIdToken(
+        //   {
+        //     smClient: fastify.secretsManagerClient,
+        //     dynamoClient: fastify.dynamoClient,
+        //   },
+        //   fastify.environmentConfig.AadValidClientId,
+        // );
 
-        if (!request.username) {
-          throw new Error("Username is undefined");
-        }
+        // if (!request.username) {
+        //   throw new Error("Username is undefined");
+        // }
 
-        const uUIDsOfAllTheGroupsUserIsMemberOf = await listGroupIDsByEmail(
-          entraIdToken,
-          request.username,
-        );
+        // const uUIDsOfAllTheGroupsUserIsMemberOf = await listGroupIDsByEmail(
+        //   entraIdToken,
+        //   request.username,
+        // );
+
+        const uUIDsOfAllTheGroupsUserIsMemberOf =
+          request.tokenPayload?.groups ?? [];
 
         const allLinkryGroupUUIDs: string[] = [
           ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
@@ -1094,6 +1102,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 ":accessVal": { S: `GROUP#${group}` },
               },
             });
+
+            //console.log("******____")
 
             const groupScanResponse = await dynamoClient.send(groupScanCommand);
 
