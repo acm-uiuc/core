@@ -27,6 +27,7 @@ const urlRegex = /https:\/\/[a-z0-9\.-]+\/calendar\?id=([a-f0-9-]+)/;
 export const updateDiscord = async (
   smClient: SecretsManagerClient,
   event: IUpdateDiscord,
+  actor: string,
   isDelete: boolean = false,
   logger: FastifyBaseLogger,
 ): Promise<null | GuildScheduledEventCreateOptions> => {
@@ -90,6 +91,7 @@ export const updateDiscord = async (
       entityMetadata: {
         location,
       },
+      reason: `${existingMetadata ? "Modified" : "Created"} by ${actor}.`,
     };
 
     if (existingMetadata) {
