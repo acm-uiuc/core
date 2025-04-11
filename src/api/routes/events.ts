@@ -18,6 +18,7 @@ import {
   DatabaseInsertError,
   DiscordEventError,
   NotFoundError,
+  UnauthenticatedError,
   ValidationError,
 } from "../../common/errors/index.js";
 import { randomUUID } from "crypto";
@@ -31,7 +32,7 @@ import {
 } from "api/functions/cache.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
-const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
+export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
 export type EventRepeatOptions = (typeof repeatOptions)[number];
 
 const baseSchema = z.object({
@@ -236,6 +237,9 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       },
     },
     async (request, reply) => {
+      if (!request.username) {
+        throw new UnauthenticatedError({ message: "Username not found." });
+      }
       try {
         let originalEvent;
         const userProvidedId = (
@@ -281,6 +285,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             await updateDiscord(
               fastify.secretsManagerClient,
               entry,
+              request.username,
               false,
               request.log,
             );
@@ -360,6 +365,9 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request: FastifyRequest<EventDeleteRequest>, reply) => {
       const id = request.params.id;
+      if (!request.username) {
+        throw new UnauthenticatedError({ message: "Username not found." });
+      }
       try {
         await fastify.dynamoClient.send(
           new DeleteItemCommand({
@@ -370,6 +378,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         await updateDiscord(
           fastify.secretsManagerClient,
           { id } as IUpdateDiscord,
+          request.username,
           true,
           request.log,
         );
