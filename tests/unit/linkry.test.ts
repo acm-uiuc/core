@@ -62,14 +62,24 @@ ddbMock.on(QueryCommand).resolves({
   Items: [],
 });
 
-const testJwt = createJwt(undefined, "83c275f8-e533-4987-b537-a94b86c9d28e");
+const testAdminJwt = createJwt(undefined, "LINKS_ADMIN");
+const testAccessDeniedJwt = createJwt(undefined, "1");
 
-const allLinkryResponse = await app.inject({
+const adminLinkryResponse = await app.inject({
   method: "GET",
   url: "/api/v1/linkry/redir",
   headers: {
-    Authorization: `Bearer ${testJwt}`,
+    Authorization: `Bearer ${testAdminJwt}`,
   },
 });
 
-expect(allLinkryResponse.statusCode).toBe(200);
+const accessDeniedLinkryResponse = await app.inject({
+  method: "GET",
+  url: "/api/v1/linkry/redir",
+  headers: {
+    Authorization: `Bearer ${testAccessDeniedJwt}`,
+  },
+});
+
+expect(adminLinkryResponse.statusCode).toBe(200);
+expect(accessDeniedLinkryResponse.statusCode).toBe(401);

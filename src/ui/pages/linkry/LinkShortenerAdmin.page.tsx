@@ -66,7 +66,7 @@ export type LinkryAdminGetResponse = z.infer<typeof getLinkryAdminSchema>;
 
 export const LinkShortenerAdmin: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [adminLinks, setAdminLinks] = useState<LinkryAdminGetResponse[]>([]);
+  const [adminLinks, setAdminLinks] = useState<LinkryGetResponse[]>([]);
   const api = useApi('core');
   const [opened, { open, close }] = useDisclosure(false);
   const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false); // Changed default to false
