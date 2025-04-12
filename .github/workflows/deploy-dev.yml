@@ -9,7 +9,6 @@ on:
 
 jobs:
   test-unit:
-    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     name: Run Unit Tests
     steps:
