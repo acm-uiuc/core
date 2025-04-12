@@ -21,13 +21,14 @@ import {
   UpdateItemCommand,
   AttributeValue,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../../common/config.js";
+import { genericConfig, EVENT_CACHED_DURATION } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { randomUUID } from "crypto";
 import { access } from "fs";
 import { AuthError } from "@azure/msal-node";
 import { listGroupIDsByEmail, getEntraIdToken } from "../functions/entraId.js";
 import internal from "stream";
+import rateLimiter from "api/plugins/rateLimiter.js";
 
 const LINKRY_MAX_SLUG_LENGTH = 1000;
 
@@ -98,6 +99,8 @@ const dynamoClient = new DynamoDBClient({
   region: genericConfig.AwsRegion,
 });
 
+export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
+
 const counterIncrement = async (targetSlug: string) => {
   const counterQueryParams = {
     TableName: genericConfig.LinkryDynamoTableName,
@@ -149,6 +152,284 @@ const counterIncrement = async (targetSlug: string) => {
 };
 
 const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
+  const limitedRoutes: FastifyPluginAsync = async (fastify) => {
+    fastify.register(rateLimiter, {
+      limit: 90,
+      duration: 60,
+      rateLimitIdentifier: "linkry",
+    });
+
+    fastify.get<NoDataRequest>(
+      "/redir",
+      {
+        onRequest: async (request, reply) => {},
+      },
+      async (request, reply) => {
+        try {
+          const fetchAllOwnerRecords = new QueryCommand({
+            TableName: genericConfig.LinkryDynamoTableName,
+            IndexName: "AccessIndex",
+            KeyConditionExpression: "#access = :accessVal",
+            ExpressionAttributeNames: {
+              "#access": "access",
+            },
+            ExpressionAttributeValues: {
+              ":accessVal": { S: `OWNER#${request.username}` }, // Match OWNER#<username>
+            },
+            ScanIndexForward: false, // Sort in descending order
+          });
+
+          const allOwnerRecords = await dynamoClient.send(fetchAllOwnerRecords);
+
+          const unmarshalledOwnerRecords =
+            allOwnerRecords.Items?.map((ownerRecord) => {
+              const unmarshalledItem = unmarshall(ownerRecord);
+
+              // Strip '#' from access field
+              if (unmarshalledItem.access) {
+                unmarshalledItem.access =
+                  unmarshalledItem.access.split("#")[1] ||
+                  unmarshalledItem.access;
+              }
+              return unmarshalledItem;
+            }) || [];
+
+          const ownedUniqueSlugs = Array.from(
+            new Set(
+              unmarshalledOwnerRecords
+                .filter((item) => item.slug) // Filter out items without a slug
+                .map((item) => item.slug), // Extract slugs
+            ),
+          );
+
+          const ownedLinksGroupsConcatenated = await Promise.all(
+            ownedUniqueSlugs.map(async (slug) => {
+              const groupQueryCommand = new QueryCommand({
+                TableName: genericConfig.LinkryDynamoTableName,
+                KeyConditionExpression:
+                  "#slug = :slugVal AND begins_with(#access, :accessVal)",
+                ExpressionAttributeNames: {
+                  "#slug": "slug",
+                  "#access": "access",
+                },
+                ExpressionAttributeValues: {
+                  ":slugVal": { S: slug },
+                  ":accessVal": { S: "GROUP#" },
+                },
+                ScanIndexForward: false,
+              });
+
+              const groupQueryResponse =
+                await dynamoClient.send(groupQueryCommand);
+              const groupItems = groupQueryResponse.Items?.map((item) =>
+                unmarshall(item),
+              );
+
+              const combinedAccessGroupUUIDs: string[] =
+                groupItems?.map((item) => item.access.replace("GROUP#", "")) ||
+                [];
+
+              const combinedAccessGroupNames: string[] = [];
+
+              for (const accessGroupUUID of combinedAccessGroupUUIDs) {
+                combinedAccessGroupNames.push(
+                  fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
+                    accessGroupUUID,
+                  ) as string,
+                );
+              }
+
+              // Combine GROUP# values into a single string separated by ";"
+              const combinedAccessGroups = combinedAccessGroupNames.join(";");
+
+              // Find the original record for this slug and add the combined access groups
+              const originalRecord = (unmarshalledOwnerRecords ?? []).find(
+                (item) => item.slug === slug,
+              );
+              return {
+                ...originalRecord,
+                access: combinedAccessGroups || "",
+              };
+            }),
+          );
+
+          const uUIDsOfAllTheGroupsUserIsMemberOf =
+            request.tokenPayload?.groups ?? [];
+
+          const allLinkryGroupUUIDs: string[] = [
+            ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
+          ] as string[];
+
+          const userLinkrAllUserGroups =
+            uUIDsOfAllTheGroupsUserIsMemberOf.filter((groupId) => {
+              return allLinkryGroupUUIDs.includes(groupId);
+            });
+
+          const delegatedLinks = await Promise.all(
+            userLinkrAllUserGroups.map(async (group) => {
+              // Use ScanCommand to query all records where access with value "GROUP#[value]"
+              const groupScanCommand = new ScanCommand({
+                TableName: genericConfig.LinkryDynamoTableName,
+                FilterExpression: "#access=:accessVal",
+                ExpressionAttributeNames: {
+                  "#access": "access",
+                },
+                ExpressionAttributeValues: {
+                  ":accessVal": { S: `GROUP#${group}` },
+                },
+              });
+
+              //console.log("******____")
+
+              const groupScanResponse =
+                await dynamoClient.send(groupScanCommand);
+
+              const allRecordsForUserLinkryGroup = groupScanResponse.Items?.map(
+                (item) => unmarshall(item),
+              );
+
+              // Get unique slugs from groupItems and remove previously seen slugs
+              const delegatedUniqueSlugs = Array.from(
+                new Set(
+                  (allRecordsForUserLinkryGroup ?? [])
+                    .filter(
+                      (item) =>
+                        item.slug && !ownedUniqueSlugs.includes(item.slug),
+                    ) // Exclude slugs already seen
+                    .map((item) => item.slug), // Extract slugs
+                ),
+              );
+
+              // For each unique slug, find the corresponding "OWNER#" record and access groups
+              const allFormattedOwnerRecordsForDelegatedLinks =
+                await Promise.all(
+                  delegatedUniqueSlugs.map(async (slug) => {
+                    // Query for OWNER# record
+                    const ownerQueryCommand = new QueryCommand({
+                      TableName: genericConfig.LinkryDynamoTableName,
+                      KeyConditionExpression:
+                        "#slug = :slugVal AND begins_with(#access, :ownerVal)",
+                      ExpressionAttributeNames: {
+                        "#slug": "slug",
+                        "#access": "access",
+                      },
+                      ExpressionAttributeValues: {
+                        ":slugVal": { S: slug }, // Match the delegated unique slug
+                        ":ownerVal": { S: "OWNER#" }, // Match access starting with "OWNER#"
+                      },
+                    });
+
+                    const ownerQueryResponse =
+                      await dynamoClient.send(ownerQueryCommand);
+
+                    const allOwnerRecordsForDelegatedLinks =
+                      ownerQueryResponse.Items?.map((item) => unmarshall(item));
+
+                    // Query for GROUP# records
+                    const groupQueryCommand = new QueryCommand({
+                      TableName: genericConfig.LinkryDynamoTableName,
+                      KeyConditionExpression:
+                        "#slug = :slugVal AND begins_with(#access, :groupVal)",
+                      ExpressionAttributeNames: {
+                        "#slug": "slug",
+                        "#access": "access",
+                      },
+                      ExpressionAttributeValues: {
+                        ":slugVal": { S: slug }, // Match the delegated unique slug
+                        ":groupVal": { S: "GROUP#" }, // Match access starting with "GROUP#"
+                      },
+                    });
+
+                    const groupQueryResponse =
+                      await dynamoClient.send(groupQueryCommand);
+                    const groupItems = groupQueryResponse.Items?.map((item) =>
+                      unmarshall(item),
+                    );
+
+                    const combinedAccessGroupUUIDsForUserLinkryGroup: string[] =
+                      groupItems?.map((item) =>
+                        item.access.replace("GROUP#", ""),
+                      ) || [];
+
+                    const combinedAccessGroupNames: string[] = [];
+
+                    for (const accessGroupUUID of combinedAccessGroupUUIDsForUserLinkryGroup) {
+                      combinedAccessGroupNames.push(
+                        fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
+                          accessGroupUUID,
+                        ) as string,
+                      );
+                    }
+
+                    // Combine GROUP# values into a single string separated by ";"
+                    const combinedAccessGroups =
+                      combinedAccessGroupNames.join(";");
+
+                    //console.log(combinedAccessGroups);
+
+                    // Combine OWNER# record with access groups
+                    return allOwnerRecordsForDelegatedLinks?.map(
+                      (ownerItem) => ({
+                        ...ownerItem,
+                        access: combinedAccessGroups, // Append access groups to OWNER# access
+                      }),
+                    );
+                  }),
+                );
+
+              return allFormattedOwnerRecordsForDelegatedLinks.flat(); // Flatten the results for this group
+            }),
+          );
+
+          // Flatten the results into a single array
+          const flattenedDelegatedLinks = delegatedLinks.flat();
+
+          const delegatedUniqueSlugs = //find the unique slug in the delegated links
+            new Set<string>(
+              flattenedDelegatedLinks
+                .filter((item) => item !== undefined && "slug" in item)
+                .map((item) =>
+                  "slug" in item ? (item as { slug: string }).slug : undefined,
+                )
+                .filter((slug): slug is string => slug !== undefined),
+            );
+
+          const uniqueFlattenedDelegatedLinks = flattenedDelegatedLinks.filter(
+            (item) => {
+              if (
+                item !== undefined &&
+                "slug" in item &&
+                typeof item.slug === "string" &&
+                delegatedUniqueSlugs.has(item.slug)
+              ) {
+                //filter the delegated links to only show one entry per unique slug per delegated link
+                if ("slug" in item) {
+                  delegatedUniqueSlugs.delete(item.slug as string);
+                }
+                return true;
+              }
+            },
+          );
+
+          const results = {
+            ownedLinks: ownedLinksGroupsConcatenated,
+            delegatedLinks: uniqueFlattenedDelegatedLinks,
+          };
+
+          reply.code(200).send(results);
+        } catch (e) {
+          if (e instanceof Error) {
+            request.log.error("Failed to get from DynamoDB: " + e.toString());
+          }
+          console.log(e);
+          throw new DatabaseFetchError({
+            message: "Failed to get Links from Dynamo table.",
+          });
+        }
+      },
+    );
+  };
+
   fastify.get<LinkrySlugOnlyRequest>(
     "/redir/:slug",
     {
@@ -306,7 +587,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           new TransactWriteItemsCommand({ TransactItems: TransactItems }),
         );
 
-        reply.send({ message: "Slug Created", id: request.body.slug });
+        reply
+          .code(201)
+          .send({ message: "Slug Created", id: request.body.slug });
       } catch (e: unknown) {
         console.log(e);
         throw new DatabaseInsertError({
@@ -315,6 +598,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
+
   fastify.get<LinkryGetRequest>(
     "/linkdata/:slug",
     {
@@ -403,7 +687,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             ownerRecord.access.split("OWNER#")[1] == request.username) ||
           userLinkryGroups.length > 0
         ) {
-          reply.send({
+          reply.code(200).send({
             slug: ownerRecord.slug,
             access: accessGroupNames,
             redirect: ownerRecord.redirect,
@@ -940,313 +1224,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
 
-  fastify.get<NoDataRequest>(
-    "/redir",
-    {
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [
-          AppRoles.LINKS_MANAGER,
-          AppRoles.LINKS_ADMIN,
-        ]);
-      },
-    },
-    async (request, reply) => {
-      //console.log("******#*#")
-      //console.log(request.tokenPayload)
-      // if an admin, show all links
-      // if a links manager, show all my links + links I can manage
-
-      try {
-        //TODO: admin response
-
-        // const isAdmin = request?.includes(AppRoles.LINKS_ADMIN);
-
-        // if (isAdmin) {
-
-        // const response = await dynamoClient.send(
-        //   new ScanCommand({ TableName: genericConfig.LinkryDynamoTableName }),
-        // );
-
-        //console.log(request)
-
-        //fetching owned links
-
-        const fetchAllOwnerRecords = new QueryCommand({
-          TableName: genericConfig.LinkryDynamoTableName,
-          IndexName: "AccessIndex",
-          KeyConditionExpression: "#access = :accessVal",
-          ExpressionAttributeNames: {
-            "#access": "access",
-          },
-          ExpressionAttributeValues: {
-            ":accessVal": { S: `OWNER#${request.username}` }, // Match OWNER#<username>
-          },
-          ScanIndexForward: false, // Sort in descending order
-        });
-
-        const allOwnerRecords = await dynamoClient.send(fetchAllOwnerRecords);
-
-        const unmarshalledOwnerRecords =
-          allOwnerRecords.Items?.map((ownerRecord) => {
-            const unmarshalledItem = unmarshall(ownerRecord);
-
-            // Strip '#' from access field
-            if (unmarshalledItem.access) {
-              unmarshalledItem.access =
-                unmarshalledItem.access.split("#")[1] ||
-                unmarshalledItem.access;
-            }
-            return unmarshalledItem;
-          }) || [];
-
-        const ownedUniqueSlugs = Array.from(
-          new Set(
-            unmarshalledOwnerRecords
-              .filter((item) => item.slug) // Filter out items without a slug
-              .map((item) => item.slug), // Extract slugs
-          ),
-        );
-
-        const ownedLinksGroupsConcatenated = await Promise.all(
-          ownedUniqueSlugs.map(async (slug) => {
-            const groupQueryCommand = new QueryCommand({
-              TableName: genericConfig.LinkryDynamoTableName,
-              KeyConditionExpression:
-                "#slug = :slugVal AND begins_with(#access, :accessVal)",
-              ExpressionAttributeNames: {
-                "#slug": "slug",
-                "#access": "access",
-              },
-              ExpressionAttributeValues: {
-                ":slugVal": { S: slug },
-                ":accessVal": { S: "GROUP#" },
-              },
-              ScanIndexForward: false,
-            });
-
-            const groupQueryResponse =
-              await dynamoClient.send(groupQueryCommand);
-            const groupItems = groupQueryResponse.Items?.map((item) =>
-              unmarshall(item),
-            );
-
-            const combinedAccessGroupUUIDs: string[] =
-              groupItems?.map((item) => item.access.replace("GROUP#", "")) ||
-              [];
-
-            const combinedAccessGroupNames: string[] = [];
-
-            for (const accessGroupUUID of combinedAccessGroupUUIDs) {
-              combinedAccessGroupNames.push(
-                fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
-                  accessGroupUUID,
-                ) as string,
-              );
-            }
-
-            // Combine GROUP# values into a single string separated by ";"
-            const combinedAccessGroups = combinedAccessGroupNames.join(";");
-
-            // Find the original record for this slug and add the combined access groups
-            const originalRecord = (unmarshalledOwnerRecords ?? []).find(
-              (item) => item.slug === slug,
-            );
-            return {
-              ...originalRecord,
-              access: combinedAccessGroups || "",
-            };
-          }),
-        );
-
-        //fetching delegated links
-        // const entraIdToken = await getEntraIdToken(
-        //   {
-        //     smClient: fastify.secretsManagerClient,
-        //     dynamoClient: fastify.dynamoClient,
-        //   },
-        //   fastify.environmentConfig.AadValidClientId,
-        // );
-
-        // if (!request.username) {
-        //   throw new Error("Username is undefined");
-        // }
-
-        // const uUIDsOfAllTheGroupsUserIsMemberOf = await listGroupIDsByEmail(
-        //   entraIdToken,
-        //   request.username,
-        // );
-
-        const uUIDsOfAllTheGroupsUserIsMemberOf =
-          request.tokenPayload?.groups ?? [];
-
-        const allLinkryGroupUUIDs: string[] = [
-          ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
-        ] as string[];
-
-        const userLinkrAllUserGroups = uUIDsOfAllTheGroupsUserIsMemberOf.filter(
-          (groupId) => {
-            return allLinkryGroupUUIDs.includes(groupId);
-          },
-        );
-
-        const delegatedLinks = await Promise.all(
-          userLinkrAllUserGroups.map(async (group) => {
-            // Use ScanCommand to query all records where access with value "GROUP#[value]"
-            const groupScanCommand = new ScanCommand({
-              TableName: genericConfig.LinkryDynamoTableName,
-              FilterExpression: "#access=:accessVal",
-              ExpressionAttributeNames: {
-                "#access": "access",
-              },
-              ExpressionAttributeValues: {
-                ":accessVal": { S: `GROUP#${group}` },
-              },
-            });
-
-            //console.log("******____")
-
-            const groupScanResponse = await dynamoClient.send(groupScanCommand);
-
-            const allRecordsForUserLinkryGroup = groupScanResponse.Items?.map(
-              (item) => unmarshall(item),
-            );
-
-            // Get unique slugs from groupItems and remove previously seen slugs
-            const delegatedUniqueSlugs = Array.from(
-              new Set(
-                (allRecordsForUserLinkryGroup ?? [])
-                  .filter(
-                    (item) =>
-                      item.slug && !ownedUniqueSlugs.includes(item.slug),
-                  ) // Exclude slugs already seen
-                  .map((item) => item.slug), // Extract slugs
-              ),
-            );
-
-            // For each unique slug, find the corresponding "OWNER#" record and access groups
-            const allFormattedOwnerRecordsForDelegatedLinks = await Promise.all(
-              delegatedUniqueSlugs.map(async (slug) => {
-                // Query for OWNER# record
-                const ownerQueryCommand = new QueryCommand({
-                  TableName: genericConfig.LinkryDynamoTableName,
-                  KeyConditionExpression:
-                    "#slug = :slugVal AND begins_with(#access, :ownerVal)",
-                  ExpressionAttributeNames: {
-                    "#slug": "slug",
-                    "#access": "access",
-                  },
-                  ExpressionAttributeValues: {
-                    ":slugVal": { S: slug }, // Match the delegated unique slug
-                    ":ownerVal": { S: "OWNER#" }, // Match access starting with "OWNER#"
-                  },
-                });
-
-                const ownerQueryResponse =
-                  await dynamoClient.send(ownerQueryCommand);
-
-                const allOwnerRecordsForDelegatedLinks =
-                  ownerQueryResponse.Items?.map((item) => unmarshall(item));
-
-                // Query for GROUP# records
-                const groupQueryCommand = new QueryCommand({
-                  TableName: genericConfig.LinkryDynamoTableName,
-                  KeyConditionExpression:
-                    "#slug = :slugVal AND begins_with(#access, :groupVal)",
-                  ExpressionAttributeNames: {
-                    "#slug": "slug",
-                    "#access": "access",
-                  },
-                  ExpressionAttributeValues: {
-                    ":slugVal": { S: slug }, // Match the delegated unique slug
-                    ":groupVal": { S: "GROUP#" }, // Match access starting with "GROUP#"
-                  },
-                });
-
-                const groupQueryResponse =
-                  await dynamoClient.send(groupQueryCommand);
-                const groupItems = groupQueryResponse.Items?.map((item) =>
-                  unmarshall(item),
-                );
-
-                const combinedAccessGroupUUIDsForUserLinkryGroup: string[] =
-                  groupItems?.map((item) =>
-                    item.access.replace("GROUP#", ""),
-                  ) || [];
-
-                const combinedAccessGroupNames: string[] = [];
-
-                for (const accessGroupUUID of combinedAccessGroupUUIDsForUserLinkryGroup) {
-                  combinedAccessGroupNames.push(
-                    fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
-                      accessGroupUUID,
-                    ) as string,
-                  );
-                }
-
-                // Combine GROUP# values into a single string separated by ";"
-                const combinedAccessGroups = combinedAccessGroupNames.join(";");
-
-                //console.log(combinedAccessGroups);
-
-                // Combine OWNER# record with access groups
-                return allOwnerRecordsForDelegatedLinks?.map((ownerItem) => ({
-                  ...ownerItem,
-                  access: combinedAccessGroups, // Append access groups to OWNER# access
-                }));
-              }),
-            );
-
-            return allFormattedOwnerRecordsForDelegatedLinks.flat(); // Flatten the results for this group
-          }),
-        );
-
-        // Flatten the results into a single array
-        const flattenedDelegatedLinks = delegatedLinks.flat();
-
-        const delegatedUniqueSlugs = //find the unique slug in the delegated links
-          new Set<string>(
-            flattenedDelegatedLinks
-              .filter((item) => item !== undefined && "slug" in item)
-              .map((item) =>
-                "slug" in item ? (item as { slug: string }).slug : undefined,
-              )
-              .filter((slug): slug is string => slug !== undefined),
-          );
-
-        const uniqueFlattenedDelegatedLinks = flattenedDelegatedLinks.filter(
-          (item) => {
-            if (
-              item !== undefined &&
-              "slug" in item &&
-              typeof item.slug === "string" &&
-              delegatedUniqueSlugs.has(item.slug)
-            ) {
-              //filter the delegated links to only show one entry per unique slug per delegated link
-              if ("slug" in item) {
-                delegatedUniqueSlugs.delete(item.slug as string);
-              }
-              return true;
-            }
-          },
-        );
-
-        const results = {
-          ownedLinks: ownedLinksGroupsConcatenated,
-          delegatedLinks: uniqueFlattenedDelegatedLinks,
-        };
-
-        reply.send(results);
-      } catch (e) {
-        if (e instanceof Error) {
-          request.log.error("Failed to get from DynamoDB: " + e.toString());
-        }
-        console.log(e);
-        throw new DatabaseFetchError({
-          message: "Failed to get Links from Dynamo table.",
-        });
-      }
-    },
-  );
+  fastify.register(limitedRoutes);
 };
 
 export default linkryRoutes;
