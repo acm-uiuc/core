@@ -29,6 +29,11 @@ import { AuthError } from "@azure/msal-node";
 import { listGroupIDsByEmail, getEntraIdToken } from "../functions/entraId.js";
 import internal from "stream";
 import rateLimiter from "api/plugins/rateLimiter.js";
+import {
+  atomicIncrementCacheCounter,
+  deleteCacheCounter,
+  getCacheCounter,
+} from "api/functions/cache.js";
 
 const LINKRY_MAX_SLUG_LENGTH = 1000;
 
@@ -154,7 +159,7 @@ const counterIncrement = async (targetSlug: string) => {
 const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.register(rateLimiter, {
-      limit: 90,
+      limit: 30,
       duration: 60,
       rateLimitIdentifier: "linkry",
     });
@@ -171,6 +176,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
       async (request, reply) => {
         try {
+          const username = request.username;
           const fetchAllOwnerRecords = new QueryCommand({
             TableName: genericConfig.LinkryDynamoTableName,
             IndexName: "AccessIndex",
@@ -179,7 +185,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               "#access": "access",
             },
             ExpressionAttributeValues: {
-              ":accessVal": { S: `OWNER#${request.username}` }, // Match OWNER#<username>
+              ":accessVal": { S: `OWNER#${username}` }, // Match OWNER#<username>
             },
             ScanIndexForward: false, // Sort in descending order
           });
@@ -760,6 +766,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 | AccessRecord,
             );
           }
+          console.log("Item" + items);
           if (items.length == 0)
             throw new DatabaseFetchError({ message: "Slug does not exist" });
 
@@ -780,14 +787,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               );
             }
           }
-
-          const entraIdToken = await getEntraIdToken(
-            {
-              smClient: fastify.secretsManagerClient,
-              dynamoClient: fastify.dynamoClient,
-            },
-            fastify.environmentConfig.AadValidClientId,
-          );
 
           if (!request.username) {
             throw new Error("Username is undefined");
@@ -820,7 +819,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         } catch (e: unknown) {
           console.log(e);
           throw new DatabaseFetchError({
-            message: "The Slug does not exist in Database.",
+            message: "Error While Updating Link for Slug:" + request.body.slug,
           });
         }
       },
