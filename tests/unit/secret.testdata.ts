@@ -26,6 +26,7 @@ const jwtPayload = {
   appidacr: "1",
   email: "infra-unit-test@acm.illinois.edu",
   groups: ["0"],
+  roles: ["manage:links", "admin:links"], // Add roles here
   idp: "https://login.microsoftonline.com",
   ipaddr: "192.168.1.1",
   name: "John Doe",

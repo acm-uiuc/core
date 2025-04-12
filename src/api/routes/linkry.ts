@@ -176,6 +176,28 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
       async (request, reply) => {
         try {
+          const ifNoneMatch = request.headers["if-none-match"];
+          if (ifNoneMatch) {
+            const etag = await getCacheCounter(
+              fastify.dynamoClient,
+              "linkry-etag-all",
+            );
+
+            if (
+              ifNoneMatch === `"${etag.toString()}"` ||
+              ifNoneMatch === etag.toString()
+            ) {
+              return reply.code(304).header("ETag", etag).send();
+            }
+            reply.header("etag", etag);
+          } else {
+            const etag = await getCacheCounter(
+              fastify.dynamoClient,
+              "linkry-etag-all",
+            );
+            reply.header("etag", etag);
+          }
+
           const username = request.username;
           const fetchAllOwnerRecords = new QueryCommand({
             TableName: genericConfig.LinkryDynamoTableName,
@@ -598,9 +620,17 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           new TransactWriteItemsCommand({ TransactItems: TransactItems }),
         );
 
-        reply
-          .code(201)
-          .send({ message: "Slug Created", id: request.body.slug });
+        await atomicIncrementCacheCounter(
+          fastify.dynamoClient,
+          "linkry-etag-all",
+          1,
+          false,
+        );
+
+        reply.code(201).send({
+          message: "New Shortened Link Created",
+          id: request.body.slug,
+        });
       } catch (e: unknown) {
         console.log(e);
         throw new DatabaseInsertError({
@@ -964,6 +994,13 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             new TransactWriteItemsCommand({ TransactItems: transactItems }),
           );
 
+          await atomicIncrementCacheCounter(
+            fastify.dynamoClient,
+            "linkry-etag-all",
+            1,
+            false,
+          );
+
           reply.code(200).send({ message: "Record Edited successfully" });
         } catch (error) {
           console.error("Error updating slug:", error);
@@ -1100,6 +1137,13 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         );
 
         await Promise.all(deletePromises);
+
+        await atomicIncrementCacheCounter(
+          fastify.dynamoClient,
+          "linkry-etag-all",
+          1,
+          false,
+        );
 
         reply.code(200).send({
           message: `All records with slug '${slug}' deleted successfully`,

@@ -50,26 +50,111 @@ smMock.on(GetSecretValueCommand).resolves({
   SecretString: secretJson,
 });
 
-// Mock successful DynamoDB operations
-ddbMock.on(PutItemCommand).resolves({});
+const testJwt = createJwt(
+  undefined, // No specific date
+  undefined, // No specific group
+  "test@gmail.com", // Test email
+  ["AppRoles.LINKS_MANAGER", "AppRoles.LINKS_ADMIN"], // Add required roles
+);
 
-// Mock ScanCommand to return empty Items array
-ddbMock.on(ScanCommand).resolves({
-  Items: [],
+test("Happy path: Fetch all linkry redirects with proper roles", async () => {
+  // Create a test JWT with roles
+
+  // Mock successful DynamoDB operations
+  ddbMock.on(QueryCommand).resolves({
+    Items: [], // Simulate no existing records
+  });
+
+  // Make the request to the /api/v1/linkry/redir endpoint
+  const response = await app.inject({
+    method: "GET",
+    url: "/api/v1/linkry/redir",
+    headers: {
+      Authorization: `Bearer ${testJwt}`, // Include the JWT with roles
+    },
+  });
+
+  // Assert the response status code
+  expect(response.statusCode).toBe(200);
+  expect(response.headers.etag).toBe("0");
 });
 
-ddbMock.on(QueryCommand).resolves({
-  Items: [],
+//2. Create a new link using supertest
+// const eventResponse = await supertest(app.server)
+//   .post("/api/v1/linkry/redir/")
+//   .set("Authorization", `Bearer ${testJwt}`)
+//   .send({
+//     description: "Test event for ETag verification",
+//     host: "Social Committee",
+//     location: "Siebel Center",
+//     start: "2024-09-25T18:00:00",
+//     title: "ETag Test Event",
+//     featured: false,
+//   });
+
+// expect(eventResponse.statusCode).toBe(201);
+// const eventId = eventResponse.body.id;
+
+// test("Happy path: Create or update a linkry redirect", async () => {
+//   // Mock successful DynamoDB operations
+//   ddbMock.on(QueryCommand).resolves({
+//     Items: [], // Simulate no existing records for the slug
+//   });
+
+//   // Define the request payload
+//   const payload = {
+//     access: [],
+//     counter: 0,
+//     isEdited: true,
+//     redirect: "https://www.rainbow.com",
+//     slug: "bQjryt",
+//   };
+
+//   // Make the request to the /api/v1/linkry/redir/ endpoint
+//   const response = await supertest(app.server)
+//     .post("/api/v1/linkry/redir/")
+//     .set("Authorization", `Bearer ${testJwt}`) // Add authorization header
+//     .send(payload); // Send the payload
+
+//   // Assert the response status code
+//   expect(response.statusCode).toBe(201);
+
+//   // Assert the response body (optional, based on your API's response structure)
+//   expect(response.body).toStrictEqual({
+//     message: "Linkry redirect created or updated successfully",
+//     slug: "bQjryt",
+//   });
+// });
+
+test("Happy path: Create a new linkry redirect", async () => {
+  // Mock successful DynamoDB operations
+  ddbMock.on(QueryCommand).resolves({
+    Items: [], // Simulate no existing records for the slug
+  });
+
+  ddbMock.on(PutItemCommand).resolves({}); // Simulate successful insertion
+
+  // Define the request payload
+  const payload = {
+    access: [],
+    counter: 0,
+    isEdited: true,
+    redirect: "https://www.acm.illinois.edu/",
+    slug: "acm-test-slug",
+  };
+
+  // Make the request to the /api/v1/linkry/redir/ endpoint
+  const response = await supertest(app.server)
+    .post("/api/v1/linkry/redir")
+    .set("Authorization", `Bearer ${testJwt}`) // Include the JWT with roles
+    .send(payload); // Send the payload
+
+  // Assert the response status code
+  expect(response.statusCode).toBe(201);
+
+  // Assert the response body
+  expect(response.body).toStrictEqual({
+    message: "New Shortened Link Created",
+    id: "acm-test-slug",
+  });
 });
-
-const testJwt = createJwt(undefined, "83c275f8-e533-4987-b537-a94b86c9d28e");
-
-const allLinkryResponse = await app.inject({
-  method: "GET",
-  url: "/api/v1/linkry/redir",
-  headers: {
-    Authorization: `Bearer ${testJwt}`,
-  },
-});
-
-expect(allLinkryResponse.statusCode).toBe(200);
