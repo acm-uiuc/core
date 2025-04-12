@@ -162,7 +162,12 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     fastify.get<NoDataRequest>(
       "/redir",
       {
-        onRequest: async (request, reply) => {},
+        onRequest: async (request, reply) => {
+          await fastify.authorize(request, reply, [
+            AppRoles.LINKS_MANAGER,
+            AppRoles.LINKS_ADMIN,
+          ]);
+        },
       },
       async (request, reply) => {
         try {
@@ -655,14 +660,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
 
-        const entraIdToken = await getEntraIdToken(
-          {
-            smClient: fastify.secretsManagerClient,
-            dynamoClient: fastify.dynamoClient,
-          },
-          fastify.environmentConfig.AadValidClientId,
-        );
-
         if (!request.username) {
           throw new Error("Username is undefined");
         }
@@ -1030,14 +1027,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
 
-        const entraIdToken = await getEntraIdToken(
-          {
-            smClient: fastify.secretsManagerClient,
-            dynamoClient: fastify.dynamoClient,
-          },
-          fastify.environmentConfig.AadValidClientId,
-        );
-
         if (!request.username) {
           throw new Error("Username is undefined");
         }
@@ -1047,7 +1036,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         //   request.username,
         // );
 
-        const allLinkryGroupUUIDs = request.tokenPayload?.groups ?? [];
+        const allUserGroupUUIDs = request.tokenPayload?.groups ?? [];
 
         const linkryGroupUUIDs: string[] = [
           ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
