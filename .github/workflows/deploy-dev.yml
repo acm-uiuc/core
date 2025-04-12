@@ -91,30 +91,6 @@ jobs:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
 
-<<<<<<< HEAD
-  test-dev:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    name: Run Live Tests
-    needs:
-      - deploy-dev
-    concurrency:
-      group: ${{ github.event.repository.name }}-dev-env
-      cancel-in-progress: false
-    steps:
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-      - uses: actions/checkout@v4
-        env:
-          HUSKY: "0"
-      - name: Set up Python 3.11 for testing
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.11
-=======
->>>>>>> ca4496e7001f85a4ab625597558b8b9064395a64
       - name: Run health check
         run: make dev_health_check
 
