@@ -42,6 +42,7 @@ vi.mock(
         const mockGroupRoles = {
           "0": allAppRoles,
           "1": [],
+          LINKS_ADMIN: [AppRoles.LINKS_ADMIN],
           "scanner-only": [AppRoles.TICKETS_SCANNER],
         };
 

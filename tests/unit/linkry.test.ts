@@ -158,3 +158,25 @@ test("Happy path: Create a new linkry redirect", async () => {
     id: "acm-test-slug",
   });
 });
+
+// const testAdminJwt = createJwt(undefined, "LINKS_ADMIN");
+// const testAccessDeniedJwt = createJwt(undefined, "1");
+
+// const adminLinkryResponse = await app.inject({
+//   method: "GET",
+//   url: "/api/v1/linkry/redir",
+//   headers: {
+//     Authorization: `Bearer ${testAdminJwt}`,
+//   },
+// });
+
+// const accessDeniedLinkryResponse = await app.inject({
+//   method: "GET",
+//   url: "/api/v1/linkry/redir",
+//   headers: {
+//     Authorization: `Bearer ${testAccessDeniedJwt}`,
+//   },
+// });
+
+// expect(adminLinkryResponse.statusCode).toBe(200);
+// expect(accessDeniedLinkryResponse.statusCode).toBe(401);
