@@ -92,9 +92,9 @@ export const LinkShortener: React.FC = () => {
             <Table.Td style={wrapTextStyle}>
               <Anchor
                 href={
-                  (process.env.NODE_ENV === 'prod'
+                  (process.env.NODE_ENV == 'prod'
                     ? 'https://go.acm.illinois.edu/'
-                    : 'http://localhost:8080/api/v1/linkry/redir/') + link.slug
+                    : 'https://core.aws.qa.acmuiuc.org/api/v1/linkry/redir/') + link.slug
                 }
                 target="_blank"
               >

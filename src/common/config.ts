@@ -100,7 +100,7 @@ const environmentConfig: EnvironmentConfigType = {
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryParentGroupId: "Accef2ab4-532c-4989-8041-b8f3449abe0a", //TODO: use id to fetch child groups & 
-    LinkryBaseUrl: "http://localhost:8080/api/v1/linkry/redir/", 
+    LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org", 
     LinkryGroupNameToGroupUUIDMap: new Map([
       ["ACM Exec Linkry Test", "6d0bf289-71e3-4b8f-929b-63d93c2e0533"],
       ["ACM Link Shortener Managers Linkry Test", "a93bc2ad-b2b4-47bf-aa32-603dda8f6fdd"], 
