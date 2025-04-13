@@ -375,15 +375,20 @@ export const LinkShortener: React.FC = () => {
         >
           Add New Link
         </Button>
-        <Button
-          leftSection={<IconEdit size={14} />}
-          onClick={() => {
-            navigate('/linkry/admin');
-          }}
-          color="teal"
+        <AuthGuard
+          resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_ADMIN] }}
+          isAppShell={false}
         >
-          Admin Panel
-        </Button>
+          <Button
+            leftSection={<IconEdit size={14} />}
+            onClick={() => {
+              navigate('/linkry/admin');
+            }}
+            color="teal"
+          >
+            Admin Panel
+          </Button>
+        </AuthGuard>
       </div>
 
       <Tabs
@@ -396,7 +401,7 @@ export const LinkShortener: React.FC = () => {
         }}
       >
         <Tabs.List>
-          <Tabs.Tab value="owned">Owned Links</Tabs.Tab>
+          <Tabs.Tab value="owned">My Links</Tabs.Tab>
           <Tabs.Tab value="delegated">Delegated Links</Tabs.Tab>
         </Tabs.List>
 
