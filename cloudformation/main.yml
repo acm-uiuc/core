@@ -125,26 +125,6 @@ Resources:
           !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
         CloudfrontDomain: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
 
-  LinkryDomainProxy:
-    Type: AWS::Serverless::Application
-    Properties:
-      Location: ./custom-domain.yml
-      Parameters:
-        RunEnvironment: !Ref RunEnvironment
-        RecordName: go
-        GWBaseDomainName: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvDomainName
-        GWCertArn: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvCertificateArn
-        GWApiId: !Ref AppApiGateway
-        GWHostedZoneId:
-          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-        CloudfrontDomain: !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
-
   CoreUrlProd:
     Type: AWS::Serverless::Application
     Properties:
@@ -911,34 +891,30 @@ Resources:
         KeyValueStoreAssociations:
           - KeyValueStoreARN: !Sub '${LinkryRecordsCloudfrontStore.Arn}'
       FunctionCode: !Sub |
+        import cf from 'cloudfront';
         const kvsId = '${LinkryRecordsCloudfrontStore.Id}';
-        const defaultPath = "https://acm.illinois.edu"
-        function handler(event) {
+        const kvs = cf.kvs(kvsId);
+
+        async function handler(event) {
           const request = event.request;
-          const kvs = event.keyValueStore; // Access the associated KeyValueStore
-          const path = request.uri.replace(/^\/+/, ''); // Clean leading slashes
-
-          // Lookup key in KeyValueStore
-          const value = kvs.get(path);
-
-          if (value) {
-              return {
-                  statusCode: 302,
-                  statusDescription: 'Found',
-                  headers: {
-                      location: { value: value }
-                  }
-              };
-          } else {
-              // Default redirect if key is not found
-              return {
-                  statusCode: 302,
-                  statusDescription: 'Found',
-                  headers: {
-                      location: { value: defaultPath } // Change to your default
-                  }
-              };
+          const path = request.uri.replace(/^\/+/, '');
+          let redirectUrl = "https://acm.illinois.edu";
+          try {
+            const value = await kvs.get(path);
+            if (value) {
+              redirectUrl = value;
+            }
+          } catch (err) {
+            console.log('KVS key lookup failed');
           }
+          var response = {
+            statusCode: 302,
+            statusDescription: 'Found',
+            headers: {
+              'location': { value: redirectUrl }
+            }
+          };
+          return response;
         }
       AutoPublish: true
 
@@ -970,6 +946,35 @@ Resources:
                 - ApiGwConfig
                 - !Ref RunEnvironment
                 - EnvDomainName
+        ViewerCertificate:
+          AcmCertificateArn: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvCertificateArn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+
+  LinkryDomainProxy:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./custom-domain.yml
+      Parameters:
+        RunEnvironment: !Ref RunEnvironment
+        RecordName: go
+        GWBaseDomainName: !FindInMap
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvDomainName
+        GWCertArn: !FindInMap
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvCertificateArn
+        GWApiId: !Ref AppApiGateway
+        GWHostedZoneId:
+          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+        CloudfrontDomain: !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
 
 Outputs:
   DomainName:
@@ -997,7 +1002,7 @@ Outputs:
     Description: Cloudfront Distribution ID
     Value: !GetAtt AppFrontendCloudfrontDistribution.Id
 
-  CloudfrontSecondaryDistributionId:
+  CloudfrontIcalDistributionId:
     Description: Cloudfront Distribution ID
     Value: !GetAtt AppIcalCloudfrontDistribution.Id
 
