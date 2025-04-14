@@ -488,7 +488,7 @@ Resources:
     Properties:
       BillingMode: "PAY_PER_REQUEST"
       TableName: "infra-core-api-linkry"
-      DeletionProtectionEnabled: true
+      DeletionProtectionEnabled: !If [IsProd, true, false] # TODO: remove this
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: !If [IsProd, true, false]
       AttributeDefinitions:
