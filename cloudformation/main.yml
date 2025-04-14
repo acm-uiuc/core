@@ -143,7 +143,7 @@ Resources:
         GWApiId: !Ref AppApiGateway
         GWHostedZoneId:
           !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-        CloudfrontDomain: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
+        CloudfrontDomain: !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
 
   CoreUrlProd:
     Type: AWS::Serverless::Application
