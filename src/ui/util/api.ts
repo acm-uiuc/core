@@ -1,13 +1,16 @@
-// src/api/index.js
 import axios from 'axios';
 import { useMemo } from 'react';
 
 import { useAuth } from '@ui/components/AuthContext';
 import { getRunEnvironmentConfig, ValidService } from '@ui/config';
 
+export const MAX_API_TIMEOUT_MS = 5000;
+
 const createAxiosInstance = (baseURL: string) =>
   axios.create({
     baseURL,
+    timeout: MAX_API_TIMEOUT_MS,
+    timeoutErrorMessage: 'The request timed out.',
   });
 
 const useApi = (serviceName: ValidService) => {
