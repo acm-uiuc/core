@@ -950,6 +950,10 @@ Resources:
         DefaultCacheBehavior:
           ViewerProtocolPolicy: redirect-to-https
           TargetOriginId: dummyOrigin
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
           FunctionAssociations:
             - EventType: viewer-request
               FunctionARN: !GetAtt LinkryRecordsCloudfrontFunction.FunctionARN
