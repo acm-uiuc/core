@@ -861,13 +861,6 @@ Resources:
         Aliases:
           - !Join
             - ""
-            - - "go."
-              - !FindInMap
-                - ApiGwConfig
-                - !Ref RunEnvironment
-                - EnvDomainName
-          - !Join
-            - ""
             - - "ical."
               - !FindInMap
                 - ApiGwConfig
@@ -903,6 +896,76 @@ Resources:
         HttpVersion: http2
         PriceClass: PriceClass_100
 
+  LinkryRecordsCloudfrontStore:
+    Type: AWS::CloudFront::KeyValueStore
+    Properties:
+      Name: infra-core-api-cloudfront-linkry-kv
+
+  LinkryRecordsCloudfrontFunction:
+    Type: 'AWS::CloudFront::Function'
+    Properties:
+      Name: infra-core-api-cloudfront-linkry-redir
+      FunctionConfig:
+        Comment: 'Linkry Redirect Cloudfront Function'
+        Runtime: 'cloudfront-js-2.0'
+        KeyValueStoreAssociations:
+          - KeyValueStoreARN: !Sub '${LinkryRecordsCloudfrontStore.Arn}'
+      FunctionCode: !Sub |
+        const kvsId = '${LinkryRecordsCloudfrontStore.Id}';
+        const defaultPath = "https://acm.illinois.edu"
+        function handler(event) {
+          const request = event.request;
+          const kvs = event.keyValueStore; // Access the associated KeyValueStore
+          const path = request.uri.replace(/^\/+/, ''); // Clean leading slashes
+
+          // Lookup key in KeyValueStore
+          const value = kvs.get(path);
+
+          if (value) {
+              return {
+                  statusCode: 302,
+                  statusDescription: 'Found',
+                  headers: {
+                      location: { value: value }
+                  }
+              };
+          } else {
+              // Default redirect if key is not found
+              return {
+                  statusCode: 302,
+                  statusDescription: 'Found',
+                  headers: {
+                      location: { value: defaultPath } // Change to your default
+                  }
+              };
+          }
+        }
+      AutoPublish: true
+
+  AppLinkryCloudfrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultCacheBehavior:
+          ViewerProtocolPolicy: redirect-to-https
+          TargetOriginId: dummyOrigin
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt LinkryRecordsCloudfrontFunction.FunctionARN
+        Origins:
+          - Id: dummyOrigin
+            DomainName: example.com
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+        Aliases:
+          - !Join
+            - ""
+            - - "go."
+              - !FindInMap
+                - ApiGwConfig
+                - !Ref RunEnvironment
+                - EnvDomainName
 
 Outputs:
   DomainName:
