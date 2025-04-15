@@ -11,6 +11,7 @@ import {
   DatabaseDeleteError,
   DatabaseFetchError,
   DatabaseInsertError,
+  InternalServerError,
 } from "common/errors/index.js";
 import { RunEnvironment } from "common/roles.js";
 import "@aws-sdk/signature-v4-crt";
@@ -145,7 +146,7 @@ export const getLinkryKvArn = async (runEnvironment: RunEnvironment) => {
   if (environmentConfig[runEnvironment].LinkryCloudfrontKvArn) {
     return environmentConfig[runEnvironment].LinkryCloudfrontKvArn;
   }
-  throw new DatabaseInsertError({
+  throw new InternalServerError({
     message: "Could not find the Cloudfront Key-Value store ARN",
   });
 };
