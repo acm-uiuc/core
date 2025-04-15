@@ -164,6 +164,7 @@ Resources:
         Variables:
           RunEnvironment: !Ref RunEnvironment
           EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
+          LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds:
@@ -898,7 +899,7 @@ Resources:
         async function handler(event) {
           const request = event.request;
           const path = request.uri.replace(/^\/+/, '');
-          let redirectUrl = "https://acm.illinois.edu";
+          let redirectUrl = "https://acm.illinois.edu/404";
           try {
             const value = await kvs.get(path);
             if (value) {

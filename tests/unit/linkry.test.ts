@@ -15,30 +15,13 @@ import {
 } from "@aws-sdk/client-secrets-manager";
 import { secretJson, secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
-import { marshall } from "@aws-sdk/util-dynamodb";
 
 const ddbMock = mockClient(DynamoDBClient);
 const smMock = mockClient(SecretsManagerClient);
 const jwt_secret = secretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
-// Mock the Discord client to prevent the actual Discord API call
-vi.mock("../../src/api/functions/discord.js", async () => {
-  return {
-    updateDiscord: vi.fn().mockResolvedValue({}),
-  };
-});
-
 const app = await init();
-
-// 1. Check initial etag for all events is 0
-// const initialAllResponse = await app.inject({
-//     method: "GET",
-//     url: "/api/v1/linkry/redir",
-//     headers: {
-//         Authorization: `Bearer ${testJwt}`,
-//     },
-// });
 
 (app as any).nodeCache.flushAll();
 ddbMock.reset();
@@ -74,9 +57,7 @@ test("Happy path: Fetch all linkry redirects with proper roles", async () => {
     },
   });
 
-  // Assert the response status code
   expect(response.statusCode).toBe(200);
-  expect(response.headers.etag).toBe("0");
 });
 
 //2. Create a new link using supertest
@@ -154,7 +135,6 @@ test("Happy path: Create a new linkry redirect", async () => {
 
   // Assert the response body
   expect(response.body).toStrictEqual({
-    message: "New Shortened Link Created",
     id: "acm-test-slug",
   });
 });

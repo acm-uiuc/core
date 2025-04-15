@@ -113,7 +113,7 @@ export const ManageLinkPage: React.FC = () => {
     const startForm = async () => {
       try {
         setIsLoading(true);
-        const response = await api.get(`/api/v1/linkry/linkdata/${slug}`);
+        const response = await api.get(`/api/v1/linkry/record/${slug}`);
         const linkData = response.data;
         const formValues = {
           slug: linkData.slug,

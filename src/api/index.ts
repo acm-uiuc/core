@@ -63,8 +63,6 @@ async function init(prettyPrint: boolean = false) {
       const customDomainBaseMappers: Record<string, string> = {
         "ical.acm.illinois.edu": `/api/v1/ical${url}`,
         "ical.aws.qa.acmuiuc.org": `/api/v1/ical${url}`,
-        "go.acm.illinois.edu": `/api/v1/linkry/redir${url}`,
-        "go.aws.qa.acmuiuc.org": `/api/v1/linkry/redir${url}`,
       };
       if (hostname in customDomainBaseMappers) {
         return customDomainBaseMappers[hostname];
