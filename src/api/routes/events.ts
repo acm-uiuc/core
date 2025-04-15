@@ -94,6 +94,7 @@ type EventsGetRequest = {
   Body: undefined;
   Querystring?: {
     upcomingOnly?: boolean;
+    featuredOnly?: boolean;
     host?: string;
     ts?: number;
   };
@@ -123,6 +124,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       },
       async (request: FastifyRequest<EventsGetRequest>, reply) => {
         const upcomingOnly = request.query?.upcomingOnly || false;
+        const featuredOnly = request.query?.featuredOnly || false;
         const host = request.query?.host;
         const ts = request.query?.ts; // we only use this to disable cache control
 
@@ -204,6 +206,9 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 return false;
               }
             });
+          }
+          if (featuredOnly) {
+            parsedItems = parsedItems.filter((x) => x.featured);
           }
           if (!ts) {
             reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
