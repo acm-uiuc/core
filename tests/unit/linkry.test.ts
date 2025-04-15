@@ -13,11 +13,9 @@ import {
   GetSecretValueCommand,
   SecretsManagerClient,
 } from "@aws-sdk/client-secrets-manager";
-import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
 
 import { secretJson, secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
-import { environmentConfig } from "../../src/common/config.js";
 
 const ddbMock = mockClient(DynamoDBClient);
 const smMock = mockClient(SecretsManagerClient);
@@ -33,7 +31,9 @@ vi.mock("../../src/api/functions/cloudfrontKvStore.js", async () => {
     getKey: vi.fn().mockResolvedValue("https://www.acm.illinois.edu"),
     getLinkryKvArn: vi
       .fn()
-      .mockResolvedValue(environmentConfig["dev"].LinkryCloudfrontKvArn),
+      .mockResolvedValue(
+        "arn:aws:cloudfront::1234567890:key-value-store/bb90421c-e923-4bd7-a42a-7281150389c3s",
+      ),
   };
 });
 
