@@ -13,6 +13,8 @@ import {
   GetSecretValueCommand,
   SecretsManagerClient,
 } from "@aws-sdk/client-secrets-manager";
+import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
+
 import { secretJson, secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 
@@ -20,6 +22,16 @@ const ddbMock = mockClient(DynamoDBClient);
 const smMock = mockClient(SecretsManagerClient);
 const jwt_secret = secretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
+
+// Mock the Cloudfront KV client to prevent the actual Cloudfront KV call
+// aws-sdk-client-mock doesn't support Cloudfront KV Client API
+vi.mock("../../src/api/functions/cloudfrontKvStore.js", async () => {
+  return {
+    setKey: vi.fn(),
+    deleteKey: vi.fn(),
+    getKey: vi.fn().mockResolvedValue("https://www.acm.illinois.edu"),
+  };
+});
 
 const app = await init();
 
