@@ -31,7 +31,7 @@ export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-const baseUrl = 'https://go.acm.illinois.edu'; //Move to config in future?
+const baseUrl = 'go.acm.illinois.edu/';
 const slugRegex = new RegExp('^(https?://)?[a-zA-Z0-9-._/]*$');
 const urlRegex = new RegExp('^https?://[a-zA-Z0-9-._/?=&+:]*$');
 
@@ -226,7 +226,8 @@ export const ManageLinkPage: React.FC = () => {
       <Box maw={650} mx="auto" mt="100px">
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <TextInput
-            label={isEditing ? 'Edit URL Here' : 'Paste URL to be Shortened'}
+            label="URL to shorten"
+            description="Enter a valid web URL."
             withAsterisk
             mt="xl"
             {...form.getInputProps('redirect')}
@@ -237,11 +238,8 @@ export const ManageLinkPage: React.FC = () => {
           />
 
           <TextInput
-            label={
-              isEditing
-                ? 'Existing shortened URL cannot be edited'
-                : 'Enter or Generate a Shortened URL'
-            }
+            label="Short URL"
+            description="Enter the alias which will redirect to your original site."
             withAsterisk
             leftSectionWidth={'230px'}
             rightSectionWidth={'150px'}
@@ -253,7 +251,7 @@ export const ManageLinkPage: React.FC = () => {
             rightSection={
               !isEditing && (
                 <Button variant="filled" ml="auto" color="blue" onClick={generateRandomSlug}>
-                  Random URL
+                  Generate Random URL
                 </Button>
               )
             }
@@ -267,8 +265,8 @@ export const ManageLinkPage: React.FC = () => {
           />
 
           <MultiSelect
-            label={isEditing ? 'Change Access Group(s) Here' : 'Select Access Group(s)'}
-            withAsterisk
+            label="Access Delegation"
+            description="Select groups which are permitted to manage this link."
             data={accessGroup}
             mt="xl"
             {...form.getInputProps('access')}

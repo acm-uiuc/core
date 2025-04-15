@@ -76,14 +76,14 @@ const getRequest = z.object({
 
 const createRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
-  access: z.array(z.string()),
+  access: z.array(z.string()).optional(),
   redirect: z.string().url().min(1),
   counter: z.number().optional(),
 });
 
 const patchRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
-  access: z.array(z.string()),
+  access: z.array(z.string()).optional(),
   redirect: z.string().url().min(1),
   isEdited: z.boolean(),
   counter: z.number().optional(),
@@ -461,17 +461,18 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: `Slug ${request.body.slug} is reserved.`,
           });
         }
-
-        for (const accessGroup of request.body.access) {
-          if (
-            ![
-              ...fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.keys(),
-            ].includes(accessGroup)
-          ) {
-            //TODO: throw a more appropriate error type (and one that lets the end user see the message)?
-            throw new DatabaseInsertError({
-              message: `${accessGroup} is not a valid access group.`,
-            });
+        if (request.body.access) {
+          for (const accessGroup of request.body.access) {
+            if (
+              ![
+                ...fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.keys(),
+              ].includes(accessGroup)
+            ) {
+              //TODO: throw a more appropriate error type (and one that lets the end user see the message)?
+              throw new DatabaseInsertError({
+                message: `${accessGroup} is not a valid access group.`,
+              });
+            }
           }
         }
 
@@ -554,7 +555,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       TransactItems.push(OwnerPutCommand);
 
       //Add GROUP records
-      const accessGroups: string[] = request.body.access;
+      const accessGroups: string[] = request.body.access || [];
       for (const accessGroup of accessGroups) {
         const groupUUID: string =
           fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
@@ -716,16 +717,17 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: `Slug ${request.body.slug} is reserved.`,
           });
         }
-
-        for (const accessGroup of request.body.access) {
-          if (
-            ![
-              ...fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.keys(),
-            ].includes(accessGroup)
-          ) {
-            throw new ValidationError({
-              message: `${accessGroup} is not a valid access group.`,
-            });
+        if (request.body.access) {
+          for (const accessGroup of request.body.access) {
+            if (
+              ![
+                ...fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.keys(),
+              ].includes(accessGroup)
+            ) {
+              throw new ValidationError({
+                message: `${accessGroup} is not a valid access group.`,
+              });
+            }
           }
         }
 
@@ -843,7 +845,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         //as the request was edited, make updates
         const { slug } = request.params;
         const newRedirect = request.body.redirect;
-        const newAccessGroups: string[] = request.body.access.map(
+        const newAccessGroups: string[] = (request.body.access || []).map(
           (accessGroup) => {
             return fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
               accessGroup,
