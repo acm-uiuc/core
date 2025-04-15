@@ -9,7 +9,8 @@
   "dependencies": {
     "moment-timezone": "^0.5.45",
     "passkit-generator": "^3.3.1",
-    "fastify": "^5.1.0"
+    "fastify": "^5.1.0",
+    "@aws-sdk/signature-v4-crt": "^3.787.0"
   },
   "devDependencies": {}
 }
