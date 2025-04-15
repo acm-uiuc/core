@@ -165,6 +165,7 @@ Resources:
           RunEnvironment: !Ref RunEnvironment
           EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
           LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
+          AWS_CRT_NODEJS_BINARY_RELATIVE_PATH: node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds:
