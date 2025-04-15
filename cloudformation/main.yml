@@ -87,6 +87,7 @@ Resources:
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
         SesEmailDomain: !FindInMap [General, !Ref RunEnvironment, SesDomain]
         SqsQueueArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
+        LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
 
   AppLogGroups:
     Type: AWS::Serverless::Application
