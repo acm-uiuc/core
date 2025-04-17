@@ -244,12 +244,14 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         try {
           const mode = currentRecord ? "modify" : "create";
           request.log.info(`Operating in ${mode} mode.`);
-          const currentUpdatedAt = currentRecord
-            ? currentRecord["updatedAt"]
-            : null;
-          const currentCreatedAt = currentRecord
-            ? currentRecord["createdAt"]
-            : null;
+          const currentUpdatedAt =
+            currentRecord && currentRecord["updatedAt"]
+              ? currentRecord["updatedAt"]
+              : null;
+          const currentCreatedAt =
+            currentRecord && currentRecord["createdAt"]
+              ? currentRecord["createdAt"]
+              : null;
 
           // Generate new timestamp for all records
           const creationTime: Date = new Date();
@@ -403,7 +405,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
             TransactItems.push(deleteItem);
           }
-          console.log("TRANSACTION", JSON.stringify(TransactItems));
           await fastify.dynamoClient.send(
             new TransactWriteItemsCommand({ TransactItems }),
           );

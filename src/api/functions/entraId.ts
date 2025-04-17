@@ -516,7 +516,6 @@ export async function listGroupIDsByEmail(
 ): Promise<Array<string>> {
   try {
     const userOid = await resolveEmailToOid(token, email);
-    console.log(userOid);
     const url = `https://graph.microsoft.com/v1.0/users/${userOid}/memberOf`;
     const response = await fetch(url, {
       method: "GET",
