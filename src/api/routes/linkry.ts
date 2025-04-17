@@ -82,10 +82,6 @@ type LinkryDeleteRequest = {
   Body: undefined;
 };
 
-const dynamoClient = new DynamoDBClient({
-  region: genericConfig.AwsRegion,
-});
-
 const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.register(rateLimiter, {
@@ -269,7 +265,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             }),
           });
 
-          const existingGroups = await dynamoClient.send(queryCommand);
+          const existingGroups = await fastify.dynamoClient.send(queryCommand);
           const existingGroupSet = new Set<string>();
           let existingGroupTimestampMismatch = false;
 
@@ -407,7 +403,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
             TransactItems.push(deleteItem);
           }
-          await dynamoClient.send(
+          console.log("TRANSACTION", JSON.stringify(TransactItems));
+          await fastify.dynamoClient.send(
             new TransactWriteItemsCommand({ TransactItems }),
           );
         } catch (e) {
@@ -578,7 +575,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           },
         ];
         try {
-          await dynamoClient.send(
+          await fastify.dynamoClient.send(
             new TransactWriteItemsCommand({ TransactItems }),
           );
         } catch (e) {
