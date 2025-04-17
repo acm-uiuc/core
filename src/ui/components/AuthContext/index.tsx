@@ -47,11 +47,7 @@ interface AuthProviderProps {
 }
 
 export const clearAuthCache = () => {
-  for (const key of Object.keys(sessionStorage)) {
-    if (key.startsWith(CACHE_KEY_PREFIX)) {
-      sessionStorage.removeItem(key);
-    }
-  }
+  sessionStorage.clear();
 };
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
