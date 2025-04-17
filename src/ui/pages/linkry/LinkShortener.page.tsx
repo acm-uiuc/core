@@ -92,7 +92,7 @@ export const LinkShortener: React.FC = () => {
                   component="a"
                   href={
                     link.slug
-                      ? `/link/edit/${encodeURIComponent(link.slug)}?previousPage=${window.location.pathname}`
+                      ? `/linkry/edit/${encodeURIComponent(link.slug)}?previousPage=${window.location.pathname}`
                       : '#'
                   }
                 >
@@ -173,7 +173,7 @@ export const LinkShortener: React.FC = () => {
                   component="a"
                   href={
                     link.slug
-                      ? `/link/edit/${encodeURIComponent(link.slug)}?previousPage=${window.location.pathname}`
+                      ? `/linkry/edit/${encodeURIComponent(link.slug)}?previousPage=${window.location.pathname}`
                       : '#'
                   }
                 >
@@ -299,7 +299,7 @@ export const LinkShortener: React.FC = () => {
         <Button
           leftSection={<IconPlus size={14} />}
           onClick={() => {
-            navigate('/link/add');
+            navigate('/linkry/add');
           }}
         >
           Add New Link

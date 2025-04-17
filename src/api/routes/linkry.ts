@@ -604,7 +604,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             throw e;
           }
 
-          throw new DatabaseInsertError({
+          throw new DatabaseDeleteError({
             message: "Failed to delete data from DynamoDB.",
           });
         }
@@ -620,7 +620,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           if (e instanceof BaseError) {
             throw e;
           }
-          throw new DatabaseInsertError({
+          throw new DatabaseDeleteError({
             message: "Failed to delete redirect at Cloudfront KV store.",
           });
         }

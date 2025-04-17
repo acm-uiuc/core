@@ -13,7 +13,6 @@ export type ConfigType = {
   AzureRoleMapping: AzureRoleMapping;
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
-  LinkryParentGroupId: string
   LinkryBaseUrl: string
   PasskitIdentifier: string;
   PasskitSerialNumber: string;
@@ -98,7 +97,6 @@ const environmentConfig: EnvironmentConfigType = {
       /http:\/\/localhost:\d+$/,
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
-    LinkryParentGroupId: "Accef2ab4-532c-4989-8041-b8f3449abe0a", //TODO: use id to fetch child groups &
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
     PasskitSerialNumber: "0",
@@ -122,7 +120,6 @@ const environmentConfig: EnvironmentConfigType = {
       /http:\/\/localhost:\d+$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
-    LinkryParentGroupId: "need-to-create-one",
     LinkryBaseUrl: "https://go.acm.illinois.edu/",
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
     PasskitSerialNumber: "0",
