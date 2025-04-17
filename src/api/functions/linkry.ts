@@ -22,7 +22,7 @@ export async function fetchLinkEntry(
     ScanIndexForward: false,
   });
   const result = await dynamoClient.send(fetchLinkEntry);
-  if (!result.Items) {
+  if (!result.Items || result.Items.length == 0) {
     return null;
   }
   const unmarshalled = result.Items.map((x) => unmarshall(x));
