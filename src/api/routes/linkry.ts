@@ -105,51 +105,87 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         },
       },
       async (request, reply) => {
+        const username = request.username!;
+        const tableName = genericConfig.LinkryDynamoTableName;
+
+        // First try-catch: Fetch owner records
+        let ownerRecords;
         try {
-          const username = request.username!;
-          const tableName = genericConfig.LinkryDynamoTableName;
-          const ownerRecords = await fetchOwnerRecords(
+          ownerRecords = await fetchOwnerRecords(
             username,
             tableName,
             fastify.dynamoClient,
           );
-          const ownedUniqueSlugs = extractUniqueSlugs(ownerRecords);
-          const ownedLinksWithGroups = await getGroupsForSlugs(
+        } catch (error) {
+          request.log.error(
+            `Failed to fetch owner records: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+          );
+          throw new DatabaseFetchError({
+            message: "Failed to fetch owner records from Dynamo table.",
+          });
+        }
+
+        const ownedUniqueSlugs = extractUniqueSlugs(ownerRecords);
+
+        // Second try-catch: Get groups for slugs
+        let ownedLinksWithGroups;
+        try {
+          ownedLinksWithGroups = await getGroupsForSlugs(
             ownedUniqueSlugs,
             ownerRecords,
             tableName,
             fastify.dynamoClient,
           );
-          let delegatedLinks;
-          let userGroups: string[];
-          if (request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
+        } catch (error) {
+          request.log.error(
+            `Failed to get groups for slugs: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+          );
+          throw new DatabaseFetchError({
+            message: "Failed to get groups for links from Dynamo table.",
+          });
+        }
+
+        // Third try-catch paths: Get delegated links based on user role
+        let delegatedLinks;
+        if (request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
+          // Admin path
+          try {
             delegatedLinks = (
               await getAllLinks(tableName, fastify.dynamoClient)
             ).filter((x) => x.owner !== username);
-          } else {
-            userGroups = getFilteredUserGroups(request);
+          } catch (error) {
+            request.log.error(
+              `Failed to get all links for admin: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+            );
+            throw new DatabaseFetchError({
+              message: "Failed to get all links for admin from Dynamo table.",
+            });
+          }
+        } else {
+          // Regular user path
+          const userGroups = getFilteredUserGroups(request);
+          try {
             delegatedLinks = await getDelegatedLinks(
               userGroups,
               ownedUniqueSlugs,
               tableName,
               fastify.dynamoClient,
             );
+          } catch (error) {
+            request.log.error(
+              `Failed to get delegated links: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+            );
+            throw new DatabaseFetchError({
+              message: "Failed to get delegated links from Dynamo table.",
+            });
           }
-          reply.code(200).send({
-            ownedLinks: ownedLinksWithGroups,
-            delegatedLinks: delegatedLinks,
-          });
-        } catch (error) {
-          if (error instanceof BaseError) {
-            throw error;
-          }
-          request.log.error(
-            `Failed to get from DynamoDB: ${error instanceof Error ? error.toString() : "Unknown error"}`,
-          );
-          throw new DatabaseFetchError({
-            message: "Failed to get Links from Dynamo table.",
-          });
         }
+
+        // Send the response
+        reply.code(200).send({
+          ownedLinks: ownedLinksWithGroups,
+          delegatedLinks: delegatedLinks,
+        });
       },
     );
 

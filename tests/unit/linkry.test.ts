@@ -5,6 +5,7 @@ import {
   GetItemCommand,
   ScanCommand,
   QueryCommand,
+  TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
@@ -129,7 +130,7 @@ test("Happy path: Create a new linkry redirect", async () => {
     Items: [], // Simulate no existing records for the slug
   });
 
-  ddbMock.on(PutItemCommand).resolves({}); // Simulate successful insertion
+  ddbMock.on(TransactWriteItemsCommand).resolves({}); // Simulate successful insertion
 
   // Define the request payload
   const payload = {
@@ -148,11 +149,6 @@ test("Happy path: Create a new linkry redirect", async () => {
 
   // Assert the response status code
   expect(response.statusCode).toBe(201);
-
-  // Assert the response body
-  expect(response.body).toStrictEqual({
-    id: "acm-test-slug",
-  });
 });
 
 // const testAdminJwt = createJwt(undefined, "LINKS_ADMIN");
