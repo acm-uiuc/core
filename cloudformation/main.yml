@@ -87,6 +87,7 @@ Resources:
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
         SesEmailDomain: !FindInMap [General, !Ref RunEnvironment, SesDomain]
         SqsQueueArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
+        LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
 
   AppLogGroups:
     Type: AWS::Serverless::Application
@@ -112,26 +113,6 @@ Resources:
       Parameters:
         RunEnvironment: !Ref RunEnvironment
         RecordName: ical
-        GWBaseDomainName: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvDomainName
-        GWCertArn: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvCertificateArn
-        GWApiId: !Ref AppApiGateway
-        GWHostedZoneId:
-          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-        CloudfrontDomain: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
-
-  LinkryDomainProxy:
-    Type: AWS::Serverless::Application
-    Properties:
-      Location: ./custom-domain.yml
-      Parameters:
-        RunEnvironment: !Ref RunEnvironment
-        RecordName: go
         GWBaseDomainName: !FindInMap
           - ApiGwConfig
           - !Ref RunEnvironment
@@ -184,6 +165,8 @@ Resources:
         Variables:
           RunEnvironment: !Ref RunEnvironment
           EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
+          LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
+          AWS_CRT_NODEJS_BINARY_RELATIVE_PATH: node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds:
@@ -480,6 +463,34 @@ Resources:
           KeySchema:
             - AttributeName: linkId
               KeyType: "HASH"
+          Projection:
+            ProjectionType: "ALL"
+
+  LinkryRecordsTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: "infra-core-api-linkry"
+      DeletionProtectionEnabled: !If [IsProd, true, false] # TODO: remove this
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
+      AttributeDefinitions:
+        - AttributeName: "slug"
+          AttributeType: "S"
+        - AttributeName: "access"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "slug"
+          KeyType: "HASH"
+        - AttributeName: "access"
+          KeyType: "RANGE"
+      GlobalSecondaryIndexes:
+        - IndexName: "AccessIndex"
+          KeySchema:
+            - AttributeName: "access"
+              KeyType: "HASH"
+            - AttributeName: "slug"
+              KeyType: "RANGE"
           Projection:
             ProjectionType: "ALL"
 
@@ -833,13 +844,6 @@ Resources:
         Aliases:
           - !Join
             - ""
-            - - "go."
-              - !FindInMap
-                - ApiGwConfig
-                - !Ref RunEnvironment
-                - EnvDomainName
-          - !Join
-            - ""
             - - "ical."
               - !FindInMap
                 - ApiGwConfig
@@ -875,6 +879,105 @@ Resources:
         HttpVersion: http2
         PriceClass: PriceClass_100
 
+  LinkryRecordsCloudfrontStore:
+    Type: AWS::CloudFront::KeyValueStore
+    Properties:
+      Name: infra-core-api-cloudfront-linkry-kv
+
+  LinkryRecordsCloudfrontFunction:
+    Type: 'AWS::CloudFront::Function'
+    Properties:
+      Name: infra-core-api-cloudfront-linkry-redir
+      FunctionConfig:
+        Comment: 'Linkry Redirect Cloudfront Function'
+        Runtime: 'cloudfront-js-2.0'
+        KeyValueStoreAssociations:
+          - KeyValueStoreARN: !Sub '${LinkryRecordsCloudfrontStore.Arn}'
+      FunctionCode: !Sub |
+        import cf from 'cloudfront';
+        const kvsId = '${LinkryRecordsCloudfrontStore.Id}';
+        const kvs = cf.kvs(kvsId);
+
+        async function handler(event) {
+          const request = event.request;
+          const path = request.uri.replace(/^\/+/, '');
+          let redirectUrl = "https://acm.illinois.edu/404";
+          try {
+            const value = await kvs.get(path);
+            if (value) {
+              redirectUrl = value;
+            }
+          } catch (err) {
+            console.log('KVS key lookup failed');
+          }
+          var response = {
+            statusCode: 302,
+            statusDescription: 'Found',
+            headers: {
+              'location': { value: redirectUrl }
+            }
+          };
+          return response;
+        }
+      AutoPublish: true
+
+  AppLinkryCloudfrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultCacheBehavior:
+          ViewerProtocolPolicy: redirect-to-https
+          TargetOriginId: dummyOrigin
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt LinkryRecordsCloudfrontFunction.FunctionARN
+        Origins:
+          - Id: dummyOrigin
+            DomainName: example.com
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+        Aliases:
+          - !Join
+            - ""
+            - - "go."
+              - !FindInMap
+                - ApiGwConfig
+                - !Ref RunEnvironment
+                - EnvDomainName
+        ViewerCertificate:
+          AcmCertificateArn: !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvCertificateArn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+
+  LinkryDomainProxy:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./custom-domain.yml
+      Parameters:
+        RunEnvironment: !Ref RunEnvironment
+        RecordName: go
+        GWBaseDomainName: !FindInMap
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvDomainName
+        GWCertArn: !FindInMap
+          - ApiGwConfig
+          - !Ref RunEnvironment
+          - EnvCertificateArn
+        GWApiId: !Ref AppApiGateway
+        GWHostedZoneId:
+          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+        CloudfrontDomain: !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
 
 Outputs:
   DomainName:
@@ -902,7 +1005,7 @@ Outputs:
     Description: Cloudfront Distribution ID
     Value: !GetAtt AppFrontendCloudfrontDistribution.Id
 
-  CloudfrontSecondaryDistributionId:
+  CloudfrontIcalDistributionId:
     Description: Cloudfront Distribution ID
     Value: !GetAtt AppIcalCloudfrontDistribution.Id
 

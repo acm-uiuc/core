@@ -11,6 +11,7 @@ import {
   BaseError,
   EntraFetchError,
   EntraGroupError,
+  EntraGroupsFromEmailError,
   EntraInvitationError,
   EntraPatchError,
   InternalServerError,
@@ -505,6 +506,53 @@ export async function isUserInGroup(
     throw new EntraGroupError({
       message,
       group,
+    });
+  }
+}
+
+export async function listGroupIDsByEmail(
+  token: string,
+  email: string,
+): Promise<Array<string>> {
+  try {
+    const userOid = await resolveEmailToOid(token, email);
+    const url = `https://graph.microsoft.com/v1.0/users/${userOid}/memberOf`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as {
+        error?: { message?: string };
+      };
+      throw new EntraGroupsFromEmailError({
+        message: errorData?.error?.message ?? response.statusText,
+        email,
+      });
+    }
+
+    const data = (await response.json()) as {
+      value: Array<{
+        id: string;
+      }>;
+    };
+
+    // Map the response to the desired format
+    const groups = data.value.map((group) => group.id);
+
+    return groups;
+  } catch (error) {
+    if (error instanceof EntraGroupsFromEmailError) {
+      throw error;
+    }
+
+    throw new EntraGroupsFromEmailError({
+      message: error instanceof Error ? error.message : String(error),
+      email,
     });
   }
 }
