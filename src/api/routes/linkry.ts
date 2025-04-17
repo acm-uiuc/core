@@ -575,6 +575,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             },
           },
         ];
+        console.log(JSON.stringify(TransactItems));
         try {
           await fastify.dynamoClient.send(
             new TransactWriteItemsCommand({ TransactItems }),

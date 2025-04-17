@@ -34,6 +34,7 @@ export async function fetchLinkEntry(
     access: unmarshalled
       .filter((x) => (x["access"] as string).startsWith("GROUP#"))
       .map((x) => (x["access"] as string).replace("GROUP#", "")),
+    owner: ownerRecord["access"].replace("OWNER#", ""),
   } as LinkRecord;
 }
 

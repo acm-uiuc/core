@@ -25,7 +25,7 @@ export const linkRecord = z.object({
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   redirect: z.string().url(),
-  owner: z.string().optional()
+  owner: z.string()
 })
 
 export const delegatedLinkRecord = linkRecord.extend({

@@ -199,10 +199,16 @@ export const LinkShortener: React.FC = () => {
   useEffect(() => {
     const getEvents = async () => {
       setIsLoading(true);
-      const response = await api.get('/api/v1/linkry/redir');
+      let response;
+      try {
+        response = await api.get('/api/v1/linkry/redir');
+      } catch (e) {
+        throw e;
+      } finally {
+        setIsLoading(false);
+      }
       const ownedLinks = response.data.ownedLinks;
       const delegatedLinks = response.data.delegatedLinks;
-      setIsLoading(false);
       setOwnedLinks(ownedLinks);
       setDelegatedLinks(delegatedLinks);
     };
@@ -213,8 +219,15 @@ export const LinkShortener: React.FC = () => {
     try {
       const encodedSlug = encodeURIComponent(slug);
       setIsLoading(true);
-      await api.delete(`/api/v1/linkry/redir/${encodedSlug}`);
-      setOwnedLinks((prevEvents) => prevEvents.filter((link) => link.slug !== slug));
+      try {
+        await api.delete(`/api/v1/linkry/redir/${encodedSlug}`);
+      } catch (e) {
+        throw e;
+      } finally {
+        setIsLoading(false);
+      }
+      setOwnedLinks((prevLinks) => prevLinks.filter((link) => link.slug !== slug));
+      setDelegatedLinks((prevLinks) => prevLinks.filter((link) => link.slug !== slug));
       setIsLoading(false);
       notifications.show({
         title: 'Link deleted',
