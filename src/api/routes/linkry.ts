@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
-import { unknown, z } from "zod";
+import { z } from "zod";
 import { AppRoles } from "../../common/roles.js";
 import {
   BaseError,
@@ -7,87 +7,62 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   NotFoundError,
-  NotImplementedError,
+  UnauthenticatedError,
   UnauthorizedError,
   ValidationError,
 } from "../../common/errors/index.js";
-import { intersection } from "../plugins/auth.js";
 import { NoDataRequest } from "../types.js";
 import {
   DynamoDBClient,
   QueryCommand,
-  PutItemCommand,
   DeleteItemCommand,
   ScanCommand,
-  GetItemCommand,
   TransactWriteItemsCommand,
-  UpdateItemCommand,
   AttributeValue,
+  TransactWriteItem,
+  GetItemCommand,
+  TransactionCanceledException,
 } from "@aws-sdk/client-dynamodb";
+import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
 import {
-  CloudFrontKeyValueStoreClient,
-  PutKeyCommand,
-  ResourceNotFoundException,
-} from "@aws-sdk/client-cloudfront-keyvaluestore";
-import { genericConfig, EVENT_CACHED_DURATION } from "../../common/config.js";
+  genericConfig,
+  EVENT_CACHED_DURATION,
+  LinkryGroupUUIDToGroupNameMap,
+} from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
-import { randomUUID } from "crypto";
-import { access } from "fs";
-import { listGroupIDsByEmail, getEntraIdToken } from "../functions/entraId.js";
-import internal from "stream";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
-  atomicIncrementCacheCounter,
-  deleteCacheCounter,
-  getCacheCounter,
-} from "api/functions/cache.js";
-import {
   deleteKey,
-  getKey,
   getLinkryKvArn,
   setKey,
 } from "api/functions/cloudfrontKvStore.js";
-
-const LINKRY_MAX_SLUG_LENGTH = 1000;
-
-type LinkrySlugOnlyRequest = {
-  Params: { slug: string };
-  Querystring: undefined;
-  Body: undefined;
-};
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { createRequest, getRequest } from "common/types/linkry.js";
+import {
+  extractUniqueSlugs,
+  fetchOwnerRecords,
+  getGroupsForSlugs,
+  getFilteredUserGroups,
+  getDelegatedLinks,
+  fetchLinkEntry,
+  getAllLinks,
+} from "api/functions/linkry.js";
+import { intersection } from "api/plugins/auth.js";
 
 type OwnerRecord = {
   slug: string;
   redirect: string;
   access: string;
-  updatedAtUtc: string;
-  createdAtUtc: string;
-  counter: number;
+  updatedAt: string;
+  createdAt: string;
 };
 
 type AccessRecord = {
   slug: string;
   access: string;
+  createdAt: string;
+  updatedAt: string;
 };
-
-const getRequest = z.object({
-  slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH).optional(),
-});
-
-const createRequest = z.object({
-  slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
-  access: z.array(z.string()).optional(),
-  redirect: z.string().url().min(1),
-  counter: z.number().optional(),
-});
-
-const patchRequest = z.object({
-  slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH),
-  access: z.array(z.string()).optional(),
-  redirect: z.string().url().min(1),
-  isEdited: z.boolean(),
-  counter: z.number().optional(),
-});
 
 type LinkyCreateRequest = {
   Params: undefined;
@@ -107,17 +82,9 @@ type LinkryDeleteRequest = {
   Body: undefined;
 };
 
-type LinkryPatchRequest = {
-  Params: { slug: string };
-  Querystring: undefined;
-  Body: z.infer<typeof patchRequest>;
-};
-
 const dynamoClient = new DynamoDBClient({
   region: genericConfig.AwsRegion,
 });
-
-export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
 
 const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
@@ -139,602 +106,401 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
       async (request, reply) => {
         try {
-          const username = request.username;
-          const fetchAllOwnerRecords = new QueryCommand({
-            TableName: genericConfig.LinkryDynamoTableName,
-            IndexName: "AccessIndex",
-            KeyConditionExpression: "#access = :accessVal",
-            ExpressionAttributeNames: {
-              "#access": "access",
-            },
-            ExpressionAttributeValues: {
-              ":accessVal": { S: `OWNER#${username}` }, // Match OWNER#<username>
-            },
-            ScanIndexForward: false, // Sort in descending order
-          });
-
-          const allOwnerRecords = await dynamoClient.send(fetchAllOwnerRecords);
-
-          const unmarshalledOwnerRecords =
-            allOwnerRecords.Items?.map((ownerRecord) => {
-              const unmarshalledItem = unmarshall(ownerRecord);
-
-              // Strip '#' from access field
-              if (unmarshalledItem.access) {
-                unmarshalledItem.access =
-                  unmarshalledItem.access.split("#")[1] ||
-                  unmarshalledItem.access;
-              }
-              return unmarshalledItem;
-            }) || [];
-
-          const ownedUniqueSlugs = Array.from(
-            new Set(
-              unmarshalledOwnerRecords
-                .filter((item) => item.slug) // Filter out items without a slug
-                .map((item) => item.slug), // Extract slugs
-            ),
+          const username = request.username!;
+          const tableName = genericConfig.LinkryDynamoTableName;
+          const ownerRecords = await fetchOwnerRecords(
+            username,
+            tableName,
+            fastify.dynamoClient,
           );
-
-          const ownedLinksGroupsConcatenated = await Promise.all(
-            ownedUniqueSlugs.map(async (slug) => {
-              const groupQueryCommand = new QueryCommand({
-                TableName: genericConfig.LinkryDynamoTableName,
-                KeyConditionExpression:
-                  "#slug = :slugVal AND begins_with(#access, :accessVal)",
-                ExpressionAttributeNames: {
-                  "#slug": "slug",
-                  "#access": "access",
-                },
-                ExpressionAttributeValues: {
-                  ":slugVal": { S: slug },
-                  ":accessVal": { S: "GROUP#" },
-                },
-                ScanIndexForward: false,
-              });
-
-              const groupQueryResponse =
-                await dynamoClient.send(groupQueryCommand);
-              const groupItems = groupQueryResponse.Items?.map((item) =>
-                unmarshall(item),
-              );
-
-              const combinedAccessGroupUUIDs: string[] =
-                groupItems?.map((item) => item.access.replace("GROUP#", "")) ||
-                [];
-
-              const combinedAccessGroupNames: string[] = [];
-
-              for (const accessGroupUUID of combinedAccessGroupUUIDs) {
-                combinedAccessGroupNames.push(
-                  fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
-                    accessGroupUUID,
-                  ) as string,
-                );
-              }
-
-              // Combine GROUP# values into a single string separated by ";"
-              const combinedAccessGroups = combinedAccessGroupNames.join(";");
-
-              // Find the original record for this slug and add the combined access groups
-              const originalRecord = (unmarshalledOwnerRecords ?? []).find(
-                (item) => item.slug === slug,
-              );
-              return {
-                ...originalRecord,
-                access: combinedAccessGroups || "",
-              };
-            }),
+          const ownedUniqueSlugs = extractUniqueSlugs(ownerRecords);
+          const ownedLinksWithGroups = await getGroupsForSlugs(
+            ownedUniqueSlugs,
+            ownerRecords,
+            tableName,
+            fastify.dynamoClient,
           );
-
-          const uUIDsOfAllTheGroupsUserIsMemberOf =
-            request.tokenPayload?.groups ?? [];
-
-          const allLinkryGroupUUIDs: string[] = [
-            ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
-          ] as string[];
-
-          const userLinkrAllUserGroups =
-            uUIDsOfAllTheGroupsUserIsMemberOf.filter((groupId) => {
-              return allLinkryGroupUUIDs.includes(groupId);
-            });
-
-          const delegatedLinks = await Promise.all(
-            userLinkrAllUserGroups.map(async (group) => {
-              // Use ScanCommand to query all records where access with value "GROUP#[value]"
-              const groupScanCommand = new ScanCommand({
-                TableName: genericConfig.LinkryDynamoTableName,
-                FilterExpression: "#access=:accessVal",
-                ExpressionAttributeNames: {
-                  "#access": "access",
-                },
-                ExpressionAttributeValues: {
-                  ":accessVal": { S: `GROUP#${group}` },
-                },
-              });
-
-              //console.log("******____")
-
-              const groupScanResponse =
-                await dynamoClient.send(groupScanCommand);
-
-              const allRecordsForUserLinkryGroup = groupScanResponse.Items?.map(
-                (item) => unmarshall(item),
-              );
-
-              // Get unique slugs from groupItems and remove previously seen slugs
-              const delegatedUniqueSlugs = Array.from(
-                new Set(
-                  (allRecordsForUserLinkryGroup ?? [])
-                    .filter(
-                      (item) =>
-                        item.slug && !ownedUniqueSlugs.includes(item.slug),
-                    ) // Exclude slugs already seen
-                    .map((item) => item.slug), // Extract slugs
-                ),
-              );
-
-              // For each unique slug, find the corresponding "OWNER#" record and access groups
-              const allFormattedOwnerRecordsForDelegatedLinks =
-                await Promise.all(
-                  delegatedUniqueSlugs.map(async (slug) => {
-                    // Query for OWNER# record
-                    const ownerQueryCommand = new QueryCommand({
-                      TableName: genericConfig.LinkryDynamoTableName,
-                      KeyConditionExpression:
-                        "#slug = :slugVal AND begins_with(#access, :ownerVal)",
-                      ExpressionAttributeNames: {
-                        "#slug": "slug",
-                        "#access": "access",
-                      },
-                      ExpressionAttributeValues: {
-                        ":slugVal": { S: slug }, // Match the delegated unique slug
-                        ":ownerVal": { S: "OWNER#" }, // Match access starting with "OWNER#"
-                      },
-                    });
-
-                    const ownerQueryResponse =
-                      await dynamoClient.send(ownerQueryCommand);
-
-                    const allOwnerRecordsForDelegatedLinks =
-                      ownerQueryResponse.Items?.map((item) => unmarshall(item));
-
-                    // Query for GROUP# records
-                    const groupQueryCommand = new QueryCommand({
-                      TableName: genericConfig.LinkryDynamoTableName,
-                      KeyConditionExpression:
-                        "#slug = :slugVal AND begins_with(#access, :groupVal)",
-                      ExpressionAttributeNames: {
-                        "#slug": "slug",
-                        "#access": "access",
-                      },
-                      ExpressionAttributeValues: {
-                        ":slugVal": { S: slug }, // Match the delegated unique slug
-                        ":groupVal": { S: "GROUP#" }, // Match access starting with "GROUP#"
-                      },
-                    });
-
-                    const groupQueryResponse =
-                      await dynamoClient.send(groupQueryCommand);
-                    const groupItems = groupQueryResponse.Items?.map((item) =>
-                      unmarshall(item),
-                    );
-
-                    const combinedAccessGroupUUIDsForUserLinkryGroup: string[] =
-                      groupItems?.map((item) =>
-                        item.access.replace("GROUP#", ""),
-                      ) || [];
-
-                    const combinedAccessGroupNames: string[] = [];
-
-                    for (const accessGroupUUID of combinedAccessGroupUUIDsForUserLinkryGroup) {
-                      combinedAccessGroupNames.push(
-                        fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
-                          accessGroupUUID,
-                        ) as string,
-                      );
-                    }
-
-                    // Combine GROUP# values into a single string separated by ";"
-                    const combinedAccessGroups =
-                      combinedAccessGroupNames.join(";");
-
-                    //console.log(combinedAccessGroups);
-
-                    // Combine OWNER# record with access groups
-                    return allOwnerRecordsForDelegatedLinks?.map(
-                      (ownerItem) => ({
-                        ...ownerItem,
-                        access: combinedAccessGroups, // Append access groups to OWNER# access
-                      }),
-                    );
-                  }),
-                );
-
-              return allFormattedOwnerRecordsForDelegatedLinks.flat(); // Flatten the results for this group
-            }),
-          );
-
-          // Flatten the results into a single array
-          const flattenedDelegatedLinks = delegatedLinks.flat();
-
-          const delegatedUniqueSlugs = //find the unique slug in the delegated links
-            new Set<string>(
-              flattenedDelegatedLinks
-                .filter((item) => item !== undefined && "slug" in item)
-                .map((item) =>
-                  "slug" in item ? (item as { slug: string }).slug : undefined,
-                )
-                .filter((slug): slug is string => slug !== undefined),
+          let delegatedLinks;
+          let userGroups: string[];
+          if (request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
+            delegatedLinks = (
+              await getAllLinks(tableName, fastify.dynamoClient)
+            ).filter((x) => x.owner !== username);
+          } else {
+            userGroups = getFilteredUserGroups(request);
+            delegatedLinks = await getDelegatedLinks(
+              userGroups,
+              ownedUniqueSlugs,
+              tableName,
+              fastify.dynamoClient,
             );
-
-          const uniqueFlattenedDelegatedLinks = flattenedDelegatedLinks.filter(
-            (item) => {
-              if (
-                item !== undefined &&
-                "slug" in item &&
-                typeof item.slug === "string" &&
-                delegatedUniqueSlugs.has(item.slug)
-              ) {
-                //filter the delegated links to only show one entry per unique slug per delegated link
-                if ("slug" in item) {
-                  delegatedUniqueSlugs.delete(item.slug as string);
-                }
-                return true;
-              }
-            },
-          );
-
-          const results = {
-            ownedLinks: ownedLinksGroupsConcatenated,
-            delegatedLinks: uniqueFlattenedDelegatedLinks,
-          };
-
-          reply.code(200).send(results);
-        } catch (e) {
-          if (e instanceof Error) {
-            request.log.error("Failed to get from DynamoDB: " + e.toString());
           }
-          console.log(e);
+          reply.code(200).send({
+            ownedLinks: ownedLinksWithGroups,
+            delegatedLinks: delegatedLinks,
+          });
+        } catch (error) {
+          if (error instanceof BaseError) {
+            throw error;
+          }
+          request.log.error(
+            `Failed to get from DynamoDB: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+          );
           throw new DatabaseFetchError({
             message: "Failed to get Links from Dynamo table.",
           });
         }
       },
     );
-  };
 
-  fastify.get<LinkrySlugOnlyRequest>(
-    "/redir/:slug",
-    {
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, getRequest);
-        if (!fastify.cloudfrontKvClient) {
-          fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
-            region: genericConfig.AwsRegion,
+    fastify.post<LinkyCreateRequest>(
+      "/redir",
+      {
+        preValidation: async (request, reply) => {
+          const routeAlreadyExists = fastify.hasRoute({
+            url: `/${request.body.slug}`,
+            method: "GET",
           });
-        }
+
+          if (routeAlreadyExists) {
+            throw new ValidationError({
+              message: `Slug ${request.body.slug} is reserved by the system.`,
+            });
+          }
+
+          await fastify.zodValidateBody(request, reply, createRequest);
+
+          if (!fastify.cloudfrontKvClient) {
+            fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
+              region: genericConfig.AwsRegion,
+            });
+          }
+        },
+        onRequest: async (request, reply) => {
+          await fastify.authorize(request, reply, [
+            AppRoles.LINKS_MANAGER,
+            AppRoles.LINKS_ADMIN,
+          ]);
+        },
       },
-    },
-    async (request, reply) => {
-      const slug = request.params.slug;
-      const kvArn = await getLinkryKvArn(fastify.runEnvironment);
-      try {
-        const result = await getKey({
-          key: slug,
-          arn: kvArn,
-          kvsClient: fastify.cloudfrontKvClient,
-        });
-        if (!result) {
-          throw new NotFoundError({ endpointName: request.url });
-        }
-        return reply.redirect(result);
-      } catch (e) {
-        if (e instanceof ResourceNotFoundException) {
-          throw new NotFoundError({ endpointName: request.url });
-        }
-        if (e instanceof BaseError) {
-          throw e;
-        }
-        request.log.error(e);
-        throw new DatabaseFetchError({
-          message: "Could not fetch redirect.",
-        });
-      }
-    },
-  );
-
-  fastify.post<LinkyCreateRequest>(
-    "/redir",
-    {
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, createRequest);
-
-        const routeAlreadyExists = fastify.hasRoute({
-          url: `/${request.body.slug}`,
-          method: "GET",
-        });
-
-        if (routeAlreadyExists) {
-          //TODO: throw a more appropriate error type (and one that lets the end user see the message)?
+      async (request, reply) => {
+        // Add to cloudfront key value store so that redirects happen at the edge
+        const kvArn = await getLinkryKvArn(fastify.runEnvironment);
+        let currentRecord = null;
+        try {
+          await setKey({
+            key: request.body.slug,
+            value: request.body.redirect,
+            kvsClient: fastify.cloudfrontKvClient,
+            arn: kvArn,
+          });
+        } catch (e) {
+          fastify.log.error(e);
+          if (e instanceof BaseError) {
+            throw e;
+          }
           throw new DatabaseInsertError({
-            message: `Slug ${request.body.slug} is reserved.`,
+            message: "Failed to save redirect to Cloudfront KV store.",
           });
         }
-        if (request.body.access) {
-          for (const accessGroup of request.body.access) {
-            if (
-              ![
-                ...fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.keys(),
-              ].includes(accessGroup)
-            ) {
-              //TODO: throw a more appropriate error type (and one that lets the end user see the message)?
-              throw new DatabaseInsertError({
-                message: `${accessGroup} is not a valid access group.`,
-              });
+
+        // Use a transaction to handle if one/multiple of these writes fail
+        const TransactItems: TransactWriteItem[] = [];
+
+        try {
+          const queryOwnerCommand = new QueryCommand({
+            TableName: genericConfig.LinkryDynamoTableName,
+            KeyConditionExpression:
+              "slug = :slug AND begins_with(access, :ownerPrefix)",
+            ExpressionAttributeValues: marshall({
+              ":slug": request.body.slug,
+              ":ownerPrefix": "OWNER#",
+            }),
+          });
+
+          currentRecord = await dynamoClient.send(queryOwnerCommand);
+          const mode =
+            currentRecord.Items && currentRecord.Items.length > 0
+              ? "modify"
+              : "create";
+          const currentUpdatedAt =
+            currentRecord.Items && currentRecord.Items.length > 0
+              ? unmarshall(currentRecord.Items[0]).updatedAt
+              : null;
+          const currentCreatedAt =
+            currentRecord.Items && currentRecord.Items.length > 0
+              ? unmarshall(currentRecord.Items[0]).createdAt
+              : null;
+
+          // Generate new timestamp for all records
+          const creationTime: Date = new Date();
+          const newUpdatedAt = creationTime.toISOString();
+          const newCreatedAt = currentCreatedAt || newUpdatedAt;
+          const queryCommand = new QueryCommand({
+            TableName: genericConfig.LinkryDynamoTableName,
+            KeyConditionExpression:
+              "slug = :slug AND begins_with(access, :accessPrefix)",
+            ExpressionAttributeValues: marshall({
+              ":slug": request.body.slug,
+              ":accessPrefix": "GROUP#",
+            }),
+          });
+
+          const existingGroups = await dynamoClient.send(queryCommand);
+          const existingGroupSet = new Set<string>();
+          let existingGroupTimestampMismatch = false;
+
+          if (existingGroups.Items && existingGroups.Items.length > 0) {
+            for (const item of existingGroups.Items) {
+              const unmarshalledItem = unmarshall(item);
+              existingGroupSet.add(unmarshalledItem.access);
+
+              // Check if all existing GROUP records have the same updatedAt timestamp
+              // This ensures no other process has modified any part of the record
+              if (
+                currentUpdatedAt &&
+                unmarshalledItem.updatedAt &&
+                unmarshalledItem.updatedAt !== currentUpdatedAt
+              ) {
+                existingGroupTimestampMismatch = true;
+              }
             }
           }
-        }
 
-        //validate that the slug entry does not already exist
-        //TODO: could this just call one of the other routes to prevent duplicating code?
-        try {
-          const queryParams = {
-            TableName: genericConfig.LinkryDynamoTableName,
-            KeyConditionExpression: "slug = :slug",
-            ExpressionAttributeValues: {
-              ":slug": { S: request.body.slug },
+          // If timestamp mismatch found, reject the operation
+          if (existingGroupTimestampMismatch) {
+            throw new ValidationError({
+              message:
+                "Record was modified by another process. Please try again.",
+            });
+          }
+
+          const ownerRecord: OwnerRecord = {
+            slug: request.body.slug,
+            redirect: request.body.redirect,
+            access: "OWNER#" + request.username,
+            updatedAt: newUpdatedAt,
+            createdAt: newCreatedAt,
+          };
+
+          // Add the OWNER record with a condition check to ensure it hasn't been modified
+          const ownerPutItem: TransactWriteItem = {
+            Put: {
+              TableName: genericConfig.LinkryDynamoTableName,
+              Item: marshall(ownerRecord),
+              ...(mode === "modify"
+                ? {
+                    ConditionExpression: "updatedAt = :updatedAt",
+                    ExpressionAttributeValues: marshall({
+                      ":updatedAt": currentUpdatedAt,
+                    }),
+                  }
+                : {}),
             },
           };
 
-          const queryCommand = new QueryCommand(queryParams);
-          const queryResponse = await dynamoClient.send(queryCommand);
-          if (queryResponse.Items && queryResponse.Items.length > 0) {
-            //TODO: throw a different error type so that the user can see the error message?
-            throw new DatabaseInsertError({
-              message: `Slug ${request.body.slug} already exists.`,
-            });
-          }
-        } catch (e: unknown) {
-          console.log(e);
-          throw new DatabaseFetchError({
-            message: "Failed to verify that the slug does not already exist.",
-          });
-        }
-        if (!fastify.cloudfrontKvClient) {
-          fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
-            region: genericConfig.AwsRegion,
-          });
-        }
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [
-          AppRoles.LINKS_MANAGER,
-          AppRoles.LINKS_ADMIN,
-        ]);
-      },
-    },
-    async (request, reply) => {
-      // Add to cloudfront key value store so that redirects happen at the edge
-      const kvArn = await getLinkryKvArn(fastify.runEnvironment);
-      try {
-        await setKey({
-          key: request.body.slug,
-          value: request.body.redirect,
-          kvsClient: fastify.cloudfrontKvClient,
-          arn: kvArn,
-        });
-      } catch (e) {
-        fastify.log.error(e);
-        if (e instanceof BaseError) {
-          throw e;
-        }
-        throw new DatabaseInsertError({
-          message: "Failed to save redirect to Cloudfront KV store.",
-        });
-      }
-      //Use a transaction to handle if one/multiple of these writes fail
-      const TransactItems: object[] = [];
-      //Add the OWNER record
-      const creationTime: Date = new Date();
-      const ownerRecord: OwnerRecord = {
-        slug: request.body.slug,
-        redirect: request.body.redirect,
-        access: "OWNER#" + request.username,
-        updatedAtUtc: creationTime.toISOString(),
-        createdAtUtc: creationTime.toISOString(),
-        counter: request.body.counter || 0,
-      };
-      const OwnerPutCommand = {
-        Put: {
-          TableName: genericConfig.LinkryDynamoTableName,
-          Item: marshall(ownerRecord),
-        },
-      };
+          TransactItems.push(ownerPutItem);
 
-      TransactItems.push(OwnerPutCommand);
-
-      //Add GROUP records
-      const accessGroups: string[] = request.body.access || [];
-      for (const accessGroup of accessGroups) {
-        const groupUUID: string =
-          fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
-            accessGroup,
-          ) as string;
-        const groupRecord: AccessRecord = {
-          slug: request.body.slug,
-          access: "GROUP#" + groupUUID,
-        };
-        const GroupPutCommand = {
-          Put: {
-            TableName: genericConfig.LinkryDynamoTableName,
-            Item: marshall(groupRecord),
-          },
-        };
-
-        TransactItems.push(GroupPutCommand);
-      }
-      try {
-        await dynamoClient.send(
-          new TransactWriteItemsCommand({ TransactItems: TransactItems }),
-        );
-      } catch (e) {
-        fastify.log.error(e);
-        await deleteKey({
-          key: request.body.slug,
-          kvsClient: fastify.cloudfrontKvClient,
-          arn: kvArn,
-        });
-        if (e instanceof BaseError) {
-          throw e;
-        }
-        throw new DatabaseInsertError({
-          message: "Failed to save data to DynamoDB.",
-        });
-      }
-
-      reply.code(201).send({
-        id: request.body.slug,
-      });
-    },
-  );
-
-  fastify.get<LinkryGetRequest>(
-    "/record/:slug",
-    {
-      //No need to prevalidate body, it is empty
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [
-          AppRoles.LINKS_MANAGER,
-          AppRoles.LINKS_ADMIN,
-        ]);
-      },
-    },
-    async (request, reply) => {
-      try {
-        const { slug: slug } = request.params;
-        // Query to get all items with the specified slug
-        const queryParams = {
-          TableName: genericConfig.LinkryDynamoTableName,
-          KeyConditionExpression: "slug = :slug",
-          ExpressionAttributeValues: {
-            ":slug": { S: decodeURIComponent(slug) },
-          },
-        };
-
-        const queryCommand = new QueryCommand(queryParams);
-        const queryResponse = await dynamoClient.send(queryCommand);
-
-        const items: object[] = queryResponse.Items || [];
-        const unmarshalledItems: (OwnerRecord | AccessRecord)[] = [];
-        for (const item of items) {
-          unmarshalledItems.push(
-            unmarshall(item as { [key: string]: AttributeValue }) as
-              | OwnerRecord
-              | AccessRecord,
+          // Add new GROUP records
+          const accessGroups: string[] = request.body.access || [];
+          const newGroupSet = new Set(
+            accessGroups.map((group) => "GROUP#" + group),
           );
-        }
-        if (items.length == 0)
-          throw new DatabaseFetchError({ message: "Slug does not exist" });
 
-        //TODO: cache response;
+          // Add new GROUP records that don't already exist
+          for (const accessGroup of accessGroups) {
+            const groupKey = "GROUP#" + accessGroup;
 
-        const ownerRecord: OwnerRecord = unmarshalledItems.filter(
-          (item): item is OwnerRecord => "redirect" in item,
-        )[0];
+            // Skip if this group already exists
+            if (existingGroupSet.has(groupKey)) {
+              // Update existing GROUP record with new updatedAt
+              const updateItem: TransactWriteItem = {
+                Update: {
+                  TableName: genericConfig.LinkryDynamoTableName,
+                  Key: marshall({
+                    slug: request.body.slug,
+                    access: groupKey,
+                  }),
+                  UpdateExpression: "SET updatedAt = :updatedAt",
+                  ExpressionAttributeValues: marshall({
+                    ":updatedAt": newUpdatedAt,
+                    ...(mode === "modify"
+                      ? { ":currentUpdatedAt": currentUpdatedAt }
+                      : {}),
+                  }),
+                  ...(mode === "modify"
+                    ? {
+                        ConditionExpression: "updatedAt = :currentUpdatedAt",
+                      }
+                    : {}),
+                },
+              };
 
-        const accessGroupNames: string[] = [];
-        for (const record of unmarshalledItems) {
-          if (record && record != ownerRecord) {
-            const accessGroupUUID: string = record.access.split("GROUP#")[1];
-            accessGroupNames.push(
-              fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
-                accessGroupUUID,
-              ) as string,
-            );
+              TransactItems.push(updateItem);
+            } else {
+              // Create new GROUP record
+              const groupRecord: AccessRecord = {
+                slug: request.body.slug,
+                access: groupKey,
+                updatedAt: newUpdatedAt,
+                createdAt: newCreatedAt,
+              };
+
+              const groupPutItem: TransactWriteItem = {
+                Put: {
+                  TableName: genericConfig.LinkryDynamoTableName,
+                  Item: marshall(groupRecord),
+                },
+              };
+
+              TransactItems.push(groupPutItem);
+            }
           }
-        }
 
-        if (!request.username) {
-          throw new Error("Username is undefined");
-        }
+          // Delete GROUP records that are no longer needed
+          for (const existingGroup of existingGroupSet) {
+            // Skip if this is a group we want to keep
+            if (newGroupSet.has(existingGroup)) {
+              continue;
+            }
 
-        // const allUserGroupUUIDs = await listGroupIDsByEmail(
-        //   entraIdToken,
-        //   request.username,
-        // );
+            const deleteItem: TransactWriteItem = {
+              Delete: {
+                TableName: genericConfig.LinkryDynamoTableName,
+                Key: marshall({
+                  slug: request.body.slug,
+                  access: existingGroup,
+                }),
+                ...(mode === "modify"
+                  ? {
+                      ConditionExpression: "updatedAt = :updatedAt",
+                      ExpressionAttributeValues: marshall({
+                        ":updatedAt": currentUpdatedAt,
+                      }),
+                    }
+                  : {}),
+              },
+            };
 
-        const allUserGroupUUIDs = request.tokenPayload?.groups ?? [];
+            TransactItems.push(deleteItem);
+          }
+          console.log(JSON.stringify(TransactItems));
+          await dynamoClient.send(
+            new TransactWriteItemsCommand({ TransactItems }),
+          );
+          return reply.status(201).send();
+        } catch (e) {
+          fastify.log.error(e);
 
-        const linkryGroupUUIDs: string[] = [
-          ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
-        ] as string[];
-
-        const userLinkryGroups = allUserGroupUUIDs.filter((groupId) =>
-          linkryGroupUUIDs.includes(groupId),
-        );
-
-        if (
-          (ownerRecord &&
-            ownerRecord.access.split("OWNER#")[1] == request.username) ||
-          userLinkryGroups.length > 0
-        ) {
-          reply.code(200).send({
-            slug: ownerRecord.slug,
-            access: accessGroupNames,
-            redirect: ownerRecord.redirect,
-            counter: ownerRecord.counter,
-          });
-        } else {
-          throw new UnauthorizedError({
-            message: "User does not have permission to fetch slug details.",
-          });
-        }
-      } catch (e: unknown) {
-        if (!(e instanceof Error)) {
-          throw e;
-        }
-        fastify.log.error(e);
-        throw new DatabaseFetchError({
-          message: "Failed to fetch slug information in Dynamo table.",
-        });
-      }
-    },
-  );
-
-  fastify.patch<LinkryPatchRequest>(
-    "/redir/:slug",
-    {
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, createRequest);
-        const routeAlreadyExists = fastify.hasRoute({
-          url: `/${request.body.slug}`,
-          method: "GET",
-        });
-
-        if (routeAlreadyExists) {
-          throw new ValidationError({
-            message: `Slug ${request.body.slug} is reserved.`,
-          });
-        }
-        if (request.body.access) {
-          for (const accessGroup of request.body.access) {
+          // Clean up cloudfront KV store on error
+          if (currentRecord && currentRecord.Count && currentRecord.Count > 0) {
             if (
-              ![
-                ...fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.keys(),
-              ].includes(accessGroup)
+              currentRecord.Items &&
+              currentRecord.Items.length > 0 &&
+              currentRecord.Items[0].redirect.S
             ) {
-              throw new ValidationError({
-                message: `${accessGroup} is not a valid access group.`,
+              fastify.log.info("Reverting CF Key store value due to error");
+              await setKey({
+                key: request.body.slug,
+                value: currentRecord.Items[0].redirect.S,
+                kvsClient: fastify.cloudfrontKvClient,
+                arn: kvArn,
+              });
+            } else {
+              // it didn't exist before
+              fastify.log.info("Deleting CF Key store value due to error");
+              await deleteKey({
+                key: request.body.slug,
+                kvsClient: fastify.cloudfrontKvClient,
+                arn: kvArn,
               });
             }
           }
-        }
+          // Handle optimistic concurrency control
+          if (
+            e instanceof TransactionCanceledException &&
+            e.CancellationReasons &&
+            e.CancellationReasons.some(
+              (reason) => reason.Code === "ConditionalCheckFailed",
+            )
+          ) {
+            for (const reason of e.CancellationReasons) {
+              request.log.error(`Cancellation reason: ${reason.Message}`);
+            }
+            throw new ValidationError({
+              message:
+                "The record was modified by another process. Please try again.",
+            });
+          }
 
-        //validate that the slug entry already exists
-        //TODO: could this just call one of the other routes to prevent duplicating code?
+          if (e instanceof BaseError) {
+            throw e;
+          }
+
+          throw new DatabaseInsertError({
+            message: "Failed to save data to DynamoDB.",
+          });
+        }
+      },
+    );
+
+    fastify.get<LinkryGetRequest>(
+      "/redir/:slug",
+      {
+        onRequest: async (request, reply) => {
+          await fastify.authorize(request, reply, [
+            AppRoles.LINKS_MANAGER,
+            AppRoles.LINKS_ADMIN,
+          ]);
+        },
+      },
+      async (request, reply) => {
         try {
-          const slug = request.body.slug;
+          const { slug } = request.params;
+          const tableName = genericConfig.LinkryDynamoTableName;
+          // It's likely faster to just fetch and not return if not found
+          // Rather than checking each individual group manually
+          const item = await fetchLinkEntry(
+            slug,
+            tableName,
+            fastify.dynamoClient,
+          );
+          if (!item) {
+            throw new NotFoundError({ endpointName: request.url });
+          }
+          if (!request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
+            const setUserGroups = new Set(request.tokenPayload?.groups || []);
+            const mutualGroups = intersection(
+              new Set(item["access"]),
+              setUserGroups,
+            );
+            if (mutualGroups.size == 0) {
+              throw new NotFoundError({ endpointName: request.url });
+            }
+          }
+          return reply.status(200).send(item);
+        } catch (e: unknown) {
+          fastify.log.error(e);
+          if (e instanceof BaseError) {
+            throw e;
+          }
+          throw new DatabaseFetchError({
+            message: "Failed to fetch slug information in Dynamo table.",
+          });
+        }
+      },
+    );
+
+    fastify.delete<LinkryDeleteRequest>(
+      "/redir/:slug",
+      {
+        onRequest: async (request, reply) => {
+          await fastify.authorize(request, reply, [
+            AppRoles.LINKS_MANAGER,
+            AppRoles.LINKS_ADMIN,
+          ]);
+
+          const { slug: slug } = request.params;
           // Query to get all items with the specified slug
           const queryParams = {
             TableName: genericConfig.LinkryDynamoTableName,
@@ -757,9 +523,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             );
           }
           if (items.length == 0)
-            throw new DatabaseFetchError({ message: "Slug does not exist" });
-
-          //TODO: cache response;
+            throw new ValidationError({ message: "Slug does not exist" });
 
           const ownerRecord: OwnerRecord = unmarshalledItems.filter(
             (item): item is OwnerRecord => "redirect" in item,
@@ -769,11 +533,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           for (const record of unmarshalledItems) {
             if (record && record != ownerRecord) {
               const accessGroupUUID: string = record.access.split("GROUP#")[1];
-              accessGroupNames.push(
-                fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
-                  accessGroupUUID,
-                ) as string,
-              );
+              accessGroupNames.push(accessGroupUUID);
             }
           }
 
@@ -785,14 +545,11 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           //   entraIdToken,
           //   request.username,
           // );
+
           const allUserGroupUUIDs = request.tokenPayload?.groups ?? [];
 
-          const linkryGroupUUIDs: string[] = [
-            ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
-          ] as string[];
-
           const userLinkryGroups = allUserGroupUUIDs.filter((groupId) =>
-            linkryGroupUUIDs.includes(groupId),
+            [...LinkryGroupUUIDToGroupNameMap.keys()].includes(groupId),
           );
 
           if (
@@ -802,204 +559,39 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ) {
           } else {
             throw new UnauthorizedError({
-              message: "User does not have permission to manage slug.",
+              message: "User does not have permission to delete slug.",
             });
           }
-        } catch (e: unknown) {
-          if (!(e instanceof Error)) {
+          if (!fastify.cloudfrontKvClient) {
+            fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
+              region: genericConfig.AwsRegion,
+            });
+          }
+        },
+      },
+      async (request, reply) => {
+        const { slug: slug } = request.params;
+
+        // Delete from Cloudfront KV first
+        const kvArn = await getLinkryKvArn(fastify.runEnvironment);
+        try {
+          await deleteKey({
+            key: slug,
+            kvsClient: fastify.cloudfrontKvClient,
+            arn: kvArn,
+          });
+        } catch (e) {
+          fastify.log.error(e);
+          if (e instanceof BaseError) {
             throw e;
           }
-          fastify.log.error(e);
-          throw new DatabaseFetchError({
-            message: "Error While Updating Link for Slug:" + request.body.slug,
+          throw new DatabaseInsertError({
+            message: "Failed to delete redirect at Cloudfront KV store.",
           });
         }
-        if (!fastify.cloudfrontKvClient) {
-          fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
-            region: genericConfig.AwsRegion,
-          });
-        }
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [
-          AppRoles.LINKS_MANAGER,
-          AppRoles.LINKS_ADMIN,
-        ]);
-      },
-    },
-    async (request, reply) => {
-      // make sure that a user can manage this link, either via owning or being in a group that has access to it, or is a LINKS_ADMIN.
-      // you can only change the URL it redirects to
-      /*
-
-      1. It has already been verified that the Slug Exists in the Database
-      2. Update the redirect URL
-      3. Owner Does not Change
-      4. Determing Groups can be Added or Removed
-      5. Perform the update
-
-      */
-      //TODO: make sure the user has permission to manage this link
-
-      if (request.body.isEdited) {
-        //as the request was edited, make updates
-        const { slug } = request.params;
-        const newRedirect = request.body.redirect;
-        const newAccessGroups: string[] = (request.body.access || []).map(
-          (accessGroup) => {
-            return fastify.environmentConfig.LinkryGroupNameToGroupUUIDMap.get(
-              accessGroup,
-            ) as string; //Converts frontend groupname to backend UUID
-          },
-        );
-        const newCounter = request.body.counter;
-
-        //get all the owner records from the datbase
-
-        try {
-          // Step 1: Query all records with the given slug
-          const queryParams = {
-            TableName: genericConfig.LinkryDynamoTableName,
-            KeyConditionExpression: "slug = :slug",
-            ExpressionAttributeValues: {
-              ":slug": { S: decodeURIComponent(slug) },
-            },
-          };
-
-          const queryCommand = new QueryCommand(queryParams);
-          const queryResponse = await dynamoClient.send(queryCommand);
-
-          const items = queryResponse.Items || [];
-
-          const unmarshalledItems: (OwnerRecord | AccessRecord)[] = [];
-          for (const item of items) {
-            unmarshalledItems.push(
-              unmarshall(item as { [key: string]: AttributeValue }) as
-                | OwnerRecord
-                | AccessRecord,
-            );
-          }
-          if (items.length == 0)
-            throw new DatabaseFetchError({ message: "Slug does not exist" });
-
-          //console.log(items)
-
-          // Step 2: Identify the OWNER record and update its redirect URL
-          const ownerRecord: OwnerRecord = unmarshalledItems.filter(
-            (item): item is OwnerRecord => "redirect" in item,
-          )[0];
-
-          if (!ownerRecord) {
-            throw new DatabaseFetchError({ message: "Owner record not found" });
-          }
-
-          const ownerUpdateCommand = {
-            Update: {
-              TableName: genericConfig.LinkryDynamoTableName,
-              Key: marshall({
-                slug: ownerRecord.slug,
-                access: ownerRecord.access,
-              }),
-              UpdateExpression: "SET redirect = :newRedirect, #c = :newCounter",
-              ExpressionAttributeNames: {
-                "#c": "counter", //Counter patch for all clear...
-              },
-              ExpressionAttributeValues: marshall({
-                ":newRedirect": newRedirect,
-                ":newCounter": newCounter,
-              }),
-            },
-          };
-
-          // Step 3: Identify and delete all GROUP records
-
-          const existingGroupRecords = unmarshalledItems.filter((item) =>
-            item.access.startsWith("GROUP#"),
-          );
-
-          const existingGroups: string[] = existingGroupRecords.map((record) =>
-            record.access.replace("GROUP#", ""),
-          );
-
-          // Step 4: Determine groups to add and delete
-          const groupsToAdd = newAccessGroups.filter(
-            (group) => !existingGroups.includes(group),
-          );
-          const groupsToDelete = existingGroups.filter(
-            (group) => group !== undefined && !newAccessGroups.includes(group),
-          );
-
-          const deleteGroupCommands = groupsToDelete.map((group) => ({
-            Delete: {
-              TableName: genericConfig.LinkryDynamoTableName,
-              Key: marshall({
-                slug: slug,
-                access: `GROUP#${group}`,
-              }),
-            },
-          }));
-
-          // Step 4: Add new GROUP records
-          const addGroupCommands = groupsToAdd.map((group) => ({
-            Put: {
-              TableName: genericConfig.LinkryDynamoTableName,
-              Item: marshall({
-                slug: slug,
-                access: `GROUP#${group}`,
-              }),
-            },
-          }));
-
-          // Step 5: Perform all operations in a transaction
-          const transactItems = [
-            ownerUpdateCommand, // Update the OWNER record
-            ...deleteGroupCommands, // Delete unnecessary GROUP records
-            ...addGroupCommands, // Add new GROUP records
-          ];
-          const kvArn = await getLinkryKvArn(fastify.runEnvironment);
-          try {
-            await setKey({
-              key: slug,
-              value: newRedirect,
-              kvsClient: fastify.cloudfrontKvClient,
-              arn: kvArn,
-            });
-          } catch (e) {
-            fastify.log.error(e);
-            if (e instanceof BaseError) {
-              throw e;
-            }
-            throw new DatabaseInsertError({
-              message: "Failed to save redirect to Cloudfront KV store.",
-            });
-          }
-          await dynamoClient.send(
-            new TransactWriteItemsCommand({ TransactItems: transactItems }),
-          );
-          // TODO: revert Cloudfront KV back to the old redirect if the update fails.
-          reply.code(200).send({ message: "Record Edited successfully" });
-        } catch (error) {
-          console.error("Error updating slug:", error);
-          reply.code(500).send({ error: "Failed to update slug" });
-        }
-      }
-    },
-  );
-
-  fastify.delete<LinkryDeleteRequest>(
-    "/redir/:slug",
-    {
-      // No need to prevalidate body, it is empty
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [
-          AppRoles.LINKS_MANAGER,
-          AppRoles.LINKS_ADMIN,
-        ]);
-
-        const { slug: slug } = request.params;
         // Query to get all items with the specified slug
         const queryParams = {
-          TableName: genericConfig.LinkryDynamoTableName,
+          TableName: genericConfig.LinkryDynamoTableName, // Replace with your table name
           KeyConditionExpression: "slug = :slug",
           ExpressionAttributeValues: {
             ":slug": { S: decodeURIComponent(slug) },
@@ -1009,251 +601,50 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const queryCommand = new QueryCommand(queryParams);
         const queryResponse = await dynamoClient.send(queryCommand);
 
-        const items: object[] = queryResponse.Items || [];
-        const unmarshalledItems: (OwnerRecord | AccessRecord)[] = [];
-        for (const item of items) {
-          unmarshalledItems.push(
-            unmarshall(item as { [key: string]: AttributeValue }) as
-              | OwnerRecord
-              | AccessRecord,
-          );
-        }
-        if (items.length == 0)
-          throw new DatabaseFetchError({ message: "Slug does not exist" });
+        const items = queryResponse.Items || [];
 
-        //TODO: cache response;
-
-        const ownerRecord: OwnerRecord = unmarshalledItems.filter(
-          (item): item is OwnerRecord => "redirect" in item,
-        )[0];
-
-        const accessGroupNames: string[] = [];
-        for (const record of unmarshalledItems) {
-          if (record && record != ownerRecord) {
-            const accessGroupUUID: string = record.access.split("GROUP#")[1];
-            accessGroupNames.push(
-              fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
-                accessGroupUUID,
-              ) as string,
+        const filteredItems = items.filter((item) => {
+          if (item.access.S?.startsWith("OWNER#")) {
+            return true;
+          } // TODO Ethan: temporary solution, current filter deletes all owner tagged and group tagged, need to differentiate between deleting owner versus deleting specific groups...
+          else {
+            return (
+              item.access.S &&
+              [...LinkryGroupUUIDToGroupNameMap.keys()].includes(
+                item.access.S.replace("GROUP#", ""),
+              )
             );
           }
-        }
+        });
 
-        if (!request.username) {
-          throw new Error("Username is undefined");
-        }
-
-        // const allUserGroupUUIDs = await listGroupIDsByEmail(
-        //   entraIdToken,
-        //   request.username,
-        // );
-
-        const allUserGroupUUIDs = request.tokenPayload?.groups ?? [];
-
-        const linkryGroupUUIDs: string[] = [
-          ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
-        ] as string[];
-
-        const userLinkryGroups = allUserGroupUUIDs.filter((groupId) =>
-          linkryGroupUUIDs.includes(groupId),
+        // Delete all fetched items
+        const deletePromises = (filteredItems || []).map((item) =>
+          dynamoClient.send(
+            new DeleteItemCommand({
+              TableName: genericConfig.LinkryDynamoTableName,
+              Key: { slug: item.slug, access: item.access },
+            }),
+          ),
         );
-
-        if (
-          (ownerRecord &&
-            ownerRecord.access.split("OWNER#")[1] == request.username) ||
-          userLinkryGroups.length > 0
-        ) {
-        } else {
-          throw new UnauthorizedError({
-            message: "User does not have permission to delete slug.",
+        try {
+          await Promise.all(deletePromises); // TODO: use TransactWriteItems, it can also do deletions
+        } catch (e) {
+          // TODO: revert Cloudfront KV store here
+          fastify.log.error(e);
+          if (e instanceof BaseError) {
+            throw e;
+          }
+          throw new DatabaseDeleteError({
+            message: "Failed to delete record in DynamoDB.",
           });
         }
-        if (!fastify.cloudfrontKvClient) {
-          fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
-            region: genericConfig.AwsRegion,
-          });
-        }
+
+        reply.code(200).send({
+          message: `All records with slug '${slug}' deleted successfully`,
+        });
       },
-    },
-    async (request, reply) => {
-      const { slug: slug } = request.params;
-
-      // Delete from Cloudfront KV first
-      const kvArn = await getLinkryKvArn(fastify.runEnvironment);
-      try {
-        await deleteKey({
-          key: slug,
-          kvsClient: fastify.cloudfrontKvClient,
-          arn: kvArn,
-        });
-      } catch (e) {
-        fastify.log.error(e);
-        if (e instanceof BaseError) {
-          throw e;
-        }
-        throw new DatabaseInsertError({
-          message: "Failed to delete redirect at Cloudfront KV store.",
-        });
-      }
-      // Query to get all items with the specified slug
-      const queryParams = {
-        TableName: genericConfig.LinkryDynamoTableName, // Replace with your table name
-        KeyConditionExpression: "slug = :slug",
-        ExpressionAttributeValues: {
-          ":slug": { S: decodeURIComponent(slug) },
-        },
-      };
-
-      const queryCommand = new QueryCommand(queryParams);
-      const queryResponse = await dynamoClient.send(queryCommand);
-
-      const items = queryResponse.Items || [];
-
-      const desiredAccessValues: string[] = [
-        ...fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.keys(),
-      ] as string[];
-
-      const filteredItems = items.filter((item) => {
-        if (item.access.S?.startsWith("OWNER#")) {
-          return true;
-        } // TODO Ethan: temporary solution, current filter deletes all owner tagged and group tagged, need to differentiate between deleting owner versus deleting specific groups...
-        else {
-          return (
-            item.access.S &&
-            desiredAccessValues.includes(item.access.S.replace("GROUP#", ""))
-          );
-        }
-      });
-
-      // Delete all fetched items
-      const deletePromises = (filteredItems || []).map((item) =>
-        dynamoClient.send(
-          new DeleteItemCommand({
-            TableName: genericConfig.LinkryDynamoTableName,
-            Key: { slug: item.slug, access: item.access },
-          }),
-        ),
-      );
-      try {
-        await Promise.all(deletePromises); // TODO: use TransactWriteItems, it can also do deletions
-      } catch (e) {
-        // TODO: revert Cloudfront KV store here
-        fastify.log.error(e);
-        if (e instanceof BaseError) {
-          throw e;
-        }
-        throw new DatabaseDeleteError({
-          message: "Failed to delete record in DynamoDB.",
-        });
-      }
-
-      reply.code(200).send({
-        message: `All records with slug '${slug}' deleted successfully`,
-      });
-    },
-  );
-
-  fastify.get<NoDataRequest>(
-    "/admin/redir",
-    {
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.LINKS_ADMIN]);
-      },
-    },
-    async (request, reply) => {
-      try {
-        // Fetch all links from the database
-        const scanCommand = new ScanCommand({
-          TableName: genericConfig.LinkryDynamoTableName,
-        });
-
-        const scanResponse = await dynamoClient.send(scanCommand);
-
-        // Unmarshall the results
-        const items = scanResponse.Items || [];
-        const unmarshalledItems = items.map((item) =>
-          unmarshall(item as { [key: string]: AttributeValue }),
-        );
-
-        // Group links by slug and consolidate access values
-        const groupedLinks: Record<string, any> = {};
-        const ownerLinks: Record<string, any> = {};
-
-        unmarshalledItems.forEach((item) => {
-          const slug = item.slug;
-          let access = item.access;
-
-          // Extract the owner from the access field if it starts with "OWNER#"
-          let owner = null;
-          if (access.startsWith("OWNER#")) {
-            owner = access.replace("OWNER#", ""); // Remove "OWNER#" prefix
-            //access = null; // Clear the access field for owner records
-          }
-
-          // Convert GROUP# values to names using the mapping
-          if (access && access.startsWith("GROUP#")) {
-            const groupUUID = access.replace("GROUP#", "");
-            access =
-              fastify.environmentConfig.LinkryGroupUUIDToGroupNameMap.get(
-                groupUUID,
-              ) || groupUUID; // Fallback to UUID if no mapping is found
-          }
-
-          if (!groupedLinks[slug]) {
-            groupedLinks[slug] = {
-              slug,
-              redirect: item.redirect || null,
-              owner: owner, // Set the owner attribute
-              access: new Set<string>(), // Use a Set to avoid duplicate access values
-              counter: item.counter,
-            };
-          }
-
-          if (!ownerLinks[slug] && item.access.startsWith("OWNER#")) {
-            ownerLinks[slug] = {
-              slug,
-              redirect: item.redirect || null,
-              owner: owner,
-              counter: item.counter || 0,
-            };
-          }
-
-          if (access && !access.startsWith("OWNER#")) {
-            groupedLinks[slug].access.add(access); // Add access value to the Set
-          }
-        });
-
-        // Iterate through groupedLinks and replace the redirect URL with the one from ownerLinks
-        Object.keys(groupedLinks).forEach((slug) => {
-          //console.log(ownerLinks[slug] )
-          if (ownerLinks[slug] && ownerLinks[slug].redirect) {
-            groupedLinks[slug].redirect = ownerLinks[slug].redirect; // Replace redirect URL
-          }
-        });
-
-        // console.log(groupedLinks)
-
-        // Convert grouped links to an array and join access values into a single string
-        const result = Object.values(groupedLinks).map((link) => ({
-          ...link,
-          access: Array.from(link.access).join(";"), // Convert Set to string
-          counter: ownerLinks[link.slug].counter, // Ensure counter is a number
-          owner:
-            Array.from(ownerLinks[link.slug]?.owner || []).join("") ||
-            link.owner, // Convert Set to string or keep original owner
-        }));
-
-        // Send the results back to the client
-        reply.code(200).send({ adminLinks: result });
-      } catch (error) {
-        console.error("Error fetching links:", error);
-        reply
-          .code(500)
-          .send({ error: "Failed to fetch links from the database." });
-      }
-    },
-  );
-
+    );
+  };
   fastify.register(limitedRoutes);
 };
 

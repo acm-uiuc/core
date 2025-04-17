@@ -10,6 +10,7 @@ import {
   TextInputProps,
   Group,
   getSize,
+  Container,
 } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { useForm, zodResolver } from '@mantine/form';
@@ -25,13 +26,17 @@ import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
 import { IconCancel, IconCross, IconDeviceFloppy, IconScale } from '@tabler/icons-react';
-import { environmentConfig } from '@common/config';
+import { environmentConfig, LinkryGroupUUIDToGroupNameMap } from '@common/config';
+import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
+import { AxiosError } from 'axios';
+import { useAuth } from '@ui/components/AuthContext';
+import { LINKRY_MAX_SLUG_LENGTH } from '@common/types/linkry';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-const baseUrl = 'go.acm.illinois.edu/';
+const baseUrl = 'go.acm.illinois.edu';
 const slugRegex = new RegExp('^(https?://)?[a-zA-Z0-9-._/]*$');
 const urlRegex = new RegExp('^https?://[a-zA-Z0-9-._/?=&+:]*$');
 
@@ -51,12 +56,12 @@ const baseBodySchema = z
       .min(1)
       .regex(urlRegex, 'Invalid URL. Use format: https:// or https://www.example.com')
       .optional(),
-    createdAtUtc: z.number().optional(),
-    updatedAtUtc: z.number().optional(),
+    createdAt: z.number().optional(),
+    updatedAt: z.number().optional(),
     counter: z.number().optional(),
   })
   .superRefine((data, ctx) => {
-    if ((data.slug?.length || 0) * 2 >= (data.redirect?.length || 0)) {
+    if ((data.slug?.length || 0) > LINKRY_MAX_SLUG_LENGTH) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['slug'],
@@ -69,34 +74,16 @@ const requestBodySchema = baseBodySchema;
 
 type LinkPostRequest = z.infer<typeof requestBodySchema>;
 
+export function getFilteredUserGroups(groups: string[]) {
+  return groups.filter((groupId) => [...LinkryGroupUUIDToGroupNameMap.keys()].includes(groupId));
+}
+
 export const ManageLinkPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const [accessGroup, setAccessGroup] = useState<any[]>();
-
   const [isEdited, setIsEdited] = useState<boolean>(false); // Track if the form is edited
-
-  useEffect(() => {
-    const fetchAccessGroup = async () => {
-      try {
-        const config = await getRunEnvironmentConfig();
-        if (config.LinkryGroupNameToGroupUUIDMap) {
-          setAccessGroup([...config.LinkryGroupNameToGroupUUIDMap.keys()]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch access group config:', error);
-        notifications.show({
-          message: 'Failed to fetch access group config.',
-        });
-      } finally {
-        //setLoading(false);
-      }
-    };
-
-    fetchAccessGroup();
-  }, []);
 
   const navigate = useNavigate();
   const api = useApi('core');
@@ -113,13 +100,12 @@ export const ManageLinkPage: React.FC = () => {
     const startForm = async () => {
       try {
         setIsLoading(true);
-        const response = await api.get(`/api/v1/linkry/record/${slug}`);
+        const response = await api.get(`/api/v1/linkry/redir/${slug}`);
         const linkData = response.data;
         const formValues = {
           slug: linkData.slug,
           access: linkData.access,
           redirect: linkData.redirect,
-          counter: parseInt(linkData.counter),
         };
         form.setValues(formValues);
         setIsLoading(false);
@@ -131,8 +117,9 @@ export const ManageLinkPage: React.FC = () => {
         navigate('/linkry');
       }
     };
+    // decode JWT to get user groups
     startForm();
-  }, [slug, isEditing]);
+  }, []);
 
   const form = useForm<LinkPostRequest>({
     validate: zodResolver(requestBodySchema),
@@ -140,7 +127,6 @@ export const ManageLinkPage: React.FC = () => {
       slug: '',
       access: [],
       redirect: '',
-      counter: 0,
     },
   });
 
@@ -150,6 +136,7 @@ export const ManageLinkPage: React.FC = () => {
         message: "Please fill in all entries",
       });
     }  */ //Potential warning for fields that are not filled...
+    let response;
     try {
       setIsSubmitting(true);
       const realValues = {
@@ -157,22 +144,18 @@ export const ManageLinkPage: React.FC = () => {
         isEdited: isEdited,
       };
 
-      const linkURL = isEditing ? `/api/v1/linkry/redir/${slug}` : '/api/v1/linkry/redir';
-      const response = isEditing
-        ? await api.patch(linkURL, realValues)
-        : await api.post(linkURL, realValues);
+      response = await api.post('/api/v1/linkry/redir', realValues);
       notifications.show({
-        title: isEditing ? 'Link updated!' : 'Link created!',
-        message: isEditing
-          ? undefined
-          : `The Link: ${realValues.redirect}, ${realValues.slug} ${realValues.access}".`,
+        message: isEditing ? 'Link updated!' : 'Link created!',
       });
       navigate(new URLSearchParams(window.location.search).get('previousPage') || '/linkry');
-    } catch (error) {
+    } catch (error: any) {
       setIsSubmitting(false);
       console.error('Error creating/editing link:', error);
       notifications.show({
-        message: isEditing ? 'Failed to Edit Link' : 'Failed to Create Link',
+        color: 'red',
+        title: isEditing ? 'Failed to edit link' : 'Failed to create link',
+        message: error.response && error.response.data ? error.response.data.message : undefined,
       });
     }
   };
@@ -197,132 +180,86 @@ export const ManageLinkPage: React.FC = () => {
     setIsEdited(true); // Set the flag to true when any field is changed
   };
 
-  const handleReset = () => {
-    form.setFieldValue('counter', 0);
-    handleFormChange();
-  };
+  if (isLoading) {
+    return <FullScreenLoader />;
+  }
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_MANAGER] }}>
-      <Box
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(255, 255, 255, 0.7)', // semi-transparent background
-          display: isLoading ? 'flex' : 'none',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 9999, // make sure it’s on top
-        }}
-      >
-        <Loader size={48} color="blue" />
-      </Box>
-      <Box display="flex" ta="center" mt="1.5rem">
+      <Container>
         <Title order={2}>{isEditing ? 'Edit' : 'Add'} Link</Title>
-      </Box>
-      <Box maw={650} mx="auto" mt="100px">
-        <form onSubmit={form.onSubmit(handleSubmit)}>
-          <TextInput
-            label="URL to shorten"
-            description="Enter a valid web URL."
-            withAsterisk
-            mt="xl"
-            {...form.getInputProps('redirect')}
-            onChange={(e) => {
-              form.getInputProps('redirect').onChange(e);
-              handleFormChange(); // Mark as edited
-            }}
-          />
-
-          <TextInput
-            label="Short URL"
-            description="Enter the alias which will redirect to your original site."
-            withAsterisk
-            leftSectionWidth={'230px'}
-            rightSectionWidth={'150px'}
-            leftSection={
-              <Button variant="outline" mr="auto" size="auto">
-                {baseUrl + '/' || 'https://domain/'}
-              </Button>
-            }
-            rightSection={
-              !isEditing && (
-                <Button variant="filled" ml="auto" color="blue" onClick={generateRandomSlug}>
-                  Generate Random URL
+        <Box>
+          <form onSubmit={form.onSubmit(handleSubmit)}>
+            <TextInput
+              label="Short URL"
+              description="Enter the alias which will redirect to your original site."
+              withAsterisk
+              leftSectionWidth={'230px'}
+              rightSectionWidth={'150px'}
+              leftSection={
+                <Button variant="outline" mr="auto" size="auto">
+                  {baseUrl || 'go.acm.illinois.edu'}
                 </Button>
-              )
-            }
-            mt="xl"
-            {...{ ...form.getInputProps('slug'), onChange: handleSlug }}
-            disabled={isEditing}
-            onChange={(e) => {
-              form.getInputProps('slug').onChange(e);
-              handleFormChange(); // Mark as edited
-            }}
-          />
-
-          <MultiSelect
-            label="Access Delegation"
-            description="Select groups which are permitted to manage this link."
-            data={accessGroup}
-            mt="xl"
-            {...form.getInputProps('access')}
-            onChange={(value) => {
-              form.setFieldValue('access', value); // Update the form state
-              handleFormChange(); // Mark as edited
-            }}
-          />
-
-          <div
-            style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '30px' }}
-          >
-            {isEditing && (
-              <Group flex="auto">
-                <TextInput
-                  label={'Visit Count'}
-                  value={form.values.counter}
-                  disabled={true}
-                  style={{ width: '75px' }}
-                />
-                <Button disabled={form.values.counter == 0} onClick={handleReset}>
-                  Reset
-                </Button>
-              </Group>
-            )}
+              }
+              rightSection={
+                !isEditing && (
+                  <Button variant="filled" ml="auto" color="blue" onClick={generateRandomSlug}>
+                    Generate Random URL
+                  </Button>
+                )
+              }
+              mt="xl"
+              {...{ ...form.getInputProps('slug'), onChange: handleSlug }}
+              disabled={isEditing}
+              onChange={(e) => {
+                form.getInputProps('slug').onChange(e);
+                handleFormChange(); // Mark as edited
+              }}
+            />
+            <TextInput
+              label="URL to shorten"
+              description="Enter a valid web URL."
+              withAsterisk
+              mt="xl"
+              {...form.getInputProps('redirect')}
+              onChange={(e) => {
+                form.getInputProps('redirect').onChange(e);
+                handleFormChange(); // Mark as edited
+              }}
+            />
+            <MultiSelect
+              label="Access Delegation"
+              description="Select groups which are permitted to manage this link."
+              data={
+                [...LinkryGroupUUIDToGroupNameMap.keys()].map((x) => ({
+                  value: x,
+                  label: LinkryGroupUUIDToGroupNameMap.get(x) || x,
+                })) ?? []
+              }
+              value={form.values.access}
+              onChange={(value) => {
+                form.setFieldValue('access', value);
+                handleFormChange();
+              }}
+              mt="xl"
+            />
             <Button
-              w="125px"
               disabled={!isEdited}
-              style={{ marginLeft: 'auto', display: 'block' }}
               type="submit"
+              mt="md"
+              leftSection={
+                isSubmitting ? (
+                  <Loader size={16} color="white" mr="sm" />
+                ) : (
+                  <IconDeviceFloppy size={16} color="white" />
+                )
+              }
             >
-              {isSubmitting ? (
-                <>
-                  <Loader size={16} color="white" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  Save
-                  <IconDeviceFloppy size={16} style={{ marginLeft: '8px' }} />
-                </>
-              )}
+              {isSubmitting ? 'Submitting...' : 'Save'}
             </Button>
-
-            <Button
-              color="red"
-              w="125px"
-              onClick={handleFormClose} // Navigate back or close the form
-              style={{ marginRight: '10px' }} // Add spacing between buttons
-            >
-              Close
-              <IconCancel size={16} style={{ marginLeft: '8px' }} />
-            </Button>
-          </div>
-        </form>
-      </Box>
+          </form>
+        </Box>
+      </Container>
     </AuthGuard>
   );
 };

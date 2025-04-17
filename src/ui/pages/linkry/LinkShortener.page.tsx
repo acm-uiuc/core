@@ -28,26 +28,7 @@ import { AuthGuard } from '@ui/components/AuthGuard';
 import { useApi } from '@ui/util/api';
 import { AppRoles } from '@common/roles.js';
 import { wrap } from 'module';
-
-const repeatOptions = ['weekly', 'biweekly'] as const;
-
-const baseSchema = z.object({
-  slug: z.string().min(1).optional(),
-  access: z.string().min(1).optional(),
-  redirect: z.string().min(1).optional(),
-  createdAtUtc: z.number().optional(),
-  updatedAtUtc: z.number().optional(),
-  counter: z.number().optional(),
-});
-
-// const requestSchema = baseSchema.extend({
-//   repeats: z.optional(z.enum(repeatOptions)),
-//   repeatEnds: z.string().optional(),
-// });
-
-const getLinkrySchema = baseSchema.extend({
-  id: z.string(),
-});
+import { linkRecord } from '@common/types/linkry.js';
 
 const wrapTextStyle: React.CSSProperties = {
   wordWrap: 'break-word',
@@ -55,8 +36,7 @@ const wrapTextStyle: React.CSSProperties = {
   whiteSpace: 'normal',
 };
 
-export type LinkryGetResponse = z.infer<typeof getLinkrySchema>;
-//const getLinksSchema = z.array(getLinkrySchema);
+export type LinkryGetResponse = z.infer<typeof linkRecord>;
 
 export const LinkShortener: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -89,46 +69,14 @@ export const LinkShortener: React.FC = () => {
                     : '#ffffff',
             }}
           >
+            <Table.Td style={wrapTextStyle}>https://go.acm.illinois.edu/{link.slug}</Table.Td>
             <Table.Td style={wrapTextStyle}>
-              <Anchor
-                href={
-                  (process.env.NODE_ENV == 'prod'
-                    ? 'https://go.acm.illinois.edu/'
-                    : 'https://core.aws.qa.acmuiuc.org/api/v1/linkry/redir/') + link.slug
-                }
-                target="_blank"
-              >
-                {' '}
-                {/* Currently set to localhost for local testing purposes */}
-                https://go.acm.illinois.edu/{link.slug}
-              </Anchor>
-            </Table.Td>
-            <Table.Td style={wrapTextStyle}>
-              <Anchor href={link.redirect} target="_blank">
+              <Anchor href={link.redirect} target="_blank" size="sm">
                 {link.redirect}
               </Anchor>
             </Table.Td>
-            <Table.Td style={wrapTextStyle}>
-              {link.access && link.access.length > 0 ? (
-                link.access
-                  .split(';') // Split the access string by ";"
-                  .map((group, index) => (
-                    <Badge
-                      key={index}
-                      color="#999898"
-                      radius="sm"
-                      style={{ marginRight: '2px', marginBottom: '2px' }}
-                    >
-                      {group.trim()} {/* Trim any extra whitespace */}
-                    </Badge>
-                  ))
-              ) : (
-                <></>
-              )}
-            </Table.Td>
-            <Table.Td style={wrapTextStyle}>{link.counter || 0}</Table.Td>
-            {/* <Table.Td style={wrapTextStyle}>{dayjs(link.createdAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>
-            <Table.Td style={wrapTextStyle}>{dayjs(link.updatedAtUtc).format('MMM D YYYY hh:mm')}</Table.Td> */}
+            {/* <Table.Td style={wrapTextStyle}>{dayjs(link.createdAt).format('MMM D YYYY hh:mm')}</Table.Td>
+            <Table.Td style={wrapTextStyle}>{dayjs(link.updatedAt).format('MMM D YYYY hh:mm')}</Table.Td> */}
             <Table.Td
               style={{
                 textAlign: 'center',
@@ -191,29 +139,24 @@ export const LinkShortener: React.FC = () => {
               </Anchor>
             </Table.Td>
             <Table.Td style={wrapTextStyle}>
-              <Anchor
-                href={'http://localhost:8080/api/v1/linkry/redir/' + link.slug}
-                target="_blank"
-              >
+              <Anchor href={'/api/v1/linkry/redir/' + link.slug} target="_blank">
                 {link.redirect}
               </Anchor>
             </Table.Td>
             <Table.Td style={wrapTextStyle}>
-              {link.access
-                ?.split(';') // Split the access string by ";"
-                .map((group, index) => (
-                  <Badge
-                    key={index}
-                    color="#999898"
-                    radius="sm"
-                    style={{ marginRight: '2px', marginBottom: '2px' }}
-                  >
-                    {group.trim()} {/* Trim any extra whitespace */}
-                  </Badge>
-                ))}
+              {link.access.map((group, index) => (
+                <Badge
+                  key={index}
+                  color="#999898"
+                  radius="sm"
+                  style={{ marginRight: '2px', marginBottom: '2px' }}
+                >
+                  {group.trim()} {/* Trim any extra whitespace */}
+                </Badge>
+              ))}
             </Table.Td>
-            {/* <Table.Td style={wrapTextStyle}>{dayjs(link.createdAtUtc).format('MMM D YYYY hh:mm')}</Table.Td>
-            <Table.Td style={wrapTextStyle}>{dayjs(link.updatedAtUtc).format('MMM D YYYY hh:mm')}</Table.Td> */}
+            {/* <Table.Td style={wrapTextStyle}>{dayjs(link.createdAt).format('MMM D YYYY hh:mm')}</Table.Td>
+            <Table.Td style={wrapTextStyle}>{dayjs(link.updatedAt).format('MMM D YYYY hh:mm')}</Table.Td> */}
             <Table.Td
               style={{
                 textAlign: 'center',
@@ -257,20 +200,9 @@ export const LinkShortener: React.FC = () => {
     const getEvents = async () => {
       setIsLoading(true);
       const response = await api.get('/api/v1/linkry/redir');
-      //const upcomingEvents = await api.get('/api/v1/events?upcomingOnly=true');
-      //const upcomingEventsSet = new Set(upcomingEvents.data.map((x: EventGetResponse) => x.id));
       const ownedLinks = response.data.ownedLinks;
       const delegatedLinks = response.data.delegatedLinks;
       setIsLoading(false);
-      // events.sort((a: EventGetResponse, b: EventGetResponse) => {
-      //   return a.start.localeCompare(b.start);
-      // });
-      // const enrichedResponse = response.data.map((item: EventGetResponse) => {
-      //   if (upcomingEventsSet.has(item.id)) {
-      //     return { ...item, upcoming: true };
-      //   }
-      //   return { ...item, upcoming: false };
-      // });
       setOwnedLinks(ownedLinks);
       setDelegatedLinks(delegatedLinks);
     };
@@ -299,10 +231,6 @@ export const LinkShortener: React.FC = () => {
     }
   };
 
-  /*if (ownedLinks.length === 0) {
-    return <FullScreenLoader />;
-  }*/ //Don't know what is this purpose, disable for now...
-
   return (
     <AuthGuard
       resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_ADMIN, AppRoles.LINKS_MANAGER] }}
@@ -330,15 +258,17 @@ export const LinkShortener: React.FC = () => {
             setDeleteLinkCandidate(null);
             close();
           }}
-          title="Confirm action"
+          title="Confirm Deletion"
         >
-          <Text>
-            Are you sure you want to delete the link with slug <i>{deleteLinkCandidate?.slug}</i>?
+          <Text size="sm">
+            Are you sure you want to delete the redirect from{' '}
+            <code>{deleteLinkCandidate.slug}</code> to <code>{deleteLinkCandidate.redirect}</code>?
           </Text>
           <hr />
           <Group>
             <Button
               leftSection={<IconTrash />}
+              color="Red"
               onClick={() => {
                 if (deleteLinkCandidate?.slug) {
                   deleteLink(deleteLinkCandidate.slug);
@@ -348,7 +278,6 @@ export const LinkShortener: React.FC = () => {
               Delete
             </Button>
             <Button
-              color="Red"
               leftSection={<IconCancel />}
               onClick={() => {
                 setDeleteLinkCandidate(null); // Clear the delete candidate
@@ -375,20 +304,6 @@ export const LinkShortener: React.FC = () => {
         >
           Add New Link
         </Button>
-        <AuthGuard
-          resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_ADMIN] }}
-          isAppShell={false}
-        >
-          <Button
-            leftSection={<IconEdit size={14} />}
-            onClick={() => {
-              navigate('/linkry/admin');
-            }}
-            color="teal"
-          >
-            Admin Panel
-          </Button>
-        </AuthGuard>
       </div>
 
       <Tabs
@@ -412,10 +327,7 @@ export const LinkShortener: React.FC = () => {
                 <Table.Tr>
                   <Table.Th>Shortened Link</Table.Th>
                   <Table.Th>Redirect URL</Table.Th>
-                  <Table.Th>Access Groups</Table.Th>
-                  <Table.Th>Visit Count</Table.Th>
-                  {/* <Table.Th>Created At</Table.Th>
-                  <Table.Th>Updated At</Table.Th> */}
+                  <Table.Th>Actions</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>{ownedLinks.map(renderTableRow)}</Table.Tbody>
@@ -430,10 +342,7 @@ export const LinkShortener: React.FC = () => {
                 <Table.Tr>
                   <Table.Th>Shortened Link</Table.Th>
                   <Table.Th>Redirect URL</Table.Th>
-                  <Table.Th>Access Groups</Table.Th>
-                  <Table.Th>Visit Count</Table.Th>
-                  {/* <Table.Th>Created At</Table.Th>
-                  <Table.Th>Updated At</Table.Th> */}
+                  <Table.Th>Actions</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>{delegatedLinks.map(renderTableRow)}</Table.Tbody>

@@ -18,7 +18,6 @@ import { ScanTicketsPage } from './pages/tickets/ScanTickets.page';
 import { SelectTicketsPage } from './pages/tickets/SelectEventId.page';
 import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
 import { ManageIamPage } from './pages/iam/ManageIam.page';
-import { LinkShortenerAdmin } from './pages/linkry/LinkShortenerAdmin.page';
 import { ManageProfilePage } from './pages/profile/ManageProfile.page';
 import { ManageStripeLinksPage } from './pages/stripe/ViewLinks.page';
 import { ManageRoomRequestsPage } from './pages/roomRequest/RoomRequestLanding.page';
@@ -149,10 +148,6 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/linkry',
     element: <LinkShortener />,
-  },
-  {
-    path: '/linkry/admin',
-    element: <LinkShortenerAdmin />,
   },
   {
     path: '/link/add',
