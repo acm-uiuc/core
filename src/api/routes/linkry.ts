@@ -220,53 +220,40 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         },
       },
       async (request, reply) => {
-        // Add to cloudfront key value store so that redirects happen at the edge
-        const kvArn = await getLinkryKvArn(fastify.runEnvironment);
-        let currentRecord = null;
-        try {
-          await setKey({
-            key: request.body.slug,
-            value: request.body.redirect,
-            kvsClient: fastify.cloudfrontKvClient,
-            arn: kvArn,
-          });
-        } catch (e) {
-          fastify.log.error(e);
-          if (e instanceof BaseError) {
-            throw e;
+        const { slug } = request.body;
+        const tableName = genericConfig.LinkryDynamoTableName;
+        const currentRecord = await fetchLinkEntry(
+          slug,
+          tableName,
+          fastify.dynamoClient,
+        );
+
+        if (currentRecord && !request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
+          const setUserGroups = new Set(request.tokenPayload?.groups || []);
+          const mutualGroups = intersection(
+            new Set(currentRecord["access"]),
+            setUserGroups,
+          );
+          if (mutualGroups.size == 0) {
+            throw new UnauthorizedError({
+              message:
+                "You do not own this record and have not been delegated access.",
+            });
           }
-          throw new DatabaseInsertError({
-            message: "Failed to save redirect to Cloudfront KV store.",
-          });
         }
 
         // Use a transaction to handle if one/multiple of these writes fail
         const TransactItems: TransactWriteItem[] = [];
 
         try {
-          const queryOwnerCommand = new QueryCommand({
-            TableName: genericConfig.LinkryDynamoTableName,
-            KeyConditionExpression:
-              "slug = :slug AND begins_with(access, :ownerPrefix)",
-            ExpressionAttributeValues: marshall({
-              ":slug": request.body.slug,
-              ":ownerPrefix": "OWNER#",
-            }),
-          });
-
-          currentRecord = await dynamoClient.send(queryOwnerCommand);
-          const mode =
-            currentRecord.Items && currentRecord.Items.length > 0
-              ? "modify"
-              : "create";
-          const currentUpdatedAt =
-            currentRecord.Items && currentRecord.Items.length > 0
-              ? unmarshall(currentRecord.Items[0]).updatedAt
-              : null;
-          const currentCreatedAt =
-            currentRecord.Items && currentRecord.Items.length > 0
-              ? unmarshall(currentRecord.Items[0]).createdAt
-              : null;
+          const mode = currentRecord ? "modify" : "create";
+          request.log.info(`Operating in ${mode} mode.`);
+          const currentUpdatedAt = currentRecord
+            ? currentRecord["updatedAt"]
+            : null;
+          const currentCreatedAt = currentRecord
+            ? currentRecord["createdAt"]
+            : null;
 
           // Generate new timestamp for all records
           const creationTime: Date = new Date();
@@ -420,38 +407,11 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
             TransactItems.push(deleteItem);
           }
-          console.log(JSON.stringify(TransactItems));
           await dynamoClient.send(
             new TransactWriteItemsCommand({ TransactItems }),
           );
-          return reply.status(201).send();
         } catch (e) {
           fastify.log.error(e);
-
-          // Clean up cloudfront KV store on error
-          if (currentRecord && currentRecord.Count && currentRecord.Count > 0) {
-            if (
-              currentRecord.Items &&
-              currentRecord.Items.length > 0 &&
-              currentRecord.Items[0].redirect.S
-            ) {
-              fastify.log.info("Reverting CF Key store value due to error");
-              await setKey({
-                key: request.body.slug,
-                value: currentRecord.Items[0].redirect.S,
-                kvsClient: fastify.cloudfrontKvClient,
-                arn: kvArn,
-              });
-            } else {
-              // it didn't exist before
-              fastify.log.info("Deleting CF Key store value due to error");
-              await deleteKey({
-                key: request.body.slug,
-                kvsClient: fastify.cloudfrontKvClient,
-                arn: kvArn,
-              });
-            }
-          }
           // Handle optimistic concurrency control
           if (
             e instanceof TransactionCanceledException &&
@@ -477,6 +437,25 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: "Failed to save data to DynamoDB.",
           });
         }
+        // Add to cloudfront key value store so that redirects happen at the edge
+        const kvArn = await getLinkryKvArn(fastify.runEnvironment);
+        try {
+          await setKey({
+            key: request.body.slug,
+            value: request.body.redirect,
+            kvsClient: fastify.cloudfrontKvClient,
+            arn: kvArn,
+          });
+        } catch (e) {
+          fastify.log.error(e);
+          if (e instanceof BaseError) {
+            throw e;
+          }
+          throw new DatabaseInsertError({
+            message: "Failed to save redirect to Cloudfront KV store.",
+          });
+        }
+        return reply.status(201).send();
       },
     );
 
@@ -536,68 +515,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             AppRoles.LINKS_ADMIN,
           ]);
 
-          const { slug: slug } = request.params;
-          // Query to get all items with the specified slug
-          const queryParams = {
-            TableName: genericConfig.LinkryDynamoTableName,
-            KeyConditionExpression: "slug = :slug",
-            ExpressionAttributeValues: {
-              ":slug": { S: decodeURIComponent(slug) },
-            },
-          };
-
-          const queryCommand = new QueryCommand(queryParams);
-          const queryResponse = await dynamoClient.send(queryCommand);
-
-          const items: object[] = queryResponse.Items || [];
-          const unmarshalledItems: (OwnerRecord | AccessRecord)[] = [];
-          for (const item of items) {
-            unmarshalledItems.push(
-              unmarshall(item as { [key: string]: AttributeValue }) as
-                | OwnerRecord
-                | AccessRecord,
-            );
-          }
-          if (items.length == 0)
-            throw new ValidationError({ message: "Slug does not exist" });
-
-          const ownerRecord: OwnerRecord = unmarshalledItems.filter(
-            (item): item is OwnerRecord => "redirect" in item,
-          )[0];
-
-          const accessGroupNames: string[] = [];
-          for (const record of unmarshalledItems) {
-            if (record && record != ownerRecord) {
-              const accessGroupUUID: string = record.access.split("GROUP#")[1];
-              accessGroupNames.push(accessGroupUUID);
-            }
-          }
-
-          if (!request.username) {
-            throw new Error("Username is undefined");
-          }
-
-          // const allUserGroupUUIDs = await listGroupIDsByEmail(
-          //   entraIdToken,
-          //   request.username,
-          // );
-
-          const allUserGroupUUIDs = request.tokenPayload?.groups ?? [];
-
-          const userLinkryGroups = allUserGroupUUIDs.filter((groupId) =>
-            [...LinkryGroupUUIDToGroupNameMap.keys()].includes(groupId),
-          );
-
-          if (
-            (ownerRecord &&
-              ownerRecord.access.split("OWNER#")[1] == request.username) ||
-            userLinkryGroups.length > 0
-          ) {
-          } else {
-            throw new UnauthorizedError({
-              message: "User does not have permission to delete slug.",
-            });
-          }
           if (!fastify.cloudfrontKvClient) {
             fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
               region: genericConfig.AwsRegion,
@@ -606,9 +523,91 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         },
       },
       async (request, reply) => {
-        const { slug: slug } = request.params;
+        const { slug } = request.params;
+        const tableName = genericConfig.LinkryDynamoTableName;
+        const currentRecord = await fetchLinkEntry(
+          slug,
+          tableName,
+          fastify.dynamoClient,
+        );
 
-        // Delete from Cloudfront KV first
+        if (!currentRecord) {
+          throw new NotFoundError({ endpointName: request.url });
+        }
+
+        if (currentRecord && !request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
+          const setUserGroups = new Set(request.tokenPayload?.groups || []);
+          const mutualGroups = intersection(
+            new Set(currentRecord["access"]),
+            setUserGroups,
+          );
+          if (mutualGroups.size == 0) {
+            throw new UnauthorizedError({
+              message:
+                "You do not own this record and have not been delegated access.",
+            });
+          }
+        }
+
+        const TransactItems: TransactWriteItem[] = [
+          ...currentRecord.access.map((x) => ({
+            Delete: {
+              TableName: genericConfig.LinkryDynamoTableName,
+              Key: {
+                slug: { S: slug },
+                access: { S: `GROUP#${x}` },
+              },
+              ConditionExpression: "updatedAt = :updatedAt",
+              ExpressionAttributeValues: marshall({
+                ":updatedAt": currentRecord.updatedAt,
+              }),
+            },
+          })),
+          {
+            Delete: {
+              TableName: genericConfig.LinkryDynamoTableName,
+              Key: {
+                slug: { S: slug },
+                access: { S: `OWNER#${currentRecord.owner}` },
+              },
+              ConditionExpression: "updatedAt = :updatedAt",
+              ExpressionAttributeValues: marshall({
+                ":updatedAt": currentRecord.updatedAt,
+              }),
+            },
+          },
+        ];
+        try {
+          await dynamoClient.send(
+            new TransactWriteItemsCommand({ TransactItems }),
+          );
+        } catch (e) {
+          fastify.log.error(e);
+          // Handle optimistic concurrency control
+          if (
+            e instanceof TransactionCanceledException &&
+            e.CancellationReasons &&
+            e.CancellationReasons.some(
+              (reason) => reason.Code === "ConditionalCheckFailed",
+            )
+          ) {
+            for (const reason of e.CancellationReasons) {
+              request.log.error(`Cancellation reason: ${reason.Message}`);
+            }
+            throw new ValidationError({
+              message:
+                "The record was modified by another process. Please try again.",
+            });
+          }
+
+          if (e instanceof BaseError) {
+            throw e;
+          }
+
+          throw new DatabaseInsertError({
+            message: "Failed to delete data from DynamoDB.",
+          });
+        }
         const kvArn = await getLinkryKvArn(fastify.runEnvironment);
         try {
           await deleteKey({
@@ -625,59 +624,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: "Failed to delete redirect at Cloudfront KV store.",
           });
         }
-        // Query to get all items with the specified slug
-        const queryParams = {
-          TableName: genericConfig.LinkryDynamoTableName, // Replace with your table name
-          KeyConditionExpression: "slug = :slug",
-          ExpressionAttributeValues: {
-            ":slug": { S: decodeURIComponent(slug) },
-          },
-        };
-
-        const queryCommand = new QueryCommand(queryParams);
-        const queryResponse = await dynamoClient.send(queryCommand);
-
-        const items = queryResponse.Items || [];
-
-        const filteredItems = items.filter((item) => {
-          if (item.access.S?.startsWith("OWNER#")) {
-            return true;
-          } // TODO Ethan: temporary solution, current filter deletes all owner tagged and group tagged, need to differentiate between deleting owner versus deleting specific groups...
-          else {
-            return (
-              item.access.S &&
-              [...LinkryGroupUUIDToGroupNameMap.keys()].includes(
-                item.access.S.replace("GROUP#", ""),
-              )
-            );
-          }
-        });
-
-        // Delete all fetched items
-        const deletePromises = (filteredItems || []).map((item) =>
-          dynamoClient.send(
-            new DeleteItemCommand({
-              TableName: genericConfig.LinkryDynamoTableName,
-              Key: { slug: item.slug, access: item.access },
-            }),
-          ),
-        );
-        try {
-          await Promise.all(deletePromises); // TODO: use TransactWriteItems, it can also do deletions
-        } catch (e) {
-          // TODO: revert Cloudfront KV store here
-          fastify.log.error(e);
-          if (e instanceof BaseError) {
-            throw e;
-          }
-          throw new DatabaseDeleteError({
-            message: "Failed to delete record in DynamoDB.",
-          });
-        }
-
-        reply.code(200).send({
-          message: `All records with slug '${slug}' deleted successfully`,
-        });
+        reply.code(200).send();
       },
     );
   };

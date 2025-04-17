@@ -22,8 +22,8 @@ export const createRequest = z.object({
 export const linkRecord = z.object({
   access: z.array(z.string()),
   slug: z.string().min(1),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
   redirect: z.string().url(),
   owner: z.string().optional()
 })
