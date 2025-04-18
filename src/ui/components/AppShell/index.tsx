@@ -74,15 +74,16 @@ export const navItems = [
     description: null,
     validRoles: [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_UPDATE],
   },
+  {
+    link: '/linkry',
+    name: 'Linkry',
+    icon: IconLink,
+    description: null,
+    validRoles: [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+  },
 ];
 
 export const extLinks = [
-  {
-    link: 'https://go.acm.illinois.edu/create',
-    name: 'Link Shortener',
-    icon: IconLink,
-    description: null,
-  },
   {
     link: 'https://go.acm.illinois.edu/reimburse',
     name: 'Funding and Reimbursement Requests',

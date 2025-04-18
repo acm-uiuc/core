@@ -37,7 +37,7 @@ export function createJwt(date?: Date, group?: string, email?: string) {
   }
 
   if (group) {
-    modifiedPayload.groups[0] = group;
+    modifiedPayload.groups = [group];
   }
   return jwt.sign(modifiedPayload, jwt_secret, { algorithm: "HS256" });
 }

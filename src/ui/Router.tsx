@@ -2,7 +2,6 @@ import { Anchor } from '@mantine/core';
 import { element } from 'prop-types';
 import React, { useState, useEffect, ReactNode } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router-dom';
-
 import { AcmAppShell } from './components/AppShell';
 import { useAuth } from './components/AuthContext';
 import AuthCallback from './components/AuthContext/AuthCallbackHandler.page';
@@ -13,6 +12,8 @@ import { LoginPage } from './pages/Login.page';
 import { LogoutPage } from './pages/Logout.page';
 import { ManageEventPage } from './pages/events/ManageEvent.page';
 import { ViewEventsPage } from './pages/events/ViewEvents.page';
+import { LinkShortener } from './pages/linkry/LinkShortener.page';
+import { ManageLinkPage } from './pages/linkry/ManageLink.page';
 import { ScanTicketsPage } from './pages/tickets/ScanTickets.page';
 import { SelectTicketsPage } from './pages/tickets/SelectEventId.page';
 import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
@@ -144,6 +145,18 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/events/manage',
     element: <ViewEventsPage />,
+  },
+  {
+    path: '/linkry',
+    element: <LinkShortener />,
+  },
+  {
+    path: '/linkry/add',
+    element: <ManageLinkPage />,
+  },
+  {
+    path: '/linkry/edit/:slug',
+    element: <ManageLinkPage />,
   },
   {
     path: '/tickets/scan',

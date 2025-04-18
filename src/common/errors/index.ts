@@ -180,6 +180,17 @@ export class NotSupportedError extends BaseError<"NotSupportedError"> {
   }
 }
 
+export class DatabaseDeleteError extends BaseError<"DatabaseDeleteError"> {
+  constructor({ message }: { message: string }) {
+    super({
+      name: "DatabaseDeleteError",
+      id: 111,
+      message,
+      httpStatusCode: 500,
+    });
+  }
+}
+
 export class EntraGroupError extends BaseError<"EntraGroupError"> {
   group: string;
   constructor({
@@ -201,6 +212,27 @@ export class EntraGroupError extends BaseError<"EntraGroupError"> {
     this.group = group;
   }
 }
+
+export class EntraGroupsFromEmailError extends BaseError<"EntraGroupsFromEmailError"> {
+    email: string;
+    constructor({
+      code,
+      message,
+      email
+    }: {
+        code?: number;
+        message?: string;
+        email: string
+    }) {
+      super({
+        name: "EntraGroupsFromEmailError",
+        id: 309, //TODO: What should this be?
+        message: message || `Could not fetch the groups for user ${email}.`,
+        httpStatusCode: code || 500
+      });
+      this.email = email;
+    }
+  };
 
 export class EntraFetchError extends BaseError<"EntraFetchError"> {
   email: string;

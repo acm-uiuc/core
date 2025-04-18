@@ -7,6 +7,7 @@ import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SQSClient } from "@aws-sdk/client-sqs";
+import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -30,6 +31,7 @@ declare module "fastify" {
     dynamoClient: DynamoDBClient;
     sqsClient?: SQSClient;
     secretsManagerClient: SecretsManagerClient;
+    cloudfrontKvClient: CloudFrontKeyValueStoreClient;
   }
   interface FastifyRequest {
     startTime: number;
@@ -38,3 +40,9 @@ declare module "fastify" {
     tokenPayload?: AadToken;
   }
 }
+
+export type NoDataRequest = {
+  Params: undefined;
+  Querystring: undefined;
+  Body: undefined;
+};

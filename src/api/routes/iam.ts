@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
-import { allAppRoles, AppRoles } from "../../common/roles.js";
+import { AppRoles } from "../../common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   addToTenant,
@@ -16,7 +16,6 @@ import {
   EntraInvitationError,
   InternalServerError,
   NotFoundError,
-  UnauthorizedError,
 } from "../../common/errors/index.js";
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { genericConfig, roleArns } from "../../common/config.js";
@@ -465,7 +464,9 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       const entraIdToken = await getEntraIdToken(
         await getAuthorizedClients(),
-        fastify.environmentConfig.AadValidClientId,
+        fastify.environmentConfig.AadValidReadOnlyClientId,
+        undefined,
+        genericConfig.EntraReadOnlySecretName,
       );
       const response = await listGroupMembers(entraIdToken, groupId);
       reply.status(200).send(response);
