@@ -151,15 +151,11 @@ const authenticatedRouter = createBrowserRouter([
     element: <LinkShortener />,
   },
   {
-    path: '/linkry/admin',
-    element: <LinkShortenerAdmin />,
-  },
-  {
-    path: '/link/add',
+    path: '/linkry/add',
     element: <ManageLinkPage />,
   },
   {
-    path: '/link/edit/:slug',
+    path: '/linkry/edit/:slug',
     element: <ManageLinkPage />,
   },
   {

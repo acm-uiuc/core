@@ -44,7 +44,7 @@ export function createJwt(
   }
 
   if (group) {
-    modifiedPayload.groups[0] = group;
+    modifiedPayload.groups = [group];
   }
 
   return jwt.sign(modifiedPayload, jwt_secret, { algorithm: "HS256" });

@@ -13,10 +13,7 @@ export type ConfigType = {
   AzureRoleMapping: AzureRoleMapping;
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
-  LinkryParentGroupId: string
   LinkryBaseUrl: string
-  LinkryGroupNameToGroupUUIDMap: Map<String, String>;
-  LinkryGroupUUIDToGroupNameMap: Map<String, String>;
   PasskitIdentifier: string;
   PasskitSerialNumber: string;
   MembershipApiEndpoint: string;
@@ -25,6 +22,7 @@ export type ConfigType = {
   PaidMemberGroupId: string;
   PaidMemberPriceId: string;
   AadValidReadOnlyClientId: string;
+  LinkryCloudfrontKvArn?: string;
 };
 
 export type GenericConfigType = {
@@ -99,25 +97,7 @@ const environmentConfig: EnvironmentConfigType = {
       /http:\/\/localhost:\d+$/,
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
-    LinkryParentGroupId: "Accef2ab4-532c-4989-8041-b8f3449abe0a", //TODO: use id to fetch child groups & 
-    LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org", 
-    LinkryGroupNameToGroupUUIDMap: new Map([
-      ["ACM Exec Linkry Test", "6d0bf289-71e3-4b8f-929b-63d93c2e0533"],
-      ["ACM Link Shortener Managers Linkry Test", "a93bc2ad-b2b4-47bf-aa32-603dda8f6fdd"], 
-      ["ACM Officers Linkry Test", "99b6b87c-9550-4529-87c1-f40862ab7add"], 
-      ["ACM Infra Leadership Linkry Test", "83c275f8-e533-4987-b537-a94b86c9d28e"],
-      ["ACM Infra Team", "940e4f9e-6891-4e28-9e29-148798495cdb"], 
-      ["ACM Infra Leads","f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6"]
-    ]),
-    LinkryGroupUUIDToGroupNameMap: new Map([
-        ["6d0bf289-71e3-4b8f-929b-63d93c2e0533", "ACM Exec Linkry Test"],
-        ["a93bc2ad-b2b4-47bf-aa32-603dda8f6fdd", "ACM Link Shortener Managers Linkry Test"], 
-        ["99b6b87c-9550-4529-87c1-f40862ab7add", "ACM Officers Linkry Test"], 
-        ["83c275f8-e533-4987-b537-a94b86c9d28e", "ACM Infra Leadership Linkry Test"],
-        ["940e4f9e-6891-4e28-9e29-148798495cdb", "ACM Infra Team"], 
-        ["f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6", "ACM Infra Leads"]
-
-    ]),
+    LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
     PasskitSerialNumber: "0",
     MembershipApiEndpoint:
@@ -127,7 +107,8 @@ const environmentConfig: EnvironmentConfigType = {
       "https://sqs.us-east-1.amazonaws.com/427040638965/infra-core-api-sqs",
     PaidMemberGroupId: "9222451f-b354-4e64-ba28-c0f367a277c2",
     PaidMemberPriceId: "price_1R4TcTDGHrJxx3mKI6XF9cNG",
-    AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba"
+    AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
+    LinkryCloudfrontKvArn: "arn:aws:cloudfront::427040638965:key-value-store/0c2c02fd-7c47-4029-975d-bc5d0376bba1"
   },
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
@@ -139,20 +120,7 @@ const environmentConfig: EnvironmentConfigType = {
       /http:\/\/localhost:\d+$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
-    LinkryParentGroupId: "need-to-create-one",
-    LinkryBaseUrl: "https://go.acm.illinois.edu/" , 
-    LinkryGroupNameToGroupUUIDMap: new Map([
-        ['ACM Exec', 'ad81254b-4eeb-4c96-8191-3acdce9194b1'],
-        ['ACM Link Shortener Managers', '270c2d58-11f6-4c45-a217-d46a035fe853'],
-        ['ACM Officers', 'ff49e948-4587-416b-8224-65147540d5fc'],
-        ['ACM Infra Leadership', 'f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6'],//TODO: is this correct?
-      ]),
-      LinkryGroupUUIDToGroupNameMap: new Map([
-          ['ad81254b-4eeb-4c96-8191-3acdce9194b1', 'ACM Exec'],
-          ['270c2d58-11f6-4c45-a217-d46a035fe853', 'ACM Link Shortener Managers'],
-          ['ff49e948-4587-416b-8224-65147540d5fc', 'ACM Officers'],
-          ['f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6', 'ACM Infra Leadership'],//TODO: is this correct?
-        ]),
+    LinkryBaseUrl: "https://go.acm.illinois.edu/",
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
     PasskitSerialNumber: "0",
     MembershipApiEndpoint:
@@ -202,5 +170,14 @@ const notificationRecipients: NotificationRecipientsType = {
     InfraChairs: 'infra@acm.illinois.edu',
   }
 }
+
+export const LinkryGroupUUIDToGroupNameMap = new Map([
+  ['ad81254b-4eeb-4c96-8191-3acdce9194b1', 'ACM Exec'],
+  ['270c2d58-11f6-4c45-a217-d46a035fe853', 'ACM Link Shortener Managers'],
+  ['c4ddcc9f-a9c0-47e7-98c1-f1b345d53121', 'ACM Officers'],
+  ['f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6', 'ACM Infra Leads'],
+  ['c0702752-50da-49da-83d4-bcbe6f7a9b1b', 'ACM Infra Chairs'],
+  ['940e4f9e-6891-4e28-9e29-148798495cdb', 'ACM Infra Team']
+]);
 
 export { genericConfig, environmentConfig, roleArns, notificationRecipients };

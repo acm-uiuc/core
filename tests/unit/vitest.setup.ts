@@ -44,6 +44,7 @@ vi.mock(
           "1": [],
           LINKS_ADMIN: [AppRoles.LINKS_ADMIN],
           "scanner-only": [AppRoles.TICKETS_SCANNER],
+          "999": [AppRoles.LINKS_MANAGER],
         };
 
         return mockGroupRoles[groupId] || [];
