@@ -278,7 +278,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       return reply.send(response);
     },
   );
-  fastify.post<TicketsPostRequest>(
+  fastify.patch<TicketsPostRequest>(
     "/:eventId",
     {
       onRequest: async (request, reply) => {

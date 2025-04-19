@@ -181,10 +181,11 @@ const SelectTicketsPage: React.FC = () => {
         itemSalesActive: newIsActive,
         type: isTicketItem(item) ? 'ticket' : 'merch',
       };
-      await api.post(`/api/v1/tickets/${item.itemId}`, data);
+      await api.patch(`/api/v1/tickets/${item.itemId}`, data);
       await fetchItems();
       notifications.show({
-        message: 'Item status changed!',
+        title: 'Changes saved',
+        message: `Sales for ${item.itemName} are ${newIsActive ? 'enabled' : 'disabled'}!`,
       });
     } catch (error) {
       console.error('Error setting new status:', error);
