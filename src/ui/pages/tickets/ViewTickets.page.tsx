@@ -67,17 +67,22 @@ const ViewTicketsPage: React.FC = () => {
     try {
       let emailsToCopy: string[] = [];
       let copyModeHumanString = '';
+      const nonRefundedTickets = allTickets.filter((x) => !x.refunded);
       switch (mode) {
         case TicketsCopyMode.ALL:
-          emailsToCopy = allTickets.map((x) => x.purchaserData.email);
+          emailsToCopy = nonRefundedTickets.map((x) => x.purchaserData.email);
           copyModeHumanString = 'All';
           break;
         case TicketsCopyMode.FULFILLED:
-          emailsToCopy = allTickets.filter((x) => x.fulfilled).map((x) => x.purchaserData.email);
+          emailsToCopy = nonRefundedTickets
+            .filter((x) => x.fulfilled)
+            .map((x) => x.purchaserData.email);
           copyModeHumanString = 'Fulfilled';
           break;
         case TicketsCopyMode.UNFULFILLED:
-          emailsToCopy = allTickets.filter((x) => !x.fulfilled).map((x) => x.purchaserData.email);
+          emailsToCopy = nonRefundedTickets
+            .filter((x) => !x.fulfilled)
+            .map((x) => x.purchaserData.email);
           copyModeHumanString = 'Unfulfilled';
           break;
       }
@@ -157,7 +162,7 @@ const ViewTicketsPage: React.FC = () => {
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}>
       <Title order={2}>View Tickets/Merch Sales</Title>
-      <Group mt="md" mb="md">
+      <Group mt="md">
         <Button
           onClick={() => {
             copyEmails(TicketsCopyMode.ALL);
@@ -180,8 +185,11 @@ const ViewTicketsPage: React.FC = () => {
           Copy Unfulfilled Emails
         </Button>
       </Group>
+      <Text size="xs">Note: all lists do not include refunded tickets.</Text>
       <div>
-        <Title order={4}>{pluralize('item', totalQuantitySold, true)} sold</Title>
+        <Title mt="md" order={4}>
+          {pluralize('item', totalQuantitySold, true)} sold
+        </Title>
         <Table>
           <Table.Thead>
             <Table.Tr>
