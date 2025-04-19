@@ -901,6 +901,15 @@ Resources:
         async function handler(event) {
           const request = event.request;
           const path = request.uri.replace(/^\/+/, '');
+          if (path === "") {
+            return {
+              statusCode: 301,
+              statusDescription: 'Found',
+              headers: {
+                'location': { value: "https://core.acm.illinois.edu/linkry" }
+              }
+            }
+          }
           let redirectUrl = "https://acm.illinois.edu/404";
           try {
             const value = await kvs.get(path);
