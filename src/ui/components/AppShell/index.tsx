@@ -75,7 +75,7 @@ export const navItems = [
   },
   {
     link: '/linkry',
-    name: 'Linkry',
+    name: 'Link Shortener',
     icon: IconLink,
     description: null,
     validRoles: [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
