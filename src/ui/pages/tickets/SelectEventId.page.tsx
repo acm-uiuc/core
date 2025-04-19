@@ -170,6 +170,12 @@ const SelectTicketsPage: React.FC = () => {
     return <FullScreenLoader />;
   }
 
+  const handleToggleSales = (item: ItemMetadata | TicketItemMetadata) => {
+    notifications.show({
+      message: 'Not impelemented yet!',
+    });
+  };
+
   const handleManageClick = (itemId: string) => {
     navigate(`/tickets/manage/${itemId}`);
   };
@@ -253,11 +259,18 @@ const SelectTicketsPage: React.FC = () => {
                         resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}
                       >
                         <Button
-                          variant="outline"
+                          variant="primary"
                           onClick={() => handleManageClick(item.itemId)}
                           id={`merch-${item.itemId}-manage`}
                         >
                           View Sales
+                        </Button>
+                        <Button
+                          color={getMerchStatus(item).color === 'green' ? 'red' : 'green'}
+                          onClick={() => handleToggleSales(item)}
+                          id={`tickets-${item.itemId}-toggle-status`}
+                        >
+                          {getMerchStatus(item).color === 'green' ? 'Disable' : 'Enable'} Sales
                         </Button>
                       </AuthGuard>
                     </Group>
@@ -330,13 +343,22 @@ const SelectTicketsPage: React.FC = () => {
                         isAppShell={false}
                         resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}
                       >
-                        <Button
-                          variant="outline"
-                          onClick={() => handleManageClick(ticket.itemId)}
-                          id={`tickets-${ticket.itemId}-manage`}
-                        >
-                          View Sales
-                        </Button>
+                        <Group>
+                          <Button
+                            variant="primary"
+                            onClick={() => handleManageClick(ticket.itemId)}
+                            id={`tickets-${ticket.itemId}-manage`}
+                          >
+                            View Sales
+                          </Button>
+                          <Button
+                            color={getTicketStatus(ticket).color === 'green' ? 'red' : 'green'}
+                            onClick={() => handleToggleSales(ticket)}
+                            id={`tickets-${ticket.itemId}-toggle-status`}
+                          >
+                            {getTicketStatus(ticket).color === 'green' ? 'Disable' : 'Enable'} Sales
+                          </Button>
+                        </Group>
                       </AuthGuard>
                     </Group>
                   </Table.Td>
