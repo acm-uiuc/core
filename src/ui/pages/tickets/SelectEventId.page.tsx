@@ -19,7 +19,7 @@ import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { AuthGuard } from '@ui/components/AuthGuard';
 import { useApi } from '@ui/util/api';
 import { AppRoles } from '@common/roles';
-import App from '@ui/App';
+import { ItemPostData } from '@common/types/tickets';
 
 const baseItemMetadata = z.object({
   itemId: z.string().min(1),
@@ -106,31 +106,29 @@ const SelectTicketsPage: React.FC = () => {
   const [reversedSort, setReversedSort] = useState(false);
   const api = useApi('core');
   const navigate = useNavigate();
-
+  const fetchItems = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/api/v1/tickets/');
+      const parsed = listItemsResponseSchema.parse(response.data);
+      setItems({
+        tickets: parsed.tickets,
+        merch: parsed.merch,
+      });
+      handleSort('status');
+    } catch (error) {
+      console.error('Error fetching items:', error);
+      notifications.show({
+        title: 'Error fetching items',
+        message: 'Failed to load available items. Please try again later.',
+        color: 'red',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get('/api/v1/tickets/');
-        const parsed = listItemsResponseSchema.parse(response.data);
-        setItems({
-          tickets: parsed.tickets,
-          merch: parsed.merch,
-        });
-      } catch (error) {
-        console.error('Error fetching items:', error);
-        notifications.show({
-          title: 'Error fetching items',
-          message: 'Failed to load available items. Please try again later.',
-          color: 'red',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchItems();
-    handleSort('status');
   }, []);
 
   const handleSort = (field: SortBy) => {
@@ -170,10 +168,34 @@ const SelectTicketsPage: React.FC = () => {
     return <FullScreenLoader />;
   }
 
-  const handleToggleSales = (item: ItemMetadata | TicketItemMetadata) => {
-    notifications.show({
-      message: 'Not impelemented yet!',
-    });
+  const handleToggleSales = async (item: ItemMetadata | TicketItemMetadata) => {
+    let newIsActive = false;
+    if (isTicketItem(item)) {
+      newIsActive = !(getTicketStatus(item).color === 'green');
+    } else {
+      newIsActive = !(getMerchStatus(item).color === 'green');
+    }
+    try {
+      setLoading(true);
+      const data: ItemPostData = {
+        itemSalesActive: newIsActive,
+        type: isTicketItem(item) ? 'ticket' : 'merch',
+      };
+      await api.post(`/api/v1/tickets/${item.itemId}`, data);
+      await fetchItems();
+      notifications.show({
+        message: 'Item status changed!',
+      });
+    } catch (error) {
+      console.error('Error setting new status:', error);
+      notifications.show({
+        title: 'Error setting status',
+        message: 'Failed to set status. Please try again later.',
+        color: 'red',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleManageClick = (itemId: string) => {
