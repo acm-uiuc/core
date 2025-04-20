@@ -5,5 +5,6 @@ export enum Modules {
   TICKETS = "tickets",
   EMAIL_NOTIFICATION = "emailNotification",
   PROVISION_NEW_MEMBER = "provisionNewMember",
-  MOBILE_WALLET = "mobileWallet"
+  MOBILE_WALLET = "mobileWallet",
+  LINKRY = "linkry"
 }

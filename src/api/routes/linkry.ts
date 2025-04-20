@@ -48,6 +48,8 @@ import {
   getAllLinks,
 } from "api/functions/linkry.js";
 import { intersection } from "api/plugins/auth.js";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
 
 type OwnerRecord = {
   slug: string;
@@ -453,6 +455,15 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: "Failed to save redirect to Cloudfront KV store.",
           });
         }
+        await createAuditLogEntry({
+          dynamoClient: fastify.dynamoClient,
+          entry: {
+            module: Modules.LINKRY,
+            actor: request.username!,
+            target: request.body.slug,
+            message: `Created redirect to "${request.body.redirect}"`,
+          },
+        });
         return reply.status(201).send();
       },
     );
@@ -575,7 +586,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             },
           },
         ];
-        console.log(JSON.stringify(TransactItems));
         try {
           await fastify.dynamoClient.send(
             new TransactWriteItemsCommand({ TransactItems }),
@@ -623,6 +633,15 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: "Failed to delete redirect at Cloudfront KV store.",
           });
         }
+        await createAuditLogEntry({
+          dynamoClient: fastify.dynamoClient,
+          entry: {
+            module: Modules.LINKRY,
+            actor: request.username!,
+            target: slug,
+            message: `Deleted short link redirect."`,
+          },
+        });
         reply.code(200).send();
       },
     );
