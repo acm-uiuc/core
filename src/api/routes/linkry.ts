@@ -7,28 +7,18 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   NotFoundError,
-  UnauthenticatedError,
   UnauthorizedError,
   ValidationError,
 } from "../../common/errors/index.js";
 import { NoDataRequest } from "../types.js";
 import {
-  DynamoDBClient,
   QueryCommand,
-  DeleteItemCommand,
-  ScanCommand,
   TransactWriteItemsCommand,
-  AttributeValue,
   TransactWriteItem,
-  GetItemCommand,
   TransactionCanceledException,
 } from "@aws-sdk/client-dynamodb";
 import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
-import {
-  genericConfig,
-  EVENT_CACHED_DURATION,
-  LinkryGroupUUIDToGroupNameMap,
-} from "../../common/config.js";
+import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
@@ -36,8 +26,7 @@ import {
   getLinkryKvArn,
   setKey,
 } from "api/functions/cloudfrontKvStore.js";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { createRequest, getRequest } from "common/types/linkry.js";
+import { createRequest } from "common/types/linkry.js";
 import {
   extractUniqueSlugs,
   fetchOwnerRecords,
