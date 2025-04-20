@@ -48,7 +48,7 @@ Mappings:
       LogRetentionDays: 7
       SesDomain: "aws.qa.acmuiuc.org"
     prod:
-      LogRetentionDays: 365
+      LogRetentionDays: 90
       SesDomain: "acm.illinois.edu"
   ApiGwConfig:
     dev:
