@@ -39,6 +39,8 @@ import {
 } from "../functions/authorization.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -181,7 +183,18 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createdAt: timestamp,
           }),
         });
+        const logPromise = createAuditLogEntry({
+          dynamoClient: fastify.dynamoClient,
+          entry: {
+            module: Modules.IAM,
+            actor: request.username!,
+            target: groupId,
+            message: `set target roles to ${request.body.roles.toString()}`,
+            requestId: request.id,
+          },
+        });
         await fastify.dynamoClient.send(command);
+        await logPromise;
         fastify.nodeCache.set(
           `grouproles-${groupId}`,
           request.body.roles,
@@ -199,15 +212,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       reply.send({ message: "OK" });
-      request.log.info(
-        {
-          type: "audit",
-          module: "iam",
-          actor: request.username,
-          target: groupId,
-        },
-        `set target roles to ${request.body.roles.toString()}`,
-      );
     },
   );
   fastify.post<{ Body: InviteUserPostRequest }>(
@@ -241,28 +245,35 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const results = await Promise.allSettled(
         emails.map((email) => addToTenant(entraIdToken, email)),
       );
+      const logPromises = [];
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         if (result.status === "fulfilled") {
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: emails[i],
-            },
-            "invited user to Entra ID tenant.",
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: emails[i],
+                message: "Invited user to Entra ID tenant.",
+                requestId: request.id,
+              },
+            }),
           );
           response.success.push({ email: emails[i] });
         } else {
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: emails[i],
-            },
-            "failed to invite user to Entra ID tenant.",
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: emails[i],
+                message: "Failed to invite user to Entra ID tenant.",
+                requestId: request.id,
+              },
+            }),
           );
           if (result.reason instanceof EntraInvitationError) {
             response.failure.push({
@@ -277,6 +288,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
       }
+      await Promise.allSettled(logPromises);
       reply.status(202).send(response);
     },
   );
@@ -352,28 +364,35 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         success: [],
         failure: [],
       };
+      const logPromises = [];
       for (let i = 0; i < addResults.length; i++) {
         const result = addResults[i];
         if (result.status === "fulfilled") {
           response.success.push({ email: request.body.add[i] });
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: request.body.add[i],
-            },
-            `added target to group ID ${groupId}`,
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: request.body.add[i],
+                message: `added target to group ID ${groupId}`,
+                requestId: request.id,
+              },
+            }),
           );
         } else {
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: request.body.add[i],
-            },
-            `failed to add target to group ID ${groupId}`,
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: request.body.add[i],
+                message: `failed to add target to group ID ${groupId}`,
+                requestId: request.id,
+              },
+            }),
           );
           if (result.reason instanceof EntraGroupError) {
             response.failure.push({
@@ -392,24 +411,30 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const result = removeResults[i];
         if (result.status === "fulfilled") {
           response.success.push({ email: request.body.remove[i] });
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: request.body.remove[i],
-            },
-            `removed target from group ID ${groupId}`,
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: request.body.add[i],
+                message: `remove target from group ID ${groupId}`,
+                requestId: request.id,
+              },
+            }),
           );
         } else {
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: request.body.add[i],
-            },
-            `failed to remove target from group ID ${groupId}`,
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: request.body.add[i],
+                message: `failed to remove target from group ID ${groupId}`,
+                requestId: request.id,
+              },
+            }),
           );
           if (result.reason instanceof EntraGroupError) {
             response.failure.push({
@@ -424,6 +449,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
       }
+      await Promise.allSettled(logPromises);
       reply.status(202).send(response);
     },
   );
