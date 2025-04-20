@@ -17,6 +17,7 @@ import {
   InternalServerError,
   UnauthenticatedError,
 } from "common/errors/index.js";
+import { Modules } from "common/modules.js";
 import { AppRoles } from "common/roles.js";
 import {
   invoiceLinkPostResponseSchema,
@@ -140,7 +141,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const logPromise = createAuditLogEntry({
         dynamoClient: fastify.dynamoClient,
         entry: {
-          module: "stripe",
+          module: Modules.STRIPE,
           actor: request.username,
           target: `Link ${linkId} | Invoice ${invoiceId}`,
           message: "Created Stripe payment link",

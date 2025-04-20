@@ -18,7 +18,7 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { RunEnvironment } from "common/roles.js";
 import pino from "pino";
 import { createAuditLogEntry } from "./auditLog.js";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { Modules } from "common/modules.js";
 
 function trim(s: string) {
   return (s || "").replace(/^\s+|\s+$/g, "");
@@ -120,7 +120,7 @@ export async function issueAppleWalletMembershipCard(
   const buffer = pkpass.getAsBuffer();
   await createAuditLogEntry({
     entry: {
-      module: "mobileWallet",
+      module: Modules.MOBILE_WALLET,
       actor: initiator,
       target: email,
       message: "Created membership verification pass",

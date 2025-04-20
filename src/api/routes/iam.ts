@@ -40,6 +40,7 @@ import {
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -185,7 +186,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const logPromise = createAuditLogEntry({
           dynamoClient: fastify.dynamoClient,
           entry: {
-            module: "iam",
+            module: Modules.IAM,
             actor: request.username!,
             target: groupId,
             message: `set target roles to ${request.body.roles.toString()}`,
@@ -252,7 +253,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createAuditLogEntry({
               dynamoClient: fastify.dynamoClient,
               entry: {
-                module: "iam",
+                module: Modules.IAM,
                 actor: request.username!,
                 target: emails[i],
                 message: "Invited user to Entra ID tenant.",
@@ -266,7 +267,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createAuditLogEntry({
               dynamoClient: fastify.dynamoClient,
               entry: {
-                module: "iam",
+                module: Modules.IAM,
                 actor: request.username!,
                 target: emails[i],
                 message: "Failed to invite user to Entra ID tenant.",
@@ -372,7 +373,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createAuditLogEntry({
               dynamoClient: fastify.dynamoClient,
               entry: {
-                module: "iam",
+                module: Modules.IAM,
                 actor: request.username!,
                 target: request.body.add[i],
                 message: `added target to group ID ${groupId}`,
@@ -385,7 +386,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createAuditLogEntry({
               dynamoClient: fastify.dynamoClient,
               entry: {
-                module: "iam",
+                module: Modules.IAM,
                 actor: request.username!,
                 target: request.body.add[i],
                 message: `failed to add target to group ID ${groupId}`,
@@ -414,7 +415,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createAuditLogEntry({
               dynamoClient: fastify.dynamoClient,
               entry: {
-                module: "iam",
+                module: Modules.IAM,
                 actor: request.username!,
                 target: request.body.add[i],
                 message: `remove target from group ID ${groupId}`,
@@ -427,7 +428,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createAuditLogEntry({
               dynamoClient: fastify.dynamoClient,
               entry: {
-                module: "iam",
+                module: Modules.IAM,
                 actor: request.username!,
                 target: request.body.add[i],
                 message: `failed to remove target from group ID ${groupId}`,

@@ -4,6 +4,7 @@ import { mockClient } from "aws-sdk-client-mock";
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { afterEach, beforeEach } from "node:test";
 import { genericConfig } from "../../../src/common/config";
+import { Modules } from "../../../src/common/modules.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 
 
@@ -21,7 +22,7 @@ describe("Audit Log tests", () => {
     );
 
     const payload = {
-      module: 'iam',
+      module: Modules.IAM,
       actor: 'admin@acm.illinois.edu',
       target: 'nonadmin@acm.illinois.edu',
       requestId: 'abcdef',

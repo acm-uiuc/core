@@ -22,6 +22,7 @@ import pino from "pino";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { setPaidMembership } from "api/functions/membership.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
 
 const getAuthorizedClients = async (
   logger: pino.Logger,
@@ -111,7 +112,7 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
   if (updated) {
     const logPromise = createAuditLogEntry({
       entry: {
-        module: "provisionNewMember",
+        module: Modules.PROVISION_NEW_MEMBER,
         actor: metadata.initiator,
         target: email,
         message: "Marked target as a paid member.",

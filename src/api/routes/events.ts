@@ -31,6 +31,7 @@ import {
   getCacheCounter,
 } from "api/functions/cache.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
@@ -336,7 +337,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         await createAuditLogEntry({
           dynamoClient: fastify.dynamoClient,
           entry: {
-            module: "events",
+            module: Modules.EVENTS,
             actor: request.username,
             target: entryUUID,
             message: `${verb} event "${entryUUID}"`,
@@ -396,7 +397,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         await createAuditLogEntry({
           dynamoClient: fastify.dynamoClient,
           entry: {
-            module: "events",
+            module: Modules.EVENTS,
             actor: request.username,
             target: id,
             message: `Deleted event "${id}"`,

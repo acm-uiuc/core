@@ -3,6 +3,7 @@ import { currentEnvironmentConfig, SQSHandlerFunction } from "./index.js";
 import { SendEmailCommand, SESClient } from "@aws-sdk/client-ses";
 import { genericConfig } from "common/config.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
 
 const stripHtml = (html: string): string => {
   return html
@@ -44,7 +45,7 @@ export const emailNotificationsHandler: SQSHandlerFunction<
   });
   const logPromise = createAuditLogEntry({
     entry: {
-      module: "emailNotification",
+      module: Modules.EMAIL_NOTIFICATION,
       actor: metadata.initiator,
       target: to.join(";"),
       message: `Sent email notification with subject "${subject}".`,
