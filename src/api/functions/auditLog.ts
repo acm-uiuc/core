@@ -23,9 +23,8 @@ export async function createAuditLogEntry({
 }: AuditLogParams) {
   const baseNow = Date.now();
   const timestamp = Math.floor(baseNow / 1000);
-  const expireAt = Math.floor(
-    (baseNow + RETENTION_DAYS * 24 * 60 * 60 * 1000) / 1000,
-  );
+  const expireAt =
+    timestamp + Math.floor((RETENTION_DAYS * 24 * 60 * 60 * 1000) / 1000);
   if (!dynamoClient) {
     dynamoClient = new DynamoDBClient({
       region: genericConfig.AwsRegion,
