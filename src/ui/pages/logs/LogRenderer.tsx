@@ -203,6 +203,7 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
               valueFormat={
                 showUtcTime ? 'MM-DD-YYYY h:mm A [UTC]' : `MM-DD-YYYY h:mm A [Local Time]`
               }
+              data-testid="start-time-input"
               required
             />
 
@@ -215,6 +216,7 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
               valueFormat={
                 showUtcTime ? 'MM-DD-YYYY h:mm A [UTC]' : `MM-DD-YYYY h:mm A [Local Time]`
               }
+              data-testid="end-time-input"
               required
             />
 

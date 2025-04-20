@@ -14,7 +14,7 @@ export enum Modules {
 export const ModulesToHumanName: Record<Modules, string> = {
   [Modules.IAM]: "IAM",
   [Modules.EVENTS]: "Events",
-  [Modules.STRIPE]: "Stripe",
+  [Modules.STRIPE]: "Stripe Integration",
   [Modules.TICKETS]: "Ticketing/Merch",
   [Modules.EMAIL_NOTIFICATION]: "Email Notifications",
   [Modules.PROVISION_NEW_MEMBER]: "Member Provisioning",
