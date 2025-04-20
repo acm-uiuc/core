@@ -142,3 +142,4 @@ __pycache__
 /blob-report/
 /playwright/.cache/
 dist_devel/
+!src/ui/pages/logs
