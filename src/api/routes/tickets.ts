@@ -23,6 +23,7 @@ import { validateEmail } from "../functions/validation.js";
 import { AppRoles } from "../../common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { ItemPostData } from "common/types/tickets.js";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
 
 const postMerchSchema = z.object({
   type: z.literal("merch"),
@@ -474,15 +475,16 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         ticketId,
         purchaserData,
       });
-      request.log.info(
-        {
-          type: "audit",
+      await createAuditLogEntry({
+        dynamoClient: fastify.dynamoClient,
+        entry: {
           module: "tickets",
-          actor: request.username,
+          actor: request.username!,
           target: ticketId,
+          message: `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
+          requestId: request.id,
         },
-        `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
-      );
+      });
     },
   );
 };

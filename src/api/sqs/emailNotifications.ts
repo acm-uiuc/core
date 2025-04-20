@@ -2,6 +2,7 @@ import { AvailableSQSFunctions } from "common/types/sqsMessage.js";
 import { currentEnvironmentConfig, SQSHandlerFunction } from "./index.js";
 import { SendEmailCommand, SESClient } from "@aws-sdk/client-ses";
 import { genericConfig } from "common/config.js";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
 
 const stripHtml = (html: string): string => {
   return html
@@ -41,18 +42,17 @@ export const emailNotificationsHandler: SQSHandlerFunction<
       },
     },
   });
+  const logPromise = createAuditLogEntry({
+    entry: {
+      module: "emailNotification",
+      actor: metadata.initiator,
+      target: to.join(";"),
+      message: `Sent email notification with subject "${subject}".`,
+    },
+  });
   const sesClient = new SESClient({ region: genericConfig.AwsRegion });
   const response = await sesClient.send(command);
   logger.info("Sent!");
-  logger.info(
-    {
-      type: "audit",
-      module: "emailNotification",
-      actor: metadata.initiator,
-      reqId: metadata.reqId,
-      target: to,
-    },
-    `Sent email notification with subject "${subject}".`,
-  );
+  await logPromise;
   return response;
 };

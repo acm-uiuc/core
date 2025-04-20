@@ -4,6 +4,7 @@ import {
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
 import {
   createStripeLink,
   StripeLinkCreateParams,
@@ -135,16 +136,18 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           createdAt: new Date().toISOString(),
         }),
       });
-      await fastify.dynamoClient.send(dynamoCommand);
-      request.log.info(
-        {
-          type: "audit",
+      const itemPromise = fastify.dynamoClient.send(dynamoCommand);
+      const logPromise = createAuditLogEntry({
+        dynamoClient: fastify.dynamoClient,
+        entry: {
           module: "stripe",
           actor: request.username,
           target: `Link ${linkId} | Invoice ${invoiceId}`,
+          message: "Created Stripe payment link",
         },
-        "Created Stripe payment link",
-      );
+      });
+      await itemPromise;
+      await logPromise;
       reply.status(201).send({ id: linkId, link: url });
     },
   );

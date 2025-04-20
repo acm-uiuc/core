@@ -30,6 +30,7 @@ import {
   deleteCacheCounter,
   getCacheCounter,
 } from "api/functions/cache.js";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
@@ -266,6 +267,10 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
           originalEvent = unmarshall(originalEvent);
         }
+        let verb = "created";
+        if (userProvidedId && userProvidedId === entryUUID) {
+          verb = "modified";
+        }
         const entry = {
           ...request.body,
           id: entryUUID,
@@ -281,10 +286,6 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             Item: marshall(entry),
           }),
         );
-        let verb = "created";
-        if (userProvidedId && userProvidedId === entryUUID) {
-          verb = "modified";
-        }
         try {
           if (request.body.featured && !request.body.repeats) {
             await updateDiscord(
@@ -332,19 +333,20 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           1,
           false,
         );
+        await createAuditLogEntry({
+          dynamoClient: fastify.dynamoClient,
+          entry: {
+            module: "events",
+            actor: request.username,
+            target: entryUUID,
+            message: `${verb} event "${entryUUID}"`,
+            requestId: request.id,
+          },
+        });
         reply.status(201).send({
           id: entryUUID,
           resource: `/api/v1/events/${entryUUID}`,
         });
-        request.log.info(
-          {
-            type: "audit",
-            module: "events",
-            actor: request.username,
-            target: entryUUID,
-          },
-          `${verb} event "${entryUUID}"`,
-        );
       } catch (e: unknown) {
         if (e instanceof Error) {
           request.log.error("Failed to insert to DynamoDB: " + e.toString());
@@ -391,6 +393,16 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           id,
           resource: `/api/v1/events/${id}`,
         });
+        await createAuditLogEntry({
+          dynamoClient: fastify.dynamoClient,
+          entry: {
+            module: "events",
+            actor: request.username,
+            target: id,
+            message: `Deleted event "${id}"`,
+            requestId: request.id,
+          },
+        });
       } catch (e: unknown) {
         if (e instanceof Error) {
           request.log.error("Failed to delete from DynamoDB: " + e.toString());
@@ -405,15 +417,6 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         "events-etag-all",
         1,
         false,
-      );
-      request.log.info(
-        {
-          type: "audit",
-          module: "events",
-          actor: request.username,
-          target: id,
-        },
-        `deleted event "${id}"`,
       );
     },
   );

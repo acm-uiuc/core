@@ -21,6 +21,7 @@ import { SESClient } from "@aws-sdk/client-ses";
 import pino from "pino";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { setPaidMembership } from "api/functions/membership.js";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
 
 const getAuthorizedClients = async (
   logger: pino.Logger,
@@ -108,20 +109,19 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
     paidMemberGroup: currentEnvironmentConfig.PaidMemberGroupId,
   });
   if (updated) {
-    logger.info(
-      {
-        type: "audit",
+    const logPromise = createAuditLogEntry({
+      entry: {
         module: "provisionNewMember",
         actor: metadata.initiator,
         target: email,
+        message: "Marked target as a paid member.",
       },
-      "marked user as a paid member.",
-    );
+    });
     logger.info(
       `${email} added as a paid member. Emailing their membership pass.`,
     );
-
     await emailMembershipPassHandler(payload, metadata, logger);
+    await logPromise;
   } else {
     logger.info(`${email} was already a paid member.`);
   }
