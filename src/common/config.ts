@@ -47,6 +47,7 @@ export type GenericConfigType = {
   RoomRequestsTableName: string;
   RoomRequestsStatusTableName: string;
   EntraReadOnlySecretName: string;
+  AuditLogTable: string;
 };
 
 type EnvironmentConfigType = {
@@ -83,7 +84,8 @@ const genericConfig: GenericConfigType = {
   MembershipTableName: "infra-core-api-membership-provisioning",
   ExternalMembershipTableName: "infra-core-api-membership-external",
   RoomRequestsTableName: "infra-core-api-room-requests",
-  RoomRequestsStatusTableName: "infra-core-api-room-requests-status"
+  RoomRequestsStatusTableName: "infra-core-api-room-requests-status",
+  AuditLogTable: "infra-core-api-audit-log"
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
