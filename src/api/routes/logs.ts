@@ -25,8 +25,6 @@ const responseSchema = z.array(loggingEntryFromDatabase);
 type ResponseType = z.infer<typeof responseSchema>;
 
 const logsPlugin: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.setValidatorCompiler(validatorCompiler);
-  fastify.setSerializerCompiler(serializerCompiler);
   fastify.register(rateLimiter, {
     limit: 10,
     duration: 30,

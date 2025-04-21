@@ -83,8 +83,6 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
   fastify,
   _options,
 ) => {
-  fastify.setValidatorCompiler(validatorCompiler);
-  fastify.setSerializerCompiler(serializerCompiler);
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.register(rateLimiter, {
       limit: 30,
@@ -92,7 +90,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       rateLimitIdentifier: "events",
     });
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-      "/",
+      "",
       {
         schema: withTags(["Events"], {
           querystring: z.object({
@@ -230,6 +228,13 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         //   }),
         // },
         body: postRequestSchema,
+        params: z.object({
+          id: z.string().min(1).optional().openapi({
+            description:
+              "Event ID to modify (leave empty to create a new event).",
+            example: "6667e095-8b04-4877-b361-f636f459ba42",
+          }),
+        }),
       }) satisfies FastifyZodOpenApiSchema,
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
@@ -241,9 +246,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       }
       try {
         let originalEvent;
-        const userProvidedId = (
-          request.params as Record<string, string | undefined>
-        ).id;
+        const userProvidedId = request.params.id;
         const entryUUID = userProvidedId || randomUUID();
         if (userProvidedId) {
           const response = await fastify.dynamoClient.send(

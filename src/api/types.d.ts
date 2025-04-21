@@ -20,10 +20,9 @@ declare module "fastify" {
       reply: FastifyReply,
       validRoles: AppRoles[],
     ) => Promise<Set<AppRoles>>;
-    zodValidateBody: (
+    authorizeFromSchema: (
       request: FastifyRequest,
-      _reply: FastifyReply,
-      zodSchema: Zod.ZodTypeAny,
+      reply: FastifyReply,
     ) => Promise<void>;
     runEnvironment: RunEnvironment;
     environmentConfig: ConfigType;

@@ -76,8 +76,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       };
     }
   };
-  fastify.setValidatorCompiler(validatorCompiler);
-  fastify.setSerializerCompiler(serializerCompiler);
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
     "/profile",
     {

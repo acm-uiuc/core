@@ -14,8 +14,6 @@ const postSchema = z.object({
 });
 
 const vendingPlugin: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.setValidatorCompiler(validatorCompiler);
-  fastify.setSerializerCompiler(serializerCompiler);
   fastify.get(
     "/items",
     {

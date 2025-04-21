@@ -11,9 +11,9 @@ import { RunEnvironment, runEnvironments } from "../common/roles.js";
 import { InternalServerError } from "../common/errors/index.js";
 import eventsPlugin from "./routes/events.js";
 import cors from "@fastify/cors";
-import fastifyZodValidationPlugin from "./plugins/validate.js";
 import { environmentConfig, genericConfig } from "../common/config.js";
 import organizationsPlugin from "./routes/organizations.js";
+import authorizeFromSchemaPlugin from "./plugins/authorizeFromSchema.js";
 import icalPlugin from "./routes/ics.js";
 import vendingPlugin from "./routes/vending.js";
 import * as dotenv from "dotenv";
@@ -93,8 +93,10 @@ async function init(prettyPrint: boolean = false) {
       return event.requestContext.requestId;
     },
   });
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+  await app.register(authorizeFromSchemaPlugin);
   await app.register(fastifyAuthPlugin);
-  await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);
   await app.register(errorHandlerPlugin);
   await app.register(fastifyZodOpenApiPlugin);
@@ -102,6 +104,7 @@ async function init(prettyPrint: boolean = false) {
     openapi: {
       info: {
         title: "ACM @ UIUC Core API",
+        description: "ACM @ UIUC Core Management Platform",
         version: "1.0.0",
       },
       servers: [
@@ -119,11 +122,11 @@ async function init(prettyPrint: boolean = false) {
         {
           name: "Events",
           description:
-            "Retrieve ACM-wide and organization-specific calendars and event metadata.",
+            "Retrieve ACM @ UIUC-wide and organization-specific calendars and event metadata.",
         },
         {
           name: "Generic",
-          description: "Retrieve metadata about a user or ACM.",
+          description: "Retrieve metadata about a user or ACM @ UIUC .",
         },
         {
           name: "iCalendar Integration",
@@ -138,6 +141,10 @@ async function init(prettyPrint: boolean = false) {
         {
           name: "Logging",
           description: "View audit logs for various services.",
+        },
+        {
+          name: "Membership",
+          description: "Purchasing or checking ACM @ UIUC membership.",
         },
       ],
       openapi: "3.0.3" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0

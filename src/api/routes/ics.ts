@@ -44,8 +44,6 @@ function generateHostName(host: string) {
 }
 
 const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.setValidatorCompiler(validatorCompiler);
-  fastify.setSerializerCompiler(serializerCompiler);
   fastify.register(rateLimiter, {
     limit: OrganizationList.length,
     duration: 30,

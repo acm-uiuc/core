@@ -16,7 +16,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     rateLimitIdentifier: "organizations",
   });
   fastify.get(
-    "/",
+    "",
     { schema: withTags(["Generic"], {}) },
     async (request, reply) => {
       reply.send(OrganizationList);

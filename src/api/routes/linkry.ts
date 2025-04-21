@@ -74,8 +74,6 @@ type LinkryGetRequest = {
 };
 
 const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.setValidatorCompiler(validatorCompiler);
-  fastify.setSerializerCompiler(serializerCompiler);
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.register(rateLimiter, {
       limit: 30,

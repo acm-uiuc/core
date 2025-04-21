@@ -9,7 +9,7 @@ const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
     rateLimitIdentifier: "protected",
   });
   fastify.get(
-    "/",
+    "",
     { schema: withTags(["Generic"], {}) },
     async (request, reply) => {
       const roles = await fastify.authorize(request, reply, []);
