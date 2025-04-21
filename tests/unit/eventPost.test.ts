@@ -48,7 +48,7 @@ test("Sad path: Not authenticated", async () => {
 
 test("Sad path: Authenticated but not authorized", async () => {
   await app.ready();
-  const testJwt = createJwt(undefined, "1");
+  const testJwt = createJwt(undefined, ["1"]);
   const response = await supertest(app.server)
     .post("/api/v1/events")
     .set("Authorization", `Bearer ${testJwt}`)
@@ -66,7 +66,7 @@ test("Sad path: Authenticated but not authorized", async () => {
 });
 test("Sad path: Prevent empty body request", async () => {
   await app.ready();
-  const testJwt = createJwt(undefined, "0");
+  const testJwt = createJwt(undefined, ["0"]);
   const response = await supertest(app.server)
     .post("/api/v1/events")
     .set("Authorization", `Bearer ${testJwt}`)
@@ -227,7 +227,7 @@ describe("ETag Lifecycle Tests", () => {
       Items: [],
     });
 
-    const testJwt = createJwt(undefined, "0");
+    const testJwt = createJwt(undefined, ["0"]);
 
     // 1. Check initial etag for all events is 0
     const initialAllResponse = await app.inject({
@@ -313,7 +313,7 @@ describe("ETag Lifecycle Tests", () => {
       Items: [],
     });
 
-    const testJwt = createJwt(undefined, "0");
+    const testJwt = createJwt(undefined, ["0"]);
 
     // 1. Create an event
     const eventResponse = await supertest(app.server)
@@ -413,7 +413,7 @@ describe("ETag Lifecycle Tests", () => {
       Items: [],
     });
 
-    const testJwt = createJwt(undefined, "0");
+    const testJwt = createJwt(undefined, ["0"]);
 
     // 1. Check initial etag for all events is 0
     const initialAllResponse = await app.inject({

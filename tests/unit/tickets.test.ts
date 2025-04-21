@@ -96,7 +96,7 @@ describe("Test getting ticketing + merch metadata", async () => {
         Items: ticketsMetadata as Record<string, AttributeValue>[],
       })
       .rejects();
-    const testJwt = createJwt(undefined, "scanner-only");
+    const testJwt = createJwt(undefined, ["scanner-only"]);
     await app.ready();
     const response = await supertest(app.server)
       .get("/api/v1/tickets")
