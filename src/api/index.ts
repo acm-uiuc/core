@@ -93,8 +93,6 @@ async function init(prettyPrint: boolean = false) {
       return event.requestContext.requestId;
     },
   });
-  app.setValidatorCompiler(validatorCompiler);
-  app.setSerializerCompiler(serializerCompiler);
   await app.register(fastifyAuthPlugin);
   await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);
