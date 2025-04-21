@@ -15,7 +15,7 @@ const commonParams = {
   target: "es2022", // Target ES2022
   sourcemap: false,
   platform: "node",
-  external: ["aws-sdk", "moment-timezone", "passkit-generator", "fastify"],
+  external: ["aws-sdk", "moment-timezone", "passkit-generator", "fastify", "zod", "zod-openapi"],
   alias: {
     'moment-timezone': resolve(process.cwd(), '../../node_modules/moment-timezone/builds/moment-timezone-with-data-10-year-range.js')
   },
