@@ -174,7 +174,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         schema: withTags(["Membership"], {
           params: z
             .object({ netId: z.string().min(1) })
-            .refine((data) => !validateNetId(data.netId), {
+            .refine((data) => validateNetId(data.netId), {
               message: "NetID is not valid!",
               path: ["netId"],
             }),
@@ -191,11 +191,6 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       async (request, reply) => {
         const netId = request.params.netId.toLowerCase();
         const list = request.query.list || "acmpaid";
-        if (!validateNetId(netId)) {
-          throw new ValidationError({
-            message: `${netId} is not a valid Illinois NetID!`,
-          });
-        }
         if (fastify.nodeCache.get(`isMember_${netId}_${list}`) !== undefined) {
           return reply.header("X-ACM-Data-Source", "cache").send({
             netId,
