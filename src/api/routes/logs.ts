@@ -1,6 +1,6 @@
 import { QueryCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { withTags } from "api/components/index.js";
+import { withRoles, withTags } from "api/components/index.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { genericConfig } from "common/config.js";
@@ -33,32 +33,35 @@ const logsPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:module",
     {
-      schema: withTags(["Logging"], {
-        querystring: z
-          .object({
-            start: z.coerce.number().openapi({
-              description: "Epoch timestamp for the start of the search range",
-              example: 1745114772,
+      schema: withRoles(
+        [AppRoles.AUDIT_LOG_VIEWER],
+        withTags(["Logging"], {
+          querystring: z
+            .object({
+              start: z.coerce.number().openapi({
+                description:
+                  "Epoch timestamp for the start of the search range",
+                example: 1745114772,
+              }),
+              end: z.coerce.number().openapi({
+                description: "Epoch timestamp for the end of the search range",
+                example: 1745201172,
+              }),
+            })
+            .refine((data) => data.start <= data.end, {
+              message: "Start time must be less than or equal to end time",
+              path: ["start"],
             }),
-            end: z.coerce.number().openapi({
-              description: "Epoch timestamp for the end of the search range",
-              example: 1745201172,
-            }),
-          })
-          .refine((data) => data.start <= data.end, {
-            message: "Start time must be less than or equal to end time",
-            path: ["start"],
+          params: z.object({
+            module: z
+              .nativeEnum(Modules)
+              .openapi({ description: "Module to get audit logs for." }),
           }),
-        params: z.object({
-          module: z
-            .nativeEnum(Modules)
-            .openapi({ description: "Module to get audit logs for." }),
+          summary: "Retrieve audit logs for a module.",
+          // response: { 200: responseSchema },
         }),
-        // response: { 200: responseSchema },
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.AUDIT_LOG_VIEWER]);
-      },
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const { module } = request.params;

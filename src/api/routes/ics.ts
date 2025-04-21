@@ -58,6 +58,8 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
             .optional(z.enum(OrganizationList as [string, ...string[]]))
             .openapi({ description: "Host to get calendar for." }),
         }),
+        summary:
+          "Retrieve the calendar for ACM @ UIUC or a specific sub-organization.",
       } satisfies FastifyZodOpenApiSchema),
     },
     async (request, reply) => {

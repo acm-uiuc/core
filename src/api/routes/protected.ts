@@ -10,7 +10,11 @@ const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
   });
   fastify.get(
     "",
-    { schema: withTags(["Generic"], {}) },
+    {
+      schema: withTags(["Generic"], {
+        summary: "Get a user's username and roles.",
+      }),
+    },
     async (request, reply) => {
       const roles = await fastify.authorize(request, reply, []);
       reply.send({ username: request.username, roles: Array.from(roles) });

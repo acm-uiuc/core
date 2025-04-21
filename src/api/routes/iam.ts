@@ -37,7 +37,7 @@ import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
-import { groupId, withTags } from "api/components/index.js";
+import { groupId, withRoles, withTags } from "api/components/index.js";
 import {
   FastifyZodOpenApiTypeProvider,
   serializerCompiler,
@@ -81,6 +81,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     {
       schema: withTags(["IAM"], {
         body: entraProfilePatchRequest,
+        summary: "Update user's profile.",
       }),
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, []);
@@ -103,20 +104,22 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         userOid,
         request.body,
       );
-      reply.status(201);
+      reply.status(201).send();
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/groups/:groupId/roles",
     {
-      schema: withTags(["IAM"], {
-        params: z.object({
-          groupId,
+      schema: withRoles(
+        [AppRoles.IAM_ADMIN],
+        withTags(["IAM"], {
+          params: z.object({
+            groupId,
+          }),
+          summary: "Get a group's application role mappings.",
         }),
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-      },
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       try {
@@ -142,15 +145,17 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/groups/:groupId/roles",
     {
-      schema: withTags(["IAM"], {
-        params: z.object({
-          groupId,
+      schema: withRoles(
+        [AppRoles.IAM_ADMIN],
+        withTags(["IAM"], {
+          params: z.object({
+            groupId,
+          }),
+          body: groupMappingCreatePostSchema,
+          summary: "Update a group's application role mappings.",
         }),
-        body: groupMappingCreatePostSchema,
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-      },
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const groupId = (request.params as Record<string, string>).groupId;
@@ -198,13 +203,15 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/inviteUsers",
     {
-      schema: withTags(["IAM"], {
-        body: invitePostRequestSchema,
-        // response: { 202: entraActionResponseSchema },
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.IAM_INVITE_ONLY]);
-      },
+      schema: withRoles(
+        [AppRoles.IAM_INVITE_ONLY, AppRoles.IAM_ADMIN],
+        withTags(["IAM"], {
+          body: invitePostRequestSchema,
+          summary: "Invite a user to the ACM @ UIUC Entra ID tenant.",
+          // response: { 202: entraActionResponseSchema },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const emails = request.body.emails;
@@ -274,15 +281,17 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
     "/groups/:groupId",
     {
-      schema: withTags(["IAM"], {
-        params: z.object({
-          groupId,
+      schema: withRoles(
+        [AppRoles.IAM_ADMIN],
+        withTags(["IAM"], {
+          params: z.object({
+            groupId,
+          }),
+          body: groupModificationPatchSchema,
+          summary: "Update the members of a group.",
         }),
-        body: groupModificationPatchSchema,
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-      },
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const groupId = (request.params as Record<string, string>).groupId;
@@ -421,15 +430,17 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/groups/:groupId",
     {
-      schema: withTags(["IAM"], {
-        // response: { 200: entraGroupMembershipListResponse },
-        params: z.object({
-          groupId,
+      schema: withRoles(
+        [AppRoles.IAM_ADMIN],
+        withTags(["IAM"], {
+          // response: { 200: entraGroupMembershipListResponse },
+          params: z.object({
+            groupId,
+          }),
+          summary: "Get the members of a group.",
         }),
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-      },
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const groupId = (request.params as Record<string, string>).groupId;

@@ -108,6 +108,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               .openapi({ description: "Event host filter." }),
             ts,
           }),
+          summary: "Retrieve calendar events with applied filters.",
           // response: { 200: getEventsSchema },
         }),
       },
@@ -235,6 +236,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             example: "6667e095-8b04-4877-b361-f636f459ba42",
           }),
         }),
+        summary: "Modify a calendar event.",
       }) satisfies FastifyZodOpenApiSchema,
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
@@ -372,6 +374,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         //     resource: z.string(),
         //   }),
         // },
+        summary: "Delete a calendar event.",
       }) satisfies FastifyZodOpenApiSchema,
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
@@ -440,6 +443,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         querystring: z.object({
           ts,
         }),
+        summary: "Retrieve a calendar event.",
         // response: { 200: getEventSchema },
       }),
     },

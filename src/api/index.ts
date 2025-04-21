@@ -211,7 +211,11 @@ async function init(prettyPrint: boolean = false) {
   });
   app.get(
     "/api/v1/healthz",
-    { schema: withTags(["Generic"], {}) },
+    {
+      schema: withTags(["Generic"], {
+        summary: "Verify that the API server is healthy.",
+      }),
+    },
     (_, reply) => reply.send({ message: "UP" }),
   );
   await app.register(
