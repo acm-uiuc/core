@@ -39,7 +39,8 @@ const commonParams = {
         to: ['../../dist/lambda/static'],
       },
     }),
-  ]
+  ],
+  treeShaking: false,
 }
 esbuild
   .build({
