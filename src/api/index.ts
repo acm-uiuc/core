@@ -108,15 +108,14 @@ async function init(prettyPrint: boolean = false) {
         version: "1.0.0",
       },
       servers: [
-        app.runEnvironment === "prod"
-          ? {
-              url: "https://core.acm.illinois.edu",
-              description: "Production API server",
-            }
-          : {
-              url: "https://core.aws.qa.acmuiuc.org",
-              description: "QA API server",
-            },
+        {
+          url: "https://core.acm.illinois.edu",
+          description: "Production API server",
+        },
+        {
+          url: "https://core.aws.qa.acmuiuc.org",
+          description: "QA API server",
+        },
       ],
       tags: [
         {
@@ -145,6 +144,24 @@ async function init(prettyPrint: boolean = false) {
         {
           name: "Membership",
           description: "Purchasing or checking ACM @ UIUC membership.",
+        },
+        {
+          name: "Tickets/Merchandise",
+          description: "Handling the tickets and merchandise lifecycle.",
+        },
+        {
+          name: "Mobile Wallet",
+          description: "Issuing Apple/Google Wallet passes.",
+        },
+        {
+          name: "Stripe",
+          description:
+            "Collecting payments for ACM @ UIUC invoices and other services.",
+        },
+        {
+          name: "Room Requests",
+          description:
+            "Creating room reservation requests for ACM @ UIUC within University buildings.",
         },
       ],
       openapi: "3.0.3" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
