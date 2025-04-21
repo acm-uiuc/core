@@ -39,6 +39,13 @@ const commonParams = {
         to: ['../../dist/lambda/static'],
       },
     }),
+    copy({
+      resolveFrom: 'cwd',
+      assets: {
+        from: ['./public/*'],
+        to: ['../../dist/lambda/public'],
+      },
+    }),
   ],
   treeShaking: false,
 }
