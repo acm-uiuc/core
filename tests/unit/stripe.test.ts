@@ -234,7 +234,7 @@ describe("Test Stripe link creation", async () => {
     });
     const testJwt = createJwt(
       undefined,
-      "1",
+      ["1"],
       "infra-unit-test-stripeonly@acm.illinois.edu",
     );
     const response = await supertest(app.server)

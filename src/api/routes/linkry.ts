@@ -488,7 +488,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               setUserGroups,
             );
             if (mutualGroups.size == 0) {
-              throw new NotFoundError({ endpointName: request.url });
+              throw new UnauthorizedError({
+                message: "You have not been delegated access.",
+              });
             }
           }
           return reply.status(200).send(item);
