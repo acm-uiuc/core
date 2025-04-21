@@ -1,5 +1,6 @@
 import esbuild from "esbuild";
 import { resolve } from "path";
+import { copy } from 'esbuild-plugin-copy'
 
 
 const commonParams = {
@@ -30,6 +31,15 @@ const commonParams = {
       import "zod-openapi/extend";
     `.trim(),
   }, // Banner for compatibility with CommonJS
+  plugins: [
+    copy({
+      resolveFrom: 'cwd',
+      assets: {
+        from: ['../../node_modules/@fastify/swagger-ui/static/*'],
+        to: ['../../dist/lambda/static'],
+      },
+    }),
+  ]
 }
 esbuild
   .build({
