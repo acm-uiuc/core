@@ -156,7 +156,6 @@ test("Happy path: Create/Edit linkry redirect success", async () => {
 
   const response = await supertest(app.server)
     .post("/api/v1/linkry/redir")
-    .set("Authorization", `Bearer ${adminJwt}`)
     .set("Authorization", `Bearer ${userJwt}`)
     .send(payload);
 
