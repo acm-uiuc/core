@@ -50,7 +50,7 @@ test("ETag should increment after event creation", async () => {
     Items: [],
   });
 
-  const testJwt = createJwt(undefined, "0");
+  const testJwt = createJwt(undefined, ["0"]);
 
   // 1. Check initial etag for all events is 0
   const initialAllResponse = await app.inject({
@@ -138,7 +138,7 @@ test("Should return 304 Not Modified when If-None-Match header matches ETag", as
     Items: [],
   });
 
-  const testJwt = createJwt(undefined, "0");
+  const testJwt = createJwt(undefined, ["0"]);
 
   // 1. First GET request to establish ETag
   const initialResponse = await app.inject({
@@ -188,7 +188,7 @@ test("Should return 304 Not Modified when If-None-Match header matches quoted ET
     Items: [],
   });
 
-  const testJwt = createJwt(undefined, "0");
+  const testJwt = createJwt(undefined, ["0"]);
 
   // 1. First GET request to establish ETag
   const initialResponse = await app.inject({
@@ -238,7 +238,7 @@ test("Should NOT return 304 when ETag has changed", async () => {
     Items: [],
   });
 
-  const testJwt = createJwt(undefined, "0");
+  const testJwt = createJwt(undefined, ["0"]);
 
   // 1. Initial GET to establish ETag
   const initialResponse = await app.inject({
@@ -313,7 +313,7 @@ test("Should handle 304 responses for individual event endpoints", async () => {
   ddbMock.on(PutItemCommand).resolves({});
 
   // Create an event
-  const testJwt = createJwt(undefined, "0");
+  const testJwt = createJwt(undefined, ["0"]);
   const eventResponse = await supertest(app.server)
     .post("/api/v1/events")
     .set("Authorization", `Bearer ${testJwt}`)

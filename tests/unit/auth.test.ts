@@ -21,7 +21,7 @@ const app = await init();
 const jwt_secret = secretObject["jwt_key"];
 export function createJwt(
   date?: Date,
-  group?: string,
+  groups?: string[],
   email?: string,
   roles?: string[], // Add roles parameter
 ) {
@@ -43,8 +43,8 @@ export function createJwt(
     };
   }
 
-  if (group) {
-    modifiedPayload.groups = [group];
+  if (groups) {
+    modifiedPayload.groups = groups;
   }
 
   return jwt.sign(modifiedPayload, jwt_secret, { algorithm: "HS256" });
