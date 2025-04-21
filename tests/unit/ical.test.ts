@@ -33,9 +33,7 @@ test("Test getting ACM-wide iCal calendar", async () => {
 test("Test getting non-existent iCal calendar fails", async () => {
   const date = new Date(2024, 7, 22, 15, 51, 48); // August 22, 2024, at 15:51:48 (3:51:48 PM)
   vi.setSystemTime(date);
-  ddbMock.on(ScanCommand).resolves({
-    Items: dynamoTableData as any,
-  });
+  ddbMock.on(ScanCommand).rejects();
   const response = await app.inject({
     method: "GET",
     url: "/api/v1/ical/invalid",

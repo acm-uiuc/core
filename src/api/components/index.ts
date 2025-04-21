@@ -1,4 +1,3 @@
-import { FastifySchema } from "fastify";
 import { z } from "zod";
 
 export const ts = z.coerce

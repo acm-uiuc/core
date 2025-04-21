@@ -63,7 +63,7 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
       } satisfies FastifyZodOpenApiSchema),
     },
     async (request, reply) => {
-      const host = request.params.host || "ACM";
+      const host = request.params.host;
       let queryParams: QueryCommandInput = {
         TableName: genericConfig.EventsDynamoTableName,
       };
@@ -151,7 +151,7 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
               rawEvent.description
             : `Host: ${rawEvent.host}\n\n` + rawEvent.description,
           timezone: "America/Chicago",
-          organizer: generateHostName(host),
+          organizer: generateHostName(host || "ACM"),
           id: rawEvent.id,
         });
 
