@@ -32,6 +32,7 @@ export function withRoles<T extends FastifyZodOpenApiSchema>(
   schema: T,
 ): T & RoleSchema {
   return {
+    security: [{ bearerAuth: [] }],
     "x-required-roles": roles,
     description: `Requires one of the following roles: ${roles.join(", ")}.${schema.description ? "\n\n" + schema.description : ""}`,
     ...schema,
