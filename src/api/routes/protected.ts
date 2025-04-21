@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
+import { withTags } from "api/components/index.js";
 
 const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -7,10 +8,14 @@ const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
     duration: 30,
     rateLimitIdentifier: "protected",
   });
-  fastify.get("/", async (request, reply) => {
-    const roles = await fastify.authorize(request, reply, []);
-    reply.send({ username: request.username, roles: Array.from(roles) });
-  });
+  fastify.get(
+    "",
+    { schema: withTags(["Generic"], {}) },
+    async (request, reply) => {
+      const roles = await fastify.authorize(request, reply, []);
+      reply.send({ username: request.username, roles: Array.from(roles) });
+    },
+  );
 };
 
 export default protectedRoute;

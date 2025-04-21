@@ -27,6 +27,9 @@ import { genericConfig, notificationRecipients } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { withTags } from "api/components/index.js";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
+import { z } from "zod";
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -40,15 +43,22 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   }>(
     "/:semesterId/:requestId/status",
     {
+      schema: withTags(["Room Requests"], {
+        summary: "Create status update for a room request.",
+        params: z.object({
+          requestId: z.string().min(1).openapi({
+            description: "Room request ID.",
+            example: "6667e095-8b04-4877-b361-f636f459ba42",
+          }),
+          semesterId: z.string().min(1).openapi({
+            description: "Short semester slug for a given semester.",
+            example: "sp25",
+          }),
+        }),
+        body: roomRequestStatusUpdateRequest,
+      }),
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_UPDATE]);
-      },
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(
-          request,
-          reply,
-          roomRequestStatusUpdateRequest,
-        );
       },
     },
     async (request, reply) => {
@@ -141,17 +151,18 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       return reply.status(201).send();
     },
   );
-  fastify.get<{
-    Body: undefined;
-    Params: { semesterId: string };
-  }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:semesterId",
     {
-      schema: {
-        response: {
-          200: zodToJsonSchema(roomGetResponse),
-        },
-      },
+      schema: withTags(["Room Requests"], {
+        summary: "Get room requests for a specific semester.",
+        params: z.object({
+          semesterId: z.string().min(1).openapi({
+            description: "Short semester slug for a given semester.",
+            example: "sp25",
+          }),
+        }),
+      }),
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_CREATE]);
       },
@@ -238,15 +249,13 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       return reply.status(200).send(itemsWithStatus);
     },
   );
-  fastify.post<{ Body: RoomRequestFormValues }>(
-    "/",
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "",
     {
-      schema: {
-        response: { 201: zodToJsonSchema(roomRequestPostResponse) },
-      },
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, roomRequestSchema);
-      },
+      schema: withTags(["Room Requests"], {
+        summary: "Create a room request.",
+        body: roomRequestSchema,
+      }),
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_CREATE]);
       },
@@ -338,12 +347,22 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       );
     },
   );
-  fastify.get<{
-    Body: undefined;
-    Params: { requestId: string; semesterId: string };
-  }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:semesterId/:requestId",
     {
+      schema: withTags(["Room Requests"], {
+        summary: "Get specific room request data.",
+        params: z.object({
+          requestId: z.string().min(1).openapi({
+            description: "Room request ID.",
+            example: "6667e095-8b04-4877-b361-f636f459ba42",
+          }),
+          semesterId: z.string().min(1).openapi({
+            description: "Short semester slug for a given semester.",
+            example: "sp25",
+          }),
+        }),
+      }),
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_CREATE]);
       },

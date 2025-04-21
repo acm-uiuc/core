@@ -14,6 +14,12 @@ import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { genericConfig } from "../../common/config.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import rateLimiter from "api/plugins/rateLimiter.js";
+import {
+  FastifyZodOpenApiTypeProvider,
+  serializerCompiler,
+  validatorCompiler,
+} from "fastify-zod-openapi";
+import { withTags } from "api/components/index.js";
 
 const queuedResponseJsonSchema = zodToJsonSchema(
   z.object({
@@ -27,38 +33,24 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
     duration: 30,
     rateLimitIdentifier: "mobileWallet",
   });
-  fastify.post<{ Querystring: { email: string } }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/membership",
     {
-      schema: {
-        response: { 202: queuedResponseJsonSchema },
-        querystring: {
-          type: "object",
-          properties: {
-            email: { type: "string", format: "email" },
-          },
-          required: ["email"],
-        },
-      },
+      schema: withTags(["Mobile Wallet"], {
+        // response: { 202: queuedResponseJsonSchema },
+        querystring: z
+          .object({
+            email: z.string().email(),
+          })
+          .refine((data) => data.email.endsWith("@illinois.edu"), {
+            message: "Email must be on the illinois.edu domain.",
+            path: ["email"],
+          }),
+        summary:
+          "Retrieve mobile wallet passes for various ACM @ UIUC-issued tickets/services.",
+      }),
     },
     async (request, reply) => {
-      if (!request.query.email) {
-        throw new UnauthenticatedError({ message: "Could not find user." });
-      }
-      try {
-        await z
-          .string()
-          .email()
-          .refine(
-            (email) => email.endsWith("@illinois.edu"),
-            "Email must be on the illinois.edu domain.",
-          )
-          .parseAsync(request.query.email);
-      } catch {
-        throw new ValidationError({
-          message: "Email query parameter is not a valid email",
-        });
-      }
       const isPaidMember =
         (fastify.runEnvironment === "dev" &&
           request.query.email === "testinguser@illinois.edu") ||

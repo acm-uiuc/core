@@ -199,8 +199,7 @@ describe("Test ticket purchase verification", async () => {
     expect(responseDataJson).toEqual({
       error: true,
       id: 104,
-      message:
-        'Invalid literal value, expected "merch" at "type", or Required at "ticketId"',
+      message: "body/ Invalid input",
       name: "ValidationError",
     });
   });
@@ -354,7 +353,7 @@ describe("Test merch purchase verification", async () => {
     expect(responseDataJson).toEqual({
       error: true,
       id: 104,
-      message: `Required at "email"; Required at "stripePi", or Invalid literal value, expected "ticket" at "type"`,
+      message: `body/ Invalid input`,
       name: "ValidationError",
     });
   });
