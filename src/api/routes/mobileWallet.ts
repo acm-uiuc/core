@@ -46,8 +46,7 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
             message: "Email must be on the illinois.edu domain.",
             path: ["email"],
           }),
-        summary:
-          "Retrieve mobile wallet passes for various ACM @ UIUC-issued tickets/services.",
+        summary: "Email mobile wallet pass for ACM membership to user.",
       }),
     },
     async (request, reply) => {

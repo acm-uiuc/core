@@ -17,8 +17,12 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
   });
   fastify.get(
     "",
-    { schema: withTags(["Generic"], {}) },
-    async (request, reply) => {
+    {
+      schema: withTags(["Generic"], {
+        summary: "Get a list of ACM @ UIUC sub-organizations.",
+      }),
+    },
+    async (_request, reply) => {
       reply.send(OrganizationList);
     },
   );
