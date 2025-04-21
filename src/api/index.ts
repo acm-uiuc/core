@@ -104,6 +104,42 @@ async function init(prettyPrint: boolean = false) {
         title: "ACM @ UIUC Core API",
         version: "1.0.0",
       },
+      servers: [
+        app.runEnvironment === "prod"
+          ? {
+              url: "https://core.acm.illinois.edu",
+              description: "Production API server",
+            }
+          : {
+              url: "https://core.aws.qa.acmuiuc.org",
+              description: "QA API server",
+            },
+      ],
+      tags: [
+        {
+          name: "Events",
+          description:
+            "Retrieve ACM-wide and organization-specific calendars and event metadata.",
+        },
+        {
+          name: "Generic",
+          description: "Retrieve metadata about a user or ACM.",
+        },
+        {
+          name: "iCalendar Integration",
+          description:
+            "Retrieve Events calendars in iCalendar format (for integration with external calendar clients).",
+        },
+        {
+          name: "IAM",
+          description: "Identity and Access Management for internal services.",
+        },
+        { name: "Linkry", description: "Link Shortener." },
+        {
+          name: "Logging",
+          description: "View audit logs for various services.",
+        },
+      ],
       openapi: "3.0.3" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
     },
     transform: fastifyZodOpenApiTransform,
