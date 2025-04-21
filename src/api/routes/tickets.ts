@@ -120,9 +120,9 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     "/",
     {
       schema: {
-        response: {
-          200: listMerchItemsResponseJsonSchema,
-        },
+        // response: {
+        //   200: listMerchItemsResponseJsonSchema,
+        // },
       },
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [
@@ -226,9 +226,9 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             },
           },
         },
-        response: {
-          200: getTicketsResponseJsonSchema,
-        },
+        // response: {
+        //   200: getTicketsResponseJsonSchema,
+        // },
       },
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.TICKETS_MANAGER]);
@@ -349,7 +349,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     "/checkIn",
     {
       schema: {
-        response: { 200: responseJsonSchema },
+        // response: { 200: responseJsonSchema },
       },
       preValidation: async (request, reply) => {
         await fastify.zodValidateBody(request, reply, postSchema);

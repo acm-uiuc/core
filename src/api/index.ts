@@ -1,4 +1,5 @@
 /* eslint import/no-nodejs-modules: ["error", {"allow": ["crypto"]}] */
+import "zod-openapi/extend";
 import { randomUUID } from "crypto";
 import fastify, { FastifyInstance } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
@@ -35,10 +36,11 @@ import {
   fastifyZodOpenApiPlugin,
   fastifyZodOpenApiTransform,
   fastifyZodOpenApiTransformObject,
+  serializerCompiler,
+  validatorCompiler,
 } from "fastify-zod-openapi";
 import { ZodOpenApiVersion } from "zod-openapi";
 import { withTags } from "./components/index.js";
-import "zod-openapi/extend";
 
 dotenv.config();
 
@@ -91,6 +93,8 @@ async function init(prettyPrint: boolean = false) {
       return event.requestContext.requestId;
     },
   });
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
   await app.register(fastifyAuthPlugin);
   await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);

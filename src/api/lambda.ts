@@ -3,15 +3,8 @@
 import "zod-openapi/extend";
 import awsLambdaFastify from "@fastify/aws-lambda";
 import init from "./index.js";
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider,
-} from "fastify-type-provider-zod";
 
 const app = await init();
-app.setValidatorCompiler(validatorCompiler);
-app.setSerializerCompiler(serializerCompiler);
 const handler = awsLambdaFastify(app, {
   decorateRequest: false,
   serializeLambdaArguments: true,

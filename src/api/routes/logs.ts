@@ -56,7 +56,7 @@ const logsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             .nativeEnum(Modules)
             .openapi({ description: "Module to get audit logs for." }),
         }),
-        response: { 200: responseSchema },
+        // response: { 200: responseSchema },
       }),
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.AUDIT_LOG_VIEWER]);

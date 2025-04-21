@@ -33,7 +33,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/paymentLinks",
     {
       schema: {
-        response: { 200: zodToJsonSchema(invoiceLinkGetResponseSchema) },
+        // response: { 200: zodToJsonSchema(invoiceLinkGetResponseSchema) },
       },
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.STRIPE_LINK_CREATOR]);
@@ -88,7 +88,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/paymentLinks",
     {
       schema: {
-        response: { 201: zodToJsonSchema(invoiceLinkPostResponseSchema) },
+        // response: { 201: zodToJsonSchema(invoiceLinkPostResponseSchema) },
       },
       preValidation: async (request, reply) => {
         await fastify.zodValidateBody(

@@ -31,7 +31,7 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
     "/membership",
     {
       schema: {
-        response: { 202: queuedResponseJsonSchema },
+        // response: { 202: queuedResponseJsonSchema },
         querystring: {
           type: "object",
           properties: {

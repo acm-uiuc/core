@@ -148,9 +148,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/:semesterId",
     {
       schema: {
-        response: {
-          200: zodToJsonSchema(roomGetResponse),
-        },
+        // response: {
+        //   200: zodToJsonSchema(roomGetResponse),
+        // },
       },
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_CREATE]);
@@ -242,7 +242,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/",
     {
       schema: {
-        response: { 201: zodToJsonSchema(roomRequestPostResponse) },
+        // response: { 201: zodToJsonSchema(roomRequestPostResponse) },
       },
       preValidation: async (request, reply) => {
         await fastify.zodValidateBody(request, reply, roomRequestSchema);

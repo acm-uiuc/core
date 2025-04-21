@@ -110,7 +110,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               .openapi({ description: "Event host filter." }),
             ts,
           }),
-          response: { 200: getEventsSchema },
+          // response: { 200: getEventsSchema },
         }),
       },
       async (request, reply) => {
@@ -223,12 +223,12 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
     "/:id?",
     {
       schema: withTags(["Events"], {
-        response: {
-          201: z.object({
-            id: z.string(),
-            resource: z.string(),
-          }),
-        },
+        // response: {
+        //   201: z.object({
+        //     id: z.string(),
+        //     resource: z.string(),
+        //   }),
+        // },
         body: postRequestSchema,
       }) satisfies FastifyZodOpenApiSchema,
       onRequest: async (request, reply) => {
@@ -363,12 +363,12 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             example: "6667e095-8b04-4877-b361-f636f459ba42",
           }),
         }),
-        response: {
-          201: z.object({
-            id: z.string(),
-            resource: z.string(),
-          }),
-        },
+        // response: {
+        //   201: z.object({
+        //     id: z.string(),
+        //     resource: z.string(),
+        //   }),
+        // },
       }) satisfies FastifyZodOpenApiSchema,
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
@@ -437,7 +437,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         querystring: z.object({
           ts,
         }),
-        response: { 200: getEventSchema },
+        // response: { 200: getEventSchema },
       }),
     },
     async (request, reply) => {

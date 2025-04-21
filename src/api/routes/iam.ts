@@ -202,7 +202,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     {
       schema: withTags(["IAM"], {
         body: invitePostRequestSchema,
-        response: { 202: entraActionResponseSchema },
+        // response: { 202: entraActionResponseSchema },
       }),
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.IAM_INVITE_ONLY]);
@@ -424,7 +424,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/groups/:groupId",
     {
       schema: withTags(["IAM"], {
-        response: { 200: entraGroupMembershipListResponse },
+        // response: { 200: entraGroupMembershipListResponse },
         params: z.object({
           groupId,
         }),
