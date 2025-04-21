@@ -11,7 +11,9 @@
     "passkit-generator": "^3.3.1",
     "fastify": "^5.1.0",
     "zod": "^3.23.8",
-    "zod-openapi": "^4.2.4"
+    "zod-openapi": "^4.2.4",
+    "@fastify/swagger": "^9.5.0",
+    "@fastify/swagger-ui": "^5.2.2"
   },
   "devDependencies": {}
 }
