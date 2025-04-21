@@ -47,7 +47,7 @@ const commonParams = {
       },
     }),
   ],
-  treeShaking: false,
+  inject: [resolve(process.cwd(), "./zod-openapi-patch.js")],
 }
 esbuild
   .build({
