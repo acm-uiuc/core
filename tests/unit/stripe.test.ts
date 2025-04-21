@@ -154,7 +154,7 @@ describe("Test Stripe link creation", async () => {
       id: linkId,
       link: `https://buy.stripe.com/${linkId}`,
     });
-    expect(ddbMock.calls().length).toEqual(1);
+    expect(ddbMock.calls().length).toEqual(2); // 1 for the audit log
     expect(smMock.calls().length).toEqual(1);
   });
   test("Unauthenticated GET access (missing token)", async () => {

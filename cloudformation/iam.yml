@@ -106,6 +106,16 @@ Resources:
             Resource:
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-rate-limiter
 
+          - Sid: DynamoDBAuditLogTableAccess
+            Effect: Allow
+            Action:
+              - dynamodb:DescribeTable
+              - dynamodb:PutItem
+              - dynamodb:Query
+            Resource:
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-audit-log
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-audit-log/index/*
+
           - Sid: DynamoDBStreamAccess
             Effect: Allow
             Action:

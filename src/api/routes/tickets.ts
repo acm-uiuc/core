@@ -10,6 +10,7 @@ import { genericConfig } from "../../common/config.js";
 import {
   BaseError,
   DatabaseFetchError,
+  DatabaseInsertError,
   NotFoundError,
   NotSupportedError,
   TicketNotFoundError,
@@ -17,10 +18,13 @@ import {
   UnauthenticatedError,
   ValidationError,
 } from "../../common/errors/index.js";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { validateEmail } from "../functions/validation.js";
 import { AppRoles } from "../../common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { ItemPostData } from "common/types/tickets.js";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
 
 const postMerchSchema = z.object({
   type: z.literal("merch"),
@@ -103,6 +107,12 @@ type TicketsListRequest = {
   Params: undefined;
   Querystring: undefined;
   Body: undefined;
+};
+
+type TicketsPostRequest = {
+  Params: { eventId: string };
+  Querystring: undefined;
+  Body: ItemPostData;
 };
 
 const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
@@ -200,7 +210,6 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
       }
-
       reply.send({ merch: merchItems, tickets: ticketItems });
     },
   );
@@ -269,6 +278,71 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
       const response = { tickets: issuedTickets };
       return reply.send(response);
+    },
+  );
+  fastify.patch<TicketsPostRequest>(
+    "/:eventId",
+    {
+      onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, [AppRoles.TICKETS_MANAGER]);
+      },
+    },
+    async (request, reply) => {
+      const eventId = request.params.eventId;
+      const eventType = request.body.type;
+      const eventActiveSet = request.body.itemSalesActive;
+      let newActiveTime: number = 0;
+      if (typeof eventActiveSet === "boolean") {
+        if (!eventActiveSet) {
+          newActiveTime = -1;
+        }
+      } else {
+        newActiveTime = parseInt(
+          (eventActiveSet.valueOf() / 1000).toFixed(0),
+          10,
+        );
+      }
+      let command: UpdateItemCommand;
+      switch (eventType) {
+        case "merch":
+          command = new UpdateItemCommand({
+            TableName: genericConfig.MerchStoreMetadataTableName,
+            Key: marshall({ item_id: eventId }),
+            UpdateExpression: "SET item_sales_active_utc = :new_val",
+            ConditionExpression: "item_id = :item_id",
+            ExpressionAttributeValues: {
+              ":new_val": { N: newActiveTime.toString() },
+              ":item_id": { S: eventId },
+            },
+          });
+          break;
+        case "ticket":
+          command = new UpdateItemCommand({
+            TableName: genericConfig.TicketMetadataTableName,
+            Key: marshall({ event_id: eventId }),
+            UpdateExpression: "SET event_sales_active_utc = :new_val",
+            ConditionExpression: "event_id = :item_id",
+            ExpressionAttributeValues: {
+              ":new_val": { N: newActiveTime.toString() },
+              ":item_id": { S: eventId },
+            },
+          });
+          break;
+      }
+      try {
+        await fastify.dynamoClient.send(command);
+      } catch (e) {
+        if (e instanceof ConditionalCheckFailedException) {
+          throw new NotFoundError({
+            endpointName: request.url,
+          });
+        }
+        fastify.log.error(e);
+        throw new DatabaseInsertError({
+          message: "Could not update active time for item.",
+        });
+      }
+      return reply.status(201).send();
     },
   );
   fastify.post<{ Body: VerifyPostRequest }>(
@@ -402,15 +476,16 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         ticketId,
         purchaserData,
       });
-      request.log.info(
-        {
-          type: "audit",
-          module: "tickets",
-          actor: request.username,
+      await createAuditLogEntry({
+        dynamoClient: fastify.dynamoClient,
+        entry: {
+          module: Modules.TICKETS,
+          actor: request.username!,
           target: ticketId,
+          message: `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
+          requestId: request.id,
         },
-        `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
-      );
+      });
     },
   );
 };

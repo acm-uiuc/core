@@ -18,6 +18,7 @@ import {
   IconTicket,
   IconLock,
   IconDoor,
+  IconHistory,
 } from '@tabler/icons-react';
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -75,10 +76,17 @@ export const navItems = [
   },
   {
     link: '/linkry',
-    name: 'Linkry',
+    name: 'Link Shortener',
     icon: IconLink,
     description: null,
     validRoles: [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+  },
+  {
+    link: '/logs',
+    name: 'Audit Logs',
+    icon: IconHistory,
+    description: null,
+    validRoles: [AppRoles.AUDIT_LOG_VIEWER],
   },
 ];
 

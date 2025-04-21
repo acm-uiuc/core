@@ -81,7 +81,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
-          role-session-name: Core_Dev_Deployment
+          role-session-name: Core_Dev_Deployment_${{ github.run_id }}
           aws-region: us-east-1
 
       - name: Publish to AWS
