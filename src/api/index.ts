@@ -29,6 +29,18 @@ import membershipPlugin from "./routes/membership.js";
 import path from "path"; // eslint-disable-line import/no-nodejs-modules
 import roomRequestRoutes from "./routes/roomRequests.js";
 import logsPlugin from "./routes/logs.js";
+import fastifySwagger from "@fastify/swagger";
+import fastifySwaggerUI from "@fastify/swagger-ui";
+import {
+  type FastifyZodOpenApiSchema,
+  type FastifyZodOpenApiTypeProvider,
+  fastifyZodOpenApiPlugin,
+  fastifyZodOpenApiTransform,
+  fastifyZodOpenApiTransformObject,
+  serializerCompiler,
+  validatorCompiler,
+} from "fastify-zod-openapi";
+import { ZodOpenApiVersion } from "zod-openapi";
 
 dotenv.config();
 
@@ -85,6 +97,21 @@ async function init(prettyPrint: boolean = false) {
   await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);
   await app.register(errorHandlerPlugin);
+  await app.register(fastifyZodOpenApiPlugin);
+  await app.register(fastifySwagger, {
+    openapi: {
+      info: {
+        title: "ACM @ UIUC Core API",
+        version: "1.0.0",
+      },
+      openapi: "3.0.3" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
+    },
+    transform: fastifyZodOpenApiTransform,
+    transformObject: fastifyZodOpenApiTransformObject,
+  });
+  await app.register(fastifySwaggerUI, {
+    routePrefix: "/api/documentation",
+  });
   await app.register(fastifyStatic, {
     root: path.join(__dirname, "public"),
     prefix: "/",

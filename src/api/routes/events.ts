@@ -1,3 +1,4 @@
+import "zod-openapi/extend";
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { AppRoles } from "../../common/roles.js";
 import { z } from "zod";
@@ -32,6 +33,14 @@ import {
 } from "api/functions/cache.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
+import {
+  FastifyPluginAsyncZodOpenApi,
+  FastifyZodOpenApiSchema,
+  FastifyZodOpenApiTypeProvider,
+  serializerCompiler,
+  validatorCompiler,
+} from "fastify-zod-openapi";
+import { ts, withTags } from "api/components/index.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
@@ -54,77 +63,57 @@ const requestSchema = baseSchema.extend({
   repeatEnds: z.string().optional(),
 });
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const postRequestSchema = requestSchema.refine(
   (data) => (data.repeatEnds ? data.repeats !== undefined : true),
   {
     message: "repeats is required when repeatEnds is defined",
   },
 );
-
 export type EventPostRequest = z.infer<typeof postRequestSchema>;
-type EventGetRequest = {
-  Params: { id: string };
-  Querystring: { ts?: number };
-  Body: undefined;
-};
 
-type EventDeleteRequest = {
-  Params: { id: string };
-  Querystring: undefined;
-  Body: undefined;
-};
-
-const responseJsonSchema = zodToJsonSchema(
-  z.object({
-    id: z.string(),
-    resource: z.string(),
-  }),
-);
-
-// GET
 const getEventSchema = requestSchema.extend({
   id: z.string(),
 });
-
 export type EventGetResponse = z.infer<typeof getEventSchema>;
-const getEventJsonSchema = zodToJsonSchema(getEventSchema);
 
 const getEventsSchema = z.array(getEventSchema);
 export type EventsGetResponse = z.infer<typeof getEventsSchema>;
-type EventsGetRequest = {
-  Body: undefined;
-  Querystring?: {
-    upcomingOnly?: boolean;
-    featuredOnly?: boolean;
-    host?: string;
-    ts?: number;
-  };
-};
 
-const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
+const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
+  fastify,
+  _options,
+) => {
+  fastify.setValidatorCompiler(validatorCompiler);
+  fastify.setSerializerCompiler(serializerCompiler);
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.register(rateLimiter, {
       limit: 30,
       duration: 60,
       rateLimitIdentifier: "events",
     });
-    fastify.get<EventsGetRequest>(
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
       "/",
       {
-        schema: {
-          querystring: {
-            type: "object",
-            properties: {
-              upcomingOnly: { type: "boolean" },
-              host: { type: "string" },
-              ts: { type: "number" },
-            },
-          },
+        schema: withTags(["Events"], {
+          querystring: z.object({
+            upcomingOnly: z.coerce.boolean().optional().openapi({
+              description:
+                "If true, only get events which end after the current time.",
+            }),
+            featuredOnly: z.coerce.boolean().optional().openapi({
+              description:
+                "If true, only get events which are marked as featured.",
+            }),
+            host: z
+              .enum(OrganizationList as [string, ...string[]])
+              .optional()
+              .openapi({ description: "Event host filter." }),
+            ts,
+          }),
           response: { 200: getEventsSchema },
-        },
+        }),
       },
-      async (request: FastifyRequest<EventsGetRequest>, reply) => {
+      async (request, reply) => {
         const upcomingOnly = request.query?.upcomingOnly || false;
         const featuredOnly = request.query?.featuredOnly || false;
         const host = request.query?.host;
@@ -230,15 +219,18 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     );
   };
 
-  fastify.post<{ Body: EventPostRequest }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/:id?",
     {
-      schema: {
-        response: { 201: responseJsonSchema },
-      },
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, postRequestSchema);
-      },
+      schema: withTags(["Events"], {
+        response: {
+          201: z.object({
+            id: z.string(),
+            resource: z.string(),
+          }),
+        },
+        body: postRequestSchema,
+      }) satisfies FastifyZodOpenApiSchema,
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
       },
@@ -361,17 +353,28 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
-  fastify.delete<EventDeleteRequest>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/:id",
     {
-      schema: {
-        response: { 201: responseJsonSchema },
-      },
+      schema: withTags(["Events"], {
+        params: z.object({
+          id: z.string().min(1).openapi({
+            description: "Event ID to delete.",
+            example: "6667e095-8b04-4877-b361-f636f459ba42",
+          }),
+        }),
+        response: {
+          201: z.object({
+            id: z.string(),
+            resource: z.string(),
+          }),
+        },
+      }) satisfies FastifyZodOpenApiSchema,
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
       },
     },
-    async (request: FastifyRequest<EventDeleteRequest>, reply) => {
+    async (request, reply) => {
       const id = request.params.id;
       if (!request.username) {
         throw new UnauthenticatedError({ message: "Username not found." });
@@ -421,20 +424,23 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       );
     },
   );
-  fastify.get<EventGetRequest>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:id",
     {
-      schema: {
-        querystring: {
-          type: "object",
-          properties: {
-            ts: { type: "number" },
-          },
-        },
-        response: { 200: getEventJsonSchema },
-      },
+      schema: withTags(["Events"], {
+        params: z.object({
+          id: z.string().min(1).openapi({
+            description: "Event ID to delete.",
+            example: "6667e095-8b04-4877-b361-f636f459ba42",
+          }),
+        }),
+        querystring: z.object({
+          ts,
+        }),
+        response: { 200: getEventSchema },
+      }),
     },
-    async (request: FastifyRequest<EventGetRequest>, reply) => {
+    async (request, reply) => {
       const id = request.params.id;
       const ts = request.query?.ts;
 
@@ -485,7 +491,7 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           reply.header("etag", etag);
         }
 
-        return reply.send(item);
+        return reply.send(item as z.infer<typeof getEventSchema>);
       } catch (e) {
         if (e instanceof BaseError) {
           throw e;

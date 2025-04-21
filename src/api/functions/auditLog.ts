@@ -2,14 +2,7 @@ import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
 import { Modules } from "common/modules.js";
-
-export type AuditLogEntry = {
-  module: Modules;
-  actor: string;
-  target: string;
-  requestId?: string;
-  message: string;
-};
+import { AuditLogEntry } from "common/types/logs.js";
 
 type AuditLogParams = {
   dynamoClient?: DynamoDBClient;

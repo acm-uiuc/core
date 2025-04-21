@@ -1,3 +1,4 @@
+import 'zod-openapi/extend';
 import { Configuration, PublicClientApplication } from '@azure/msal-browser';
 import { MsalProvider } from '@azure/msal-react';
 import ReactDOM from 'react-dom/client';
