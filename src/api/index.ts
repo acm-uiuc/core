@@ -32,16 +32,13 @@ import logsPlugin from "./routes/logs.js";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUI from "@fastify/swagger-ui";
 import {
-  type FastifyZodOpenApiSchema,
-  type FastifyZodOpenApiTypeProvider,
   fastifyZodOpenApiPlugin,
   fastifyZodOpenApiTransform,
   fastifyZodOpenApiTransformObject,
-  serializerCompiler,
-  validatorCompiler,
 } from "fastify-zod-openapi";
 import { ZodOpenApiVersion } from "zod-openapi";
 import { withTags } from "./components/index.js";
+import "zod-openapi/extend";
 
 dotenv.config();
 
