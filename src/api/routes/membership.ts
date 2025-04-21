@@ -227,7 +227,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
   };
   fastify.post(
     "/provision",
-    { config: { rawBody: true } },
+    { config: { rawBody: true }, schema: { hide: true } },
     async (request, reply) => {
       let event: Stripe.Event;
       if (!request.rawBody) {

@@ -41,6 +41,7 @@ import {
   validatorCompiler,
 } from "fastify-zod-openapi";
 import { ZodOpenApiVersion } from "zod-openapi";
+import { withTags } from "./components/index.js";
 
 dotenv.config();
 
@@ -149,7 +150,11 @@ async function init(prettyPrint: boolean = false) {
     );
     done();
   });
-  app.get("/api/v1/healthz", (_, reply) => reply.send({ message: "UP" }));
+  app.get(
+    "/api/v1/healthz",
+    { schema: withTags(["Generic"], {}) },
+    (_, reply) => reply.send({ message: "UP" }),
+  );
   await app.register(
     async (api, _options) => {
       api.register(protectedRoute, { prefix: "/protected" });
