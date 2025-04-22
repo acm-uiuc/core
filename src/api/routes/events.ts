@@ -85,7 +85,7 @@ const zodIncludeMetadata = z.coerce
   .default(false)
   .optional()
   .openapi({
-    description: "If true, metadata for each event entry.",
+    description: "If true, include metadata for each event entry.",
   });
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
 export type EventRepeatOptions = (typeof repeatOptions)[number];
@@ -141,7 +141,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           querystring: z.object({
             upcomingOnly: z.coerce.boolean().default(false).optional().openapi({
               description:
-                "If true, only get events which end after the current time.",
+                "If true, only get events which have at least one occurance starting after the current time.",
             }),
             featuredOnly: z.coerce.boolean().default(false).optional().openapi({
               description:
@@ -150,7 +150,9 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             host: z
               .enum(OrganizationList as [string, ...string[]])
               .optional()
-              .openapi({ description: "Event host filter." }),
+              .openapi({
+                description: "Retrieve events only for a specific host.",
+              }),
             ts,
             includeMetadata: zodIncludeMetadata,
           }),
