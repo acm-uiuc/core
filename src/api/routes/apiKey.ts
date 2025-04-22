@@ -9,8 +9,17 @@ import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { genericConfig } from "common/config.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
-import { TransactWriteItemsCommand } from "@aws-sdk/client-dynamodb";
-import { BaseError, DatabaseInsertError } from "common/errors/index.js";
+import {
+  ConditionalCheckFailedException,
+  TransactWriteItemsCommand,
+} from "@aws-sdk/client-dynamodb";
+import {
+  BaseError,
+  DatabaseDeleteError,
+  DatabaseInsertError,
+  ValidationError,
+} from "common/errors/index.js";
+import { z } from "zod";
 
 const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -79,6 +88,63 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
         apiKey,
         expiresAt,
       });
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
+    "/org/:keyId",
+    {
+      schema: withRoles(
+        [AppRoles.MANAGE_ORG_API_KEYS],
+        withTags(["API Keys"], {
+          summary: "Delete an organization API key.",
+          params: z.object({
+            keyId: z.string().min(1),
+          }),
+        }),
+        { disableApiKeyAuth: true },
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      const { keyId } = request.params;
+      const logStatement = buildAuditLogTransactPut({
+        entry: {
+          module: Modules.API_KEY,
+          message: `Deleted API key.`,
+          actor: request.username!,
+          target: `acmuiuc_${keyId}`,
+          requestId: request.id,
+        },
+      });
+      const command = new TransactWriteItemsCommand({
+        TransactItems: [
+          logStatement,
+          {
+            Delete: {
+              TableName: genericConfig.ApiKeyTable,
+              Key: { keyId: { S: keyId } },
+              ConditionExpression: "attribute_exists(keyId)",
+            },
+          },
+        ],
+      });
+      try {
+        await fastify.dynamoClient.send(command);
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        if (e instanceof ConditionalCheckFailedException) {
+          throw new ValidationError({
+            message: "Key does not exist.",
+          });
+        }
+        fastify.log.error(e);
+        throw new DatabaseDeleteError({
+          message: "Could not delete API key.",
+        });
+      }
+      return reply.status(204).send();
     },
   );
 };
