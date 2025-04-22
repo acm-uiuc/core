@@ -43,7 +43,50 @@ import {
 import { ts, withRoles, withTags } from "api/components/index.js";
 import { MAX_METADATA_KEYS, metadataSchema } from "common/types/events.js";
 
+const createProjectionParams = (includeMetadata: boolean = false) => {
+  // Object mapping attribute names to their expression aliases
+  const attributeMapping = {
+    title: "#title",
+    description: "#description",
+    start: "#startTime", // Reserved keyword
+    end: "#endTime", // Potential reserved keyword
+    location: "#location",
+    locationLink: "#locationLink",
+    host: "#host",
+    featured: "#featured",
+    id: "#id",
+    ...(includeMetadata ? { metadata: "#metadata" } : {}),
+  };
+
+  // Create expression attribute names object for DynamoDB
+  const expressionAttributeNames = Object.entries(attributeMapping).reduce(
+    (acc, [attrName, exprName]) => {
+      acc[exprName] = attrName;
+      return acc;
+    },
+    {} as { [key: string]: string },
+  );
+
+  // Create projection expression from the values of attributeMapping
+  const projectionExpression = Object.values(attributeMapping).join(",");
+
+  return {
+    attributeMapping,
+    expressionAttributeNames,
+    projectionExpression,
+    // Return function to destructure results if needed
+    getAttributes: <T>(item: any): T => item as T,
+  };
+};
+
 const repeatOptions = ["weekly", "biweekly"] as const;
+const zodIncludeMetadata = z.coerce
+  .boolean()
+  .default(false)
+  .optional()
+  .openapi({
+    description: "If true, metadata for each event entry.",
+  });
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
 export type EventRepeatOptions = (typeof repeatOptions)[number];
 
@@ -96,11 +139,11 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       {
         schema: withTags(["Events"], {
           querystring: z.object({
-            upcomingOnly: z.coerce.boolean().optional().openapi({
+            upcomingOnly: z.coerce.boolean().default(false).optional().openapi({
               description:
                 "If true, only get events which end after the current time.",
             }),
-            featuredOnly: z.coerce.boolean().optional().openapi({
+            featuredOnly: z.coerce.boolean().default(false).optional().openapi({
               description:
                 "If true, only get events which are marked as featured.",
             }),
@@ -109,6 +152,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               .optional()
               .openapi({ description: "Event host filter." }),
             ts,
+            includeMetadata: zodIncludeMetadata,
           }),
           summary: "Retrieve calendar events with applied filters.",
           // response: { 200: getEventsSchema },
@@ -117,9 +161,10 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       async (request, reply) => {
         const upcomingOnly = request.query?.upcomingOnly || false;
         const featuredOnly = request.query?.featuredOnly || false;
+        const includeMetadata = request.query.includeMetadata || true;
         const host = request.query?.host;
         const ts = request.query?.ts; // we only use this to disable cache control
-
+        const projection = createProjectionParams(includeMetadata);
         try {
           const ifNoneMatch = request.headers["if-none-match"];
           if (ifNoneMatch) {
@@ -151,10 +196,14 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               },
               KeyConditionExpression: "host = :host",
               IndexName: "HostIndex",
+              ProjectionExpression: projection.projectionExpression,
+              ExpressionAttributeNames: projection.expressionAttributeNames,
             });
           } else {
             command = new ScanCommand({
               TableName: genericConfig.EventsDynamoTableName,
+              ProjectionExpression: projection.projectionExpression,
+              ExpressionAttributeNames: projection.expressionAttributeNames,
             });
           }
           if (!ifNoneMatch) {
@@ -446,6 +495,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         }),
         querystring: z.object({
           ts,
+          includeMetadata: zodIncludeMetadata,
         }),
         summary: "Retrieve a calendar event.",
         // response: { 200: getEventSchema },
@@ -454,6 +504,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
     async (request, reply) => {
       const id = request.params.id;
       const ts = request.query?.ts;
+      const includeMetadata = request.query?.includeMetadata || false;
 
       try {
         // Check If-None-Match header
@@ -477,11 +528,13 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
 
           reply.header("etag", etag);
         }
-
+        const projection = createProjectionParams(includeMetadata);
         const response = await fastify.dynamoClient.send(
           new GetItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
             Key: marshall({ id }),
+            ProjectionExpression: projection.projectionExpression,
+            ExpressionAttributeNames: projection.expressionAttributeNames,
           }),
         );
         const item = response.Item ? unmarshall(response.Item) : null;
@@ -507,6 +560,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         if (e instanceof BaseError) {
           throw e;
         }
+        fastify.log.error(e);
         throw new DatabaseFetchError({
           message: "Failed to get event from Dynamo table.",
         });
