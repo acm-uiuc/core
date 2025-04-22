@@ -41,6 +41,7 @@ import {
   validatorCompiler,
 } from "fastify-zod-openapi";
 import { ts, withRoles, withTags } from "api/components/index.js";
+import { MAX_METADATA_KEYS, metadataSchema } from "common/types/events.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
@@ -56,6 +57,7 @@ const baseSchema = z.object({
   host: z.enum(OrganizationList as [string, ...string[]]),
   featured: z.boolean().default(false),
   paidEventId: z.optional(z.string().min(1)),
+  metadata: metadataSchema,
 });
 
 const requestSchema = baseSchema.extend({
