@@ -35,6 +35,7 @@
     "@middy/event-normalizer": "^6.0.0",
     "@middy/sqs-partial-batch-failure": "^6.0.0",
     "@touch4it/ical-timezones": "^1.9.0",
+    "argon2": "^0.41.1",
     "base64-arraybuffer": "^1.0.2",
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
