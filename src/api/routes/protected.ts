@@ -19,7 +19,7 @@ const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
       ),
     },
     async (request, reply) => {
-      const roles = await fastify.authorize(request, reply, []);
+      const roles = await fastify.authorize(request, reply, [], false);
       reply.send({ username: request.username, roles: Array.from(roles) });
     },
   );

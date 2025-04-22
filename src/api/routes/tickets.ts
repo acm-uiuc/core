@@ -126,7 +126,12 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       let isTicketingManager = true;
       try {
-        await fastify.authorize(request, reply, [AppRoles.TICKETS_MANAGER]);
+        await fastify.authorize(
+          request,
+          reply,
+          [AppRoles.TICKETS_MANAGER],
+          false,
+        );
       } catch {
         isTicketingManager = false;
       }
