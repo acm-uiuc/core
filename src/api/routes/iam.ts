@@ -79,13 +79,14 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
     "/profile",
     {
-      schema: withTags(["IAM"], {
-        body: entraProfilePatchRequest,
-        summary: "Update user's profile.",
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, []);
-      },
+      schema: withRoles(
+        [],
+        withTags(["IAM"], {
+          body: entraProfilePatchRequest,
+          summary: "Update user's profile.",
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       if (!request.tokenPayload || !request.username) {

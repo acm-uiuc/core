@@ -27,7 +27,7 @@ import { genericConfig, notificationRecipients } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
-import { withTags } from "api/components/index.js";
+import { withRoles, withTags } from "api/components/index.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { z } from "zod";
 
@@ -37,29 +37,27 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     duration: 30,
     rateLimitIdentifier: "roomRequests",
   });
-  fastify.post<{
-    Body: RoomRequestStatusUpdatePostBody;
-    Params: { requestId: string; semesterId: string };
-  }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/:semesterId/:requestId/status",
     {
-      schema: withTags(["Room Requests"], {
-        summary: "Create status update for a room request.",
-        params: z.object({
-          requestId: z.string().min(1).openapi({
-            description: "Room request ID.",
-            example: "6667e095-8b04-4877-b361-f636f459ba42",
+      schema: withRoles(
+        [AppRoles.ROOM_REQUEST_UPDATE],
+        withTags(["Room Requests"], {
+          summary: "Create status update for a room request.",
+          params: z.object({
+            requestId: z.string().min(1).openapi({
+              description: "Room request ID.",
+              example: "6667e095-8b04-4877-b361-f636f459ba42",
+            }),
+            semesterId: z.string().min(1).openapi({
+              description: "Short semester slug for a given semester.",
+              example: "sp25",
+            }),
           }),
-          semesterId: z.string().min(1).openapi({
-            description: "Short semester slug for a given semester.",
-            example: "sp25",
-          }),
+          body: roomRequestStatusUpdateRequest,
         }),
-        body: roomRequestStatusUpdateRequest,
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_UPDATE]);
-      },
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       if (!request.username) {
@@ -154,18 +152,19 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:semesterId",
     {
-      schema: withTags(["Room Requests"], {
-        summary: "Get room requests for a specific semester.",
-        params: z.object({
-          semesterId: z.string().min(1).openapi({
-            description: "Short semester slug for a given semester.",
-            example: "sp25",
+      schema: withRoles(
+        [AppRoles.ROOM_REQUEST_CREATE],
+        withTags(["Room Requests"], {
+          summary: "Get room requests for a specific semester.",
+          params: z.object({
+            semesterId: z.string().min(1).openapi({
+              description: "Short semester slug for a given semester.",
+              example: "sp25",
+            }),
           }),
         }),
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_CREATE]);
-      },
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const semesterId = request.params.semesterId;
@@ -252,13 +251,14 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "",
     {
-      schema: withTags(["Room Requests"], {
-        summary: "Create a room request.",
-        body: roomRequestSchema,
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_CREATE]);
-      },
+      schema: withRoles(
+        [AppRoles.ROOM_REQUEST_CREATE],
+        withTags(["Room Requests"], {
+          summary: "Create a room request.",
+          body: roomRequestSchema,
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const requestId = request.id;
@@ -350,22 +350,23 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:semesterId/:requestId",
     {
-      schema: withTags(["Room Requests"], {
-        summary: "Get specific room request data.",
-        params: z.object({
-          requestId: z.string().min(1).openapi({
-            description: "Room request ID.",
-            example: "6667e095-8b04-4877-b361-f636f459ba42",
-          }),
-          semesterId: z.string().min(1).openapi({
-            description: "Short semester slug for a given semester.",
-            example: "sp25",
+      schema: withRoles(
+        [AppRoles.ROOM_REQUEST_CREATE],
+        withTags(["Room Requests"], {
+          summary: "Get specific room request data.",
+          params: z.object({
+            requestId: z.string().min(1).openapi({
+              description: "Room request ID.",
+              example: "6667e095-8b04-4877-b361-f636f459ba42",
+            }),
+            semesterId: z.string().min(1).openapi({
+              description: "Short semester slug for a given semester.",
+              example: "sp25",
+            }),
           }),
         }),
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.ROOM_REQUEST_CREATE]);
-      },
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const requestId = request.params.requestId;

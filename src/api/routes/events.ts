@@ -40,7 +40,7 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from "fastify-zod-openapi";
-import { ts, withTags } from "api/components/index.js";
+import { ts, withRoles, withTags } from "api/components/index.js";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
@@ -221,26 +221,27 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/:id?",
     {
-      schema: withTags(["Events"], {
-        // response: {
-        //   201: z.object({
-        //     id: z.string(),
-        //     resource: z.string(),
-        //   }),
-        // },
-        body: postRequestSchema,
-        params: z.object({
-          id: z.string().min(1).optional().openapi({
-            description:
-              "Event ID to modify (leave empty to create a new event).",
-            example: "6667e095-8b04-4877-b361-f636f459ba42",
+      schema: withRoles(
+        [AppRoles.EVENTS_MANAGER],
+        withTags(["Events"], {
+          // response: {
+          //   201: z.object({
+          //     id: z.string(),
+          //     resource: z.string(),
+          //   }),
+          // },
+          body: postRequestSchema,
+          params: z.object({
+            id: z.string().min(1).optional().openapi({
+              description:
+                "Event ID to modify (leave empty to create a new event).",
+              example: "6667e095-8b04-4877-b361-f636f459ba42",
+            }),
           }),
+          summary: "Modify a calendar event.",
         }),
-        summary: "Modify a calendar event.",
-      }) satisfies FastifyZodOpenApiSchema,
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
-      },
+      ) satisfies FastifyZodOpenApiSchema,
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       if (!request.username) {
@@ -361,24 +362,25 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/:id",
     {
-      schema: withTags(["Events"], {
-        params: z.object({
-          id: z.string().min(1).openapi({
-            description: "Event ID to delete.",
-            example: "6667e095-8b04-4877-b361-f636f459ba42",
+      schema: withRoles(
+        [AppRoles.EVENTS_MANAGER],
+        withTags(["Events"], {
+          params: z.object({
+            id: z.string().min(1).openapi({
+              description: "Event ID to delete.",
+              example: "6667e095-8b04-4877-b361-f636f459ba42",
+            }),
           }),
+          // response: {
+          //   201: z.object({
+          //     id: z.string(),
+          //     resource: z.string(),
+          //   }),
+          // },
+          summary: "Delete a calendar event.",
         }),
-        // response: {
-        //   201: z.object({
-        //     id: z.string(),
-        //     resource: z.string(),
-        //   }),
-        // },
-        summary: "Delete a calendar event.",
-      }) satisfies FastifyZodOpenApiSchema,
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
-      },
+      ) satisfies FastifyZodOpenApiSchema,
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const id = request.params.id;

@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
-import { withTags } from "api/components/index.js";
+import { withRoles, withTags } from "api/components/index.js";
 
 const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -11,9 +11,12 @@ const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
   fastify.get(
     "",
     {
-      schema: withTags(["Generic"], {
-        summary: "Get a user's username and roles.",
-      }),
+      schema: withRoles(
+        [],
+        withTags(["Generic"], {
+          summary: "Get a user's username and roles.",
+        }),
+      ),
     },
     async (request, reply) => {
       const roles = await fastify.authorize(request, reply, []);

@@ -165,6 +165,17 @@ async function init(prettyPrint: boolean = false) {
         },
       ],
       openapi: "3.0.3" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+            description:
+              "Authorization: Bearer {token}\n\nThis API uses JWT tokens issued by Entra ID (Azure AD) with the Core API audience. Tokens must be included in the Authorization header as a Bearer token for all protected endpoints.",
+          },
+        },
+      },
     },
     transform: fastifyZodOpenApiTransform,
     transformObject: fastifyZodOpenApiTransformObject,
