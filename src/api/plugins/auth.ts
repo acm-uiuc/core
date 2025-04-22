@@ -20,6 +20,7 @@ import {
   ReplicaAlreadyExistsException,
 } from "@aws-sdk/client-dynamodb";
 import { getApiKeyData, getApiKeyParts } from "api/functions/apiKey.js";
+import { RequestThrottled } from "@aws-sdk/client-sqs";
 
 export function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();
@@ -116,6 +117,9 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         message: "User does not have the privileges for this task.",
       });
     }
+    request.username = `acmuiuc_${apikeyId}`;
+    request.userRoles = rolesSet;
+    request.tokenPayload = undefined; // there's no token data
     return new Set(keyData.roles);
   };
   fastify.decorate(
