@@ -34,7 +34,10 @@ export function withRoles<T extends FastifyZodOpenApiSchema>(
   return {
     security: [{ bearerAuth: [] }],
     "x-required-roles": roles,
-    description: `Requires one of the following roles: ${roles.join(", ")}.${schema.description ? "\n\n" + schema.description : ""}`,
+    description:
+      roles.length > 0
+        ? `Requires one of the following roles: ${roles.join(", ")}.${schema.description ? "\n\n" + schema.description : ""}`
+        : "Requires valid authentication but no specific role.",
     ...schema,
   };
 }

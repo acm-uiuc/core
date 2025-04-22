@@ -4,7 +4,7 @@ import {
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
-import { withTags } from "api/components/index.js";
+import { withRoles, withTags } from "api/components/index.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import {
   createStripeLink,
@@ -36,12 +36,13 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/paymentLinks",
     {
-      schema: withTags(["Stripe"], {
-        summary: "Get available Stripe payment links.",
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.STRIPE_LINK_CREATOR]);
-      },
+      schema: withRoles(
+        [AppRoles.STRIPE_LINK_CREATOR],
+        withTags(["Stripe"], {
+          summary: "Get available Stripe payment links.",
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       let dynamoCommand;
@@ -91,13 +92,14 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/paymentLinks",
     {
-      schema: withTags(["Stripe"], {
-        summary: "Create a Stripe payment link.",
-        body: invoiceLinkPostRequestSchema,
-      }),
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.STRIPE_LINK_CREATOR]);
-      },
+      schema: withRoles(
+        [AppRoles.STRIPE_LINK_CREATOR],
+        withTags(["Stripe"], {
+          summary: "Create a Stripe payment link.",
+          body: invoiceLinkPostRequestSchema,
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       if (!request.username) {
