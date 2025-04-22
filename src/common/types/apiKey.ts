@@ -28,6 +28,6 @@ export const apiKeyPostBody = z.object({
     }).openapi({ description: `Roles granted to the API key. These roles are a subset of the overall application roles.` }),
   description: z.string().min(1).openapi({ description: "Description of the key's use.", example: "Publish events to ACM Calendar as part of the CI process." }),
   expiresAt: z.optional(z.number()).refine((val) => val === undefined || val > Date.now() / 1000, {
-    message: "expiresAt must be a future epoch.",
+    message: "expiresAt must be a future epoch time.",
   }).openapi({ description: "Epoch timestamp of when the key expires.", example: 1745362658 })
 })
