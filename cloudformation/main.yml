@@ -271,7 +271,7 @@ Resources:
           AttributeType: S
       KeySchema:
         - AttributeName: email
-          KeyType:
+          KeyType: HASH
 
   ApiKeyTable:
     Type: "AWS::DynamoDB::Table"
