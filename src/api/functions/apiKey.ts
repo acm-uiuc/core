@@ -24,7 +24,7 @@ export type ApiKeyDynamoEntry = {
   keyId: string;
   keyHash: string;
   roles: AppRoles[];
-  ttl: number;
+  ttl?: number;
 };
 
 export const createChecksum = (key: string) => {
@@ -116,7 +116,7 @@ export const getApiKeyData = async ({
     return undefined; // bad data, don't cache it
   }
   let cacheTime = API_KEY_DATA_CACHE_SECONDS;
-  if ("ttl" in unmarshalled) {
+  if (unmarshalled["ttl"]) {
     const currentEpoch = Date.now();
     cacheTime = min(cacheTime, unmarshalled["ttl"] - currentEpoch);
   }
