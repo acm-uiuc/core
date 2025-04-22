@@ -286,9 +286,14 @@ Resources:
       AttributeDefinitions:
         - AttributeName: keyId
           AttributeType: S
+        - AttributeName: expiresAt
+          AttributeType: "N"
       KeySchema:
         - AttributeName: keyId
           KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
 
   ExternalMembershipRecordsTable:
     Type: "AWS::DynamoDB::Table"
