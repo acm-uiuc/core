@@ -109,7 +109,7 @@ const SelectTicketsPage: React.FC = () => {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/v1/tickets/');
+      const response = await api.get('/api/v1/tickets');
       const parsed = listItemsResponseSchema.parse(response.data);
       setItems({
         tickets: parsed.tickets,

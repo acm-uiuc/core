@@ -26,7 +26,7 @@ import {
   getLinkryKvArn,
   setKey,
 } from "api/functions/cloudfrontKvStore.js";
-import { createRequest } from "common/types/linkry.js";
+import { createRequest, linkrySlug } from "common/types/linkry.js";
 import {
   extractUniqueSlugs,
   fetchOwnerRecords,
@@ -39,6 +39,12 @@ import {
 import { intersection } from "api/plugins/auth.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
+import {
+  FastifyZodOpenApiTypeProvider,
+  serializerCompiler,
+  validatorCompiler,
+} from "fastify-zod-openapi";
+import { withTags } from "api/components/index.js";
 
 type OwnerRecord = {
   slug: string;
@@ -67,12 +73,6 @@ type LinkryGetRequest = {
   Body: undefined;
 };
 
-type LinkryDeleteRequest = {
-  Params: { slug: string };
-  Querystring: undefined;
-  Body: undefined;
-};
-
 const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.register(rateLimiter, {
@@ -81,9 +81,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       rateLimitIdentifier: "linkry",
     });
 
-    fastify.get<NoDataRequest>(
+    fastify.get(
       "/redir",
       {
+        schema: withTags(["Linkry"], {}),
         onRequest: async (request, reply) => {
           await fastify.authorize(request, reply, [
             AppRoles.LINKS_MANAGER,
@@ -176,9 +177,12 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
     );
 
-    fastify.post<LinkyCreateRequest>(
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
       "/redir",
       {
+        schema: withTags(["Linkry"], {
+          body: createRequest,
+        }),
         preValidation: async (request, reply) => {
           const routeAlreadyExists = fastify.hasRoute({
             url: `/${request.body.slug}`,
@@ -190,8 +194,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               message: `Slug ${request.body.slug} is reserved by the system.`,
             });
           }
-
-          await fastify.zodValidateBody(request, reply, createRequest);
 
           if (!fastify.cloudfrontKvClient) {
             fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
@@ -460,6 +462,11 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     fastify.get<LinkryGetRequest>(
       "/redir/:slug",
       {
+        schema: withTags(["Linkry"], {
+          params: z.object({
+            slug: linkrySlug,
+          }),
+        }),
         onRequest: async (request, reply) => {
           await fastify.authorize(request, reply, [
             AppRoles.LINKS_MANAGER,
@@ -506,9 +513,14 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
     );
 
-    fastify.delete<LinkryDeleteRequest>(
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
       "/redir/:slug",
       {
+        schema: withTags(["Linkry"], {
+          params: z.object({
+            slug: linkrySlug,
+          }),
+        }),
         onRequest: async (request, reply) => {
           await fastify.authorize(request, reply, [
             AppRoles.LINKS_MANAGER,

@@ -4,6 +4,7 @@ import {
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { withTags } from "api/components/index.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import {
   createStripeLink,
@@ -25,16 +26,19 @@ import {
   invoiceLinkGetResponseSchema,
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
-import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
+import {
+  FastifyZodOpenApiTypeProvider,
+  serializerCompiler,
+  validatorCompiler,
+} from "fastify-zod-openapi";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.get(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/paymentLinks",
     {
-      schema: {
-        response: { 200: zodToJsonSchema(invoiceLinkGetResponseSchema) },
-      },
+      schema: withTags(["Stripe"], {
+        summary: "Get available Stripe payment links.",
+      }),
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.STRIPE_LINK_CREATOR]);
       },
@@ -84,19 +88,13 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       reply.status(200).send(parsed);
     },
   );
-  fastify.post<{ Body: z.infer<typeof invoiceLinkPostRequestSchema> }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/paymentLinks",
     {
-      schema: {
-        response: { 201: zodToJsonSchema(invoiceLinkPostResponseSchema) },
-      },
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(
-          request,
-          reply,
-          invoiceLinkPostRequestSchema,
-        );
-      },
+      schema: withTags(["Stripe"], {
+        summary: "Create a Stripe payment link.",
+        body: invoiceLinkPostRequestSchema,
+      }),
       onRequest: async (request, reply) => {
         await fastify.authorize(request, reply, [AppRoles.STRIPE_LINK_CREATOR]);
       },

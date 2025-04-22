@@ -103,7 +103,7 @@ describe("Test Stripe link creation", async () => {
       name: "ValidationError",
       id: 104,
       message:
-        'String must contain at least 1 character(s) at "invoiceId"; Number must be greater than or equal to 50 at "invoiceAmountUsd"; String must contain at least 1 character(s) at "contactName"; Required at "contactEmail"',
+        "body/invoiceId String must contain at least 1 character(s), body/invoiceAmountUsd Number must be greater than or equal to 50, body/contactName String must contain at least 1 character(s), body/contactEmail Required",
     });
     expect(ddbMock.calls().length).toEqual(0);
     expect(smMock.calls().length).toEqual(0);
@@ -130,7 +130,7 @@ describe("Test Stripe link creation", async () => {
       error: true,
       name: "ValidationError",
       id: 104,
-      message: 'Invalid email at "contactEmail"',
+      message: "body/contactEmail Invalid email",
     });
     expect(ddbMock.calls().length).toEqual(0);
     expect(smMock.calls().length).toEqual(0);

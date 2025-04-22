@@ -57,6 +57,10 @@ beforeEach(() => {
   ddbMock.reset();
 });
 // Get Link
+beforeEach(() => {
+  ddbMock.reset();
+});
+// Get Link
 
 test("Happy path: Fetch all linkry redirects with admin roles", async () => {
   ddbMock

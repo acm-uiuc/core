@@ -76,7 +76,7 @@ test("Sad path: Prevent empty body request", async () => {
     error: true,
     name: "ValidationError",
     id: 104,
-    message: `Required at "title"; Required at "description"; Required at "start"; Required at "location"; Required at "host"`,
+    message: "body/ Expected object, received null",
   });
 });
 test("Sad path: Prevent specifying repeatEnds on non-repeating events", async () => {
@@ -106,7 +106,7 @@ test("Sad path: Prevent specifying repeatEnds on non-repeating events", async ()
     error: true,
     name: "ValidationError",
     id: 104,
-    message: "repeats is required when repeatEnds is defined",
+    message: "body/ repeats is required when repeatEnds is defined",
   });
 });
 
@@ -137,7 +137,8 @@ test("Sad path: Prevent specifying unknown repeat frequencies", async () => {
     error: true,
     name: "ValidationError",
     id: 104,
-    message: `Invalid enum value. Expected 'weekly' | 'biweekly', received 'forever_and_ever' at "repeats"`,
+    message:
+      "body/repeats Invalid enum value. Expected 'weekly' | 'biweekly', received 'forever_and_ever'",
   });
 });
 

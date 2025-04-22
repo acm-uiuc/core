@@ -22,9 +22,17 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { validateEmail } from "../functions/validation.js";
 import { AppRoles } from "../../common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { ItemPostData } from "common/types/tickets.js";
+import { ItemPostData, postMetadataSchema } from "common/types/tickets.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
+import {
+  FastifyZodOpenApiTypeProvider,
+  serializerCompiler,
+  validatorCompiler,
+} from "fastify-zod-openapi";
+import { withRoles, withTags } from "api/components/index.js";
+import { request } from "http";
+import authorizeFromSchemaPlugin from "api/plugins/authorizeFromSchema.js";
 
 const postMerchSchema = z.object({
   type: z.literal("merch"),
@@ -103,33 +111,17 @@ type TicketsGetRequest = {
   Body: undefined;
 };
 
-type TicketsListRequest = {
-  Params: undefined;
-  Querystring: undefined;
-  Body: undefined;
-};
-
-type TicketsPostRequest = {
-  Params: { eventId: string };
-  Querystring: undefined;
-  Body: ItemPostData;
-};
-
 const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.get<TicketsListRequest>(
-    "/",
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "",
     {
-      schema: {
-        response: {
-          200: listMerchItemsResponseJsonSchema,
-        },
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [
-          AppRoles.TICKETS_MANAGER,
-          AppRoles.TICKETS_SCANNER,
-        ]);
-      },
+      schema: withRoles(
+        [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
+        withTags(["Tickets/Merchandise"], {
+          summary: "Retrieve metadata about tickets/merchandise items.",
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       let isTicketingManager = true;
@@ -213,30 +205,27 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       reply.send({ merch: merchItems, tickets: ticketItems });
     },
   );
-  fastify.get<TicketsGetRequest>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:eventId",
     {
-      schema: {
-        querystring: {
-          type: "object",
-          properties: {
-            type: {
-              type: "string",
-              enum: ["merch", "ticket"],
-            },
-          },
-        },
-        response: {
-          200: getTicketsResponseJsonSchema,
-        },
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.TICKETS_MANAGER]);
-      },
+      schema: withRoles(
+        [AppRoles.TICKETS_MANAGER],
+        withTags(["Tickets/Merchandise"], {
+          summary: "Get detailed per-sale information by event ID.",
+          querystring: z.object({
+            type: z.enum(["merch", "ticket"]),
+          }),
+          params: z.object({
+            eventId: z.string().min(1),
+          }),
+          security: [],
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
-      const eventId = (request.params as Record<string, string>).eventId;
-      const eventType = request.query?.type;
+      const eventId = request.params.eventId;
+      const eventType = request.query.type;
       const issuedTickets: TicketInfoEntry[] = [];
       switch (eventType) {
         case "merch":
@@ -280,12 +269,20 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       return reply.send(response);
     },
   );
-  fastify.patch<TicketsPostRequest>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
     "/:eventId",
     {
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.TICKETS_MANAGER]);
-      },
+      schema: withRoles(
+        [AppRoles.TICKETS_MANAGER],
+        withTags(["Tickets/Merchandise"], {
+          summary: "Modify event metadata.",
+          params: z.object({
+            eventId: z.string().min(1),
+          }),
+          body: postMetadataSchema,
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const eventId = request.params.eventId;
@@ -345,18 +342,17 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       return reply.status(201).send();
     },
   );
-  fastify.post<{ Body: VerifyPostRequest }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/checkIn",
     {
-      schema: {
-        response: { 200: responseJsonSchema },
-      },
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, postSchema);
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.TICKETS_SCANNER]);
-      },
+      schema: withRoles(
+        [AppRoles.TICKETS_SCANNER],
+        withTags(["Tickets/Merchandise"], {
+          summary: "Mark a ticket/merch item as fulfilled by QR code data.",
+          body: postSchema,
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       let command: UpdateItemCommand;
