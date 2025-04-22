@@ -23,6 +23,7 @@ import { ManageStripeLinksPage } from './pages/stripe/ViewLinks.page';
 import { ManageRoomRequestsPage } from './pages/roomRequest/RoomRequestLanding.page';
 import { ViewRoomRequest } from './pages/roomRequest/ViewRoomRequest.page';
 import { ViewLogsPage } from './pages/logs/ViewLogs.page';
+import { TermsOfService } from './pages/tos/TermsOfService.page';
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -81,6 +82,10 @@ const commonRoutes = [
   {
     path: '/auth/callback',
     element: <AuthCallback />,
+  },
+  {
+    path: '/tos',
+    element: <TermsOfService />,
   },
 ];
 

@@ -106,6 +106,17 @@ async function init(prettyPrint: boolean = false) {
         title: "ACM @ UIUC Core API",
         description: "ACM @ UIUC Core Management Platform",
         version: "1.0.0",
+        contact: {
+          name: "ACM @ UIUC Infrastructure Team",
+          email: "infra@acm.illinois.edu",
+          url: "infra.acm.illinois.edu",
+        },
+        license: {
+          name: "BSD 3-Clause",
+          identifier: "BSD-3-Clause",
+          url: "https://github.com/acm-uiuc/core/blob/main/LICENSE",
+        },
+        termsOfService: "https://core.acm.illinois.edu/tos",
       },
       servers: [
         {
@@ -164,7 +175,7 @@ async function init(prettyPrint: boolean = false) {
             "Creating room reservation requests for ACM @ UIUC within University buildings.",
         },
       ],
-      openapi: "3.0.3" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
+      openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
       components: {
         securitySchemes: {
           bearerAuth: {
