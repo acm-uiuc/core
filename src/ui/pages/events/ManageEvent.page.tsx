@@ -24,7 +24,12 @@ import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
 import { EVENT_CACHED_DURATION } from '@common/config';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
-import { MAX_METADATA_KEYS, MAX_STRING_LENGTH, metadataSchema } from '@common/types/events';
+import {
+  MAX_METADATA_KEYS,
+  MAX_KEY_LENGTH,
+  MAX_VALUE_LENGTH,
+  metadataSchema,
+} from '@common/types/events';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -348,8 +353,8 @@ export const ManageEventPage: React.FC = () => {
               </Button>
             </Group>
             <Text size="xs" c="dimmed">
-              These values can be acceessed via the API. Max {MAX_STRING_LENGTH} characters for keys
-              and values.
+              These values can be acceessed via the API. Max {MAX_KEY_LENGTH} characters for keys
+              and {MAX_VALUE_LENGTH} chars for values.
             </Text>
 
             {Object.entries(form.values.metadata || {}).map(([key, value], index) => {
