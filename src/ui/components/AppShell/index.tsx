@@ -1,4 +1,5 @@
 import {
+  Anchor,
   AppShell,
   Divider,
   Group,
@@ -198,6 +199,7 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
   }
   const [opened, { toggle }] = useDisclosure();
   const { userData } = useAuth();
+  const navigate = useNavigate();
   return (
     <AppShell
       padding="md"
@@ -230,6 +232,9 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
             <Text size="xs" fw={500}>
               Revision <code>{getCurrentRevision()}</code>
             </Text>
+            <Anchor component="button" size="xs" fw={500} onClick={() => navigate('/tos')}>
+              Terms of Service
+            </Anchor>
           </AppShell.Section>
         </AppShell.Navbar>
       )}
