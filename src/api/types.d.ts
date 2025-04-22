@@ -19,6 +19,7 @@ declare module "fastify" {
       request: FastifyRequest,
       reply: FastifyReply,
       validRoles: AppRoles[],
+      disableApiKeyAuth: boolean,
     ) => Promise<Set<AppRoles>>;
     authorizeFromSchema: (
       request: FastifyRequest,

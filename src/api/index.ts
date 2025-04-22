@@ -41,6 +41,7 @@ import {
 } from "fastify-zod-openapi";
 import { ZodOpenApiVersion } from "zod-openapi";
 import { withTags } from "./components/index.js";
+import apiKeyRoute from "./routes/apiKey.js";
 
 dotenv.config();
 
@@ -174,6 +175,10 @@ async function init(prettyPrint: boolean = false) {
           description:
             "Creating room reservation requests for ACM @ UIUC within University buildings.",
         },
+        {
+          name: "API Keys",
+          description: "Manage the lifecycle of API keys.",
+        },
       ],
       openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
       components: {
@@ -184,6 +189,11 @@ async function init(prettyPrint: boolean = false) {
             bearerFormat: "JWT",
             description:
               "Authorization: Bearer {token}\n\nThis API uses JWT tokens issued by Entra ID (Azure AD) with the Core API audience. Tokens must be included in the Authorization header as a Bearer token for all protected endpoints.",
+          },
+          apiKeyAuth: {
+            type: "apiKey",
+            in: "header",
+            name: "X-Api-Key",
           },
         },
       },
@@ -254,6 +264,7 @@ async function init(prettyPrint: boolean = false) {
       api.register(stripeRoutes, { prefix: "/stripe" });
       api.register(roomRequestRoutes, { prefix: "/roomRequests" });
       api.register(logsPlugin, { prefix: "/logs" });
+      api.register(apiKeyRoute, { prefix: "/apiKey" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }

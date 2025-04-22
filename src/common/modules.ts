@@ -7,7 +7,8 @@ export enum Modules {
   PROVISION_NEW_MEMBER = "provisionNewMember",
   MOBILE_WALLET = "mobileWallet",
   LINKRY = "linkry",
-  AUDIT_LOG = "auditLog"
+  AUDIT_LOG = "auditLog",
+  API_KEY = "apiKey",
 }
 
 
@@ -21,4 +22,5 @@ export const ModulesToHumanName: Record<Modules, string> = {
   [Modules.MOBILE_WALLET]: "Mobile Wallet",
   [Modules.LINKRY]: "Link Shortener",
   [Modules.AUDIT_LOG]: "Audit Log",
+  [Modules.API_KEY]: "API Keys",
 }

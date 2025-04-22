@@ -22,21 +22,32 @@ export function withTags<T extends FastifyZodOpenApiSchema>(
   };
 }
 
-type RoleSchema = {
+export type RoleSchema = {
   "x-required-roles": AppRoles[];
+  "x-disable-api-key-auth": boolean;
   description: string;
+};
+
+type RolesConfig = {
+  disableApiKeyAuth: boolean;
 };
 
 export function withRoles<T extends FastifyZodOpenApiSchema>(
   roles: AppRoles[],
   schema: T,
+  { disableApiKeyAuth }: RolesConfig = { disableApiKeyAuth: false },
 ): T & RoleSchema {
+  const security = [{ bearerAuth: [] }] as any;
+  if (!disableApiKeyAuth) {
+    security.push({ apiKeyAuth: [] });
+  }
   return {
-    security: [{ bearerAuth: [] }],
+    security,
     "x-required-roles": roles,
+    "x-disable-api-key-auth": disableApiKeyAuth,
     description:
       roles.length > 0
-        ? `Requires one of the following roles: ${roles.join(", ")}.${schema.description ? "\n\n" + schema.description : ""}`
+        ? `${disableApiKeyAuth ? "API key authentication is not permitted for this route.\n\n" : ""}Requires one of the following roles: ${roles.join(", ")}.${schema.description ? "\n\n" + schema.description : ""}`
         : "Requires valid authentication but no specific role.",
     ...schema,
   };

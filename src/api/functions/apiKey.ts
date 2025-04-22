@@ -2,30 +2,21 @@ import { createHash, randomBytes } from "crypto";
 import * as argon2 from "argon2";
 import { UnauthenticatedError } from "common/errors/index.js";
 import NodeCache from "node-cache";
-import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import {
+  DeleteItemCommand,
+  DynamoDBClient,
+  GetItemCommand,
+} from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "common/config.js";
 import { AUTH_DECISION_CACHE_SECONDS as API_KEY_DATA_CACHE_SECONDS } from "./authorization.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { AppRoles } from "common/roles.js";
+import { ApiKeyDynamoEntry, DecomposedApiKey } from "common/types/apiKey.js";
 
 function min(a: number, b: number) {
   return a < b ? a : b;
 }
 
 export const API_KEY_CACHE_SECONDS = 120;
-
-export type DecomposedApiKey = {
-  prefix: string;
-  id: string;
-  rawKey: string;
-  checksum: string;
-};
-export type ApiKeyDynamoEntry = {
-  keyId: string;
-  keyHash: string;
-  roles: AppRoles[];
-  ttl?: number;
-};
 
 export const createChecksum = (key: string) => {
   return createHash("sha256").update(key).digest("hex").slice(0, 6);
@@ -112,13 +103,25 @@ export const getApiKeyData = async ({
     return undefined;
   }
   const unmarshalled = unmarshall(result.Item) as ApiKeyDynamoEntry;
+  if (
+    unmarshalled.expiresAt &&
+    unmarshalled.expiresAt <= Math.floor(Date.now() / 1000)
+  ) {
+    dynamoClient.send(
+      new DeleteItemCommand({
+        TableName: genericConfig.ApiKeyTable,
+        Key: { keyId: { S: id } },
+      }),
+    ); // don't need to wait for the response
+    return undefined;
+  }
   if (!("keyHash" in unmarshalled)) {
     return undefined; // bad data, don't cache it
   }
   let cacheTime = API_KEY_DATA_CACHE_SECONDS;
-  if (unmarshalled["ttl"]) {
+  if (unmarshalled["expiresAt"]) {
     const currentEpoch = Date.now();
-    cacheTime = min(cacheTime, unmarshalled["ttl"] - currentEpoch);
+    cacheTime = min(cacheTime, unmarshalled["expiresAt"] - currentEpoch);
   }
   nodeCache.set(cacheKey, unmarshalled as ApiKeyDynamoEntry, cacheTime);
   return unmarshalled;

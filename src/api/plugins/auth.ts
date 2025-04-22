@@ -86,10 +86,10 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
     _reply: FastifyReply,
     validRoles: AppRoles[],
   ): Promise<Set<AppRoles>> => {
-    const apiKeyValueTemp = request.headers["X-Api-Key"];
+    const apiKeyValueTemp = request.headers["x-api-key"];
     if (!apiKeyValueTemp) {
       throw new UnauthenticatedError({
-        message: "API key not found.",
+        message: "Invalid API key.",
       });
     }
     const apiKeyValue =
@@ -104,7 +104,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
     });
     if (!keyData) {
       throw new UnauthenticatedError({
-        message: "API key not found.",
+        message: "Invalid API key.",
       });
     }
     const expectedRoles = new Set(validRoles);
@@ -128,23 +128,19 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
       request: FastifyRequest,
       reply: FastifyReply,
       validRoles: AppRoles[],
-      apiKeyAuthEnabled: boolean = true,
+      disableApiKeyAuth: boolean,
     ): Promise<Set<AppRoles>> {
       const userRoles = new Set([] as AppRoles[]);
       try {
-        const apiKeyHeader = request.headers
-          ? request.headers["X-Api-Key"]
-          : null;
-        if (apiKeyHeader) {
-          if (apiKeyAuthEnabled) {
+        if (!disableApiKeyAuth) {
+          const apiKeyHeader = request.headers
+            ? request.headers["x-api-key"]
+            : null;
+          if (apiKeyHeader) {
             return handleApiKeyAuthentication(request, reply, validRoles);
-          } else {
-            throw new UnauthenticatedError({
-              message:
-                "API key authentication is not permitted for this resource.",
-            });
           }
         }
+
         const authHeader = request.headers
           ? request.headers["authorization"]
           : null;
