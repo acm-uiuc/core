@@ -354,7 +354,7 @@ export const ManageEventPage: React.FC = () => {
             </Group>
             <Text size="xs" c="dimmed">
               These values can be acceessed via the API. Max {MAX_KEY_LENGTH} characters for keys
-              and {MAX_VALUE_LENGTH} chars for values.
+              and {MAX_VALUE_LENGTH} characters for values.
             </Text>
 
             {Object.entries(form.values.metadata || {}).map(([key, value], index) => {
