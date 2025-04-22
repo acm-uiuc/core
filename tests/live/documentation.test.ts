@@ -8,7 +8,7 @@ test("Get OpenAPI JSON", async () => {
 
   const responseDataJson = await response.json();
   expect(responseDataJson).toHaveProperty("openapi");
-  expect(responseDataJson["openapi"]).toEqual("3.0.3");
+  expect(responseDataJson["openapi"]).toEqual("3.1.0");
 });
 
 test("Get OpenAPI UI", async () => {
