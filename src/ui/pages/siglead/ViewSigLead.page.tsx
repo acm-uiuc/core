@@ -25,23 +25,7 @@ import { AuthGuard } from '@ui/components/AuthGuard';
 import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { AppRoles } from '@common/roles';
-
-const baseSigSchema = z.object({
-  sigid: z.string().min(1),
-  signame: z.string().min(1),
-  description: z.string().optional(),
-});
-
-const baseSigMemberSchema = z.object({
-  sigGroupId: z.string().min(1),
-  email: z.string().email('Invalid email'),
-  designation: z.enum(['L', 'M']),
-  id: z.string().optional(),
-  memberName: z.string(),
-});
-
-type sigDetails = z.infer<typeof baseSigSchema>;
-type sigMemberDetails = z.infer<typeof baseSigMemberSchema>;
+import { SigDetailRecord, SigMemberRecord } from '@common/types/siglead.js';
 
 export const ViewSigLeadPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -49,21 +33,8 @@ export const ViewSigLeadPage: React.FC = () => {
   const api = useApi('core');
   const { colorScheme } = useMantineColorScheme();
   const { sigId } = useParams();
-  const [sigMembers, setSigMembers] = useState<sigMemberDetails[]>([
-    {
-      sigGroupId: sigId || '',
-      email: 'alice1@illinois.edu',
-      designation: 'L',
-      memberName: 'Alice',
-    },
-    {
-      sigGroupId: sigId || '',
-      email: 'bob2@illinois.edu',
-      designation: 'M',
-      memberName: 'Bob',
-    },
-  ]);
-  const [sigDetails, setSigDetails] = useState<sigDetails>({
+  const [sigMembers, setSigMembers] = useState<SigMemberRecord[]>([]);
+  const [sigDetails, setSigDetails] = useState<SigDetailRecord>({
     sigid: sigId || '',
     signame: 'Default Sig',
     description:
@@ -71,12 +42,17 @@ export const ViewSigLeadPage: React.FC = () => {
   });
 
   useEffect(() => {
-    // Fetch sig data and populate form / for now dummy data...
+    // Fetch sig data and populate form
     const getSig = async () => {
       try {
         /*const formValues = { 
           };
           form.setValues(formValues);*/
+        const sigMemberRequest = await api.get(`/api/v1/siglead/sigmembers/${sigId}`);
+        setSigMembers(sigMemberRequest.data);
+
+        const sigDetailRequest = await api.get(`/api/v1/siglead/sigdetail/${sigId}`);
+        setSigDetails(sigDetailRequest.data);
       } catch (error) {
         console.error('Error fetching sig data:', error);
         notifications.show({
@@ -87,7 +63,7 @@ export const ViewSigLeadPage: React.FC = () => {
     getSig();
   }, [sigId]);
 
-  const renderSigMember = (members: sigMemberDetails, index: number) => {
+  const renderSigMember = (member: SigMemberRecord, index: number) => {
     const shouldShow = true;
     return (
       <Transition mounted={shouldShow} transition="fade" duration={10000} timingFunction="ease">
@@ -106,9 +82,9 @@ export const ViewSigLeadPage: React.FC = () => {
                     : '#ffffff',
             }}
           >
-            <Table.Td>{members.memberName}</Table.Td>
-            <Table.Td>{members.email}</Table.Td>
-            <Table.Td>{members.designation}</Table.Td>
+            <Table.Td>{member.memberName}</Table.Td>
+            <Table.Td>{member.email}</Table.Td>
+            <Table.Td>{member.designation}</Table.Td>
           </tr>
         )}
       </Transition>
@@ -168,7 +144,7 @@ export const ViewSigLeadPage: React.FC = () => {
       <Container>
         <Group align="flex-start">
           <Box style={{ flex: 8 }}>
-            <Title order={1}>{sigDetails.sigid}</Title>
+            <Title order={1}>{sigDetails.signame}</Title>
             {sigDetails.description || ''}
           </Box>
           <Box style={{ flex: 1, textAlign: 'right', alignItems: 'right' }}>
@@ -195,7 +171,9 @@ export const ViewSigLeadPage: React.FC = () => {
                 <Table.Th>Roles</Table.Th>
               </Table.Tr>
             </Table.Thead>
-            <Table.Tbody>{sigMembers.map(renderSigMember)}</Table.Tbody>
+            <Table.Tbody>
+              {sigMembers.length > 0 ? sigMembers.map(renderSigMember) : <></>}
+            </Table.Tbody>
           </Table>
         </div>
       </Container>

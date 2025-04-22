@@ -19,6 +19,7 @@ import * as dotenv from "dotenv";
 import iamRoutes from "./routes/iam.js";
 import ticketsPlugin from "./routes/tickets.js";
 import linkryRoutes from "./routes/linkry.js";
+import sigleadRoutes from "./routes/siglead.js";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -132,6 +133,7 @@ async function init(prettyPrint: boolean = false) {
       api.register(iamRoutes, { prefix: "/iam" });
       api.register(ticketsPlugin, { prefix: "/tickets" });
       api.register(linkryRoutes, { prefix: "/linkry" });
+      api.register(sigleadRoutes, { prefix: "/siglead" });
       api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
       api.register(stripeRoutes, { prefix: "/stripe" });
       api.register(roomRequestRoutes, { prefix: "/roomRequests" });
