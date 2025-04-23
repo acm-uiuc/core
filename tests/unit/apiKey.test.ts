@@ -134,7 +134,6 @@ describe("API Key Route Tests", () => {
 
       // Assertions
       expect(response.statusCode).toBe(400);
-      console.log(response.body);
       expect(response.body).toHaveProperty("error");
       expect(response.body.error).toEqual(true);
       expect(response.body.name).toEqual("ValidationError");

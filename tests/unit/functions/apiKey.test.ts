@@ -26,7 +26,6 @@ const countOccurrencesOfChar = (s: string, char: string): number => {
 describe("Audit Log tests", () => {
   test("API key is successfully created and validated", async () => {
     const { apiKey, hashedKey, keyId } = await createApiKey();
-    console.log(apiKey, hashedKey, keyId)
     expect(apiKey.slice(0, 8)).toEqual("acmuiuc_");
     expect(keyId.length).toEqual(12);
     expect(countOccurrencesOfChar(apiKey, "_")).toEqual(3);
