@@ -2,6 +2,8 @@ import { FastifyPluginAsync } from "fastify";
 import { AppRoles } from "common/roles.js";
 import { InternalServerError } from "common/errors/index.js";
 import fp from "fastify-plugin";
+import { FastifyZodOpenApiSchema } from "fastify-zod-openapi";
+import { RoleSchema } from "api/components/index.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -15,18 +17,22 @@ declare module "fastify" {
 const authorizeFromSchemaPlugin: FastifyPluginAsync = fp(async (fastify) => {
   fastify.decorate("authorizeFromSchema", async (request, reply) => {
     const schema = request.routeOptions?.schema;
-
     if (!schema || !("x-required-roles" in schema)) {
       throw new InternalServerError({
         message:
           "Server has not specified authentication roles for this route.",
       });
     }
-
-    const roles = (schema as { "x-required-roles": AppRoles[] })[
-      "x-required-roles"
-    ];
-    await fastify.authorize(request, reply, roles);
+    if (!schema || !("x-disable-api-key-auth" in schema)) {
+      throw new InternalServerError({
+        message:
+          "Server has not specified available authentication methods for this route.",
+      });
+    }
+    const realSchema = schema as FastifyZodOpenApiSchema & RoleSchema;
+    const roles = realSchema["x-required-roles"];
+    const disableApiKeyAuth = realSchema["x-disable-api-key-auth"];
+    await fastify.authorize(request, reply, roles, disableApiKeyAuth);
   });
 });
 

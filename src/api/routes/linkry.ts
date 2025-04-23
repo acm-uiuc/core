@@ -44,7 +44,7 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from "fastify-zod-openapi";
-import { withTags } from "api/components/index.js";
+import { withRoles, withTags } from "api/components/index.js";
 
 type OwnerRecord = {
   slug: string;
@@ -84,13 +84,11 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     fastify.get(
       "/redir",
       {
-        schema: withTags(["Linkry"], {}),
-        onRequest: async (request, reply) => {
-          await fastify.authorize(request, reply, [
-            AppRoles.LINKS_MANAGER,
-            AppRoles.LINKS_ADMIN,
-          ]);
-        },
+        schema: withRoles(
+          [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+          withTags(["Linkry"], {}),
+        ),
+        onRequest: fastify.authorizeFromSchema,
       },
       async (request, reply) => {
         const username = request.username!;
@@ -180,9 +178,12 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
       "/redir",
       {
-        schema: withTags(["Linkry"], {
-          body: createRequest,
-        }),
+        schema: withRoles(
+          [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+          withTags(["Linkry"], {
+            body: createRequest,
+          }),
+        ),
         preValidation: async (request, reply) => {
           const routeAlreadyExists = fastify.hasRoute({
             url: `/${request.body.slug}`,
@@ -201,12 +202,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             });
           }
         },
-        onRequest: async (request, reply) => {
-          await fastify.authorize(request, reply, [
-            AppRoles.LINKS_MANAGER,
-            AppRoles.LINKS_ADMIN,
-          ]);
-        },
+        onRequest: fastify.authorizeFromSchema,
       },
       async (request, reply) => {
         const { slug } = request.body;
@@ -462,17 +458,15 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     fastify.get<LinkryGetRequest>(
       "/redir/:slug",
       {
-        schema: withTags(["Linkry"], {
-          params: z.object({
-            slug: linkrySlug,
+        schema: withRoles(
+          [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+          withTags(["Linkry"], {
+            params: z.object({
+              slug: linkrySlug,
+            }),
           }),
-        }),
-        onRequest: async (request, reply) => {
-          await fastify.authorize(request, reply, [
-            AppRoles.LINKS_MANAGER,
-            AppRoles.LINKS_ADMIN,
-          ]);
-        },
+        ),
+        onRequest: fastify.authorizeFromSchema,
       },
       async (request, reply) => {
         try {
@@ -516,16 +510,16 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
       "/redir/:slug",
       {
-        schema: withTags(["Linkry"], {
-          params: z.object({
-            slug: linkrySlug,
+        schema: withRoles(
+          [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+          withTags(["Linkry"], {
+            params: z.object({
+              slug: linkrySlug,
+            }),
           }),
-        }),
+        ),
         onRequest: async (request, reply) => {
-          await fastify.authorize(request, reply, [
-            AppRoles.LINKS_MANAGER,
-            AppRoles.LINKS_ADMIN,
-          ]);
+          await fastify.authorizeFromSchema(request, reply);
 
           if (!fastify.cloudfrontKvClient) {
             fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
@@ -645,7 +639,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: `Deleted short link redirect."`,
           },
         });
-        reply.code(200).send();
+        reply.code(204).send();
       },
     );
   };

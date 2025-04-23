@@ -361,7 +361,7 @@ describe("ETag Lifecycle Tests", () => {
       .delete(`/api/v1/events/${eventId}`)
       .set("Authorization", `Bearer ${testJwt}`);
 
-    expect(deleteResponse.statusCode).toBe(201);
+    expect(deleteResponse.statusCode).toBe(204);
 
     // 4. Verify the event no longer exists (should return 404)
     // Change the mock to return empty response (simulating deleted event)

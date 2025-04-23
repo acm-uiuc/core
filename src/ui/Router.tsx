@@ -24,6 +24,7 @@ import { ManageRoomRequestsPage } from './pages/roomRequest/RoomRequestLanding.p
 import { ViewRoomRequest } from './pages/roomRequest/ViewRoomRequest.page';
 import { ViewLogsPage } from './pages/logs/ViewLogs.page';
 import { TermsOfService } from './pages/tos/TermsOfService.page';
+import { ManageApiKeysPage } from './pages/apiKeys/ManageKeys.page';
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -194,6 +195,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/logs',
     element: <ViewLogsPage />,
+  },
+  {
+    path: '/apiKeys',
+    element: <ManageApiKeysPage />,
   },
   // Catch-all route for authenticated users shows 404 page
   {
