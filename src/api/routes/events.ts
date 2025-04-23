@@ -18,8 +18,10 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   DiscordEventError,
+  InternalServerError,
   NotFoundError,
   UnauthenticatedError,
+  UnauthorizedError,
   ValidationError,
 } from "../../common/errors/index.js";
 import { randomUUID } from "crypto";
@@ -42,6 +44,8 @@ import {
 } from "fastify-zod-openapi";
 import { ts, withRoles, withTags } from "api/components/index.js";
 import { MAX_METADATA_KEYS, metadataSchema } from "common/types/events.js";
+import { evaluateAllRequestPolicies } from "api/plugins/evaluatePolicies.js";
+import { request } from "http";
 
 const createProjectionParams = (includeMetadata: boolean = false) => {
   // Object mapping attribute names to their expression aliases
@@ -434,6 +438,37 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         }),
       ) satisfies FastifyZodOpenApiSchema,
       onRequest: fastify.authorizeFromSchema,
+      preHandler: async (request, reply) => {
+        if (request.policyRestrictions) {
+          const response = await fastify.dynamoClient.send(
+            new GetItemCommand({
+              TableName: genericConfig.EventsDynamoTableName,
+              Key: marshall({ id: request.params.id }),
+            }),
+          );
+          const item = response.Item ? unmarshall(response.Item) : null;
+          if (!item) {
+            return reply.status(204).send();
+          }
+          const fakeBody = { ...request, body: item, url: request.url };
+          try {
+            const result = await evaluateAllRequestPolicies(fakeBody);
+            if (typeof result === "string") {
+              throw new UnauthorizedError({
+                message: result,
+              });
+            }
+          } catch (err) {
+            if (err instanceof BaseError) {
+              throw err;
+            }
+            fastify.log.error(err);
+            throw new InternalServerError({
+              message: "Failed to evaluate policies.",
+            });
+          }
+        }
+      },
     },
     async (request, reply) => {
       const id = request.params.id;

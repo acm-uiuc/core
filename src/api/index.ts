@@ -14,6 +14,7 @@ import cors from "@fastify/cors";
 import { environmentConfig, genericConfig } from "../common/config.js";
 import organizationsPlugin from "./routes/organizations.js";
 import authorizeFromSchemaPlugin from "./plugins/authorizeFromSchema.js";
+import evaluatePoliciesPlugin from "./plugins/evaluatePolicies.js";
 import icalPlugin from "./routes/ics.js";
 import vendingPlugin from "./routes/vending.js";
 import * as dotenv from "dotenv";
@@ -99,6 +100,7 @@ async function init(prettyPrint: boolean = false) {
   await app.register(authorizeFromSchemaPlugin);
   await app.register(fastifyAuthPlugin);
   await app.register(FastifyAuthProvider);
+  await app.register(evaluatePoliciesPlugin);
   await app.register(errorHandlerPlugin);
   await app.register(fastifyZodOpenApiPlugin);
   await app.register(fastifySwagger, {

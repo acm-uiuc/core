@@ -10,10 +10,6 @@ export type ApiKeyMaskedEntry = {
   expiresAt?: number;
 }
 
-export type ApiKeyDynamoEntry = ApiKeyMaskedEntry & {
-  keyHash: string;
-};
-
 export type DecomposedApiKey = {
   prefix: string;
   id: string;

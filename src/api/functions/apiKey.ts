@@ -10,7 +10,13 @@ import {
 import { genericConfig } from "common/config.js";
 import { AUTH_DECISION_CACHE_SECONDS as API_KEY_DATA_CACHE_SECONDS } from "./authorization.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { ApiKeyDynamoEntry, DecomposedApiKey } from "common/types/apiKey.js";
+import { ApiKeyMaskedEntry, DecomposedApiKey } from "common/types/apiKey.js";
+import { AvailableAuthorizationPolicy } from "api/policies/definition.js";
+
+export type ApiKeyDynamoEntry = ApiKeyMaskedEntry & {
+  keyHash: string;
+  restrictions?: AvailableAuthorizationPolicy[];
+};
 
 function min(a: number, b: number) {
   return a < b ? a : b;
