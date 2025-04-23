@@ -1,7 +1,10 @@
 import fp from "fastify-plugin";
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { UnauthorizedError } from "../../common/errors/index.js";
-import { AuthorizationPoliciesRegistry } from "api/policies/definition.js";
+import {
+  AuthorizationPoliciesRegistry,
+  AvailableAuthorizationPolicies,
+} from "api/policies/definition.js";
 import { evaluatePolicy } from "api/policies/evaluator.js";
 
 /**
@@ -17,12 +20,19 @@ export const evaluateAllRequestPolicies = async (
   }
 
   for (const restriction of request.policyRestrictions) {
-    if (AuthorizationPoliciesRegistry[restriction.name] === undefined) {
+    if (
+      AuthorizationPoliciesRegistry[
+        restriction.name as keyof AvailableAuthorizationPolicies
+      ] === undefined
+    ) {
       request.log.warn(`Invalid policy name ${restriction.name}, skipping...`);
       continue;
     }
 
-    const policyFunction = AuthorizationPoliciesRegistry[restriction.name];
+    const policyFunction =
+      AuthorizationPoliciesRegistry[
+        restriction.name as keyof AvailableAuthorizationPolicies
+      ];
     const policyResult = evaluatePolicy(request, {
       policy: policyFunction,
       params: restriction.params,
