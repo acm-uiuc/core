@@ -2,12 +2,18 @@ import {
   PutItemCommand,
   QueryCommand,
   ScanCommand,
+  TransactWriteItemsCommand,
+  TransactWriteItemsCommandInput,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
-import { createAuditLogEntry } from "api/functions/auditLog.js";
+import {
+  buildAuditLogTransactPut,
+  createAuditLogEntry,
+} from "api/functions/auditLog.js";
 import {
   createStripeLink,
+  deactivateStripeLink,
   StripeLinkCreateParams,
 } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
@@ -15,6 +21,7 @@ import { genericConfig } from "common/config.js";
 import {
   BaseError,
   DatabaseFetchError,
+  DatabaseInsertError,
   InternalServerError,
   UnauthenticatedError,
 } from "common/errors/index.js";
@@ -123,23 +130,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { url, linkId, priceId, productId } =
         await createStripeLink(payload);
       const invoiceId = request.body.invoiceId;
-      const dynamoCommand = new PutItemCommand({
-        TableName: genericConfig.StripeLinksDynamoTableName,
-        Item: marshall({
-          userId: request.username,
-          linkId,
-          priceId,
-          productId,
-          invoiceId,
-          url,
-          amount: request.body.invoiceAmountUsd,
-          active: true,
-          createdAt: new Date().toISOString(),
-        }),
-      });
-      const itemPromise = fastify.dynamoClient.send(dynamoCommand);
-      const logPromise = createAuditLogEntry({
-        dynamoClient: fastify.dynamoClient,
+      const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.STRIPE,
           actor: request.username,
@@ -147,8 +138,45 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Created Stripe payment link",
         },
       });
-      await itemPromise;
-      await logPromise;
+      const dynamoCommand = new TransactWriteItemsCommand({
+        TransactItems: [
+          logStatement,
+          {
+            Put: {
+              TableName: genericConfig.StripeLinksDynamoTableName,
+              Item: marshall({
+                userId: request.username,
+                linkId,
+                priceId,
+                productId,
+                invoiceId,
+                url,
+                amount: request.body.invoiceAmountUsd,
+                active: true,
+                createdAt: new Date().toISOString(),
+              }),
+            },
+          },
+        ],
+      });
+      try {
+        await fastify.dynamoClient.send(dynamoCommand);
+      } catch (e) {
+        await deactivateStripeLink({
+          stripeApiKey: secretApiConfig.stripe_secret_key as string,
+          linkId,
+        });
+        fastify.log.info(
+          `Deactivated Stripe link ${linkId} due to error in writing to database.`,
+        );
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        fastify.log.error(e);
+        throw new DatabaseInsertError({
+          message: "Could not write Stripe link to database.",
+        });
+      }
       reply.status(201).send({ id: linkId, link: url });
     },
   );

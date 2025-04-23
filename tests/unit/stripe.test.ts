@@ -11,11 +11,13 @@ import {
   PutItemCommand,
   QueryCommand,
   ScanCommand,
+  TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import supertest from "supertest";
 import { createJwt } from "./auth.test.js";
 import { v4 as uuidv4 } from "uuid";
 import { marshall } from "@aws-sdk/util-dynamodb";
+import { genericConfig } from "../../src/common/config.js";
 
 const smMock = mockClient(SecretsManagerClient);
 const ddbMock = mockClient(DynamoDBClient);
@@ -136,25 +138,26 @@ describe("Test Stripe link creation", async () => {
     expect(smMock.calls().length).toEqual(0);
   });
   test("POST happy path", async () => {
-    ddbMock.on(PutItemCommand).resolves({});
+    const invoicePayload = {
+      invoiceId: "ACM102",
+      invoiceAmountUsd: 51,
+      contactName: "Infra User",
+      contactEmail: "testing@acm.illinois.edu",
+    };
+    ddbMock.on(TransactWriteItemsCommand).resolvesOnce({}).rejects();
     const testJwt = createJwt();
     await app.ready();
 
     const response = await supertest(app.server)
       .post("/api/v1/stripe/paymentLinks")
       .set("authorization", `Bearer ${testJwt}`)
-      .send({
-        invoiceId: "ACM102",
-        invoiceAmountUsd: 51,
-        contactName: "Infra User",
-        contactEmail: "testing@acm.illinois.edu",
-      });
+      .send(invoicePayload);
     expect(response.statusCode).toBe(201);
     expect(response.body).toStrictEqual({
       id: linkId,
       link: `https://buy.stripe.com/${linkId}`,
     });
-    expect(ddbMock.calls().length).toEqual(2); // 1 for the audit log
+    expect(ddbMock.calls().length).toEqual(1);
     expect(smMock.calls().length).toEqual(1);
   });
   test("Unauthenticated GET access (missing token)", async () => {
