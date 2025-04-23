@@ -383,7 +383,7 @@ test("Happy path: Delete linkry success", async () => {
     .delete("/api/v1/linkry/redir/WLQDmu")
     .set("Authorization", `Bearer ${userJwt}`);
 
-  expect(response.statusCode).toBe(200);
+  expect(response.statusCode).toBe(204);
 });
 
 test("Unhappy path: Delete linkry slug not found/invalid", async () => {

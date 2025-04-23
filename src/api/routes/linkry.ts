@@ -639,7 +639,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: `Deleted short link redirect."`,
           },
         });
-        reply.code(200).send();
+        reply.code(204).send();
       },
     );
   };

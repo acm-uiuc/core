@@ -454,10 +454,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           true,
           request.log,
         );
-        reply.status(201).send({
-          id,
-          resource: `/api/v1/events/${id}`,
-        });
+        reply.status(204).send();
         await createAuditLogEntry({
           dynamoClient: fastify.dynamoClient,
           entry: {
