@@ -184,10 +184,10 @@ export const roomRequestSchema = roomRequestBaseSchema
     // Existing fields
     hostingMinors: z.boolean(),
     locationType: z.enum(["in-person", "virtual", "both"]),
-    spaceType: z.string().min(1),
-    specificRoom: z.string().min(1),
-    estimatedAttendees: z.number().positive(),
-    seatsNeeded: z.number().positive(),
+    spaceType: z.optional(z.string().min(1)),
+    specificRoom: z.optional(z.string().min(1)),
+    estimatedAttendees: z.optional(z.number().positive()),
+    seatsNeeded: z.optional(z.number().positive()),
     setupDetails: z.string().min(1).nullable().optional(),
     onCampusPartners: z.string().min(1).nullable(),
     offCampusPartners: z.string().min(1).nullable(),
@@ -280,9 +280,11 @@ export const roomRequestSchema = roomRequestBaseSchema
     },
   )
   .superRefine((data, ctx) => {
-    // Additional validation for conditional fields based on locationType
-    if (data.locationType === "in-person" || data.locationType === "both") {
-      if (!data.spaceType || data.spaceType.length === 0) {
+    const isPhysicalLocation = data.locationType === "in-person" || data.locationType === "both";
+
+    // Conditional physical location fields
+    if (isPhysicalLocation) {
+      if (!data.spaceType || data.spaceType.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please select a space type",
@@ -290,7 +292,7 @@ export const roomRequestSchema = roomRequestBaseSchema
         });
       }
 
-      if (!data.specificRoom || data.specificRoom.length === 0) {
+      if (!data.specificRoom || data.specificRoom.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please provide details about the room location",
@@ -298,7 +300,7 @@ export const roomRequestSchema = roomRequestBaseSchema
         });
       }
 
-      if (!data.estimatedAttendees || data.estimatedAttendees <= 0) {
+      if (data.estimatedAttendees == null || data.estimatedAttendees <= 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please provide an estimated number of attendees",
@@ -306,7 +308,7 @@ export const roomRequestSchema = roomRequestBaseSchema
         });
       }
 
-      if (!data.seatsNeeded || data.seatsNeeded <= 0) {
+      if (data.seatsNeeded == null || data.seatsNeeded <= 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please specify how many seats you need",
@@ -357,7 +359,25 @@ export const roomRequestSchema = roomRequestBaseSchema
         path: ["nonIllinoisAttendees"],
       });
     }
+
+    // Setup details logic
+    if (data.setupDetails === undefined && specificRoomSetupRooms.includes(data.spaceType)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Invalid setup details response.",
+        path: ["setupDetails"],
+      });
+    }
+
+    if (data.setupDetails && !specificRoomSetupRooms.includes(data.spaceType)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Invalid setup details response.",
+        path: ["setupDetails"],
+      });
+    }
   });
+
 
 export type RoomRequestFormValues = z.infer<typeof roomRequestSchema>;
 
