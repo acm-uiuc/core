@@ -6,7 +6,7 @@ import { EventPostRequest } from "api/routes/events.js";
 
 export const hostRestrictionPolicy = createPolicy(
   "EventsHostRestrictionPolicy",
-  z.object({ host: z.enum(OrganizationList) }),
+  z.object({ host: z.array(z.enum(OrganizationList)) }),
   (request: FastifyRequest, params) => {
     if (!request.url.startsWith("/api/v1/events")) {
       return {
@@ -23,7 +23,7 @@ export const hostRestrictionPolicy = createPolicy(
         cacheKey: null,
       };
     }
-    if (typedBody["host"] !== params.host) {
+    if (!params.host.includes(typedBody["host"])) {
       return {
         allowed: false,
         message: `Denied by policy "EventsHostRestrictionPolicy".`,
