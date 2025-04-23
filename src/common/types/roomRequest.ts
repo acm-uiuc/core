@@ -266,10 +266,10 @@ export const roomRequestSchema = roomRequestBaseSchema
   )
   .refine(
     (data) => {
-      if (data.setupDetails === undefined && specificRoomSetupRooms.includes(data.spaceType)) {
+      if (data.setupDetails === undefined && specificRoomSetupRooms.includes(data.spaceType || "")) {
         return false;
       }
-      if (data.setupDetails && !specificRoomSetupRooms.includes(data.spaceType)) {
+      if (data.setupDetails && !specificRoomSetupRooms.includes(data.spaceType || "")) {
         return false;
       }
       return true;
@@ -361,7 +361,7 @@ export const roomRequestSchema = roomRequestBaseSchema
     }
 
     // Setup details logic
-    if (data.setupDetails === undefined && specificRoomSetupRooms.includes(data.spaceType)) {
+    if (data.setupDetails === undefined && specificRoomSetupRooms.includes(data.spaceType || "")) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Invalid setup details response.",
@@ -369,7 +369,7 @@ export const roomRequestSchema = roomRequestBaseSchema
       });
     }
 
-    if (data.setupDetails && !specificRoomSetupRooms.includes(data.spaceType)) {
+    if (data.setupDetails && !specificRoomSetupRooms.includes(data.spaceType || "")) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Invalid setup details response.",
