@@ -11,7 +11,7 @@ import { genericConfig } from "common/config.js";
 import { AUTH_DECISION_CACHE_SECONDS as API_KEY_DATA_CACHE_SECONDS } from "./authorization.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { ApiKeyMaskedEntry, DecomposedApiKey } from "common/types/apiKey.js";
-import { AvailableAuthorizationPolicy } from "api/policies/definition.js";
+import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
 
 export type ApiKeyDynamoEntry = ApiKeyMaskedEntry & {
   keyHash: string;

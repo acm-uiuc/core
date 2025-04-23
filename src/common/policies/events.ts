@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { createPolicy } from "./evaluator.js";
-import { OrganizationList } from "common/orgs.js";
+import { OrganizationList } from "../orgs.js";
 import { FastifyRequest } from "fastify";
-import { EventPostRequest } from "api/routes/events.js";
 
 export const hostRestrictionPolicy = createPolicy(
   "EventsHostRestrictionPolicy",
@@ -15,7 +14,7 @@ export const hostRestrictionPolicy = createPolicy(
         cacheKey: null,
       };
     }
-    const typedBody = request.body as EventPostRequest;
+    const typedBody = request.body as { host: string };
     if (!typedBody || !typedBody["host"]) {
       return {
         allowed: true,

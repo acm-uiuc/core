@@ -11,7 +11,6 @@ import {
   roomRequestStatusUpdateRequest,
 } from "common/types/roomRequest.js";
 import { AppRoles } from "common/roles.js";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   BaseError,
   DatabaseFetchError,
@@ -19,7 +18,6 @@ import {
   InternalServerError,
 } from "common/errors/index.js";
 import {
-  PutItemCommand,
   QueryCommand,
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";

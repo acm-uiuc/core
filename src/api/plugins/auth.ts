@@ -6,7 +6,7 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
-import { AppRoles } from "../../common/roles.js";
+import { AppRoles } from "common/roles.js";
 import {
   BaseError,
   InternalServerError,
@@ -15,14 +15,7 @@ import {
 } from "../../common/errors/index.js";
 import { genericConfig, SecretConfig } from "../../common/config.js";
 import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
-import {
-  GetItemCommand,
-  ReplicaAlreadyExistsException,
-} from "@aws-sdk/client-dynamodb";
 import { getApiKeyData, getApiKeyParts } from "api/functions/apiKey.js";
-import { RequestThrottled } from "@aws-sdk/client-sqs";
-import { evaluatePolicy } from "api/policies/evaluator.js";
-import { AuthorizationPoliciesRegistry } from "api/policies/definition.js";
 
 export function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();
