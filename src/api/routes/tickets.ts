@@ -25,14 +25,8 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { ItemPostData, postMetadataSchema } from "common/types/tickets.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
-import {
-  FastifyZodOpenApiTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-zod-openapi";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { withRoles, withTags } from "api/components/index.js";
-import { request } from "http";
-import authorizeFromSchemaPlugin from "api/plugins/authorizeFromSchema.js";
 
 const postMerchSchema = z.object({
   type: z.literal("merch"),

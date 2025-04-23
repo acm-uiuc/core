@@ -39,13 +39,10 @@ import {
   FastifyPluginAsyncZodOpenApi,
   FastifyZodOpenApiSchema,
   FastifyZodOpenApiTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
 } from "fastify-zod-openapi";
 import { ts, withRoles, withTags } from "api/components/index.js";
-import { MAX_METADATA_KEYS, metadataSchema } from "common/types/events.js";
+import { metadataSchema } from "common/types/events.js";
 import { evaluateAllRequestPolicies } from "api/plugins/evaluatePolicies.js";
-import { request } from "http";
 
 const createProjectionParams = (includeMetadata: boolean = false) => {
   // Object mapping attribute names to their expression aliases
@@ -97,12 +94,27 @@ export type EventRepeatOptions = (typeof repeatOptions)[number];
 const baseSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
-  start: z.string(),
-  end: z.optional(z.string()),
-  location: z.string(),
-  locationLink: z.optional(z.string().url()),
+  start: z.string().openapi({
+    description: "Timestamp in the America/Chicago timezone.",
+    example: "2024-08-27T19:00:00",
+  }),
+  end: z.optional(z.string()).openapi({
+    description: "Timestamp in the America/Chicago timezone.",
+    example: "2024-08-27T20:00:00",
+  }),
+  location: z.string().openapi({
+    description: "Human-friendly location name.",
+    example: "Siebel Center for Computer Science",
+  }),
+  locationLink: z.optional(z.string().url()).openapi({
+    description: "Google Maps link for easy navigation to the event location.",
+    example: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
+  }),
   host: z.enum(OrganizationList as [string, ...string[]]),
-  featured: z.boolean().default(false),
+  featured: z.boolean().default(false).openapi({
+    description:
+      "Whether or not the event should be shown on the ACM @ UIUC website home page (and added to Discord, as available).",
+  }),
   paidEventId: z.optional(z.string().min(1)),
   metadata: metadataSchema,
 });

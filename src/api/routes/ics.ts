@@ -21,8 +21,6 @@ import { getCacheCounter } from "api/functions/cache.js";
 import {
   FastifyZodOpenApiSchema,
   FastifyZodOpenApiTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
 } from "fastify-zod-openapi";
 import { withTags } from "api/components/index.js";
 import { z } from "zod";

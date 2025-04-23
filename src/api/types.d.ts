@@ -8,7 +8,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SQSClient } from "@aws-sdk/client-sqs";
 import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
-import { AvailableAuthorizationPolicy } from "./policies/definition";
+import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
 
 declare module "fastify" {
   interface FastifyInstance {

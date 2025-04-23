@@ -1,9 +1,7 @@
 import {
-  PutItemCommand,
   QueryCommand,
   ScanCommand,
   TransactWriteItemsCommand,
-  TransactWriteItemsCommandInput,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
@@ -33,11 +31,7 @@ import {
   invoiceLinkGetResponseSchema,
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
-import {
-  FastifyZodOpenApiTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-zod-openapi";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(

@@ -1,11 +1,11 @@
 import fp from "fastify-plugin";
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
-import { UnauthorizedError } from "../../common/errors/index.js";
+import { UnauthorizedError } from "common/errors/index.js";
 import {
   AuthorizationPoliciesRegistry,
   AvailableAuthorizationPolicies,
-} from "api/policies/definition.js";
-import { evaluatePolicy } from "api/policies/evaluator.js";
+} from "common/policies/definition.js";
+import { evaluatePolicy } from "common/policies/evaluator.js";
 
 /**
  * Evaluates all policy restrictions for a request

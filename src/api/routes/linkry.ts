@@ -39,11 +39,7 @@ import {
 import { intersection } from "api/plugins/auth.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
-import {
-  FastifyZodOpenApiTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-zod-openapi";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { withRoles, withTags } from "api/components/index.js";
 
 type OwnerRecord = {

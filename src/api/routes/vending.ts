@@ -1,10 +1,6 @@
 import { withTags } from "api/components/index.js";
 import { FastifyPluginAsync } from "fastify";
-import {
-  FastifyZodOpenApiTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-zod-openapi";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { z } from "zod";
 
 const postSchema = z.object({
