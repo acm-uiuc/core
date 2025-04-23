@@ -8,6 +8,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SQSClient } from "@aws-sdk/client-sqs";
 import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
+import { AvailableAuthorizationPolicy } from "./policies/definition";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -38,6 +39,7 @@ declare module "fastify" {
     username?: string;
     userRoles?: Set<AppRoles>;
     tokenPayload?: AadToken;
+    policyRestrictions?: AvailableAuthorizationPolicy[];
   }
 }
 
