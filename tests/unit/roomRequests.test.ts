@@ -20,6 +20,7 @@ import { marshall } from "@aws-sdk/util-dynamodb";
 import { environmentConfig, genericConfig } from "../../src/common/config.js";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { AvailableSQSFunctions } from "../../src/common/types/sqsMessage.js";
+import { RoomRequestStatus } from "../../src/common/types/roomRequest.js";
 
 const smMock = mockClient(SecretsManagerClient);
 const ddbMock = mockClient(DynamoDBClient);
@@ -27,6 +28,14 @@ const sqsMock = mockClient(SQSClient);
 
 const app = await init();
 describe("Test Room Request Creation", async () => {
+  const testRequestId = "test-request-id";
+  const testSemesterId = "sp25";
+  const statusBody = {
+    status: RoomRequestStatus.APPROVED,
+    notes: "Request approved by committee.",
+  };
+  const makeUrl = () =>
+    `/api/v1/roomRequests/${testSemesterId}/${testRequestId}/status`;
   test("Unauthenticated access (missing token)", async () => {
     await app.ready();
     const response = await supertest(app.server)
@@ -403,5 +412,112 @@ describe("Test Room Request Creation", async () => {
     smMock.on(GetSecretValueCommand).resolves({
       SecretString: secretJson,
     });
+  });
+  test("Unauthenticated access is rejected", async () => {
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .send(statusBody);
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  test("Fails if request status with CREATED not found", async () => {
+    const testJwt = createJwt();
+    ddbMock.on(QueryCommand).resolves({ Count: 0, Items: [] });
+    ddbMock.rejects(); // ensure no other writes
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBody);
+
+    expect(response.statusCode).toBe(500);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(0);
+  });
+
+  test("Fails if original request found but missing createdBy", async () => {
+    const testJwt = createJwt();
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({})],
+    });
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBody);
+
+    expect(response.statusCode).toBe(500);
+    expect(response.body.message).toContain(
+      "Could not find original reservation requestor",
+    );
+  });
+
+  test("Creates status update with audit log in DynamoDB", async () => {
+    const testJwt = createJwt();
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
+    });
+
+    ddbMock.on(TransactWriteItemsCommand).callsFake((input) => {
+      expect(input.TransactItems).toHaveLength(2);
+
+      const tableNames = input.TransactItems.map(
+        (item: Record<string, any>) => Object.values(item)[0].TableName,
+      );
+
+      expect(tableNames).toEqual(
+        expect.arrayContaining([
+          genericConfig.RoomRequestsStatusTableName,
+          genericConfig.AuditLogTable,
+        ]),
+      );
+
+      return { $metadata: { httpStatusCode: 200 } };
+    });
+
+    sqsMock.on(SendMessageCommand).resolves({ MessageId: "sqs-message-id" });
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBody);
+
+    expect(response.statusCode).toBe(201);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(1);
+  });
+
+  test("Queues SQS notification after status update", async () => {
+    const testJwt = createJwt();
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
+    });
+
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    sqsMock.on(SendMessageCommand).resolves({ MessageId: "mock-sqs-id" });
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBody);
+
+    expect(response.statusCode).toBe(201);
+    expect(sqsMock.commandCalls(SendMessageCommand).length).toBe(1);
+
+    const sent = sqsMock.commandCalls(SendMessageCommand)[0].args[0]
+      .input as SendMessageCommand["input"];
+
+    const body = JSON.parse(sent.MessageBody as string);
+    expect(body.function).toBe(AvailableSQSFunctions.EmailNotifications);
+    expect(body.payload.subject).toContain(
+      "Room Reservation Request Status Change",
+    );
+    expect(body.payload.to).toEqual(["originalUser"]);
   });
 });
