@@ -22,7 +22,7 @@ export const ManageRoomRequestsPage: React.FC = () => {
   const createRoomRequest = async (
     payload: RoomRequestFormValues
   ): Promise<RoomRequestPostResponse> => {
-    const response = await api.post(`/api/v1/roomRequests/`, payload);
+    const response = await api.post(`/api/v1/roomRequests`, payload);
     return response.data;
   };
 
