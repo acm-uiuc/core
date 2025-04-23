@@ -8,6 +8,7 @@ export type ApiKeyMaskedEntry = {
   description: string;
   createdAt: number;
   expiresAt?: number;
+  restrictions?: Record<string, any>;
 }
 
 export type DecomposedApiKey = {

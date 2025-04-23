@@ -384,7 +384,9 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
             <Text size="sm" fw={500} mb="xs">
               Description
             </Text>
-            <Text mb="md">{selectedKeyForPermissions.description}</Text>
+            <Text size="sm" mb="md">
+              {selectedKeyForPermissions.description}
+            </Text>
 
             <Text size="sm" fw={500} mb="xs">
               Roles
@@ -408,7 +410,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
             <Text size="sm" fw={500} mb="xs">
               Expires
             </Text>
-            <Text mb="md">
+            <Text mb="md" size="sm">
               {selectedKeyForPermissions.expiresAt ? (
                 <HumanFriendlyDate date={selectedKeyForPermissions.expiresAt} />
               ) : (
@@ -419,11 +421,22 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
             <Text size="sm" fw={500} mb="xs">
               Owner
             </Text>
-            <Text mb="md">
+            <Text mb="md" size="sm">
               {selectedKeyForPermissions.owner === userData?.email
                 ? 'You'
                 : selectedKeyForPermissions.owner}
             </Text>
+
+            {selectedKeyForPermissions.restrictions && (
+              <>
+                <Text size="sm" fw={500} mb="xs">
+                  Policy Restrictions
+                </Text>
+                <Code block mt="sm">
+                  {JSON.stringify(selectedKeyForPermissions.restrictions, null, 2)}
+                </Code>
+              </>
+            )}
 
             <Group justify="flex-end" mt="lg">
               <Button onClick={() => setViewPermissionsModalOpen(false)}>Close</Button>
