@@ -25,7 +25,7 @@ import { z } from "zod";
 
 const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
-    limit: 5,
+    limit: 15,
     duration: 30,
     rateLimitIdentifier: "apiKey",
   });
@@ -178,10 +178,12 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
         const unmarshalled = result.Items.map((x) =>
           unmarshall(x),
         ) as ApiKeyDynamoEntry[];
-        const filtered = unmarshalled.map((x) => ({
-          ...x,
-          keyHash: undefined,
-        }));
+        const filtered = unmarshalled
+          .map((x) => ({
+            ...x,
+            keyHash: undefined,
+          }))
+          .filter((x) => !x.expiresAt || x.expiresAt < Date.now());
         return reply.status(200).send(filtered);
       } catch (e) {
         if (e instanceof BaseError) {

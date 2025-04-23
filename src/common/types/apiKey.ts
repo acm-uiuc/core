@@ -1,14 +1,17 @@
 import { AppRoles } from "../roles.js";
 import { z } from "zod"
 
-export type ApiKeyDynamoEntry = {
+export type ApiKeyMaskedEntry = {
   keyId: string;
-  keyHash: string;
   roles: AppRoles[];
   owner: string;
   description: string;
   createdAt: number;
   expiresAt?: number;
+}
+
+export type ApiKeyDynamoEntry = ApiKeyMaskedEntry & {
+  keyHash: string;
 };
 
 export type DecomposedApiKey = {
@@ -31,3 +34,5 @@ export const apiKeyPostBody = z.object({
     message: "expiresAt must be a future epoch time.",
   }).openapi({ description: "Epoch timestamp of when the key expires.", example: 1745362658 })
 })
+
+export type ApiKeyPostBody = z.infer<typeof apiKeyPostBody>;

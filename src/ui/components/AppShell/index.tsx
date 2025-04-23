@@ -20,6 +20,7 @@ import {
   IconLock,
   IconDoor,
   IconHistory,
+  IconKey,
 } from '@tabler/icons-react';
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -88,6 +89,13 @@ export const navItems = [
     icon: IconHistory,
     description: null,
     validRoles: [AppRoles.AUDIT_LOG_VIEWER],
+  },
+  {
+    link: '/apiKeys',
+    name: 'API Keys',
+    icon: IconKey,
+    description: null,
+    validRoles: [AppRoles.MANAGE_ORG_API_KEYS],
   },
 ];
 
