@@ -30,6 +30,8 @@ import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { withRoles, withTags } from "api/components/index.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { z } from "zod";
+import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -93,7 +95,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const createdAt = new Date().toISOString();
-      const command = new PutItemCommand({
+      const itemPut = {
         TableName: genericConfig.RoomRequestsStatusTableName,
         Item: marshall({
           requestId,
@@ -102,9 +104,22 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           createdBy: request.username,
           ...request.body,
         }),
+      };
+      const logPut = buildAuditLogTransactPut({
+        entry: {
+          module: Modules.ROOM_RESERVATIONS,
+          actor: request.username!,
+          target: `${semesterId}/${requestId}`,
+          requestId: request.id,
+          message: `Changed status to "${formatStatus(request.body.status)}".`,
+        },
       });
       try {
-        await fastify.dynamoClient.send(command);
+        await fastify.dynamoClient.send(
+          new TransactWriteItemsCommand({
+            TransactItems: [{ Put: itemPut }, logPut],
+          }),
+        );
       } catch (e) {
         request.log.error(e);
         if (e instanceof BaseError) {
@@ -269,11 +284,22 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       const body = {
         ...request.body,
+        eventStart: request.body.eventStart.toUTCString(),
+        eventEnd: request.body.eventStart.toUTCString(),
         requestId,
         userId: request.username,
         "userId#requestId": `${request.username}#${requestId}`,
         semesterId: request.body.semester,
       };
+      const logPut = buildAuditLogTransactPut({
+        entry: {
+          module: Modules.ROOM_RESERVATIONS,
+          actor: request.username!,
+          target: `${request.body.semester}/${requestId}`,
+          requestId: request.id,
+          message: "Created room reservation request.",
+        },
+      });
       try {
         const createdAt = new Date().toISOString();
         const transactionCommand = new TransactWriteItemsCommand({
@@ -297,6 +323,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 }),
               },
             },
+            logPut,
           ],
         });
         await fastify.dynamoClient.send(transactionCommand);

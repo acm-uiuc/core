@@ -9,6 +9,7 @@ export enum Modules {
   LINKRY = "linkry",
   AUDIT_LOG = "auditLog",
   API_KEY = "apiKey",
+  ROOM_RESERVATIONS = "roomReservations",
 }
 
 
@@ -23,4 +24,5 @@ export const ModulesToHumanName: Record<Modules, string> = {
   [Modules.LINKRY]: "Link Shortener",
   [Modules.AUDIT_LOG]: "Audit Log",
   [Modules.API_KEY]: "API Keys",
+  [Modules.ROOM_RESERVATIONS]: "Room Reservations",
 }
