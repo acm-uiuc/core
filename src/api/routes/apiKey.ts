@@ -8,14 +8,16 @@ import { createApiKey } from "api/functions/apiKey.js";
 import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { genericConfig } from "common/config.js";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import {
   ConditionalCheckFailedException,
+  ScanCommand,
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import {
   BaseError,
   DatabaseDeleteError,
+  DatabaseFetchError,
   DatabaseInsertError,
   ValidationError,
 } from "common/errors/index.js";
@@ -33,7 +35,7 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
       schema: withRoles(
         [AppRoles.MANAGE_ORG_API_KEYS],
         withTags(["API Keys"], {
-          summary: "Create an API key not tied to a specific user.",
+          summary: "Create an organization API key.",
           body: apiKeyPostBody,
         }),
         { disableApiKeyAuth: true },
@@ -98,7 +100,10 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["API Keys"], {
           summary: "Delete an organization API key.",
           params: z.object({
-            keyId: z.string().min(1),
+            keyId: z.string().min(1).openapi({
+              description:
+                "Key ID to delete. The key ID is the second segment of the API key.",
+            }),
           }),
         }),
         { disableApiKeyAuth: true },
@@ -145,6 +150,48 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       return reply.status(204).send();
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "/org",
+    {
+      schema: withRoles(
+        [AppRoles.MANAGE_ORG_API_KEYS],
+        withTags(["API Keys"], {
+          summary: "Get all organization API keys.",
+        }),
+        { disableApiKeyAuth: true },
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      const command = new ScanCommand({
+        TableName: genericConfig.ApiKeyTable,
+      });
+      try {
+        const result = await fastify.dynamoClient.send(command);
+        if (!result || !result.Items) {
+          throw new DatabaseFetchError({
+            message: "Could not fetch API keys.",
+          });
+        }
+        const unmarshalled = result.Items.map((x) =>
+          unmarshall(x),
+        ) as ApiKeyDynamoEntry[];
+        const filtered = unmarshalled.map((x) => ({
+          ...x,
+          keyHash: undefined,
+        }));
+        return reply.status(200).send(filtered);
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        fastify.log.error(e);
+        throw new DatabaseFetchError({
+          message: "Could not fetch API keys.",
+        });
+      }
     },
   );
 };
