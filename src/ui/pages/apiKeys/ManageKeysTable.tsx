@@ -257,7 +257,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
         </Table>
       </Table.ScrollContainer>
       <Text c="dimmed" size="sm">
-        All timezones shown in local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}).
+        All times shown in local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}).
       </Text>
 
       {/* Create Modal */}
