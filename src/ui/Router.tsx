@@ -21,6 +21,7 @@ import { ManageIamPage } from './pages/iam/ManageIam.page';
 import { ManageProfilePage } from './pages/profile/ManageProfile.page';
 import { ManageStripeLinksPage } from './pages/stripe/ViewLinks.page';
 import { ManageSigLeadsPage } from './pages/siglead/ManageSigLeads.page';
+import { ViewSigLeadPage } from './pages/siglead/ViewSigLead.page';
 import { ManageRoomRequestsPage } from './pages/roomRequest/RoomRequestLanding.page';
 import { ViewRoomRequest } from './pages/roomRequest/ViewRoomRequest.page';
 
@@ -181,6 +182,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/siglead-management',
     element: <ManageSigLeadsPage />,
+  },
+  {
+    path: '/siglead-management/:sigId',
+    element: <ViewSigLeadPage />,
   },
   {
     path: '/roomRequests',
