@@ -164,7 +164,7 @@ export const ViewSigLeadPage: React.FC = () => {
     };*/
 
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.IAM_ADMIN] }}>
+    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.SIGLEAD_MANAGER] }}>
       <Container>
         <Group align="flex-start">
           <Box style={{ flex: 8 }}>
