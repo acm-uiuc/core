@@ -7,28 +7,18 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   NotFoundError,
-  UnauthenticatedError,
   UnauthorizedError,
   ValidationError,
 } from "../../common/errors/index.js";
 import { NoDataRequest } from "../types.js";
 import {
-  DynamoDBClient,
   QueryCommand,
-  DeleteItemCommand,
-  ScanCommand,
   TransactWriteItemsCommand,
-  AttributeValue,
   TransactWriteItem,
-  GetItemCommand,
   TransactionCanceledException,
 } from "@aws-sdk/client-dynamodb";
 import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
-import {
-  genericConfig,
-  EVENT_CACHED_DURATION,
-  LinkryGroupUUIDToGroupNameMap,
-} from "../../common/config.js";
+import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
@@ -36,8 +26,7 @@ import {
   getLinkryKvArn,
   setKey,
 } from "api/functions/cloudfrontKvStore.js";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { createRequest, getRequest } from "common/types/linkry.js";
+import { createRequest, linkrySlug } from "common/types/linkry.js";
 import {
   extractUniqueSlugs,
   fetchOwnerRecords,
@@ -48,6 +37,10 @@ import {
   getAllLinks,
 } from "api/functions/linkry.js";
 import { intersection } from "api/plugins/auth.js";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
+import { withRoles, withTags } from "api/components/index.js";
 
 type OwnerRecord = {
   slug: string;
@@ -76,12 +69,6 @@ type LinkryGetRequest = {
   Body: undefined;
 };
 
-type LinkryDeleteRequest = {
-  Params: { slug: string };
-  Querystring: undefined;
-  Body: undefined;
-};
-
 const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.register(rateLimiter, {
@@ -90,15 +77,14 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       rateLimitIdentifier: "linkry",
     });
 
-    fastify.get<NoDataRequest>(
+    fastify.get(
       "/redir",
       {
-        onRequest: async (request, reply) => {
-          await fastify.authorize(request, reply, [
-            AppRoles.LINKS_MANAGER,
-            AppRoles.LINKS_ADMIN,
-          ]);
-        },
+        schema: withRoles(
+          [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+          withTags(["Linkry"], {}),
+        ),
+        onRequest: fastify.authorizeFromSchema,
       },
       async (request, reply) => {
         const username = request.username!;
@@ -185,9 +171,15 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
     );
 
-    fastify.post<LinkyCreateRequest>(
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
       "/redir",
       {
+        schema: withRoles(
+          [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+          withTags(["Linkry"], {
+            body: createRequest,
+          }),
+        ),
         preValidation: async (request, reply) => {
           const routeAlreadyExists = fastify.hasRoute({
             url: `/${request.body.slug}`,
@@ -200,20 +192,13 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             });
           }
 
-          await fastify.zodValidateBody(request, reply, createRequest);
-
           if (!fastify.cloudfrontKvClient) {
             fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
               region: genericConfig.AwsRegion,
             });
           }
         },
-        onRequest: async (request, reply) => {
-          await fastify.authorize(request, reply, [
-            AppRoles.LINKS_MANAGER,
-            AppRoles.LINKS_ADMIN,
-          ]);
-        },
+        onRequest: fastify.authorizeFromSchema,
       },
       async (request, reply) => {
         const { slug } = request.body;
@@ -453,6 +438,15 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: "Failed to save redirect to Cloudfront KV store.",
           });
         }
+        await createAuditLogEntry({
+          dynamoClient: fastify.dynamoClient,
+          entry: {
+            module: Modules.LINKRY,
+            actor: request.username!,
+            target: request.body.slug,
+            message: `Created redirect to "${request.body.redirect}"`,
+          },
+        });
         return reply.status(201).send();
       },
     );
@@ -460,12 +454,15 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
     fastify.get<LinkryGetRequest>(
       "/redir/:slug",
       {
-        onRequest: async (request, reply) => {
-          await fastify.authorize(request, reply, [
-            AppRoles.LINKS_MANAGER,
-            AppRoles.LINKS_ADMIN,
-          ]);
-        },
+        schema: withRoles(
+          [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+          withTags(["Linkry"], {
+            params: z.object({
+              slug: linkrySlug,
+            }),
+          }),
+        ),
+        onRequest: fastify.authorizeFromSchema,
       },
       async (request, reply) => {
         try {
@@ -488,7 +485,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               setUserGroups,
             );
             if (mutualGroups.size == 0) {
-              throw new NotFoundError({ endpointName: request.url });
+              throw new UnauthorizedError({
+                message: "You have not been delegated access.",
+              });
             }
           }
           return reply.status(200).send(item);
@@ -504,14 +503,19 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
     );
 
-    fastify.delete<LinkryDeleteRequest>(
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
       "/redir/:slug",
       {
+        schema: withRoles(
+          [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+          withTags(["Linkry"], {
+            params: z.object({
+              slug: linkrySlug,
+            }),
+          }),
+        ),
         onRequest: async (request, reply) => {
-          await fastify.authorize(request, reply, [
-            AppRoles.LINKS_MANAGER,
-            AppRoles.LINKS_ADMIN,
-          ]);
+          await fastify.authorizeFromSchema(request, reply);
 
           if (!fastify.cloudfrontKvClient) {
             fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
@@ -575,7 +579,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             },
           },
         ];
-        console.log(JSON.stringify(TransactItems));
         try {
           await fastify.dynamoClient.send(
             new TransactWriteItemsCommand({ TransactItems }),
@@ -623,7 +626,16 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: "Failed to delete redirect at Cloudfront KV store.",
           });
         }
-        reply.code(200).send();
+        await createAuditLogEntry({
+          dynamoClient: fastify.dynamoClient,
+          entry: {
+            module: Modules.LINKRY,
+            actor: request.username!,
+            target: slug,
+            message: `Deleted short link redirect."`,
+          },
+        });
+        reply.code(204).send();
       },
     );
   };

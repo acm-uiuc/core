@@ -42,6 +42,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
+
       - uses: actions/checkout@v4
         env:
           HUSKY: "0"
@@ -55,7 +56,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
-          role-session-name: Core_Dev_Prod_Deployment
+          role-session-name: Core_Dev_Prod_Deployment_${{ github.run_id }}
           aws-region: us-east-1
       - name: Publish to AWS
         run: make deploy_dev
@@ -90,6 +91,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
+
       - uses: actions/checkout@v4
         env:
           HUSKY: "0"
@@ -103,7 +105,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::298118738376:role/GitHubActionsRole
-          role-session-name: Core_Dev_Prod_Deployment
+          role-session-name: Core_Dev_Prod_Deployment_${{ github.run_id }}
           aws-region: us-east-1
       - name: Publish to AWS
         run: make deploy_prod

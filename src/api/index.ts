@@ -1,4 +1,5 @@
 /* eslint import/no-nodejs-modules: ["error", {"allow": ["crypto"]}] */
+import "zod-openapi/extend";
 import { randomUUID } from "crypto";
 import fastify, { FastifyInstance } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
@@ -10,9 +11,10 @@ import { RunEnvironment, runEnvironments } from "../common/roles.js";
 import { InternalServerError } from "../common/errors/index.js";
 import eventsPlugin from "./routes/events.js";
 import cors from "@fastify/cors";
-import fastifyZodValidationPlugin from "./plugins/validate.js";
 import { environmentConfig, genericConfig } from "../common/config.js";
 import organizationsPlugin from "./routes/organizations.js";
+import authorizeFromSchemaPlugin from "./plugins/authorizeFromSchema.js";
+import evaluatePoliciesPlugin from "./plugins/evaluatePolicies.js";
 import icalPlugin from "./routes/ics.js";
 import vendingPlugin from "./routes/vending.js";
 import * as dotenv from "dotenv";
@@ -28,6 +30,19 @@ import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
 import path from "path"; // eslint-disable-line import/no-nodejs-modules
 import roomRequestRoutes from "./routes/roomRequests.js";
+import logsPlugin from "./routes/logs.js";
+import fastifySwagger from "@fastify/swagger";
+import fastifySwaggerUI from "@fastify/swagger-ui";
+import {
+  fastifyZodOpenApiPlugin,
+  fastifyZodOpenApiTransform,
+  fastifyZodOpenApiTransformObject,
+  serializerCompiler,
+  validatorCompiler,
+} from "fastify-zod-openapi";
+import { ZodOpenApiVersion } from "zod-openapi";
+import { withTags } from "./components/index.js";
+import apiKeyRoute from "./routes/apiKey.js";
 
 dotenv.config();
 
@@ -80,10 +95,117 @@ async function init(prettyPrint: boolean = false) {
       return event.requestContext.requestId;
     },
   });
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+  await app.register(authorizeFromSchemaPlugin);
   await app.register(fastifyAuthPlugin);
-  await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);
+  await app.register(evaluatePoliciesPlugin);
   await app.register(errorHandlerPlugin);
+  await app.register(fastifyZodOpenApiPlugin);
+  await app.register(fastifySwagger, {
+    openapi: {
+      info: {
+        title: "ACM @ UIUC Core API",
+        description: "ACM @ UIUC Core Management Platform",
+        version: "1.0.0",
+        contact: {
+          name: "ACM @ UIUC Infrastructure Team",
+          email: "infra@acm.illinois.edu",
+          url: "infra.acm.illinois.edu",
+        },
+        license: {
+          name: "BSD 3-Clause",
+          identifier: "BSD-3-Clause",
+          url: "https://github.com/acm-uiuc/core/blob/main/LICENSE",
+        },
+        termsOfService: "https://core.acm.illinois.edu/tos",
+      },
+      servers: [
+        {
+          url: "https://core.acm.illinois.edu",
+          description: "Production API server",
+        },
+        {
+          url: "https://core.aws.qa.acmuiuc.org",
+          description: "QA API server",
+        },
+      ],
+      tags: [
+        {
+          name: "Events",
+          description:
+            "Retrieve ACM @ UIUC-wide and organization-specific calendars and event metadata.",
+        },
+        {
+          name: "Generic",
+          description: "Retrieve metadata about a user or ACM @ UIUC .",
+        },
+        {
+          name: "iCalendar Integration",
+          description:
+            "Retrieve Events calendars in iCalendar format (for integration with external calendar clients).",
+        },
+        {
+          name: "IAM",
+          description: "Identity and Access Management for internal services.",
+        },
+        { name: "Linkry", description: "Link Shortener." },
+        {
+          name: "Logging",
+          description: "View audit logs for various services.",
+        },
+        {
+          name: "Membership",
+          description: "Purchasing or checking ACM @ UIUC membership.",
+        },
+        {
+          name: "Tickets/Merchandise",
+          description: "Handling the tickets and merchandise lifecycle.",
+        },
+        {
+          name: "Mobile Wallet",
+          description: "Issuing Apple/Google Wallet passes.",
+        },
+        {
+          name: "Stripe",
+          description:
+            "Collecting payments for ACM @ UIUC invoices and other services.",
+        },
+        {
+          name: "Room Requests",
+          description:
+            "Creating room reservation requests for ACM @ UIUC within University buildings.",
+        },
+        {
+          name: "API Keys",
+          description: "Manage the lifecycle of API keys.",
+        },
+      ],
+      openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+            description:
+              "Authorization: Bearer {token}\n\nThis API uses JWT tokens issued by Entra ID (Azure AD) with the Core API audience. Tokens must be included in the Authorization header as a Bearer token for all protected endpoints.",
+          },
+          apiKeyAuth: {
+            type: "apiKey",
+            in: "header",
+            name: "X-Api-Key",
+          },
+        },
+      },
+    },
+    transform: fastifyZodOpenApiTransform,
+    transformObject: fastifyZodOpenApiTransformObject,
+  });
+  await app.register(fastifySwaggerUI, {
+    routePrefix: "/api/documentation",
+  });
   await app.register(fastifyStatic, {
     root: path.join(__dirname, "public"),
     prefix: "/",
@@ -121,7 +243,15 @@ async function init(prettyPrint: boolean = false) {
     );
     done();
   });
-  app.get("/api/v1/healthz", (_, reply) => reply.send({ message: "UP" }));
+  app.get(
+    "/api/v1/healthz",
+    {
+      schema: withTags(["Generic"], {
+        summary: "Verify that the API server is healthy.",
+      }),
+    },
+    (_, reply) => reply.send({ message: "UP" }),
+  );
   await app.register(
     async (api, _options) => {
       api.register(protectedRoute, { prefix: "/protected" });
@@ -135,6 +265,8 @@ async function init(prettyPrint: boolean = false) {
       api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
       api.register(stripeRoutes, { prefix: "/stripe" });
       api.register(roomRequestRoutes, { prefix: "/roomRequests" });
+      api.register(logsPlugin, { prefix: "/logs" });
+      api.register(apiKeyRoute, { prefix: "/apiKey" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }

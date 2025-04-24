@@ -10,6 +10,7 @@ import { genericConfig } from "../../common/config.js";
 import {
   BaseError,
   DatabaseFetchError,
+  DatabaseInsertError,
   NotFoundError,
   NotSupportedError,
   TicketNotFoundError,
@@ -17,10 +18,15 @@ import {
   UnauthenticatedError,
   ValidationError,
 } from "../../common/errors/index.js";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { validateEmail } from "../functions/validation.js";
 import { AppRoles } from "../../common/roles.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { ItemPostData, postMetadataSchema } from "common/types/tickets.js";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
+import { withRoles, withTags } from "api/components/index.js";
 
 const postMerchSchema = z.object({
   type: z.literal("merch"),
@@ -99,32 +105,27 @@ type TicketsGetRequest = {
   Body: undefined;
 };
 
-type TicketsListRequest = {
-  Params: undefined;
-  Querystring: undefined;
-  Body: undefined;
-};
-
 const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.get<TicketsListRequest>(
-    "/",
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "",
     {
-      schema: {
-        response: {
-          200: listMerchItemsResponseJsonSchema,
-        },
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [
-          AppRoles.TICKETS_MANAGER,
-          AppRoles.TICKETS_SCANNER,
-        ]);
-      },
+      schema: withRoles(
+        [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
+        withTags(["Tickets/Merchandise"], {
+          summary: "Retrieve metadata about tickets/merchandise items.",
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       let isTicketingManager = true;
       try {
-        await fastify.authorize(request, reply, [AppRoles.TICKETS_MANAGER]);
+        await fastify.authorize(
+          request,
+          reply,
+          [AppRoles.TICKETS_MANAGER],
+          false,
+        );
       } catch {
         isTicketingManager = false;
       }
@@ -200,34 +201,30 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
       }
-
       reply.send({ merch: merchItems, tickets: ticketItems });
     },
   );
-  fastify.get<TicketsGetRequest>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:eventId",
     {
-      schema: {
-        querystring: {
-          type: "object",
-          properties: {
-            type: {
-              type: "string",
-              enum: ["merch", "ticket"],
-            },
-          },
-        },
-        response: {
-          200: getTicketsResponseJsonSchema,
-        },
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.TICKETS_MANAGER]);
-      },
+      schema: withRoles(
+        [AppRoles.TICKETS_MANAGER],
+        withTags(["Tickets/Merchandise"], {
+          summary: "Get detailed per-sale information by event ID.",
+          querystring: z.object({
+            type: z.enum(["merch", "ticket"]),
+          }),
+          params: z.object({
+            eventId: z.string().min(1),
+          }),
+          security: [],
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
-      const eventId = (request.params as Record<string, string>).eventId;
-      const eventType = request.query?.type;
+      const eventId = request.params.eventId;
+      const eventType = request.query.type;
       const issuedTickets: TicketInfoEntry[] = [];
       switch (eventType) {
         case "merch":
@@ -271,18 +268,90 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       return reply.send(response);
     },
   );
-  fastify.post<{ Body: VerifyPostRequest }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
+    "/:eventId",
+    {
+      schema: withRoles(
+        [AppRoles.TICKETS_MANAGER],
+        withTags(["Tickets/Merchandise"], {
+          summary: "Modify event metadata.",
+          params: z.object({
+            eventId: z.string().min(1),
+          }),
+          body: postMetadataSchema,
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      const eventId = request.params.eventId;
+      const eventType = request.body.type;
+      const eventActiveSet = request.body.itemSalesActive;
+      let newActiveTime: number = 0;
+      if (typeof eventActiveSet === "boolean") {
+        if (!eventActiveSet) {
+          newActiveTime = -1;
+        }
+      } else {
+        newActiveTime = parseInt(
+          (eventActiveSet.valueOf() / 1000).toFixed(0),
+          10,
+        );
+      }
+      let command: UpdateItemCommand;
+      switch (eventType) {
+        case "merch":
+          command = new UpdateItemCommand({
+            TableName: genericConfig.MerchStoreMetadataTableName,
+            Key: marshall({ item_id: eventId }),
+            UpdateExpression: "SET item_sales_active_utc = :new_val",
+            ConditionExpression: "item_id = :item_id",
+            ExpressionAttributeValues: {
+              ":new_val": { N: newActiveTime.toString() },
+              ":item_id": { S: eventId },
+            },
+          });
+          break;
+        case "ticket":
+          command = new UpdateItemCommand({
+            TableName: genericConfig.TicketMetadataTableName,
+            Key: marshall({ event_id: eventId }),
+            UpdateExpression: "SET event_sales_active_utc = :new_val",
+            ConditionExpression: "event_id = :item_id",
+            ExpressionAttributeValues: {
+              ":new_val": { N: newActiveTime.toString() },
+              ":item_id": { S: eventId },
+            },
+          });
+          break;
+      }
+      try {
+        await fastify.dynamoClient.send(command);
+      } catch (e) {
+        if (e instanceof ConditionalCheckFailedException) {
+          throw new NotFoundError({
+            endpointName: request.url,
+          });
+        }
+        fastify.log.error(e);
+        throw new DatabaseInsertError({
+          message: "Could not update active time for item.",
+        });
+      }
+      return reply.status(201).send();
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/checkIn",
     {
-      schema: {
-        response: { 200: responseJsonSchema },
-      },
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, postSchema);
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.TICKETS_SCANNER]);
-      },
+      schema: withRoles(
+        [AppRoles.TICKETS_SCANNER],
+        withTags(["Tickets/Merchandise"], {
+          summary: "Mark a ticket/merch item as fulfilled by QR code data.",
+          body: postSchema,
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       let command: UpdateItemCommand;
@@ -402,15 +471,16 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         ticketId,
         purchaserData,
       });
-      request.log.info(
-        {
-          type: "audit",
-          module: "tickets",
-          actor: request.username,
+      await createAuditLogEntry({
+        dynamoClient: fastify.dynamoClient,
+        entry: {
+          module: Modules.TICKETS,
+          actor: request.username!,
           target: ticketId,
+          message: `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
+          requestId: request.id,
         },
-        `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
-      );
+      });
     },
   );
 };

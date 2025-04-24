@@ -13,7 +13,9 @@ export enum AppRoles {
   STRIPE_LINK_CREATOR = "create:stripeLink",
   BYPASS_OBJECT_LEVEL_AUTH = "bypass:ola",
   ROOM_REQUEST_CREATE = "create:roomRequest",
-  ROOM_REQUEST_UPDATE = "update:roomRequest"
+  ROOM_REQUEST_UPDATE = "update:roomRequest",
+  AUDIT_LOG_VIEWER = "view:auditLog",
+  MANAGE_ORG_API_KEYS = "manage:orgApiKey"
 }
 export const allAppRoles = Object.values(AppRoles).filter(
   (value) => typeof value === "string",

@@ -64,7 +64,7 @@ describe("Event lifecycle tests", async () => {
         },
       },
     );
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(204);
   });
 
   test("check that deleted events cannot be found", async () => {

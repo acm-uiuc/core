@@ -21,16 +21,12 @@ import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { genericConfig, roleArns } from "../../common/config.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import {
-  InviteUserPostRequest,
   invitePostRequestSchema,
-  GroupMappingCreatePostRequest,
   groupMappingCreatePostSchema,
   entraActionResponseSchema,
   groupModificationPatchSchema,
-  GroupModificationPatchRequest,
   EntraGroupActions,
   entraGroupMembershipListResponse,
-  ProfilePatchRequest,
   entraProfilePatchRequest,
 } from "../../common/types/iam.js";
 import {
@@ -39,6 +35,15 @@ import {
 } from "../functions/authorization.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
+import { groupId, withRoles, withTags } from "api/components/index.js";
+import {
+  FastifyZodOpenApiTypeProvider,
+  serializerCompiler,
+  validatorCompiler,
+} from "fastify-zod-openapi";
+import { z } from "zod";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -71,15 +76,17 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       };
     }
   };
-  fastify.patch<{ Body: ProfilePatchRequest }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
     "/profile",
     {
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, entraProfilePatchRequest);
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, []);
-      },
+      schema: withRoles(
+        [],
+        withTags(["IAM"], {
+          body: entraProfilePatchRequest,
+          summary: "Update user's profile.",
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       if (!request.tokenPayload || !request.username) {
@@ -98,32 +105,26 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         userOid,
         request.body,
       );
-      reply.status(201);
+      reply.status(201).send();
     },
   );
-  fastify.get<{
-    Body: undefined;
-    Querystring: { groupId: string };
-  }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/groups/:groupId/roles",
     {
-      schema: {
-        querystring: {
-          type: "object",
-          properties: {
-            groupId: {
-              type: "string",
-            },
-          },
-        },
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-      },
+      schema: withRoles(
+        [AppRoles.IAM_ADMIN],
+        withTags(["IAM"], {
+          params: z.object({
+            groupId,
+          }),
+          summary: "Get a group's application role mappings.",
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       try {
-        const groupId = (request.params as Record<string, string>).groupId;
+        const groupId = request.params.groupId;
         const roles = await getGroupRoles(
           fastify.dynamoClient,
           fastify,
@@ -142,32 +143,20 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
-  fastify.post<{
-    Body: GroupMappingCreatePostRequest;
-    Querystring: { groupId: string };
-  }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/groups/:groupId/roles",
     {
-      schema: {
-        querystring: {
-          type: "object",
-          properties: {
-            groupId: {
-              type: "string",
-            },
-          },
-        },
-      },
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(
-          request,
-          reply,
-          groupMappingCreatePostSchema,
-        );
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-      },
+      schema: withRoles(
+        [AppRoles.IAM_ADMIN],
+        withTags(["IAM"], {
+          params: z.object({
+            groupId,
+          }),
+          body: groupMappingCreatePostSchema,
+          summary: "Update a group's application role mappings.",
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const groupId = (request.params as Record<string, string>).groupId;
@@ -181,7 +170,18 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createdAt: timestamp,
           }),
         });
+        const logPromise = createAuditLogEntry({
+          dynamoClient: fastify.dynamoClient,
+          entry: {
+            module: Modules.IAM,
+            actor: request.username!,
+            target: groupId,
+            message: `set target roles to ${request.body.roles.toString()}`,
+            requestId: request.id,
+          },
+        });
         await fastify.dynamoClient.send(command);
+        await logPromise;
         fastify.nodeCache.set(
           `grouproles-${groupId}`,
           request.body.roles,
@@ -199,29 +199,20 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       reply.send({ message: "OK" });
-      request.log.info(
-        {
-          type: "audit",
-          module: "iam",
-          actor: request.username,
-          target: groupId,
-        },
-        `set target roles to ${request.body.roles.toString()}`,
-      );
     },
   );
-  fastify.post<{ Body: InviteUserPostRequest }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/inviteUsers",
     {
-      schema: {
-        response: { 202: zodToJsonSchema(entraActionResponseSchema) },
-      },
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, invitePostRequestSchema);
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.IAM_INVITE_ONLY]);
-      },
+      schema: withRoles(
+        [AppRoles.IAM_INVITE_ONLY, AppRoles.IAM_ADMIN],
+        withTags(["IAM"], {
+          body: invitePostRequestSchema,
+          summary: "Invite a user to the ACM @ UIUC Entra ID tenant.",
+          // response: { 202: entraActionResponseSchema },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const emails = request.body.emails;
@@ -241,28 +232,35 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const results = await Promise.allSettled(
         emails.map((email) => addToTenant(entraIdToken, email)),
       );
+      const logPromises = [];
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         if (result.status === "fulfilled") {
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: emails[i],
-            },
-            "invited user to Entra ID tenant.",
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: emails[i],
+                message: "Invited user to Entra ID tenant.",
+                requestId: request.id,
+              },
+            }),
           );
           response.success.push({ email: emails[i] });
         } else {
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: emails[i],
-            },
-            "failed to invite user to Entra ID tenant.",
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: emails[i],
+                message: "Failed to invite user to Entra ID tenant.",
+                requestId: request.id,
+              },
+            }),
           );
           if (result.reason instanceof EntraInvitationError) {
             response.failure.push({
@@ -277,35 +275,24 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
       }
+      await Promise.allSettled(logPromises);
       reply.status(202).send(response);
     },
   );
-  fastify.patch<{
-    Body: GroupModificationPatchRequest;
-    Querystring: { groupId: string };
-  }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
     "/groups/:groupId",
     {
-      schema: {
-        querystring: {
-          type: "object",
-          properties: {
-            groupId: {
-              type: "string",
-            },
-          },
-        },
-      },
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(
-          request,
-          reply,
-          groupModificationPatchSchema,
-        );
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-      },
+      schema: withRoles(
+        [AppRoles.IAM_ADMIN],
+        withTags(["IAM"], {
+          params: z.object({
+            groupId,
+          }),
+          body: groupModificationPatchSchema,
+          summary: "Update the members of a group.",
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const groupId = (request.params as Record<string, string>).groupId;
@@ -352,28 +339,35 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         success: [],
         failure: [],
       };
+      const logPromises = [];
       for (let i = 0; i < addResults.length; i++) {
         const result = addResults[i];
         if (result.status === "fulfilled") {
           response.success.push({ email: request.body.add[i] });
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: request.body.add[i],
-            },
-            `added target to group ID ${groupId}`,
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: request.body.add[i],
+                message: `added target to group ID ${groupId}`,
+                requestId: request.id,
+              },
+            }),
           );
         } else {
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: request.body.add[i],
-            },
-            `failed to add target to group ID ${groupId}`,
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: request.body.add[i],
+                message: `failed to add target to group ID ${groupId}`,
+                requestId: request.id,
+              },
+            }),
           );
           if (result.reason instanceof EntraGroupError) {
             response.failure.push({
@@ -392,24 +386,30 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const result = removeResults[i];
         if (result.status === "fulfilled") {
           response.success.push({ email: request.body.remove[i] });
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: request.body.remove[i],
-            },
-            `removed target from group ID ${groupId}`,
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: request.body.add[i],
+                message: `remove target from group ID ${groupId}`,
+                requestId: request.id,
+              },
+            }),
           );
         } else {
-          request.log.info(
-            {
-              type: "audit",
-              module: "iam",
-              actor: request.username,
-              target: request.body.add[i],
-            },
-            `failed to remove target from group ID ${groupId}`,
+          logPromises.push(
+            createAuditLogEntry({
+              dynamoClient: fastify.dynamoClient,
+              entry: {
+                module: Modules.IAM,
+                actor: request.username!,
+                target: request.body.add[i],
+                message: `failed to remove target from group ID ${groupId}`,
+                requestId: request.id,
+              },
+            }),
           );
           if (result.reason instanceof EntraGroupError) {
             response.failure.push({
@@ -424,28 +424,24 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
       }
+      await Promise.allSettled(logPromises);
       reply.status(202).send(response);
     },
   );
-  fastify.get<{
-    Querystring: { groupId: string };
-  }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/groups/:groupId",
     {
-      schema: {
-        response: { 200: zodToJsonSchema(entraGroupMembershipListResponse) },
-        querystring: {
-          type: "object",
-          properties: {
-            groupId: {
-              type: "string",
-            },
-          },
-        },
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-      },
+      schema: withRoles(
+        [AppRoles.IAM_ADMIN],
+        withTags(["IAM"], {
+          // response: { 200: entraGroupMembershipListResponse },
+          params: z.object({
+            groupId,
+          }),
+          summary: "Get the members of a group.",
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const groupId = (request.params as Record<string, string>).groupId;

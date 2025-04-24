@@ -1,4 +1,16 @@
-import { Title, Box, TextInput, Textarea, Switch, Select, Button, Loader } from '@mantine/core';
+import {
+  Title,
+  Box,
+  TextInput,
+  Textarea,
+  Switch,
+  Select,
+  Button,
+  Loader,
+  Group,
+  ActionIcon,
+  Text,
+} from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { useForm, zodResolver } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -7,11 +19,17 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { z } from 'zod';
 import { AuthGuard } from '@ui/components/AuthGuard';
-import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { OrganizationList as orgList } from '@common/orgs';
 import { AppRoles } from '@common/roles';
 import { EVENT_CACHED_DURATION } from '@common/config';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
+import {
+  MAX_METADATA_KEYS,
+  MAX_KEY_LENGTH,
+  MAX_VALUE_LENGTH,
+  metadataSchema,
+} from '@common/types/events';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -29,6 +47,8 @@ const baseBodySchema = z.object({
   host: z.string().min(1, 'Host is required'),
   featured: z.boolean().default(false),
   paidEventId: z.string().min(1, 'Paid Event ID must be at least 1 character').optional(),
+  // Add metadata field
+  metadata: metadataSchema,
 });
 
 const requestBodySchema = baseBodySchema
@@ -68,6 +88,7 @@ export const ManageEventPage: React.FC = () => {
       try {
         const response = await api.get(`/api/v1/events/${eventId}?ts=${Date.now()}`);
         const eventData = response.data;
+
         const formValues = {
           title: eventData.title,
           description: eventData.description,
@@ -80,6 +101,7 @@ export const ManageEventPage: React.FC = () => {
           repeats: eventData.repeats,
           repeatEnds: eventData.repeatEnds ? new Date(eventData.repeatEnds) : undefined,
           paidEventId: eventData.paidEventId,
+          metadata: eventData.metadata || {},
         };
         form.setValues(formValues);
       } catch (error) {
@@ -107,8 +129,10 @@ export const ManageEventPage: React.FC = () => {
       repeats: undefined,
       repeatEnds: undefined,
       paidEventId: undefined,
+      metadata: {}, // Initialize empty metadata object
     },
   });
+
   useEffect(() => {
     if (form.values.end && form.values.end <= form.values.start) {
       form.setFieldValue('end', new Date(form.values.start.getTime() + 3.6e6)); // 1 hour after the start date
@@ -124,6 +148,7 @@ export const ManageEventPage: React.FC = () => {
   const handleSubmit = async (values: EventPostRequest) => {
     try {
       setIsSubmitting(true);
+
       const realValues = {
         ...values,
         start: dayjs(values.start).format('YYYY-MM-DD[T]HH:mm:00'),
@@ -133,6 +158,7 @@ export const ManageEventPage: React.FC = () => {
             ? dayjs(values.repeatEnds).format('YYYY-MM-DD[T]HH:mm:00')
             : undefined,
         repeats: values.repeats ? values.repeats : undefined,
+        metadata: Object.keys(values.metadata || {}).length > 0 ? values.metadata : undefined,
       };
 
       const eventURL = isEditing ? `/api/v1/events/${eventId}` : '/api/v1/events';
@@ -150,6 +176,87 @@ export const ManageEventPage: React.FC = () => {
       });
     }
   };
+
+  // Function to add a new metadata field
+  const addMetadataField = () => {
+    const currentMetadata = { ...form.values.metadata };
+    if (Object.keys(currentMetadata).length >= MAX_METADATA_KEYS) {
+      notifications.show({
+        message: `You can add at most ${MAX_METADATA_KEYS} metadata keys.`,
+      });
+      return;
+    }
+
+    // Generate a temporary key name that doesn't exist yet
+    let tempKey = `key${Object.keys(currentMetadata).length + 1}`;
+    // Make sure it's unique
+    while (currentMetadata[tempKey] !== undefined) {
+      tempKey = `key${parseInt(tempKey.replace('key', '')) + 1}`;
+    }
+
+    // Update the form
+    form.setValues({
+      ...form.values,
+      metadata: {
+        ...currentMetadata,
+        [tempKey]: '',
+      },
+    });
+  };
+
+  // Function to update a metadata value
+  const updateMetadataValue = (key: string, value: string) => {
+    form.setValues({
+      ...form.values,
+      metadata: {
+        ...form.values.metadata,
+        [key]: value,
+      },
+    });
+  };
+
+  const updateMetadataKey = (oldKey: string, newKey: string) => {
+    const metadata = { ...form.values.metadata };
+    if (oldKey === newKey) return;
+
+    const value = metadata[oldKey];
+    delete metadata[oldKey];
+    metadata[newKey] = value;
+
+    form.setValues({
+      ...form.values,
+      metadata,
+    });
+  };
+
+  // Function to remove a metadata field
+  const removeMetadataField = (key: string) => {
+    const currentMetadata = { ...form.values.metadata };
+    delete currentMetadata[key];
+
+    form.setValues({
+      ...form.values,
+      metadata: currentMetadata,
+    });
+  };
+
+  const [metadataKeys, setMetadataKeys] = useState<Record<string, string>>({});
+
+  // Initialize metadata keys with unique IDs when form loads or changes
+  useEffect(() => {
+    const newMetadataKeys: Record<string, string> = {};
+
+    // For existing metadata, create stable IDs
+    Object.keys(form.values.metadata || {}).forEach((key) => {
+      if (!metadataKeys[key]) {
+        newMetadataKeys[key] = `meta-${Math.random().toString(36).substring(2, 9)}`;
+      } else {
+        newMetadataKeys[key] = metadataKeys[key];
+      }
+    });
+
+    setMetadataKeys(newMetadataKeys);
+  }, [Object.keys(form.values.metadata || {}).length]);
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
@@ -230,6 +337,71 @@ export const ManageEventPage: React.FC = () => {
             placeholder="Enter Ticketing ID or Merch ID prefixed with merch:"
             {...form.getInputProps('paidEventId')}
           />
+
+          {/* Metadata Section */}
+          <Box my="md">
+            <Title order={5}>Metadata</Title>
+            <Group justify="space-between" mb="xs">
+              <Button
+                size="xs"
+                variant="outline"
+                leftSection={<IconPlus size={16} />}
+                onClick={addMetadataField}
+                disabled={Object.keys(form.values.metadata || {}).length >= MAX_METADATA_KEYS}
+              >
+                Add Field
+              </Button>
+            </Group>
+            <Text size="xs" c="dimmed">
+              These values can be acceessed via the API. Max {MAX_KEY_LENGTH} characters for keys
+              and {MAX_VALUE_LENGTH} characters for values.
+            </Text>
+
+            {Object.entries(form.values.metadata || {}).map(([key, value], index) => {
+              const keyError = key.trim() === '' ? 'Key is required' : undefined;
+              const valueError = value.trim() === '' ? 'Value is required' : undefined;
+
+              return (
+                <Group key={index} align="start" gap={'sm'}>
+                  <TextInput
+                    label="Key"
+                    value={key}
+                    onChange={(e) => updateMetadataKey(key, e.currentTarget.value)}
+                    error={keyError}
+                    style={{ flex: 1 }}
+                  />
+                  <Box style={{ flex: 1 }}>
+                    <TextInput
+                      label="Value"
+                      value={value}
+                      onChange={(e) => updateMetadataValue(key, e.currentTarget.value)}
+                      error={valueError}
+                    />
+                    {/* Empty space to maintain consistent height */}
+                    {valueError && <div style={{ height: '0.75rem' }} />}
+                  </Box>
+                  <ActionIcon
+                    color="red"
+                    variant="light"
+                    onClick={() => removeMetadataField(key)}
+                    mt={30} // align with inputs when label is present
+                  >
+                    <IconTrash size={16} />
+                  </ActionIcon>
+                </Group>
+              );
+            })}
+
+            {Object.keys(form.values.metadata || {}).length > 0 && (
+              <Box mt="xs" size="xs" ta="right">
+                <small>
+                  {Object.keys(form.values.metadata || {}).length} of {MAX_METADATA_KEYS} fields
+                  used
+                </small>
+              </Box>
+            )}
+          </Box>
+
           <Button type="submit" mt="md">
             {isSubmitting ? (
               <>

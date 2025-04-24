@@ -24,6 +24,9 @@ import { ManageSigLeadsPage } from './pages/siglead/ManageSigLeads.page';
 import { ViewSigLeadPage } from './pages/siglead/ViewSigLead.page';
 import { ManageRoomRequestsPage } from './pages/roomRequest/RoomRequestLanding.page';
 import { ViewRoomRequest } from './pages/roomRequest/ViewRoomRequest.page';
+import { ViewLogsPage } from './pages/logs/ViewLogs.page';
+import { TermsOfService } from './pages/tos/TermsOfService.page';
+import { ManageApiKeysPage } from './pages/apiKeys/ManageKeys.page';
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -82,6 +85,10 @@ const commonRoutes = [
   {
     path: '/auth/callback',
     element: <AuthCallback />,
+  },
+  {
+    path: '/tos',
+    element: <TermsOfService />,
   },
 ];
 
@@ -194,6 +201,14 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: '/roomRequests/:semesterId/:requestId',
     element: <ViewRoomRequest />,
+  },
+  {
+    path: '/logs',
+    element: <ViewLogsPage />,
+  },
+  {
+    path: '/apiKeys',
+    element: <ManageApiKeysPage />,
   },
   // Catch-all route for authenticated users shows 404 page
   {

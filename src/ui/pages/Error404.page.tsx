@@ -1,24 +1,16 @@
 import { Container, Title, Text, Anchor } from '@mantine/core';
 import React from 'react';
+import { AcmAppShell } from '@ui/components/AppShell';
 
-import { HeaderNavbar } from '@ui/components/Navbar';
-
-export const Error404Page: React.FC<{ showNavbar?: boolean }> = ({ showNavbar }) => {
-  const realStuff = (
-    <>
-      <Title>Page Not Found</Title>
-      <Text>
-        Perhaps you would like to <Anchor href="/">go home</Anchor>?
-      </Text>
-    </>
-  );
-  if (!showNavbar) {
-    return realStuff;
-  }
+export const Error404Page: React.FC = () => {
   return (
-    <>
-      <HeaderNavbar />
-      <Container>{realStuff}</Container>
-    </>
+    <AcmAppShell showSidebar={false}>
+      <Container>
+        <Title>Page Not Found</Title>
+        <Text>
+          Perhaps you would like to <Anchor href="/">go home</Anchor>?
+        </Text>
+      </Container>
+    </AcmAppShell>
   );
 };

@@ -6,7 +6,7 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
-import { AppRoles } from "../../common/roles.js";
+import { AppRoles } from "common/roles.js";
 import {
   BaseError,
   InternalServerError,
@@ -15,6 +15,7 @@ import {
 } from "../../common/errors/index.js";
 import { genericConfig, SecretConfig } from "../../common/config.js";
 import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
+import { getApiKeyData, getApiKeyParts } from "api/functions/apiKey.js";
 
 export function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();
@@ -75,16 +76,70 @@ export const getSecretValue = async (
 };
 
 const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
+  const handleApiKeyAuthentication = async (
+    request: FastifyRequest,
+    _reply: FastifyReply,
+    validRoles: AppRoles[],
+  ): Promise<Set<AppRoles>> => {
+    const apiKeyValueTemp = request.headers["x-api-key"];
+    if (!apiKeyValueTemp) {
+      throw new UnauthenticatedError({
+        message: "Invalid API key.",
+      });
+    }
+    const apiKeyValue =
+      typeof apiKeyValueTemp === "string"
+        ? apiKeyValueTemp
+        : apiKeyValueTemp[0];
+    const { id: apikeyId } = getApiKeyParts(apiKeyValue);
+    const keyData = await getApiKeyData({
+      nodeCache: fastify.nodeCache,
+      dynamoClient: fastify.dynamoClient,
+      id: apikeyId,
+    });
+    if (!keyData) {
+      throw new UnauthenticatedError({
+        message: "Invalid API key.",
+      });
+    }
+    const expectedRoles = new Set(validRoles);
+    const rolesSet = new Set(keyData.roles);
+    if (
+      expectedRoles.size > 0 &&
+      intersection(rolesSet, expectedRoles).size === 0
+    ) {
+      throw new UnauthorizedError({
+        message: "User does not have the privileges for this task.",
+      });
+    }
+    request.username = `acmuiuc_${apikeyId}`;
+    request.userRoles = rolesSet;
+    request.tokenPayload = undefined; // there's no token data
+    request.policyRestrictions = keyData.restrictions;
+    return new Set(keyData.roles);
+  };
   fastify.decorate(
     "authorize",
     async function (
       request: FastifyRequest,
-      _reply: FastifyReply,
+      reply: FastifyReply,
       validRoles: AppRoles[],
+      disableApiKeyAuth: boolean,
     ): Promise<Set<AppRoles>> {
       const userRoles = new Set([] as AppRoles[]);
       try {
-        const authHeader = request.headers.authorization;
+        if (!disableApiKeyAuth) {
+          const apiKeyHeader = request.headers
+            ? request.headers["x-api-key"]
+            : null;
+          if (apiKeyHeader) {
+            return handleApiKeyAuthentication(request, reply, validRoles);
+          }
+        }
+
+        const authHeader = request.headers
+          ? request.headers["authorization"]
+          : null;
         if (!authHeader) {
           throw new UnauthenticatedError({
             message: "Did not find bearer token in expected header.",
