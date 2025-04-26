@@ -23,6 +23,30 @@ test("getting events for a given host", async () => {
   });
 });
 
+test("metadata is included when includeMetadata query parameter is set", async () => {
+  const response = await fetch(
+    `${baseEndpoint}/api/v1/events?host=Infrastructure Committee&includeMetadata=true&ts=${Date.now()}`,
+  );
+  expect(response.status).toBe(200);
+
+  const responseJson = (await response.json()) as EventsGetResponse;
+  expect(responseJson.length).toBeGreaterThan(0);
+  const withMetadata = responseJson.filter((x) => x["metadata"]);
+  expect(withMetadata.length).toBeGreaterThanOrEqual(1);
+});
+
+test("metadata is not included when includeMetadata query parameter is unset", async () => {
+  const response = await fetch(
+    `${baseEndpoint}/api/v1/events?host=Infrastructure Committee&ts=${Date.now()}`,
+  );
+  expect(response.status).toBe(200);
+
+  const responseJson = (await response.json()) as EventsGetResponse;
+  expect(responseJson.length).toBeGreaterThan(0);
+  const withMetadata = responseJson.filter((x) => x["metadata"]);
+  expect(withMetadata.length).toEqual(0);
+});
+
 describe("Event lifecycle tests", async () => {
   let createdEventUuid: string;
   test("creating an event", { timeout: 30000 }, async () => {
