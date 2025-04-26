@@ -2,6 +2,7 @@ import { FastifyRequest } from "fastify";
 import { hostRestrictionPolicy } from "./events.js";
 import { z } from "zod";
 import { AuthorizationPolicyResult } from "./evaluator.js";
+
 type Policy<TParamsSchema extends z.ZodObject<any>> = {
   name: string;
   paramsSchema: TParamsSchema;
@@ -11,10 +12,8 @@ type Policy<TParamsSchema extends z.ZodObject<any>> = {
   ) => AuthorizationPolicyResult;
 };
 
-// Type to get parameters type from a policy
 type PolicyParams<T> = T extends Policy<infer U> ? z.infer<U> : never;
 
-// Type for a registry of policies
 type PolicyRegistry = {
   [key: string]: Policy<any>;
 };
@@ -27,16 +26,15 @@ type TypedPolicyRegistry<T extends PolicyRegistry> = {
   };
 };
 
-export type AvailableAuthorizationPolicies = TypedPolicyRegistry<
-  typeof AuthorizationPoliciesRegistry
->;
-export const AuthorizationPoliciesRegistry = {
+export const AuthorizationPoliciesRegistry: PolicyRegistry = {
   EventsHostRestrictionPolicy: hostRestrictionPolicy,
 } as const;
 
+export type AvailableAuthorizationPolicies = TypedPolicyRegistry<
+  typeof AuthorizationPoliciesRegistry
+>;
+
 export type AvailableAuthorizationPolicy = {
-  [K in keyof typeof AuthorizationPoliciesRegistry]: {
-    name: K;
-    params: PolicyParams<(typeof AuthorizationPoliciesRegistry)[K]>;
-  };
-}[keyof typeof AuthorizationPoliciesRegistry];
+  name: keyof typeof AuthorizationPoliciesRegistry;
+  params: PolicyParams<typeof AuthorizationPoliciesRegistry[keyof typeof AuthorizationPoliciesRegistry]>;
+};
