@@ -56,6 +56,8 @@ const createProjectionParams = (includeMetadata: boolean = false) => {
     host: "#host",
     featured: "#featured",
     id: "#id",
+    repeats: "#repeats",
+    repeatEnds: "#repeatEnds",
     ...(includeMetadata ? { metadata: "#metadata" } : {}),
   };
 
