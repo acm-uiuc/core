@@ -58,7 +58,6 @@
     "uuid": "^11.1.0",
     "zod": "^3.24.3",
     "zod-openapi": "^4.2.4",
-    "zod-to-json-schema": "^3.24.5",
     "zod-validation-error": "^3.3.1"
   },
   "devDependencies": {

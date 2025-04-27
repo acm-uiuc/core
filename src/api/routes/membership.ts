@@ -23,11 +23,7 @@ import stripe, { Stripe } from "stripe";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import rawbody from "fastify-raw-body";
-import {
-  FastifyZodOpenApiTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-zod-openapi";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { z } from "zod";
 import { withTags } from "api/components/index.js";
 

@@ -1,6 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
 import { AppRoles } from "../../common/roles.js";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   addToTenant,
   getEntraIdToken,
@@ -38,11 +37,7 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { groupId, withRoles, withTags } from "api/components/index.js";
-import {
-  FastifyZodOpenApiTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-zod-openapi";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { z } from "zod";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {

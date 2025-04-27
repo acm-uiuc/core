@@ -18,7 +18,7 @@ export function getPreviousSemesters() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1;
 
-  let semesters = [];
+  let semesters: { value: string, label: string }[] = [];
   let currentSemester = "";
 
   if (currentMonth >= 1 && currentMonth <= 5) {
@@ -63,7 +63,7 @@ export function getSemesters() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1;
 
-  let semesters = [];
+  let semesters: { value: string, label: string }[] = [];
   let currentSemester = "";
 
   if (currentMonth >= 1 && currentMonth <= 5) {
@@ -300,7 +300,7 @@ export const roomRequestSchema = roomRequestBaseSchema
         });
       }
 
-      if (data.estimatedAttendees === null || data.estimatedAttendees <= 0) {
+      if (data.estimatedAttendees === null || data.estimatedAttendees === undefined || data.estimatedAttendees <= 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please provide an estimated number of attendees",
@@ -308,7 +308,7 @@ export const roomRequestSchema = roomRequestBaseSchema
         });
       }
 
-      if (data.seatsNeeded === null || data.seatsNeeded <= 0) {
+      if (data.seatsNeeded === null || data.seatsNeeded === undefined || data.seatsNeeded <= 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please specify how many seats you need",

@@ -21,8 +21,7 @@ import {
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { validateEmail } from "../functions/validation.js";
 import { AppRoles } from "../../common/roles.js";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ItemPostData, postMetadataSchema } from "common/types/tickets.js";
+import { postMetadataSchema } from "common/types/tickets.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
@@ -62,13 +61,11 @@ const ticketInfoEntryZod = ticketEntryZod.extend({
 
 type TicketInfoEntry = z.infer<typeof ticketInfoEntryZod>;
 
-const responseJsonSchema = zodToJsonSchema(ticketEntryZod);
+const responseJsonSchema = ticketEntryZod;
 
-const getTicketsResponseJsonSchema = zodToJsonSchema(
-  z.object({
-    tickets: z.array(ticketInfoEntryZod),
-  }),
-);
+const getTicketsResponse = z.object({
+  tickets: z.array(ticketInfoEntryZod),
+});
 
 const baseItemMetadata = z.object({
   itemId: z.string().min(1),
@@ -88,12 +85,10 @@ const ticketingItemMetadata = baseItemMetadata.extend({
 type ItemMetadata = z.infer<typeof baseItemMetadata>;
 type TicketItemMetadata = z.infer<typeof ticketingItemMetadata>;
 
-const listMerchItemsResponseJsonSchema = zodToJsonSchema(
-  z.object({
-    merch: z.array(baseItemMetadata),
-    tickets: z.array(ticketingItemMetadata),
-  }),
-);
+const listMerchItemsResponse = z.object({
+  merch: z.array(baseItemMetadata),
+  tickets: z.array(ticketingItemMetadata),
+});
 
 const postSchema = z.union([postMerchSchema, postTicketSchema]);
 
