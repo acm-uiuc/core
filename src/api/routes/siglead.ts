@@ -40,9 +40,14 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   SigDetailRecord,
   SigleadGetRequest,
+  SigMemberCount,
   SigMemberRecord,
 } from "common/types/siglead.js";
-import { fetchMemberRecords, fetchSigDetail } from "api/functions/siglead.js";
+import {
+  fetchMemberRecords,
+  fetchSigCounts,
+  fetchSigDetail,
+} from "api/functions/siglead.js";
 import { intersection } from "api/plugins/auth.js";
 
 const sigleadRoutes: FastifyPluginAsync = async (fastify, _options) => {
@@ -124,7 +129,42 @@ const sigleadRoutes: FastifyPluginAsync = async (fastify, _options) => {
         reply.code(200).send(sigDetail);
       },
     );
+
+    // fetch sig count
+    fastify.get<SigleadGetRequest>(
+      "/sigcount",
+      {
+        onRequest: async (request, reply) => {
+          /*await fastify.authorize(request, reply, [
+              AppRoles.LINKS_MANAGER,
+              AppRoles.LINKS_ADMIN,
+            ]);*/
+        },
+      },
+      async (request, reply) => {
+        // First try-catch: Fetch owner records
+        let sigMemCounts: SigMemberCount[];
+        try {
+          sigMemCounts = await fetchSigCounts(
+            genericConfig.SigleadDynamoSigMemberTableName,
+            fastify.dynamoClient,
+          );
+        } catch (error) {
+          request.log.error(
+            `Failed to fetch sig member counts record: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+          );
+          throw new DatabaseFetchError({
+            message:
+              "Failed to fetch sig member counts record from Dynamo table.",
+          });
+        }
+
+        // Send the response
+        reply.code(200).send(sigMemCounts);
+      },
+    );
   };
+
   fastify.register(limitedRoutes);
 };
 

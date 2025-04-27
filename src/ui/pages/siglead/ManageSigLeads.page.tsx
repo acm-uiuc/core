@@ -25,6 +25,7 @@ import { ScreenComponent } from './SigScreenComponents';
 import { GroupMemberGetResponse } from '@common/types/iam';
 import { transformCommaSeperatedName } from '@common/utils';
 import { orgsGroupId } from '@common/config';
+import { SigMemberCount } from '@common/types/siglead';
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -65,6 +66,7 @@ type EventPostRequest = z.infer<typeof requestBodySchema>;
 
 export const ManageSigLeadsPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [SigMemberCounts, setSigMemberCounts] = useState<SigMemberCount[]>([]);
   const navigate = useNavigate();
   const api = useApi('core');
 
@@ -104,6 +106,25 @@ export const ManageSigLeadsPage: React.FC = () => {
     };
     getEvent();
   }, [eventId, isEditing]);
+
+  useEffect(() => {
+    const getMemberCounts = async () => {
+      try {
+        console.log('fetching counts');
+        /*const formValues = { 
+          };
+          form.setValues(formValues);*/
+        const sigMemberCountsRequest = await api.get(`/api/v1/siglead/sigcount`);
+        setSigMemberCounts(sigMemberCountsRequest.data);
+      } catch (error) {
+        console.error('Error fetching sig member counts:', error);
+        notifications.show({
+          message: 'Failed to fetch sig member counts, please try again.',
+        });
+      }
+    };
+    getMemberCounts();
+  }, []); // empty dependency array to only run once
 
   const form = useForm<EventPostRequest>({
     validate: zodResolver(requestBodySchema),
@@ -204,7 +225,7 @@ export const ManageSigLeadsPage: React.FC = () => {
       <Container>
         <TestButton />
         <Title order={2}>SigLead Management System</Title>
-        <ScreenComponent />
+        <ScreenComponent SigMemberCounts={SigMemberCounts} />
         {/* <SigTable /> */}
       </Container>
     </AuthGuard>
