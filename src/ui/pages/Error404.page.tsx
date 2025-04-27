@@ -1,6 +1,6 @@
-import { Container, Title, Text, Anchor } from '@mantine/core';
-import React from 'react';
-import { AcmAppShell } from '@ui/components/AppShell';
+import { Container, Title, Text, Anchor } from "@mantine/core";
+import React from "react";
+import { AcmAppShell } from "@ui/components/AppShell";
 
 export const Error404Page: React.FC = () => {
   return (

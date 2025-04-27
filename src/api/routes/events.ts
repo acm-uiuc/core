@@ -2,7 +2,6 @@ import "zod-openapi/extend";
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { AppRoles } from "../../common/roles.js";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { OrganizationList } from "../../common/orgs.js";
 import {
   DeleteItemCommand,
@@ -277,7 +276,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           return reply.send(parsedItems);
         } catch (e: unknown) {
           if (e instanceof Error) {
-            request.log.error("Failed to get from DynamoDB: " + e.toString());
+            request.log.error(`Failed to get from DynamoDB: ${e.toString()}`);
           } else {
             request.log.error(`Failed to get from DynamoDB.${e} `);
           }
@@ -419,7 +418,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         });
       } catch (e: unknown) {
         if (e instanceof Error) {
-          request.log.error("Failed to insert to DynamoDB: " + e.toString());
+          request.log.error(`Failed to insert to DynamoDB: ${e.toString()}`);
         }
         if (e instanceof BaseError) {
           throw e;
@@ -516,7 +515,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         });
       } catch (e: unknown) {
         if (e instanceof Error) {
-          request.log.error("Failed to delete from DynamoDB: " + e.toString());
+          request.log.error(`Failed to delete from DynamoDB: ${e.toString()}`);
         }
         throw new DatabaseInsertError({
           message: "Failed to delete event from Dynamo table.",

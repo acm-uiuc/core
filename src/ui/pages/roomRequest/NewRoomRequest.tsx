@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from "react";
 import {
   Stepper,
   Button,
@@ -15,10 +15,10 @@ import {
   Text,
   Loader,
   Checkbox,
-} from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
-import { DateInput, DateTimePicker } from '@mantine/dates';
-import { OrganizationList } from '@common/orgs';
+} from "@mantine/core";
+import { useForm, zodResolver } from "@mantine/form";
+import { DateInput, DateTimePicker } from "@mantine/dates";
+import { OrganizationList } from "@common/orgs";
 import {
   eventThemeOptions,
   spaceTypeOptions,
@@ -27,9 +27,9 @@ import {
   getSemesters,
   roomRequestSchema,
   specificRoomSetupRooms,
-} from '@common/types/roomRequest';
-import { useNavigate } from 'react-router-dom';
-import { notifications } from '@mantine/notifications';
+} from "@common/types/roomRequest";
+import { useNavigate } from "react-router-dom";
+import { notifications } from "@mantine/notifications";
 
 // Component for yes/no questions with conditional content
 interface ConditionalFieldProps {
@@ -52,7 +52,7 @@ const ConditionalField: React.FC<ConditionalFieldProps> = ({
   // Get the current value to determine state
   const value = form.values[field];
   // undefined = unanswered, null = "No", any value = "Yes"
-  const radioValue = value === undefined ? '' : value === null ? 'no' : 'yes';
+  const radioValue = value === undefined ? "" : value === null ? "no" : "yes";
 
   return (
     <Stack mt="xs">
@@ -62,13 +62,13 @@ const ConditionalField: React.FC<ConditionalFieldProps> = ({
         withAsterisk={required}
         value={radioValue}
         onChange={(val) => {
-          if (val === 'no') {
+          if (val === "no") {
             form.setFieldValue(field, null);
-          } else if (val === 'yes') {
-            if (field === 'nonIllinoisAttendees') {
+          } else if (val === "yes") {
+            if (field === "nonIllinoisAttendees") {
               form.setFieldValue(field, 0);
             } else {
-              form.setFieldValue(field, '');
+              form.setFieldValue(field, "");
             }
           } else {
             form.setFieldValue(field, undefined);
@@ -104,7 +104,7 @@ const YesNoField: React.FC<YesNoFieldProps> = ({
   required = true,
 }) => {
   const value = form.values[field];
-  const radioValue = value === undefined ? '' : value === true ? 'yes' : 'no';
+  const radioValue = value === undefined ? "" : value === true ? "yes" : "no";
 
   return (
     <Radio.Group
@@ -114,9 +114,9 @@ const YesNoField: React.FC<YesNoFieldProps> = ({
       withAsterisk={required}
       value={radioValue}
       onChange={(val) => {
-        if (val === 'yes') {
+        if (val === "yes") {
           form.setFieldValue(field, true);
-        } else if (val === 'no') {
+        } else if (val === "no") {
           form.setFieldValue(field, false);
         } else {
           form.setFieldValue(field, undefined);
@@ -133,15 +133,17 @@ const YesNoField: React.FC<YesNoFieldProps> = ({
 };
 
 interface NewRoomRequestProps {
-  createRoomRequest?: (payload: RoomRequestFormValues) => Promise<RoomRequestPostResponse>;
+  createRoomRequest?: (
+    payload: RoomRequestFormValues,
+  ) => Promise<RoomRequestPostResponse>;
   initialValues?: RoomRequestFormValues;
   viewOnly?: boolean;
 }
 
 const recurrencePatternOptions = [
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'biweekly', label: 'Bi-weekly' },
-  { value: 'monthly', label: 'Monthly' },
+  { value: "weekly", label: "Weekly" },
+  { value: "biweekly", label: "Bi-weekly" },
+  { value: "monthly", label: "Monthly" },
 ];
 
 const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
@@ -160,7 +162,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   let startingDate = new Date();
   startingDate = new Date(startingDate.setMinutes(0));
   startingDate = new Date(startingDate.setDate(startingDate.getDate() + 1));
-  const oneHourAfterStarting = new Date(startingDate.getTime() + 60 * 60 * 1000);
+  const oneHourAfterStarting = new Date(
+    startingDate.getTime() + 60 * 60 * 1000,
+  );
 
   type InterimRoomRequestFormValues = {
     [K in keyof RoomRequestFormValues]: RoomRequestFormValues[K] extends any
@@ -173,11 +177,11 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     initialValues:
       initialValues ||
       ({
-        host: '',
-        title: '',
-        theme: '',
-        semester: '',
-        description: '',
+        host: "",
+        title: "",
+        theme: "",
+        semester: "",
+        description: "",
         eventStart: startingDate,
         eventEnd: oneHourAfterStarting,
         isRecurring: false,
@@ -186,8 +190,8 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         setupNeeded: false,
         hostingMinors: undefined,
         locationType: undefined,
-        spaceType: '',
-        specificRoom: '',
+        spaceType: "",
+        specificRoom: "",
         estimatedAttendees: undefined,
         seatsNeeded: undefined,
         setupDetails: undefined,
@@ -197,12 +201,13 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         nonIllinoisAttendees: undefined,
         foodOrDrink: undefined,
         crafting: undefined,
-        comments: '',
+        comments: "",
       } as InterimRoomRequestFormValues),
 
     validate: (values) => {
       // Get all validation errors from zod, which returns ReactNode
-      const allErrors: Record<string, React.ReactNode> = zodResolver(roomRequestSchema)(values);
+      const allErrors: Record<string, React.ReactNode> =
+        zodResolver(roomRequestSchema)(values);
 
       // If in view mode, return no errors
       if (viewOnly) {
@@ -211,38 +216,38 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
 
       // Define which fields belong to each step
       const step0Fields = [
-        'host',
-        'title',
-        'theme',
-        'semester',
-        'description',
-        'eventStart',
-        'eventEnd',
-        'isRecurring',
-        'recurrencePattern',
-        'recurrenceEndDate',
-        'setupNeeded',
-        'setupMinutesBefore',
+        "host",
+        "title",
+        "theme",
+        "semester",
+        "description",
+        "eventStart",
+        "eventEnd",
+        "isRecurring",
+        "recurrencePattern",
+        "recurrenceEndDate",
+        "setupNeeded",
+        "setupMinutesBefore",
       ];
 
       const step1Fields = [
-        'locationType',
-        'hostingMinors',
-        'onCampusPartners',
-        'offCampusPartners',
-        'nonIllinoisSpeaker',
-        'nonIllinoisAttendees',
+        "locationType",
+        "hostingMinors",
+        "onCampusPartners",
+        "offCampusPartners",
+        "nonIllinoisSpeaker",
+        "nonIllinoisAttendees",
       ];
 
       const step2Fields = [
-        'spaceType',
-        'specificRoom',
-        'estimatedAttendees',
-        'seatsNeeded',
-        'setupDetails',
+        "spaceType",
+        "specificRoom",
+        "estimatedAttendees",
+        "seatsNeeded",
+        "setupDetails",
       ];
 
-      const step3Fields = ['foodOrDrink', 'crafting', 'comments'];
+      const step3Fields = ["foodOrDrink", "crafting", "comments"];
 
       // Filter errors based on current step
       const currentStepFields =
@@ -257,7 +262,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 : [];
 
       // Skip Room Requirements validation if the event is virtual
-      if (active === 2 && values.locationType === 'virtual') {
+      if (active === 2 && values.locationType === "virtual") {
         return {};
       }
 
@@ -278,25 +283,29 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
 
   // Check if the room requirements section should be shown
   const showRoomRequirements =
-    form.values.locationType === 'in-person' || form.values.locationType === 'both';
+    form.values.locationType === "in-person" ||
+    form.values.locationType === "both";
 
   // Handle clearing field values when conditions change
   useEffect(() => {
     // Clear room requirements data if event is not in-person or hybrid
-    if (form.values.locationType !== 'in-person' && form.values.locationType !== 'both') {
-      form.setFieldValue('spaceType', undefined);
-      form.setFieldValue('specificRoom', undefined);
-      form.setFieldValue('estimatedAttendees', undefined);
-      form.setFieldValue('seatsNeeded', undefined);
-      form.setFieldValue('setupDetails', undefined);
+    if (
+      form.values.locationType !== "in-person" &&
+      form.values.locationType !== "both"
+    ) {
+      form.setFieldValue("spaceType", undefined);
+      form.setFieldValue("specificRoom", undefined);
+      form.setFieldValue("estimatedAttendees", undefined);
+      form.setFieldValue("seatsNeeded", undefined);
+      form.setFieldValue("setupDetails", undefined);
     }
   }, [form.values.locationType]);
 
   // Handle clearing recurrence fields if isRecurring is toggled off
   useEffect(() => {
     if (!form.values.isRecurring) {
-      form.setFieldValue('recurrencePattern', undefined);
-      form.setFieldValue('recurrenceEndDate', undefined);
+      form.setFieldValue("recurrencePattern", undefined);
+      form.setFieldValue("recurrenceEndDate", undefined);
     }
   }, [form.values.isRecurring]);
 
@@ -307,8 +316,10 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     const apiFormValues = { ...form.values };
     Object.keys(apiFormValues).forEach((key) => {
       const value = apiFormValues[key as keyof RoomRequestFormValues];
-      if (value === '') {
-        console.warn(`Empty string found for ${key}. This field should have content.`);
+      if (value === "") {
+        console.warn(
+          `Empty string found for ${key}. This field should have content.`,
+        );
       }
     });
     try {
@@ -321,23 +332,23 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         values = await roomRequestSchema.parseAsync(apiFormValues);
       } catch (e) {
         notifications.show({
-          title: 'Submission failed to validate',
-          message: 'Check the browser console for more details.',
+          title: "Submission failed to validate",
+          message: "Check the browser console for more details.",
         });
         throw e;
       }
       const response = await createRoomRequest(values);
       notifications.show({
-        title: 'Room Request Submitted',
+        title: "Room Request Submitted",
         message: `The request ID is ${response.id}.`,
       });
       setIsSubmitting(false);
-      navigate('/roomRequests');
+      navigate("/roomRequests");
     } catch (e) {
       notifications.show({
-        color: 'red',
-        title: 'Failed to submit room request',
-        message: 'Please try again or contact support.',
+        color: "red",
+        title: "Failed to submit room request",
+        message: "Please try again or contact support.",
       });
       setIsSubmitting(false);
       throw e;
@@ -351,7 +362,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
       }
 
       // Skip Room Requirements step if the event is virtual only
-      if (current === 1 && form.values.locationType === 'virtual') {
+      if (current === 1 && form.values.locationType === "virtual") {
         return current + 2;
       }
 
@@ -361,7 +372,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   const prevStep = () =>
     setActive((current) => {
       // If coming back from step 3 to step 2 and event is virtual, skip Room Requirements step
-      if (current === 3 && form.values.locationType === 'virtual') {
+      if (current === 3 && form.values.locationType === "virtual") {
         return current - 2;
       }
       return current > 0 ? current - 1 : current;
@@ -377,7 +388,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             withAsterisk
             searchable
             data={semesterOptions}
-            {...form.getInputProps('semester')}
+            {...form.getInputProps("semester")}
           />
           <Select
             label="Event Host"
@@ -385,28 +396,31 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             withAsterisk
             searchable
             data={OrganizationList.map((org) => ({ value: org, label: org }))}
-            {...form.getInputProps('host')}
+            {...form.getInputProps("host")}
           />
           <TextInput
             label="Event Title"
             withAsterisk
             placeholder="An Amazing Event"
-            {...form.getInputProps('title')}
+            {...form.getInputProps("title")}
           />
           <Select
             label="Event Theme"
             placeholder="Select event theme"
             withAsterisk
             searchable
-            data={eventThemeOptions.map((theme) => ({ value: theme, label: theme }))}
-            {...form.getInputProps('theme')}
+            data={eventThemeOptions.map((theme) => ({
+              value: theme,
+              label: theme,
+            }))}
+            {...form.getInputProps("theme")}
           />
           <Textarea
             label="Event Description"
             description="Min 10 words. Max 1000 characters."
             withAsterisk
             placeholder="Tell us a bit about your event!"
-            {...form.getInputProps('description')}
+            {...form.getInputProps("description")}
           />
 
           <DateTimePicker
@@ -417,7 +431,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             mt="sm"
             clearable={false}
             minDate={startingDate}
-            {...form.getInputProps('eventStart')}
+            {...form.getInputProps("eventStart")}
           />
 
           <DateTimePicker
@@ -428,14 +442,16 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             mt="sm"
             clearable={false}
             minDate={startingDate}
-            {...form.getInputProps('eventEnd')}
+            {...form.getInputProps("eventEnd")}
           />
 
           <Checkbox
             label="This is a recurring event"
             mt="sm"
             checked={form.values.isRecurring}
-            onChange={(event) => form.setFieldValue('isRecurring', event.currentTarget.checked)}
+            onChange={(event) =>
+              form.setFieldValue("isRecurring", event.currentTarget.checked)
+            }
           />
 
           {form.values.isRecurring && (
@@ -446,7 +462,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 mt="sm"
                 data={recurrencePatternOptions}
                 placeholder="Select how often this event repeats"
-                {...form.getInputProps('recurrencePattern')}
+                {...form.getInputProps("recurrencePattern")}
               />
 
               <DateInput
@@ -459,12 +475,12 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                   form.values.eventEnd
                     ? new Date(
                         new Date(form.values.eventEnd).setDate(
-                          new Date(form.values.eventEnd).getDate()
-                        )
+                          new Date(form.values.eventEnd).getDate(),
+                        ),
                       )
                     : new Date()
                 }
-                {...form.getInputProps('recurrenceEndDate')}
+                {...form.getInputProps("recurrenceEndDate")}
               />
             </>
           )}
@@ -474,9 +490,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             mt="xl"
             checked={form.values.setupNeeded}
             onChange={(event) => {
-              form.setFieldValue('setupNeeded', event.currentTarget.checked);
+              form.setFieldValue("setupNeeded", event.currentTarget.checked);
               if (!event.currentTarget.checked) {
-                form.setFieldValue('setupMinutesBefore', undefined);
+                form.setFieldValue("setupMinutesBefore", undefined);
               }
             }}
           />
@@ -489,8 +505,8 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
               max={60}
               step={5}
               mt="xs"
-              key={form.key('setupMinutesBefore')}
-              {...form.getInputProps('setupMinutesBefore')}
+              key={form.key("setupMinutesBefore")}
+              {...form.getInputProps("setupMinutesBefore")}
             />
           )}
         </Stepper.Step>
@@ -506,7 +522,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             label="What medium will this event be hosted in?"
             mt="md"
             withAsterisk
-            {...form.getInputProps('locationType')}
+            {...form.getInputProps("locationType")}
           >
             <Group mt="xs">
               <Radio value="in-person" label="In Person" />
@@ -526,8 +542,10 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 label="Please list all on-campus partners"
                 withAsterisk
                 placeholder="List all on-campus partners for this event"
-                value={form.values.onCampusPartners || ''}
-                onChange={(e) => form.setFieldValue('onCampusPartners', e.currentTarget.value)}
+                value={form.values.onCampusPartners || ""}
+                onChange={(e) =>
+                  form.setFieldValue("onCampusPartners", e.currentTarget.value)
+                }
                 error={form.errors.onCampusPartners}
               />
             }
@@ -544,8 +562,10 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 label="Please list all off-campus partners"
                 withAsterisk
                 placeholder="List all off-campus partners for this event"
-                value={form.values.offCampusPartners || ''}
-                onChange={(e) => form.setFieldValue('offCampusPartners', e.currentTarget.value)}
+                value={form.values.offCampusPartners || ""}
+                onChange={(e) =>
+                  form.setFieldValue("offCampusPartners", e.currentTarget.value)
+                }
                 error={form.errors.offCampusPartners}
               />
             }
@@ -562,8 +582,13 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 description="Please list on which dates the speaker/performer will be attending."
                 withAsterisk
                 placeholder="Please list on which dates the speaker/performer will be attending."
-                value={form.values.nonIllinoisSpeaker || ''}
-                onChange={(e) => form.setFieldValue('nonIllinoisSpeaker', e.currentTarget.value)}
+                value={form.values.nonIllinoisSpeaker || ""}
+                onChange={(e) =>
+                  form.setFieldValue(
+                    "nonIllinoisSpeaker",
+                    e.currentTarget.value,
+                  )
+                }
                 error={form.errors.nonIllinoisSpeaker}
               />
             }
@@ -583,12 +608,15 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 max={100}
                 mt="xs"
                 value={
-                  typeof form.values.nonIllinoisAttendees === 'number'
+                  typeof form.values.nonIllinoisAttendees === "number"
                     ? form.values.nonIllinoisAttendees
                     : undefined
                 }
                 onChange={(val) =>
-                  form.setFieldValue('nonIllinoisAttendees', typeof val === 'number' ? val : 0)
+                  form.setFieldValue(
+                    "nonIllinoisAttendees",
+                    typeof val === "number" ? val : 0,
+                  )
                 }
                 error={form.errors.nonIllinoisAttendees}
               />
@@ -600,10 +628,12 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
           {!showRoomRequirements ? (
             <Paper p="md" withBorder>
               <Title order={4}>
-                Room requirements are only needed for in-person or hybrid events.
+                Room requirements are only needed for in-person or hybrid
+                events.
               </Title>
               <Text mt="sm">
-                Please go back and change your event type if this is an in-person or hybrid event.
+                Please go back and change your event type if this is an
+                in-person or hybrid event.
               </Text>
             </Paper>
           ) : (
@@ -612,14 +642,19 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 label="What type of space are you requesting?"
                 description="* denotes possible additional cost."
                 withAsterisk
-                {...form.getInputProps('spaceType')}
+                {...form.getInputProps("spaceType")}
                 onChange={(value) => {
-                  form.setFieldValue('setupDetails', undefined);
-                  form.setFieldValue('spaceType', value);
+                  form.setFieldValue("setupDetails", undefined);
+                  form.setFieldValue("spaceType", value);
                 }}
               >
                 {spaceTypeOptions.map((option) => (
-                  <Radio key={option.value} value={option.value} label={option.label} mt="xs" />
+                  <Radio
+                    key={option.value}
+                    value={option.value}
+                    label={option.label}
+                    mt="xs"
+                  />
                 ))}
               </Radio.Group>
 
@@ -629,7 +664,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 description="If not, please list the building or part of campus."
                 withAsterisk
                 placeholder="Enter specific room or building preferences"
-                {...form.getInputProps('specificRoom')}
+                {...form.getInputProps("specificRoom")}
               />
 
               <NumberInput
@@ -638,7 +673,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 withAsterisk
                 placeholder="Enter estimated attendees"
                 min={1}
-                {...form.getInputProps('estimatedAttendees')}
+                {...form.getInputProps("estimatedAttendees")}
               />
 
               <NumberInput
@@ -647,42 +682,56 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 withAsterisk
                 placeholder="Enter estimated seats required"
                 min={1}
-                {...form.getInputProps('seatsNeeded')}
+                {...form.getInputProps("seatsNeeded")}
               />
-              {form.values.spaceType && specificRoomSetupRooms.includes(form.values.spaceType) && (
-                <ConditionalField
-                  label="Do you require a specific room setup?"
-                  description="Only available for Illini Union, Campus Rec, and Performance Spaces"
-                  field="setupDetails"
-                  form={form}
-                  conditionalContent={
-                    <Textarea
-                      mt="xs"
-                      label="Setup Details"
-                      description="Please describe the specific setup requirements you need."
-                      withAsterisk
-                      placeholder="Describe your setup requirements"
-                      value={form.values.setupDetails || ''}
-                      onChange={(e) => form.setFieldValue('setupDetails', e.currentTarget.value)}
-                      error={form.errors.setupDetails}
-                    />
-                  }
-                />
-              )}
+              {form.values.spaceType &&
+                specificRoomSetupRooms.includes(form.values.spaceType) && (
+                  <ConditionalField
+                    label="Do you require a specific room setup?"
+                    description="Only available for Illini Union, Campus Rec, and Performance Spaces"
+                    field="setupDetails"
+                    form={form}
+                    conditionalContent={
+                      <Textarea
+                        mt="xs"
+                        label="Setup Details"
+                        description="Please describe the specific setup requirements you need."
+                        withAsterisk
+                        placeholder="Describe your setup requirements"
+                        value={form.values.setupDetails || ""}
+                        onChange={(e) =>
+                          form.setFieldValue(
+                            "setupDetails",
+                            e.currentTarget.value,
+                          )
+                        }
+                        error={form.errors.setupDetails}
+                      />
+                    }
+                  />
+                )}
             </>
           )}
         </Stepper.Step>
 
         <Stepper.Step label="Step 4" description="Miscellaneous Information">
-          <YesNoField label="Will there be food or drink?" field="foodOrDrink" form={form} />
+          <YesNoField
+            label="Will there be food or drink?"
+            field="foodOrDrink"
+            form={form}
+          />
 
-          <YesNoField label="Will there be crafting materials?" field="crafting" form={form} />
+          <YesNoField
+            label="Will there be crafting materials?"
+            field="crafting"
+            form={form}
+          />
 
           <Textarea
             mt="md"
             label="Comments"
             placeholder="Any questions, comments, or concerns?"
-            {...form.getInputProps('comments')}
+            {...form.getInputProps("comments")}
           />
         </Stepper.Step>
         {!viewOnly && (
@@ -702,7 +751,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         )}
         {active !== numSteps &&
           (viewOnly && active === numSteps - 1 ? null : (
-            <Button onClick={nextStep}>{active === numSteps - 1 ? 'Review' : 'Next'}</Button>
+            <Button onClick={nextStep}>
+              {active === numSteps - 1 ? "Review" : "Next"}
+            </Button>
           ))}
         {active === numSteps && !viewOnly && (
           <Button onClick={handleSubmit} color="green">
@@ -712,7 +763,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 Submitting...
               </>
             ) : (
-              'Submit'
+              "Submit"
             )}
           </Button>
         )}

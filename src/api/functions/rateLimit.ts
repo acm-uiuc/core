@@ -1,8 +1,8 @@
 import {
   ConditionalCheckFailedException,
   UpdateItemCommand,
+  DynamoDBClient,
 } from "@aws-sdk/client-dynamodb";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "common/config.js";
 
 interface RateLimitParams {

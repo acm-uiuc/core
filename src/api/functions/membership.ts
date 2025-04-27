@@ -33,7 +33,7 @@ export async function checkExternalMembership(
       }),
     }),
   );
-  if (!Items || Items.length == 0) {
+  if (!Items || Items.length === 0) {
     return false;
   }
   return true;
@@ -55,7 +55,7 @@ export async function checkPaidMembershipFromTable(
       }),
     }),
   );
-  if (!Items || Items.length == 0) {
+  if (!Items || Items.length === 0) {
     return false;
   }
   return true;

@@ -10,24 +10,26 @@ import {
   Table,
   Title,
   Text,
-} from '@mantine/core';
-import { IconAlertCircle, IconAlertTriangle } from '@tabler/icons-react';
-import React, { useEffect, useState } from 'react';
-import { GetInvoiceLinksResponse } from '@common/types/stripe';
-import { notifications } from '@mantine/notifications';
-import { useAuth } from '@ui/components/AuthContext';
-import pluralize from 'pluralize';
-import dayjs from 'dayjs';
+} from "@mantine/core";
+import { IconAlertCircle, IconAlertTriangle } from "@tabler/icons-react";
+import React, { useEffect, useState } from "react";
+import { GetInvoiceLinksResponse } from "@common/types/stripe";
+import { notifications } from "@mantine/notifications";
+import { useAuth } from "@ui/components/AuthContext";
+import pluralize from "pluralize";
+import dayjs from "dayjs";
 
 const HumanFriendlyDate = ({ date }: { date: string | Date }) => {
-  return <Text size="sm">{dayjs(date).format('MMMM D, YYYY')}</Text>;
+  return <Text size="sm">{dayjs(date).format("MMMM D, YYYY")}</Text>;
 };
 
 interface StripeCurrentLinksPanelProps {
   getLinks: () => Promise<GetInvoiceLinksResponse>;
 }
 
-export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = ({ getLinks }) => {
+export const StripeCurrentLinksPanel: React.FC<
+  StripeCurrentLinksPanelProps
+> = ({ getLinks }) => {
   const [links, setLinks] = useState<GetInvoiceLinksResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -42,9 +44,10 @@ export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = (
       } catch (e) {
         setIsLoading(false);
         notifications.show({
-          title: 'Error',
-          message: 'Failed to get payment links. Please try again or contact support.',
-          color: 'red',
+          title: "Error",
+          message:
+            "Failed to get payment links. Please try again or contact support.",
+          color: "red",
           icon: <IconAlertCircle size={16} />,
         });
         console.error(e);
@@ -56,7 +59,11 @@ export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = (
     return (
       <Table.Tr
         key={data.id}
-        bg={selectedRows.includes(data.id) ? 'var(--mantine-color-blue-light)' : undefined}
+        bg={
+          selectedRows.includes(data.id)
+            ? "var(--mantine-color-blue-light)"
+            : undefined
+        }
       >
         <Table.Td>
           <Checkbox
@@ -66,7 +73,7 @@ export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = (
               setSelectedRows(
                 event.currentTarget.checked
                   ? [...selectedRows, data.id]
-                  : selectedRows.filter((id) => id !== data.id)
+                  : selectedRows.filter((id) => id !== data.id),
               )
             }
           />
@@ -85,17 +92,23 @@ export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = (
         </Table.Td>
         <Table.Td>{data.invoiceId}</Table.Td>
         <Table.Td>
-          <NumberFormatter prefix="$" value={data.invoiceAmountUsd / 100} thousandSeparator />
+          <NumberFormatter
+            prefix="$"
+            value={data.invoiceAmountUsd / 100}
+            thousandSeparator
+          />
         </Table.Td>
-        <Table.Td>{data.userId.replace(userData!.email!, 'You')}</Table.Td>
+        <Table.Td>{data.userId.replace(userData!.email!, "You")}</Table.Td>
         <Table.Td>
-          {data.createdAt === null ? 'Unknown' : HumanFriendlyDate({ date: data.createdAt })}
+          {data.createdAt === null
+            ? "Unknown"
+            : HumanFriendlyDate({ date: data.createdAt })}
         </Table.Td>
         <Table.Td>
           <CopyButton value={data.link}>
             {({ copied, copy }) => (
-              <Button color={copied ? 'teal' : 'blue'} onClick={copy}>
-                {copied ? 'Copied!' : 'Copy'}
+              <Button color={copied ? "teal" : "blue"} onClick={copy}>
+                {copied ? "Copied!" : "Copy"}
               </Button>
             )}
           </CopyButton>
@@ -105,9 +118,9 @@ export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = (
   };
   const deactivateLinks = (linkIds: string[]) => {
     notifications.show({
-      title: 'Feature not available',
-      message: 'Coming soon!',
-      color: 'yellow',
+      title: "Feature not available",
+      message: "Coming soon!",
+      color: "yellow",
       icon: <IconAlertTriangle size={16} />,
     });
   };
@@ -125,7 +138,7 @@ export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = (
               deactivateLinks(selectedRows);
             }}
           >
-            Deactivate {pluralize('links', selectedRows.length, true)}
+            Deactivate {pluralize("links", selectedRows.length, true)}
           </Button>
         )}
       </Group>
@@ -187,11 +200,14 @@ export const StripeCurrentLinksPanel: React.FC<StripeCurrentLinksPanelProps> = (
                   </Table.Td>
                   <Table.Td>
                     <Skeleton visible>
-                      {' '}
-                      <CopyButton value={''}>
+                      {" "}
+                      <CopyButton value="">
                         {({ copied, copy }) => (
-                          <Button color={copied ? 'teal' : 'blue'} onClick={copy}>
-                            {copied ? 'Copied!' : 'Copy'}
+                          <Button
+                            color={copied ? "teal" : "blue"}
+                            onClick={copy}
+                          >
+                            {copied ? "Copied!" : "Copy"}
                           </Button>
                         )}
                       </CopyButton>

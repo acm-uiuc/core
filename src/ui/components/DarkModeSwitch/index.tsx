@@ -1,12 +1,12 @@
-import { Switch, useMantineTheme, rem } from '@mantine/core';
-import { useColorScheme, useLocalStorage } from '@mantine/hooks';
-import { IconSun, IconMoonStars } from '@tabler/icons-react';
+import { Switch, useMantineTheme, rem } from "@mantine/core";
+import { useColorScheme, useLocalStorage } from "@mantine/hooks";
+import { IconSun, IconMoonStars } from "@tabler/icons-react";
 
 function DarkModeSwitch() {
   const theme = useMantineTheme();
   const preferredColorScheme = useColorScheme();
   const [colorScheme, setColorScheme] = useLocalStorage({
-    key: 'acm-manage-color-scheme',
+    key: "acm-manage-color-scheme",
     defaultValue: preferredColorScheme,
   });
   const sunIcon = (
@@ -27,9 +27,9 @@ function DarkModeSwitch() {
 
   const handleToggle = (event: any) => {
     if (event.currentTarget.checked) {
-      setColorScheme('dark');
+      setColorScheme("dark");
     } else {
-      setColorScheme('light');
+      setColorScheme("light");
     }
   };
 
@@ -37,7 +37,7 @@ function DarkModeSwitch() {
     <Switch
       size="md"
       color="dark.4"
-      checked={colorScheme === 'dark'}
+      checked={colorScheme === "dark"}
       onChange={(event) => {
         handleToggle(event);
       }}

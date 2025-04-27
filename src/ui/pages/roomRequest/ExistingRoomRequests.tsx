@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { RoomRequestGetAllResponse } from '@common/types/roomRequest';
-import { Badge, Loader, Table } from '@mantine/core';
-import { useNavigate } from 'react-router-dom';
-import { getStatusColor } from './roomRequestUtils';
-import { formatStatus } from '@common/types/roomRequest';
+import React, { useEffect, useState } from "react";
+import {
+  RoomRequestGetAllResponse,
+  formatStatus,
+} from "@common/types/roomRequest";
+import { Badge, Loader, Table } from "@mantine/core";
+import { useNavigate } from "react-router-dom";
+import { getStatusColor } from "./roomRequestUtils";
 
 interface ExistingRoomRequestsProps {
   getRoomRequests: (semester: string) => Promise<RoomRequestGetAllResponse>;
@@ -38,14 +40,23 @@ const ExistingRoomRequests: React.FC<ExistingRoomRequestsProps> = ({
               return (
                 <Table.Tr key={item.requestId}>
                   <Table.Td
-                    onClick={() => navigate(`/roomRequests/${item.semester}/${item.requestId}`)}
-                    style={{ cursor: 'pointer', color: 'var(--mantine-color-blue-6)' }}
+                    onClick={() =>
+                      navigate(
+                        `/roomRequests/${item.semester}/${item.requestId}`,
+                      )
+                    }
+                    style={{
+                      cursor: "pointer",
+                      color: "var(--mantine-color-blue-6)",
+                    }}
                   >
                     {item.title}
                   </Table.Td>
                   <Table.Td>{item.host}</Table.Td>
                   <Table.Td>
-                    <Badge color={getStatusColor(item.status)}>{formatStatus(item.status)}</Badge>
+                    <Badge color={getStatusColor(item.status)}>
+                      {formatStatus(item.status)}
+                    </Badge>
                   </Table.Td>
                 </Table.Tr>
               );

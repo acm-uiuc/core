@@ -45,13 +45,12 @@ const getAuthorizedClients = async (
     };
     logger.info(`Assumed Entra role ${roleArns.Entra} to get the Entra token.`);
     return clients;
-  } else {
-    logger.debug("Did not assume Entra role as no env variable was present");
-    return {
-      smClient: new SecretsManagerClient(commonConfig),
-      dynamoClient: new DynamoDBClient(commonConfig),
-    };
   }
+  logger.debug("Did not assume Entra role as no env variable was present");
+  return {
+    smClient: new SecretsManagerClient(commonConfig),
+    dynamoClient: new DynamoDBClient(commonConfig),
+  };
 };
 
 export const emailMembershipPassHandler: SQSHandlerFunction<

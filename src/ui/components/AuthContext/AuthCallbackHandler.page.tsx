@@ -1,7 +1,7 @@
-import { useMsal } from '@azure/msal-react';
-import React, { useEffect } from 'react';
+import { useMsal } from "@azure/msal-react";
+import React, { useEffect } from "react";
 
-import FullScreenLoader from './LoadingScreen.js';
+import FullScreenLoader from "./LoadingScreen.js";
 
 export const AuthCallback: React.FC = () => {
   const { instance } = useMsal();
@@ -15,10 +15,10 @@ export const AuthCallback: React.FC = () => {
         // Check if we have pending redirects
         const response = await instance.handleRedirectPromise();
         if (!response) {
-          navigate('/');
+          navigate("/");
           return;
         }
-        const returnPath = response.state || '/';
+        const returnPath = response.state || "/";
         const account = response.account;
         if (account) {
           instance.setActiveAccount(account);
@@ -26,8 +26,8 @@ export const AuthCallback: React.FC = () => {
 
         navigate(returnPath);
       } catch (error) {
-        console.error('Failed to handle auth redirect:', error);
-        navigate('/login?error=callback_failed');
+        console.error("Failed to handle auth redirect:", error);
+        navigate("/login?error=callback_failed");
       }
     };
 

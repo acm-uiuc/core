@@ -120,12 +120,12 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
   };
   fastify.decorate(
     "authorize",
-    async function (
+    async (
       request: FastifyRequest,
       reply: FastifyReply,
       validRoles: AppRoles[],
       disableApiKeyAuth: boolean,
-    ): Promise<Set<AppRoles>> {
+    ): Promise<Set<AppRoles>> => {
       const userRoles = new Set([] as AppRoles[]);
       try {
         if (!disableApiKeyAuth) {
@@ -138,7 +138,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         }
 
         const authHeader = request.headers
-          ? request.headers["authorization"]
+          ? request.headers.authorization
           : null;
         if (!authHeader) {
           throw new UnauthenticatedError({
@@ -235,18 +235,16 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
               request.log.warn(`Failed to get group roles: ${result.reason}`);
             }
           }
-        } else {
-          if (
-            verifiedTokenData.roles &&
-            fastify.environmentConfig.AzureRoleMapping
-          ) {
-            for (const group of verifiedTokenData.roles) {
-              if (fastify.environmentConfig["AzureRoleMapping"][group]) {
-                for (const role of fastify.environmentConfig[
-                  "AzureRoleMapping"
-                ][group]) {
-                  userRoles.add(role);
-                }
+        } else if (
+          verifiedTokenData.roles &&
+          fastify.environmentConfig.AzureRoleMapping
+        ) {
+          for (const group of verifiedTokenData.roles) {
+            if (fastify.environmentConfig.AzureRoleMapping[group]) {
+              for (const role of fastify.environmentConfig.AzureRoleMapping[
+                group
+              ]) {
+                userRoles.add(role);
               }
             }
           }

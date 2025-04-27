@@ -4,21 +4,12 @@ import { withRoles, withTags } from "api/components/index.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { genericConfig } from "common/config.js";
-import {
-  BaseError,
-  DatabaseFetchError,
-  ValidationError,
-} from "common/errors/index.js";
+import { BaseError, DatabaseFetchError } from "common/errors/index.js";
 import { Modules } from "common/modules.js";
 import { AppRoles } from "common/roles.js";
 import { loggingEntryFromDatabase } from "common/types/logs.js";
-import fastify, { FastifyPluginAsync } from "fastify";
-import {
-  FastifyZodOpenApiTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-zod-openapi";
-import { request } from "http";
+import { FastifyPluginAsync } from "fastify";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { z } from "zod";
 
 const responseSchema = z.array(loggingEntryFromDatabase);

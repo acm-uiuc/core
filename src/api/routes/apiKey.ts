@@ -4,7 +4,7 @@ import { withRoles, withTags } from "api/components/index.js";
 import { AppRoles } from "common/roles.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { apiKeyPostBody } from "common/types/apiKey.js";
-import { createApiKey } from "api/functions/apiKey.js";
+import { createApiKey, ApiKeyDynamoEntry } from "api/functions/apiKey.js";
 import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { genericConfig } from "common/config.js";
@@ -22,7 +22,6 @@ import {
   ValidationError,
 } from "common/errors/index.js";
 import { z } from "zod";
-import { ApiKeyDynamoEntry } from "api/functions/apiKey.js";
 
 const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {

@@ -1,7 +1,7 @@
-import { Container, Title, Text, Anchor } from '@mantine/core';
-import React from 'react';
+import { Container, Title, Text, Anchor } from "@mantine/core";
+import React from "react";
 
-import { HeaderNavbar } from '@ui/components/Navbar';
+import { HeaderNavbar } from "@ui/components/Navbar";
 
 export const Error500Page: React.FC = () => (
   <>

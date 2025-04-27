@@ -9,7 +9,7 @@ export const sendSaleEmailhandler: SQSHandlerFunction<
   AvailableSQSFunctions.SendSaleEmail
 > = async (payload, _metadata, logger) => {
   const { qrCodeContent } = payload;
-  const senderEmail = `sales@${currentEnvironmentConfig["EmailDomain"]}`;
+  const senderEmail = `sales@${currentEnvironmentConfig.EmailDomain}`;
   logger.info("Constructing QR Code...");
   const qrCode = await QRCode.toBuffer(qrCodeContent, {
     errorCorrectionLevel: "H",

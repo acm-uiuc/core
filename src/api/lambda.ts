@@ -1,5 +1,3 @@
-/* eslint-disable */
-
 import "zod-openapi/extend";
 import awsLambdaFastify from "@fastify/aws-lambda";
 import init from "./index.js";

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Table,
   Group,
@@ -14,11 +14,17 @@ import {
   TextInput,
   Switch,
   Tooltip,
-} from '@mantine/core';
-import { DateTimePicker } from '@mantine/dates';
-import { IconRefresh, IconFileText, IconSearch, IconClock, IconWorld } from '@tabler/icons-react';
-import { Modules, ModulesToHumanName } from '@common/modules';
-import { notifications } from '@mantine/notifications';
+} from "@mantine/core";
+import { DateTimePicker } from "@mantine/dates";
+import {
+  IconRefresh,
+  IconFileText,
+  IconSearch,
+  IconClock,
+  IconWorld,
+} from "@tabler/icons-react";
+import { Modules, ModulesToHumanName } from "@common/modules";
+import { notifications } from "@mantine/notifications";
 
 interface LogEntry {
   actor: string;
@@ -31,13 +37,17 @@ interface LogEntry {
 }
 
 interface LogRendererProps {
-  getLogs: (service: Modules, start: number, end: number) => Promise<Record<string, any>[]>;
+  getLogs: (
+    service: Modules,
+    start: number,
+    end: number,
+  ) => Promise<Record<string, any>[]>;
 }
 
 export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
   // State for selected time range
   const [startTime, setStartTime] = useState<Date | null>(
-    new Date(Date.now() - 24 * 60 * 60 * 1000) // Default to 24 hours ago
+    new Date(Date.now() - 24 * 60 * 60 * 1000), // Default to 24 hours ago
   );
   const [endTime, setEndTime] = useState<Date | null>(new Date());
 
@@ -50,11 +60,11 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
 
   // State for pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState<string>('10');
-  const pageSizeOptions = ['10', '25', '50', '100'];
+  const [pageSize, setPageSize] = useState<string>("10");
+  const pageSizeOptions = ["10", "25", "50", "100"];
 
   // Search filter
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Time display preference
   const [showUtcTime, setShowUtcTime] = useState(false);
@@ -74,9 +84,9 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
   const fetchLogs = async () => {
     if (!selectedModule || !startTime || !endTime) {
       notifications.show({
-        title: 'Missing parameters',
-        message: 'Please select a module and time range',
-        color: 'red',
+        title: "Missing parameters",
+        message: "Please select a module and time range",
+        color: "red",
       });
       return;
     }
@@ -87,16 +97,20 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
       const startTimestamp = dateToEpochTimestamp(startTime);
       const endTimestamp = dateToEpochTimestamp(endTime);
 
-      const data = await getLogs(selectedModule as Modules, startTimestamp, endTimestamp);
+      const data = await getLogs(
+        selectedModule as Modules,
+        startTimestamp,
+        endTimestamp,
+      );
 
       setLogs(data as LogEntry[]);
       setCurrentPage(1); // Reset to first page on new data
     } catch (error) {
-      console.error('Error fetching logs:', error);
+      console.error("Error fetching logs:", error);
       notifications.show({
-        title: 'Error fetching logs',
-        message: 'Failed to load logs. Please try again later.',
-        color: 'red',
+        title: "Error fetching logs",
+        message: "Failed to load logs. Please try again later.",
+        color: "red",
       });
     } finally {
       setLoading(false);
@@ -106,7 +120,9 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
   // Filter logs based on search query
   const filteredLogs = logs
     ? logs.filter((log) => {
-        if (!searchQuery.trim()) return true;
+        if (!searchQuery.trim()) {
+          return true;
+        }
 
         const query = searchQuery.toLowerCase();
         return (
@@ -120,9 +136,9 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
 
   // Calculate pagination
   const totalItems = filteredLogs.length;
-  const totalPages = Math.ceil(totalItems / parseInt(pageSize));
-  const startIndex = (currentPage - 1) * parseInt(pageSize);
-  const endIndex = startIndex + parseInt(pageSize);
+  const totalPages = Math.ceil(totalItems / parseInt(pageSize, 10));
+  const startIndex = (currentPage - 1) * parseInt(pageSize, 10);
+  const endIndex = startIndex + parseInt(pageSize, 10);
   const currentLogs = filteredLogs.slice(startIndex, endIndex);
 
   // Format timestamp to readable date based on user preference
@@ -134,29 +150,28 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
     if (showUtcTime) {
       // Format in UTC time
       return date.toLocaleString(undefined, {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
         hour12: true,
-        timeZone: 'UTC',
-        timeZoneName: 'short',
-      });
-    } else {
-      // Format in local time with timezone name
-      return new Date(timeMs).toLocaleString(undefined, {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZoneName: 'short',
-        hour12: true,
+        timeZone: "UTC",
+        timeZoneName: "short",
       });
     }
+    // Format in local time with timezone name
+    return new Date(timeMs).toLocaleString(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZoneName: "short",
+      hour12: true,
+    });
   };
 
   // Get relative time from now
@@ -171,10 +186,16 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-    return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+    if (days > 0) {
+      return `${days} day${days > 1 ? "s" : ""} ago`;
+    }
+    if (hours > 0) {
+      return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+    }
+    if (minutes > 0) {
+      return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+    }
+    return `${seconds} second${seconds !== 1 ? "s" : ""} ago`;
   };
 
   return (
@@ -201,7 +222,9 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
               onChange={setStartTime}
               style={{ width: 250 }}
               valueFormat={
-                showUtcTime ? 'MM-DD-YYYY h:mm A [UTC]' : `MM-DD-YYYY h:mm A [Local Time]`
+                showUtcTime
+                  ? "MM-DD-YYYY h:mm A [UTC]"
+                  : `MM-DD-YYYY h:mm A [Local Time]`
               }
               data-testid="start-time-input"
               required
@@ -214,32 +237,44 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
               onChange={setEndTime}
               style={{ width: 250 }}
               valueFormat={
-                showUtcTime ? 'MM-DD-YYYY h:mm A [UTC]' : `MM-DD-YYYY h:mm A [Local Time]`
+                showUtcTime
+                  ? "MM-DD-YYYY h:mm A [UTC]"
+                  : `MM-DD-YYYY h:mm A [Local Time]`
               }
               data-testid="end-time-input"
               required
             />
 
-            <Button leftSection={<IconRefresh size={18} />} onClick={fetchLogs} loading={loading}>
+            <Button
+              leftSection={<IconRefresh size={18} />}
+              onClick={fetchLogs}
+              loading={loading}
+            >
               Fetch Logs
             </Button>
           </Group>
 
           <Group>
-            <Tooltip label={showUtcTime ? 'Switch to local time' : 'Switch to UTC time'}>
+            <Tooltip
+              label={
+                showUtcTime ? "Switch to local time" : "Switch to UTC time"
+              }
+            >
               <Switch
                 label={
                   <Group m="xs">
                     <IconWorld size={16} />
                     <Text size="sm">
                       {showUtcTime
-                        ? 'Show times in UTC'
+                        ? "Show times in UTC"
                         : `Show times in local timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone})`}
                     </Text>
                   </Group>
                 }
                 checked={showUtcTime}
-                onChange={(event) => setShowUtcTime(event.currentTarget.checked)}
+                onChange={(event) =>
+                  setShowUtcTime(event.currentTarget.checked)
+                }
               />
             </Tooltip>
           </Group>
@@ -281,14 +316,22 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
                         <Text size="sm">{formatTimestamp(log.createdAt)}</Text>
                         <Badge size="sm" color="gray">
                           <Group>
-                            <Text size="xs">{getRelativeTime(log.createdAt)}</Text>
+                            <Text size="xs">
+                              {getRelativeTime(log.createdAt)}
+                            </Text>
                           </Group>
                         </Badge>
                       </Group>
                     </Table.Td>
                     <Table.Td>{log.actor}</Table.Td>
                     <Table.Td>
-                      <Text size="sm" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                      <Text
+                        size="sm"
+                        style={{
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                        }}
+                      >
                         {log.message}
                       </Text>
                     </Table.Td>
@@ -316,14 +359,15 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
               <Select
                 value={pageSize}
                 onChange={(value) => {
-                  setPageSize(value || '10');
+                  setPageSize(value || "10");
                   setCurrentPage(1);
                 }}
                 data={pageSizeOptions}
                 style={{ width: 80 }}
               />
               <Text size="sm">
-                Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} entries
+                Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of{" "}
+                {totalItems} entries
               </Text>
             </Group>
             <Pagination
@@ -344,7 +388,7 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
               <Text variant="dimmed">
                 {selectedModule
                   ? "Select a new time range and click 'Fetch Logs'"
-                  : 'Select a module and time range to fetch logs'}
+                  : "Select a module and time range to fetch logs"}
               </Text>
             </Stack>
           </Group>
