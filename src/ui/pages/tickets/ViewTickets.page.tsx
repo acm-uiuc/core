@@ -45,6 +45,12 @@ const getTicketStatus = (
   return { status: 'unfulfilled', color: 'orange' };
 };
 
+enum TicketsCopyMode {
+  ALL,
+  FULFILLED,
+  UNFULFILLED,
+}
+
 const ViewTicketsPage: React.FC = () => {
   const { eventId } = useParams();
   const [allTickets, setAllTickets] = useState<TicketEntry[]>([]);
@@ -56,6 +62,43 @@ const ViewTicketsPage: React.FC = () => {
   const [totalQuantitySold, setTotalQuantitySold] = useState(0);
   const [pageSize, setPageSize] = useState<string>('10');
   const pageSizeOptions = ['10', '25', '50', '100'];
+
+  const copyEmails = (mode: TicketsCopyMode) => {
+    try {
+      let emailsToCopy: string[] = [];
+      let copyModeHumanString = '';
+      const nonRefundedTickets = allTickets.filter((x) => !x.refunded);
+      switch (mode) {
+        case TicketsCopyMode.ALL:
+          emailsToCopy = nonRefundedTickets.map((x) => x.purchaserData.email);
+          copyModeHumanString = 'All';
+          break;
+        case TicketsCopyMode.FULFILLED:
+          emailsToCopy = nonRefundedTickets
+            .filter((x) => x.fulfilled)
+            .map((x) => x.purchaserData.email);
+          copyModeHumanString = 'Fulfilled';
+          break;
+        case TicketsCopyMode.UNFULFILLED:
+          emailsToCopy = nonRefundedTickets
+            .filter((x) => !x.fulfilled)
+            .map((x) => x.purchaserData.email);
+          copyModeHumanString = 'Unfulfilled';
+          break;
+      }
+      emailsToCopy = [...new Set(emailsToCopy)];
+      navigator.clipboard.writeText(emailsToCopy.join(';'));
+      notifications.show({
+        message: `${copyModeHumanString} emails copied!`,
+      });
+    } catch (e) {
+      notifications.show({
+        title: 'Failed to copy emails',
+        message: 'Please try again or contact support.',
+        color: 'red',
+      });
+    }
+  };
 
   async function checkInUser(ticket: TicketEntry) {
     try {
@@ -119,9 +162,34 @@ const ViewTicketsPage: React.FC = () => {
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}>
       <Title order={2}>View Tickets/Merch Sales</Title>
+      <Group mt="md">
+        <Button
+          onClick={() => {
+            copyEmails(TicketsCopyMode.ALL);
+          }}
+        >
+          Copy All Emails
+        </Button>
+        <Button
+          onClick={() => {
+            copyEmails(TicketsCopyMode.FULFILLED);
+          }}
+        >
+          Copy Fulfilled Emails
+        </Button>
+        <Button
+          onClick={() => {
+            copyEmails(TicketsCopyMode.UNFULFILLED);
+          }}
+        >
+          Copy Unfulfilled Emails
+        </Button>
+      </Group>
+      <Text size="xs">Note: all lists do not include refunded tickets.</Text>
       <div>
-        <br />
-        <Title order={4}>{pluralize('item', totalQuantitySold, true)} sold</Title>
+        <Title mt="md" order={4}>
+          {pluralize('item', totalQuantitySold, true)} sold
+        </Title>
         <Table>
           <Table.Thead>
             <Table.Tr>

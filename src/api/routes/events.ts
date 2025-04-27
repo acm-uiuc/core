@@ -1,3 +1,4 @@
+import "zod-openapi/extend";
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { AppRoles } from "../../common/roles.js";
 import { z } from "zod";
@@ -17,7 +18,10 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   DiscordEventError,
+  InternalServerError,
   NotFoundError,
+  UnauthenticatedError,
+  UnauthorizedError,
   ValidationError,
 } from "../../common/errors/index.js";
 import { randomUUID } from "crypto";
@@ -29,21 +33,90 @@ import {
   deleteCacheCounter,
   getCacheCounter,
 } from "api/functions/cache.js";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
+import {
+  FastifyPluginAsyncZodOpenApi,
+  FastifyZodOpenApiSchema,
+  FastifyZodOpenApiTypeProvider,
+} from "fastify-zod-openapi";
+import { ts, withRoles, withTags } from "api/components/index.js";
+import { metadataSchema } from "common/types/events.js";
+import { evaluateAllRequestPolicies } from "api/plugins/evaluatePolicies.js";
+
+const createProjectionParams = (includeMetadata: boolean = false) => {
+  // Object mapping attribute names to their expression aliases
+  const attributeMapping = {
+    title: "#title",
+    description: "#description",
+    start: "#startTime", // Reserved keyword
+    end: "#endTime", // Potential reserved keyword
+    location: "#location",
+    locationLink: "#locationLink",
+    host: "#host",
+    featured: "#featured",
+    id: "#id",
+    ...(includeMetadata ? { metadata: "#metadata" } : {}),
+  };
+
+  // Create expression attribute names object for DynamoDB
+  const expressionAttributeNames = Object.entries(attributeMapping).reduce(
+    (acc, [attrName, exprName]) => {
+      acc[exprName] = attrName;
+      return acc;
+    },
+    {} as { [key: string]: string },
+  );
+
+  // Create projection expression from the values of attributeMapping
+  const projectionExpression = Object.values(attributeMapping).join(",");
+
+  return {
+    attributeMapping,
+    expressionAttributeNames,
+    projectionExpression,
+    // Return function to destructure results if needed
+    getAttributes: <T>(item: any): T => item as T,
+  };
+};
 
 const repeatOptions = ["weekly", "biweekly"] as const;
-const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
+const zodIncludeMetadata = z.coerce
+  .boolean()
+  .default(false)
+  .optional()
+  .openapi({
+    description: "If true, include metadata for each event entry.",
+  });
+export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
 export type EventRepeatOptions = (typeof repeatOptions)[number];
 
 const baseSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
-  start: z.string(),
-  end: z.optional(z.string()),
-  location: z.string(),
-  locationLink: z.optional(z.string().url()),
+  start: z.string().openapi({
+    description: "Timestamp in the America/Chicago timezone.",
+    example: "2024-08-27T19:00:00",
+  }),
+  end: z.optional(z.string()).openapi({
+    description: "Timestamp in the America/Chicago timezone.",
+    example: "2024-08-27T20:00:00",
+  }),
+  location: z.string().openapi({
+    description: "Human-friendly location name.",
+    example: "Siebel Center for Computer Science",
+  }),
+  locationLink: z.optional(z.string().url()).openapi({
+    description: "Google Maps link for easy navigation to the event location.",
+    example: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
+  }),
   host: z.enum(OrganizationList as [string, ...string[]]),
-  featured: z.boolean().default(false),
+  featured: z.boolean().default(false).openapi({
+    description:
+      "Whether or not the event should be shown on the ACM @ UIUC website home page (and added to Discord, as available).",
+  }),
   paidEventId: z.optional(z.string().min(1)),
+  metadata: metadataSchema,
 });
 
 const requestSchema = baseSchema.extend({
@@ -51,80 +124,65 @@ const requestSchema = baseSchema.extend({
   repeatEnds: z.string().optional(),
 });
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const postRequestSchema = requestSchema.refine(
   (data) => (data.repeatEnds ? data.repeats !== undefined : true),
   {
     message: "repeats is required when repeatEnds is defined",
   },
 );
-
 export type EventPostRequest = z.infer<typeof postRequestSchema>;
-type EventGetRequest = {
-  Params: { id: string };
-  Querystring: { ts?: number };
-  Body: undefined;
-};
 
-type EventDeleteRequest = {
-  Params: { id: string };
-  Querystring: undefined;
-  Body: undefined;
-};
-
-const responseJsonSchema = zodToJsonSchema(
-  z.object({
-    id: z.string(),
-    resource: z.string(),
-  }),
-);
-
-// GET
 const getEventSchema = requestSchema.extend({
   id: z.string(),
 });
-
 export type EventGetResponse = z.infer<typeof getEventSchema>;
-const getEventJsonSchema = zodToJsonSchema(getEventSchema);
 
 const getEventsSchema = z.array(getEventSchema);
 export type EventsGetResponse = z.infer<typeof getEventsSchema>;
-type EventsGetRequest = {
-  Body: undefined;
-  Querystring?: {
-    upcomingOnly?: boolean;
-    host?: string;
-    ts?: number;
-  };
-};
 
-const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
+const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
+  fastify,
+  _options,
+) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.register(rateLimiter, {
       limit: 30,
       duration: 60,
       rateLimitIdentifier: "events",
     });
-    fastify.get<EventsGetRequest>(
-      "/",
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+      "",
       {
-        schema: {
-          querystring: {
-            type: "object",
-            properties: {
-              upcomingOnly: { type: "boolean" },
-              host: { type: "string" },
-              ts: { type: "number" },
-            },
-          },
-          response: { 200: getEventsSchema },
-        },
+        schema: withTags(["Events"], {
+          querystring: z.object({
+            upcomingOnly: z.coerce.boolean().default(false).optional().openapi({
+              description:
+                "If true, only get events which have at least one occurance starting after the current time.",
+            }),
+            featuredOnly: z.coerce.boolean().default(false).optional().openapi({
+              description:
+                "If true, only get events which are marked as featured.",
+            }),
+            host: z
+              .enum(OrganizationList as [string, ...string[]])
+              .optional()
+              .openapi({
+                description: "Retrieve events only for a specific host.",
+              }),
+            ts,
+            includeMetadata: zodIncludeMetadata,
+          }),
+          summary: "Retrieve calendar events with applied filters.",
+          // response: { 200: getEventsSchema },
+        }),
       },
-      async (request: FastifyRequest<EventsGetRequest>, reply) => {
+      async (request, reply) => {
         const upcomingOnly = request.query?.upcomingOnly || false;
+        const featuredOnly = request.query?.featuredOnly || false;
+        const includeMetadata = request.query.includeMetadata || true;
         const host = request.query?.host;
         const ts = request.query?.ts; // we only use this to disable cache control
-
+        const projection = createProjectionParams(includeMetadata);
         try {
           const ifNoneMatch = request.headers["if-none-match"];
           if (ifNoneMatch) {
@@ -156,10 +214,14 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               },
               KeyConditionExpression: "host = :host",
               IndexName: "HostIndex",
+              ProjectionExpression: projection.projectionExpression,
+              ExpressionAttributeNames: projection.expressionAttributeNames,
             });
           } else {
             command = new ScanCommand({
               TableName: genericConfig.EventsDynamoTableName,
+              ProjectionExpression: projection.projectionExpression,
+              ExpressionAttributeNames: projection.expressionAttributeNames,
             });
           }
           if (!ifNoneMatch) {
@@ -204,6 +266,9 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               }
             });
           }
+          if (featuredOnly) {
+            parsedItems = parsedItems.filter((x) => x.featured);
+          }
           if (!ts) {
             reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
           }
@@ -222,25 +287,38 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     );
   };
 
-  fastify.post<{ Body: EventPostRequest }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/:id?",
     {
-      schema: {
-        response: { 201: responseJsonSchema },
-      },
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(request, reply, postRequestSchema);
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
-      },
+      schema: withRoles(
+        [AppRoles.EVENTS_MANAGER],
+        withTags(["Events"], {
+          // response: {
+          //   201: z.object({
+          //     id: z.string(),
+          //     resource: z.string(),
+          //   }),
+          // },
+          body: postRequestSchema,
+          params: z.object({
+            id: z.string().min(1).optional().openapi({
+              description:
+                "Event ID to modify (leave empty to create a new event).",
+              example: "6667e095-8b04-4877-b361-f636f459ba42",
+            }),
+          }),
+          summary: "Modify a calendar event.",
+        }),
+      ) satisfies FastifyZodOpenApiSchema,
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
+      if (!request.username) {
+        throw new UnauthenticatedError({ message: "Username not found." });
+      }
       try {
         let originalEvent;
-        const userProvidedId = (
-          request.params as Record<string, string | undefined>
-        ).id;
+        const userProvidedId = request.params.id;
         const entryUUID = userProvidedId || randomUUID();
         if (userProvidedId) {
           const response = await fastify.dynamoClient.send(
@@ -257,6 +335,10 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
           originalEvent = unmarshall(originalEvent);
         }
+        let verb = "created";
+        if (userProvidedId && userProvidedId === entryUUID) {
+          verb = "modified";
+        }
         const entry = {
           ...request.body,
           id: entryUUID,
@@ -272,15 +354,12 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             Item: marshall(entry),
           }),
         );
-        let verb = "created";
-        if (userProvidedId && userProvidedId === entryUUID) {
-          verb = "modified";
-        }
         try {
           if (request.body.featured && !request.body.repeats) {
             await updateDiscord(
               fastify.secretsManagerClient,
               entry,
+              request.username,
               false,
               request.log,
             );
@@ -322,19 +401,20 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           1,
           false,
         );
+        await createAuditLogEntry({
+          dynamoClient: fastify.dynamoClient,
+          entry: {
+            module: Modules.EVENTS,
+            actor: request.username,
+            target: entryUUID,
+            message: `${verb} event "${entryUUID}"`,
+            requestId: request.id,
+          },
+        });
         reply.status(201).send({
           id: entryUUID,
           resource: `/api/v1/events/${entryUUID}`,
         });
-        request.log.info(
-          {
-            type: "audit",
-            module: "events",
-            actor: request.username,
-            target: entryUUID,
-          },
-          `${verb} event "${entryUUID}"`,
-        );
       } catch (e: unknown) {
         if (e instanceof Error) {
           request.log.error("Failed to insert to DynamoDB: " + e.toString());
@@ -348,18 +428,65 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
-  fastify.delete<EventDeleteRequest>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/:id",
     {
-      schema: {
-        response: { 201: responseJsonSchema },
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.EVENTS_MANAGER]);
+      schema: withRoles(
+        [AppRoles.EVENTS_MANAGER],
+        withTags(["Events"], {
+          params: z.object({
+            id: z.string().min(1).openapi({
+              description: "Event ID to delete.",
+              example: "6667e095-8b04-4877-b361-f636f459ba42",
+            }),
+          }),
+          // response: {
+          //   201: z.object({
+          //     id: z.string(),
+          //     resource: z.string(),
+          //   }),
+          // },
+          summary: "Delete a calendar event.",
+        }),
+      ) satisfies FastifyZodOpenApiSchema,
+      onRequest: fastify.authorizeFromSchema,
+      preHandler: async (request, reply) => {
+        if (request.policyRestrictions) {
+          const response = await fastify.dynamoClient.send(
+            new GetItemCommand({
+              TableName: genericConfig.EventsDynamoTableName,
+              Key: marshall({ id: request.params.id }),
+            }),
+          );
+          const item = response.Item ? unmarshall(response.Item) : null;
+          if (!item) {
+            return reply.status(204).send();
+          }
+          const fakeBody = { ...request, body: item, url: request.url };
+          try {
+            const result = await evaluateAllRequestPolicies(fakeBody);
+            if (typeof result === "string") {
+              throw new UnauthorizedError({
+                message: result,
+              });
+            }
+          } catch (err) {
+            if (err instanceof BaseError) {
+              throw err;
+            }
+            fastify.log.error(err);
+            throw new InternalServerError({
+              message: "Failed to evaluate policies.",
+            });
+          }
+        }
       },
     },
-    async (request: FastifyRequest<EventDeleteRequest>, reply) => {
+    async (request, reply) => {
       const id = request.params.id;
+      if (!request.username) {
+        throw new UnauthenticatedError({ message: "Username not found." });
+      }
       try {
         await fastify.dynamoClient.send(
           new DeleteItemCommand({
@@ -370,12 +497,20 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         await updateDiscord(
           fastify.secretsManagerClient,
           { id } as IUpdateDiscord,
+          request.username,
           true,
           request.log,
         );
-        reply.status(201).send({
-          id,
-          resource: `/api/v1/events/${id}`,
+        reply.status(204).send();
+        await createAuditLogEntry({
+          dynamoClient: fastify.dynamoClient,
+          entry: {
+            module: Modules.EVENTS,
+            actor: request.username,
+            target: id,
+            message: `Deleted event "${id}"`,
+            requestId: request.id,
+          },
         });
       } catch (e: unknown) {
         if (e instanceof Error) {
@@ -392,33 +527,30 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         1,
         false,
       );
-      request.log.info(
-        {
-          type: "audit",
-          module: "events",
-          actor: request.username,
-          target: id,
-        },
-        `deleted event "${id}"`,
-      );
     },
   );
-  fastify.get<EventGetRequest>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:id",
     {
-      schema: {
-        querystring: {
-          type: "object",
-          properties: {
-            ts: { type: "number" },
-          },
-        },
-        response: { 200: getEventJsonSchema },
-      },
+      schema: withTags(["Events"], {
+        params: z.object({
+          id: z.string().min(1).openapi({
+            description: "Event ID to delete.",
+            example: "6667e095-8b04-4877-b361-f636f459ba42",
+          }),
+        }),
+        querystring: z.object({
+          ts,
+          includeMetadata: zodIncludeMetadata,
+        }),
+        summary: "Retrieve a calendar event.",
+        // response: { 200: getEventSchema },
+      }),
     },
-    async (request: FastifyRequest<EventGetRequest>, reply) => {
+    async (request, reply) => {
       const id = request.params.id;
       const ts = request.query?.ts;
+      const includeMetadata = request.query?.includeMetadata || false;
 
       try {
         // Check If-None-Match header
@@ -442,11 +574,13 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
 
           reply.header("etag", etag);
         }
-
+        const projection = createProjectionParams(includeMetadata);
         const response = await fastify.dynamoClient.send(
           new GetItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
             Key: marshall({ id }),
+            ProjectionExpression: projection.projectionExpression,
+            ExpressionAttributeNames: projection.expressionAttributeNames,
           }),
         );
         const item = response.Item ? unmarshall(response.Item) : null;
@@ -467,11 +601,12 @@ const eventsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           reply.header("etag", etag);
         }
 
-        return reply.send(item);
+        return reply.send(item as z.infer<typeof getEventSchema>);
       } catch (e) {
         if (e instanceof BaseError) {
           throw e;
         }
+        fastify.log.error(e);
         throw new DatabaseFetchError({
           message: "Failed to get event from Dynamo table.",
         });

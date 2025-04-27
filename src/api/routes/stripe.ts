@@ -1,11 +1,17 @@
 import {
-  PutItemCommand,
   QueryCommand,
   ScanCommand,
+  TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { withRoles, withTags } from "api/components/index.js";
+import {
+  buildAuditLogTransactPut,
+  createAuditLogEntry,
+} from "api/functions/auditLog.js";
 import {
   createStripeLink,
+  deactivateStripeLink,
   StripeLinkCreateParams,
 } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
@@ -13,9 +19,11 @@ import { genericConfig } from "common/config.js";
 import {
   BaseError,
   DatabaseFetchError,
+  DatabaseInsertError,
   InternalServerError,
   UnauthenticatedError,
 } from "common/errors/index.js";
+import { Modules } from "common/modules.js";
 import { AppRoles } from "common/roles.js";
 import {
   invoiceLinkPostResponseSchema,
@@ -23,19 +31,19 @@ import {
   invoiceLinkGetResponseSchema,
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
-import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.get(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/paymentLinks",
     {
-      schema: {
-        response: { 200: zodToJsonSchema(invoiceLinkGetResponseSchema) },
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.STRIPE_LINK_CREATOR]);
-      },
+      schema: withRoles(
+        [AppRoles.STRIPE_LINK_CREATOR],
+        withTags(["Stripe"], {
+          summary: "Get available Stripe payment links.",
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       let dynamoCommand;
@@ -82,22 +90,17 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       reply.status(200).send(parsed);
     },
   );
-  fastify.post<{ Body: z.infer<typeof invoiceLinkPostRequestSchema> }>(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/paymentLinks",
     {
-      schema: {
-        response: { 201: zodToJsonSchema(invoiceLinkPostResponseSchema) },
-      },
-      preValidation: async (request, reply) => {
-        await fastify.zodValidateBody(
-          request,
-          reply,
-          invoiceLinkPostRequestSchema,
-        );
-      },
-      onRequest: async (request, reply) => {
-        await fastify.authorize(request, reply, [AppRoles.STRIPE_LINK_CREATOR]);
-      },
+      schema: withRoles(
+        [AppRoles.STRIPE_LINK_CREATOR],
+        withTags(["Stripe"], {
+          summary: "Create a Stripe payment link.",
+          body: invoiceLinkPostRequestSchema,
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       if (!request.username) {
@@ -121,30 +124,53 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { url, linkId, priceId, productId } =
         await createStripeLink(payload);
       const invoiceId = request.body.invoiceId;
-      const dynamoCommand = new PutItemCommand({
-        TableName: genericConfig.StripeLinksDynamoTableName,
-        Item: marshall({
-          userId: request.username,
-          linkId,
-          priceId,
-          productId,
-          invoiceId,
-          url,
-          amount: request.body.invoiceAmountUsd,
-          active: true,
-          createdAt: new Date().toISOString(),
-        }),
-      });
-      await fastify.dynamoClient.send(dynamoCommand);
-      request.log.info(
-        {
-          type: "audit",
-          module: "stripe",
+      const logStatement = buildAuditLogTransactPut({
+        entry: {
+          module: Modules.STRIPE,
           actor: request.username,
           target: `Link ${linkId} | Invoice ${invoiceId}`,
+          message: "Created Stripe payment link",
         },
-        "Created Stripe payment link",
-      );
+      });
+      const dynamoCommand = new TransactWriteItemsCommand({
+        TransactItems: [
+          logStatement,
+          {
+            Put: {
+              TableName: genericConfig.StripeLinksDynamoTableName,
+              Item: marshall({
+                userId: request.username,
+                linkId,
+                priceId,
+                productId,
+                invoiceId,
+                url,
+                amount: request.body.invoiceAmountUsd,
+                active: true,
+                createdAt: new Date().toISOString(),
+              }),
+            },
+          },
+        ],
+      });
+      try {
+        await fastify.dynamoClient.send(dynamoCommand);
+      } catch (e) {
+        await deactivateStripeLink({
+          stripeApiKey: secretApiConfig.stripe_secret_key as string,
+          linkId,
+        });
+        fastify.log.info(
+          `Deactivated Stripe link ${linkId} due to error in writing to database.`,
+        );
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        fastify.log.error(e);
+        throw new DatabaseInsertError({
+          message: "Could not write Stripe link to database.",
+        });
+      }
       reply.status(201).send({ id: linkId, link: url });
     },
   );

@@ -1,460 +1,131 @@
-import { FastifyInstance, FastifyPluginAsync } from "fastify";
-import { allAppRoles, AppRoles } from "../../common/roles.js";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import {
-  addToTenant,
-  getEntraIdToken,
-  listGroupMembers,
-  modifyGroup,
-  patchUserProfile,
-} from "../functions/entraId.js";
+import { FastifyPluginAsync } from "fastify";
+import { z } from "zod";
+import { AppRoles } from "../../common/roles.js";
 import {
   BaseError,
+  DatabaseDeleteError,
   DatabaseFetchError,
   DatabaseInsertError,
-  EntraGroupError,
-  EntraInvitationError,
-  InternalServerError,
   NotFoundError,
+  UnauthenticatedError,
   UnauthorizedError,
+  ValidationError,
 } from "../../common/errors/index.js";
-import { PutItemCommand } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "../../common/config.js";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import { NoDataRequest } from "../types.js";
 import {
-  InviteUserPostRequest,
-  invitePostRequestSchema,
-  GroupMappingCreatePostRequest,
-  groupMappingCreatePostSchema,
-  entraActionResponseSchema,
-  groupModificationPatchSchema,
-  GroupModificationPatchRequest,
-  EntraGroupActions,
-  entraGroupMembershipListResponse,
-  ProfilePatchRequest,
-  entraProfilePatchRequest,
-} from "../../common/types/iam.js";
+  DynamoDBClient,
+  QueryCommand,
+  DeleteItemCommand,
+  ScanCommand,
+  TransactWriteItemsCommand,
+  AttributeValue,
+  TransactWriteItem,
+  GetItemCommand,
+  TransactionCanceledException,
+} from "@aws-sdk/client-dynamodb";
+import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
 import {
-  AUTH_DECISION_CACHE_SECONDS,
-  getGroupRoles,
-} from "../functions/authorization.js";
-import { OrganizationList } from "common/orgs.js";
-import { z } from "zod";
-
-const OrganizationListEnum = z.enum(OrganizationList as [string, ...string[]]);
-export type Org = z.infer<typeof OrganizationListEnum>;
-
-type Member = { name: string; email: string };
-type OrgMembersResponse = { org: Org; members: Member[] };
-
-// const groupMappings = getRunEnvironmentConfig().KnownGroupMappings;
-// const groupOptions = Object.entries(groupMappings).map(([key, value]) => ({
-//   label: userGroupMappings[key as keyof KnownGroups] || key,
-//   value: `${key}_${value}`, // to ensure that the same group for multiple roles still renders
-// }));
+  genericConfig,
+  EVENT_CACHED_DURATION,
+  LinkryGroupUUIDToGroupNameMap,
+} from "../../common/config.js";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import rateLimiter from "api/plugins/rateLimiter.js";
+import {
+  deleteKey,
+  getLinkryKvArn,
+  setKey,
+} from "api/functions/cloudfrontKvStore.js";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import {
+  SigDetailRecord,
+  SigleadGetRequest,
+  SigMemberRecord,
+} from "common/types/siglead.js";
+import { fetchMemberRecords, fetchSigDetail } from "api/functions/siglead.js";
+import { intersection } from "api/plugins/auth.js";
 
 const sigleadRoutes: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.get<{
-    Reply: OrgMembersResponse[];
-  }>("/groups", async (request, reply) => {
-    const entraIdToken = await getEntraIdToken(
+  const limitedRoutes: FastifyPluginAsync = async (fastify) => {
+    /*fastify.register(rateLimiter, {
+      limit: 30,
+      duration: 60,
+      rateLimitIdentifier: "linkry",
+    });*/
+
+    fastify.get<SigleadGetRequest>(
+      "/sigmembers/:sigid",
       {
-        smClient: fastify.secretsManagerClient,
-        dynamoClient: fastify.dynamoClient,
+        onRequest: async (request, reply) => {
+          /*await fastify.authorize(request, reply, [
+            AppRoles.LINKS_MANAGER,
+            AppRoles.LINKS_ADMIN,
+          ]);*/
+        },
       },
-      fastify.environmentConfig.AadValidClientId,
+      async (request, reply) => {
+        const { sigid } = request.params;
+        const tableName = genericConfig.SigleadDynamoSigMemberTableName;
+
+        // First try-catch: Fetch owner records
+        let memberRecords: SigMemberRecord[];
+        try {
+          memberRecords = await fetchMemberRecords(
+            sigid,
+            tableName,
+            fastify.dynamoClient,
+          );
+        } catch (error) {
+          request.log.error(
+            `Failed to fetch member records: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+          );
+          throw new DatabaseFetchError({
+            message: "Failed to fetch member records from Dynamo table.",
+          });
+        }
+
+        // Send the response
+        reply.code(200).send(memberRecords);
+      },
     );
 
-    const data = await Promise.all(
-      OrganizationList.map(async (org) => {
-        const members: Member[] = await listGroupMembers(entraIdToken, org);
-        return { org, members } as OrgMembersResponse;
-      }),
+    fastify.get<SigleadGetRequest>(
+      "/sigdetail/:sigid",
+      {
+        onRequest: async (request, reply) => {
+          /*await fastify.authorize(request, reply, [
+              AppRoles.LINKS_MANAGER,
+              AppRoles.LINKS_ADMIN,
+            ]);*/
+        },
+      },
+      async (request, reply) => {
+        const { sigid } = request.params;
+        const tableName = genericConfig.SigleadDynamoSigDetailTableName;
+
+        // First try-catch: Fetch owner records
+        let sigDetail: SigDetailRecord;
+        try {
+          sigDetail = await fetchSigDetail(
+            sigid,
+            tableName,
+            fastify.dynamoClient,
+          );
+        } catch (error) {
+          request.log.error(
+            `Failed to fetch sig detail record: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+          );
+          throw new DatabaseFetchError({
+            message: "Failed to fetch sig detail record from Dynamo table.",
+          });
+        }
+
+        // Send the response
+        reply.code(200).send(sigDetail);
+      },
     );
-
-    reply.status(200).send(data);
-  });
-
-  // fastify.patch<{ Body: ProfilePatchRequest }>(
-  //   "/profile",
-  //   {
-  //     preValidation: async (request, reply) => {
-  //       await fastify.zodValidateBody(request, reply, entraProfilePatchRequest);
-  //     },
-  //     onRequest: async (request, reply) => {
-  //       await fastify.authorize(request, reply, allAppRoles);
-  //     },
-  //   },
-  //   async (request, reply) => {
-  //     if (!request.tokenPayload || !request.username) {
-  //       throw new UnauthorizedError({
-  //         message: "User does not have the privileges for this task.",
-  //       });
-  //     }
-  //     const userOid = request.tokenPayload["oid"];
-  //     const entraIdToken = await getEntraIdToken(
-  //       {
-  //         smClient: fastify.secretsManagerClient,
-  //         dynamoClient: fastify.dynamoClient,
-  //       },
-  //       fastify.environmentConfig.AadValidClientId,
-  //     );
-  //     await patchUserProfile(
-  //       entraIdToken,
-  //       request.username,
-  //       userOid,
-  //       request.body,
-  //     );
-  //     reply.send(201);
-  //   },
-  // );
-  // fastify.get<{
-  //   Body: undefined;
-  //   Querystring: { groupId: string };
-  // }>(
-  //   "/groups/:groupId/roles",
-  //   {
-  //     schema: {
-  //       querystring: {
-  //         type: "object",
-  //         properties: {
-  //           groupId: {
-  //             type: "string",
-  //           },
-  //         },
-  //       },
-  //     },
-  //     onRequest: async (request, reply) => {
-  //       await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-  //     },
-  //   },
-  //   async (request, reply) => {
-  //     try {
-  //       const groupId = (request.params as Record<string, string>).groupId;
-  //       const roles = await getGroupRoles(
-  //         fastify.dynamoClient,
-  //         fastify,
-  //         groupId,
-  //       );
-  //       return reply.send(roles);
-  //     } catch (e: unknown) {
-  //       if (e instanceof BaseError) {
-  //         throw e;
-  //       }
-
-  //       request.log.error(e);
-  //       throw new DatabaseFetchError({
-  //         message: "An error occurred finding the group role mapping.",
-  //       });
-  //     }
-  //   },
-  // );
-  // fastify.post<{
-  //   Body: GroupMappingCreatePostRequest;
-  //   Querystring: { groupId: string };
-  // }>(
-  //   "/groups/:groupId/roles",
-  //   {
-  //     schema: {
-  //       querystring: {
-  //         type: "object",
-  //         properties: {
-  //           groupId: {
-  //             type: "string",
-  //           },
-  //         },
-  //       },
-  //     },
-  //     preValidation: async (request, reply) => {
-  //       await fastify.zodValidateBody(
-  //         request,
-  //         reply,
-  //         groupMappingCreatePostSchema,
-  //       );
-  //     },
-  //     onRequest: async (request, reply) => {
-  //       await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-  //     },
-  //   },
-  //   async (request, reply) => {
-  //     const groupId = (request.params as Record<string, string>).groupId;
-  //     try {
-  //       const timestamp = new Date().toISOString();
-  //       const command = new PutItemCommand({
-  //         TableName: `${genericConfig.IAMTablePrefix}-grouproles`,
-  //         Item: marshall({
-  //           groupUuid: groupId,
-  //           roles: request.body.roles,
-  //           createdAt: timestamp,
-  //         }),
-  //       });
-  //       await fastify.dynamoClient.send(command);
-  //       fastify.nodeCache.set(
-  //         `grouproles-${groupId}`,
-  //         request.body.roles,
-  //         AUTH_DECISION_CACHE_SECONDS,
-  //       );
-  //     } catch (e: unknown) {
-  //       fastify.nodeCache.del(`grouproles-${groupId}`);
-  //       if (e instanceof BaseError) {
-  //         throw e;
-  //       }
-
-  //       request.log.error(e);
-  //       throw new DatabaseInsertError({
-  //         message: "Could not create group role mapping.",
-  //       });
-  //     }
-  //     reply.send({ message: "OK" });
-  //     request.log.info(
-  //       { type: "audit", actor: request.username, target: groupId },
-  //       `set target roles to ${request.body.roles.toString()}`,
-  //     );
-  //   },
-  // );
-  // fastify.post<{ Body: InviteUserPostRequest }>(
-  //   "/inviteUsers",
-  //   {
-  //     schema: {
-  //       response: { 202: zodToJsonSchema(entraActionResponseSchema) },
-  //     },
-  //     preValidation: async (request, reply) => {
-  //       await fastify.zodValidateBody(request, reply, invitePostRequestSchema);
-  //     },
-  //     onRequest: async (request, reply) => {
-  //       await fastify.authorize(request, reply, [AppRoles.IAM_INVITE_ONLY]);
-  //     },
-  //   },
-  //   async (request, reply) => {
-  //     const emails = request.body.emails;
-  //     const entraIdToken = await getEntraIdToken(
-  //       {
-  //         smClient: fastify.secretsManagerClient,
-  //         dynamoClient: fastify.dynamoClient,
-  //       },
-  //       fastify.environmentConfig.AadValidClientId,
-  //     );
-  //     if (!entraIdToken) {
-  //       throw new InternalServerError({
-  //         message: "Could not get Entra ID token to perform task.",
-  //       });
-  //     }
-  //     const response: Record<string, Record<string, string>[]> = {
-  //       success: [],
-  //       failure: [],
-  //     };
-  //     const results = await Promise.allSettled(
-  //       emails.map((email) => addToTenant(entraIdToken, email)),
-  //     );
-  //     for (let i = 0; i < results.length; i++) {
-  //       const result = results[i];
-  //       if (result.status === "fulfilled") {
-  //         request.log.info(
-  //           { type: "audit", actor: request.username, target: emails[i] },
-  //           "invited user to Entra ID tenant.",
-  //         );
-  //         response.success.push({ email: emails[i] });
-  //       } else {
-  //         request.log.info(
-  //           { type: "audit", actor: request.username, target: emails[i] },
-  //           "failed to invite user to Entra ID tenant.",
-  //         );
-  //         if (result.reason instanceof EntraInvitationError) {
-  //           response.failure.push({
-  //             email: emails[i],
-  //             message: result.reason.message,
-  //           });
-  //         } else {
-  //           response.failure.push({
-  //             email: emails[i],
-  //             message: "An unknown error occurred.",
-  //           });
-  //         }
-  //       }
-  //     }
-  //     reply.status(202).send(response);
-  //   },
-  // );
-  // fastify.patch<{
-  //   Body: GroupModificationPatchRequest;
-  //   Querystring: { groupId: string };
-  // }>(
-  //   "/groups/:groupId",
-  //   {
-  //     schema: {
-  //       querystring: {
-  //         type: "object",
-  //         properties: {
-  //           groupId: {
-  //             type: "string",
-  //           },
-  //         },
-  //       },
-  //     },
-  //     preValidation: async (request, reply) => {
-  //       await fastify.zodValidateBody(
-  //         request,
-  //         reply,
-  //         groupModificationPatchSchema,
-  //       );
-  //     },
-  //     onRequest: async (request, reply) => {
-  //       await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-  //     },
-  //   },
-  //   async (request, reply) => {
-  //     const groupId = (request.params as Record<string, string>).groupId;
-  //     if (!groupId || groupId === "") {
-  //       throw new NotFoundError({
-  //         endpointName: request.url,
-  //       });
-  //     }
-  //     if (genericConfig.ProtectedEntraIDGroups.includes(groupId)) {
-  //       throw new EntraGroupError({
-  //         code: 403,
-  //         message:
-  //           "This group is protected and cannot be modified by this service. You must log into Entra ID directly to modify this group.",
-  //         group: groupId,
-  //       });
-  //     }
-  //     const entraIdToken = await getEntraIdToken(
-  //       {
-  //         smClient: fastify.secretsManagerClient,
-  //         dynamoClient: fastify.dynamoClient,
-  //       },
-  //       fastify.environmentConfig.AadValidClientId,
-  //     );
-  //     const addResults = await Promise.allSettled(
-  //       request.body.add.map((email) =>
-  //         modifyGroup(entraIdToken, email, groupId, EntraGroupActions.ADD),
-  //       ),
-  //     );
-  //     const removeResults = await Promise.allSettled(
-  //       request.body.remove.map((email) =>
-  //         modifyGroup(entraIdToken, email, groupId, EntraGroupActions.REMOVE),
-  //       ),
-  //     );
-  //     const response: Record<string, Record<string, string>[]> = {
-  //       success: [],
-  //       failure: [],
-  //     };
-  //     for (let i = 0; i < addResults.length; i++) {
-  //       const result = addResults[i];
-  //       if (result.status === "fulfilled") {
-  //         response.success.push({ email: request.body.add[i] });
-  //         request.log.info(
-  //           {
-  //             type: "audit",
-  //             actor: request.username,
-  //             target: request.body.add[i],
-  //           },
-  //           `added target to group ID ${groupId}`,
-  //         );
-  //       } else {
-  //         request.log.info(
-  //           {
-  //             type: "audit",
-  //             actor: request.username,
-  //             target: request.body.add[i],
-  //           },
-  //           `failed to add target to group ID ${groupId}`,
-  //         );
-  //         if (result.reason instanceof EntraGroupError) {
-  //           response.failure.push({
-  //             email: request.body.add[i],
-  //             message: result.reason.message,
-  //           });
-  //         } else {
-  //           response.failure.push({
-  //             email: request.body.add[i],
-  //             message: "An unknown error occurred.",
-  //           });
-  //         }
-  //       }
-  //     }
-  //     for (let i = 0; i < removeResults.length; i++) {
-  //       const result = removeResults[i];
-  //       if (result.status === "fulfilled") {
-  //         response.success.push({ email: request.body.remove[i] });
-  //         request.log.info(
-  //           {
-  //             type: "audit",
-  //             actor: request.username,
-  //             target: request.body.remove[i],
-  //           },
-  //           `removed target from group ID ${groupId}`,
-  //         );
-  //       } else {
-  //         request.log.info(
-  //           {
-  //             type: "audit",
-  //             actor: request.username,
-  //             target: request.body.add[i],
-  //           },
-  //           `failed to remove target from group ID ${groupId}`,
-  //         );
-  //         if (result.reason instanceof EntraGroupError) {
-  //           response.failure.push({
-  //             email: request.body.add[i],
-  //             message: result.reason.message,
-  //           });
-  //         } else {
-  //           response.failure.push({
-  //             email: request.body.add[i],
-  //             message: "An unknown error occurred.",
-  //           });
-  //         }
-  //       }
-  //     }
-  //     reply.status(202).send(response);
-  //   },
-  // );
-  // fastify.get<{
-  //   Querystring: { groupId: string };
-  // }>(
-  //   "/groups/:groupId",
-  //   {
-  //     schema: {
-  //       response: { 200: zodToJsonSchema(entraGroupMembershipListResponse) },
-  //       querystring: {
-  //         type: "object",
-  //         properties: {
-  //           groupId: {
-  //             type: "string",
-  //           },
-  //         },
-  //       },
-  //     },
-  //     onRequest: async (request, reply) => {
-  //       await fastify.authorize(request, reply, [AppRoles.IAM_ADMIN]);
-  //     },
-  //   },
-  //   async (request, reply) => {
-  //     const groupId = (request.params as Record<string, string>).groupId;
-  //     if (!groupId || groupId === "") {
-  //       throw new NotFoundError({
-  //         endpointName: request.url,
-  //       });
-  //     }
-  //     if (genericConfig.ProtectedEntraIDGroups.includes(groupId)) {
-  //       throw new EntraGroupError({
-  //         code: 403,
-  //         message:
-  //           "This group is protected and cannot be read by this service. You must log into Entra ID directly to read this group.",
-  //         group: groupId,
-  //       });
-  //     }
-  //     const entraIdToken = await getEntraIdToken(
-  //       {
-  //         smClient: fastify.secretsManagerClient,
-  //         dynamoClient: fastify.dynamoClient,
-  //       },
-  //       fastify.environmentConfig.AadValidClientId,
-  //     );
-  //     const response = await listGroupMembers(entraIdToken, groupId);
-  //     reply.status(200).send(response);
-  //   },
-  // );
+  };
+  fastify.register(limitedRoutes);
 };
 
 export default sigleadRoutes;

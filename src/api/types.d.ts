@@ -7,6 +7,8 @@ import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SQSClient } from "@aws-sdk/client-sqs";
+import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
+import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -18,11 +20,11 @@ declare module "fastify" {
       request: FastifyRequest,
       reply: FastifyReply,
       validRoles: AppRoles[],
+      disableApiKeyAuth: boolean,
     ) => Promise<Set<AppRoles>>;
-    zodValidateBody: (
+    authorizeFromSchema: (
       request: FastifyRequest,
-      _reply: FastifyReply,
-      zodSchema: Zod.ZodTypeAny,
+      reply: FastifyReply,
     ) => Promise<void>;
     runEnvironment: RunEnvironment;
     environmentConfig: ConfigType;
@@ -30,11 +32,19 @@ declare module "fastify" {
     dynamoClient: DynamoDBClient;
     sqsClient?: SQSClient;
     secretsManagerClient: SecretsManagerClient;
+    cloudfrontKvClient: CloudFrontKeyValueStoreClient;
   }
   interface FastifyRequest {
     startTime: number;
     username?: string;
     userRoles?: Set<AppRoles>;
     tokenPayload?: AadToken;
+    policyRestrictions?: AvailableAuthorizationPolicy[];
   }
 }
+
+export type NoDataRequest = {
+  Params: undefined;
+  Querystring: undefined;
+  Body: undefined;
+};

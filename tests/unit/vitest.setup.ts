@@ -1,3 +1,4 @@
+import "zod-openapi/extend";
 import { vi, afterEach } from "vitest";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
@@ -43,6 +44,8 @@ vi.mock(
           "0": allAppRoles,
           "1": [],
           "scanner-only": [AppRoles.TICKETS_SCANNER],
+          LINKS_ADMIN: [AppRoles.LINKS_ADMIN],
+          LINKS_MANAGER: [AppRoles.LINKS_MANAGER],
         };
 
         return mockGroupRoles[groupId] || [];

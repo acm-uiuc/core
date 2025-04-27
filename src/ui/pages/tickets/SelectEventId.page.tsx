@@ -19,7 +19,7 @@ import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
 import { AuthGuard } from '@ui/components/AuthGuard';
 import { useApi } from '@ui/util/api';
 import { AppRoles } from '@common/roles';
-import App from '@ui/App';
+import { ItemPostData } from '@common/types/tickets';
 
 const baseItemMetadata = z.object({
   itemId: z.string().min(1),
@@ -106,31 +106,29 @@ const SelectTicketsPage: React.FC = () => {
   const [reversedSort, setReversedSort] = useState(false);
   const api = useApi('core');
   const navigate = useNavigate();
-
+  const fetchItems = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/api/v1/tickets');
+      const parsed = listItemsResponseSchema.parse(response.data);
+      setItems({
+        tickets: parsed.tickets,
+        merch: parsed.merch,
+      });
+      handleSort('status');
+    } catch (error) {
+      console.error('Error fetching items:', error);
+      notifications.show({
+        title: 'Error fetching items',
+        message: 'Failed to load available items. Please try again later.',
+        color: 'red',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get('/api/v1/tickets/');
-        const parsed = listItemsResponseSchema.parse(response.data);
-        setItems({
-          tickets: parsed.tickets,
-          merch: parsed.merch,
-        });
-      } catch (error) {
-        console.error('Error fetching items:', error);
-        notifications.show({
-          title: 'Error fetching items',
-          message: 'Failed to load available items. Please try again later.',
-          color: 'red',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchItems();
-    handleSort('status');
   }, []);
 
   const handleSort = (field: SortBy) => {
@@ -169,6 +167,37 @@ const SelectTicketsPage: React.FC = () => {
   if (loading) {
     return <FullScreenLoader />;
   }
+
+  const handleToggleSales = async (item: ItemMetadata | TicketItemMetadata) => {
+    let newIsActive = false;
+    if (isTicketItem(item)) {
+      newIsActive = !(getTicketStatus(item).color === 'green');
+    } else {
+      newIsActive = !(getMerchStatus(item).color === 'green');
+    }
+    try {
+      setLoading(true);
+      const data: ItemPostData = {
+        itemSalesActive: newIsActive,
+        type: isTicketItem(item) ? 'ticket' : 'merch',
+      };
+      await api.patch(`/api/v1/tickets/${item.itemId}`, data);
+      await fetchItems();
+      notifications.show({
+        title: 'Changes saved',
+        message: `Sales for ${item.itemName} are ${newIsActive ? 'enabled' : 'disabled'}!`,
+      });
+    } catch (error) {
+      console.error('Error setting new status:', error);
+      notifications.show({
+        title: 'Error setting status',
+        message: 'Failed to set status. Please try again later.',
+        color: 'red',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleManageClick = (itemId: string) => {
     navigate(`/tickets/manage/${itemId}`);
@@ -253,11 +282,18 @@ const SelectTicketsPage: React.FC = () => {
                         resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}
                       >
                         <Button
-                          variant="outline"
+                          variant="primary"
                           onClick={() => handleManageClick(item.itemId)}
                           id={`merch-${item.itemId}-manage`}
                         >
                           View Sales
+                        </Button>
+                        <Button
+                          color={getMerchStatus(item).color === 'green' ? 'red' : 'green'}
+                          onClick={() => handleToggleSales(item)}
+                          id={`tickets-${item.itemId}-toggle-status`}
+                        >
+                          {getMerchStatus(item).color === 'green' ? 'Disable' : 'Enable'} Sales
                         </Button>
                       </AuthGuard>
                     </Group>
@@ -330,13 +366,22 @@ const SelectTicketsPage: React.FC = () => {
                         isAppShell={false}
                         resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}
                       >
-                        <Button
-                          variant="outline"
-                          onClick={() => handleManageClick(ticket.itemId)}
-                          id={`tickets-${ticket.itemId}-manage`}
-                        >
-                          View Sales
-                        </Button>
+                        <Group>
+                          <Button
+                            variant="primary"
+                            onClick={() => handleManageClick(ticket.itemId)}
+                            id={`tickets-${ticket.itemId}-manage`}
+                          >
+                            View Sales
+                          </Button>
+                          <Button
+                            color={getTicketStatus(ticket).color === 'green' ? 'red' : 'green'}
+                            onClick={() => handleToggleSales(ticket)}
+                            id={`tickets-${ticket.itemId}-toggle-status`}
+                          >
+                            {getTicketStatus(ticket).color === 'green' ? 'Disable' : 'Enable'} Sales
+                          </Button>
+                        </Group>
                       </AuthGuard>
                     </Group>
                   </Table.Td>

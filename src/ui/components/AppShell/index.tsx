@@ -1,4 +1,5 @@
 import {
+  Anchor,
   AppShell,
   Divider,
   Group,
@@ -19,6 +20,8 @@ import {
   IconLock,
   IconDoor,
   IconUsers,
+  IconHistory,
+  IconKey,
 } from '@tabler/icons-react';
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -74,15 +77,30 @@ export const navItems = [
     description: null,
     validRoles: [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_UPDATE],
   },
-];
-
-export const extLinks = [
   {
-    link: 'https://go.acm.illinois.edu/create',
+    link: '/linkry',
     name: 'Link Shortener',
     icon: IconLink,
     description: null,
+    validRoles: [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
   },
+  {
+    link: '/logs',
+    name: 'Audit Logs',
+    icon: IconHistory,
+    description: null,
+    validRoles: [AppRoles.AUDIT_LOG_VIEWER],
+  },
+  {
+    link: '/apiKeys',
+    name: 'API Keys',
+    icon: IconKey,
+    description: null,
+    validRoles: [AppRoles.MANAGE_ORG_API_KEYS],
+  },
+];
+
+export const extLinks = [
   {
     link: 'https://go.acm.illinois.edu/reimburse',
     name: 'Funding and Reimbursement Requests',
@@ -190,6 +208,7 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
   }
   const [opened, { toggle }] = useDisclosure();
   const { userData } = useAuth();
+  const navigate = useNavigate();
   return (
     <AppShell
       padding="md"
@@ -222,6 +241,9 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
             <Text size="xs" fw={500}>
               Revision <code>{getCurrentRevision()}</code>
             </Text>
+            <Anchor component="button" size="xs" fw={500} onClick={() => navigate('/tos')}>
+              Terms of Service
+            </Anchor>
           </AppShell.Section>
         </AppShell.Navbar>
       )}

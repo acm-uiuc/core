@@ -2,7 +2,6 @@ import { Anchor } from '@mantine/core';
 import { element } from 'prop-types';
 import React, { useState, useEffect, ReactNode } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router-dom';
-
 import { AcmAppShell } from './components/AppShell';
 import { useAuth } from './components/AuthContext';
 import AuthCallback from './components/AuthContext/AuthCallbackHandler.page';
@@ -13,6 +12,8 @@ import { LoginPage } from './pages/Login.page';
 import { LogoutPage } from './pages/Logout.page';
 import { ManageEventPage } from './pages/events/ManageEvent.page';
 import { ViewEventsPage } from './pages/events/ViewEvents.page';
+import { LinkShortener } from './pages/linkry/LinkShortener.page';
+import { ManageLinkPage } from './pages/linkry/ManageLink.page';
 import { ScanTicketsPage } from './pages/tickets/ScanTickets.page';
 import { SelectTicketsPage } from './pages/tickets/SelectEventId.page';
 import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
@@ -20,8 +21,12 @@ import { ManageIamPage } from './pages/iam/ManageIam.page';
 import { ManageProfilePage } from './pages/profile/ManageProfile.page';
 import { ManageStripeLinksPage } from './pages/stripe/ViewLinks.page';
 import { ManageSigLeadsPage } from './pages/siglead/ManageSigLeads.page';
+import { ViewSigLeadPage } from './pages/siglead/ViewSigLead.page';
 import { ManageRoomRequestsPage } from './pages/roomRequest/RoomRequestLanding.page';
 import { ViewRoomRequest } from './pages/roomRequest/ViewRoomRequest.page';
+import { ViewLogsPage } from './pages/logs/ViewLogs.page';
+import { TermsOfService } from './pages/tos/TermsOfService.page';
+import { ManageApiKeysPage } from './pages/apiKeys/ManageKeys.page';
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -80,6 +85,10 @@ const commonRoutes = [
   {
     path: '/auth/callback',
     element: <AuthCallback />,
+  },
+  {
+    path: '/tos',
+    element: <TermsOfService />,
   },
 ];
 
@@ -146,6 +155,18 @@ const authenticatedRouter = createBrowserRouter([
     element: <ViewEventsPage />,
   },
   {
+    path: '/linkry',
+    element: <LinkShortener />,
+  },
+  {
+    path: '/linkry/add',
+    element: <ManageLinkPage />,
+  },
+  {
+    path: '/linkry/edit/:slug',
+    element: <ManageLinkPage />,
+  },
+  {
     path: '/tickets/scan',
     element: <ScanTicketsPage />,
   },
@@ -170,12 +191,24 @@ const authenticatedRouter = createBrowserRouter([
     element: <ManageSigLeadsPage />,
   },
   {
+    path: '/siglead-management/:sigId',
+    element: <ViewSigLeadPage />,
+  },
+  {
     path: '/roomRequests',
     element: <ManageRoomRequestsPage />,
   },
   {
     path: '/roomRequests/:semesterId/:requestId',
     element: <ViewRoomRequest />,
+  },
+  {
+    path: '/logs',
+    element: <ViewLogsPage />,
+  },
+  {
+    path: '/apiKeys',
+    element: <ManageApiKeysPage />,
   },
   // Catch-all route for authenticated users shows 404 page
   {
