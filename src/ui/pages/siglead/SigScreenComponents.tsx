@@ -12,7 +12,7 @@ const renderSigLink = (sigMemCount: SigMemberCount, index: number) => {
   const count = sigMemCount.count;
   return (
     <NavLink
-      href={`${useLocation().pathname}${org}`}
+      href={`${useLocation().pathname}/${org}`}
       active={index % 2 === 0}
       label={org}
       color="var(--mantine-color-blue-light)"
