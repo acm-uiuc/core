@@ -206,24 +206,23 @@ export const ManageSigLeadsPage: React.FC = () => {
     }
   };
 
-  const TestButton: React.FC = () => {
-    return (
-      <Button
-        fullWidth
-        onClick={async () => {
-          const response = await getGroupMembers(`${orgsGroupId}`);
-          response.map(console.log);
-        }}
-      >
-        Test
-      </Button>
-    );
-  };
+  // const TestButton: React.FC = () => {
+  //   return (
+  //     <Button
+  //       fullWidth
+  //       onClick={async () => {
+  //         const response = await getGroupMembers(`${orgsGroupId}`);
+  //         response.map(console.log);
+  //       }}
+  //     >
+  //       Test
+  //     </Button>
+  //   );
+  // };
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.IAM_ADMIN] }}>
       <Container>
-        <TestButton />
         <Title order={2}>SigLead Management System</Title>
         <ScreenComponent SigMemberCounts={SigMemberCounts} />
         {/* <SigTable /> */}
