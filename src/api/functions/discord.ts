@@ -23,7 +23,8 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 
 export type IUpdateDiscord = EventPostRequest & { id: string };
 
-const urlRegex = /https:\/\/[a-z0-9\.-]+\/calendar\?id=([a-f0-9-]+)/;
+const urlRegex = /https:\/\/[a-z0-9.-]+\/calendar\?id=([a-f0-9-]+)/;
+
 export const updateDiscord = async (
   smClient: SecretsManagerClient,
   event: IUpdateDiscord,
@@ -38,7 +39,7 @@ export const updateDiscord = async (
 
   client.once(Events.ClientReady, async (readyClient: Client<true>) => {
     logger.info(`Logged in as ${readyClient.user.tag}`);
-    const guildID = secretApiConfig["discord_guild_id"];
+    const guildID = secretApiConfig.discord_guild_id;
     const guild = await client.guilds.fetch(guildID?.toString() || "");
     const discordEvents = await guild.scheduledEvents.fetch();
     const snowflakeMeetingLookup = discordEvents.reduce(
@@ -100,19 +101,17 @@ export const updateDiscord = async (
       } else {
         await guild.scheduledEvents.edit(existingMetadata.id, payload);
       }
+    } else if (payload.scheduledStartTime < new Date()) {
+      logger.warn(`Refusing to create past event "${title}"`);
     } else {
-      if (payload.scheduledStartTime < new Date()) {
-        logger.warn(`Refusing to create past event "${title}"`);
-      } else {
-        await guild.scheduledEvents.create(payload);
-      }
+      await guild.scheduledEvents.create(payload);
     }
 
     await client.destroy();
     return payload;
   });
 
-  const token = secretApiConfig["discord_bot_token"];
+  const token = secretApiConfig.discord_bot_token;
 
   if (!token) {
     logger.error("No Discord bot token found in secrets!");

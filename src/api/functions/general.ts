@@ -11,7 +11,9 @@ export function pollUntilNoError<T>(
         const result = await fn();
         return resolve(result);
       } catch (err) {
-        if (Date.now() - start >= timeout) return reject(err);
+        if (Date.now() - start >= timeout) {
+          return reject(err);
+        }
         setTimeout(attempt, interval);
       }
     };

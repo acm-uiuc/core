@@ -300,7 +300,7 @@ export const roomRequestSchema = roomRequestBaseSchema
         });
       }
 
-      if (data.estimatedAttendees == null || data.estimatedAttendees <= 0) {
+      if (data.estimatedAttendees === null || data.estimatedAttendees <= 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please provide an estimated number of attendees",
@@ -308,7 +308,7 @@ export const roomRequestSchema = roomRequestBaseSchema
         });
       }
 
-      if (data.seatsNeeded == null || data.seatsNeeded <= 0) {
+      if (data.seatsNeeded === null || data.seatsNeeded <= 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please specify how many seats you need",

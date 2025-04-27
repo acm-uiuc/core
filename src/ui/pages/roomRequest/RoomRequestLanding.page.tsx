@@ -1,32 +1,34 @@
-import React, { useEffect, useState } from 'react';
-import { Container, Title, Tabs, Select, Loader } from '@mantine/core';
-import { AuthGuard } from '@ui/components/AuthGuard';
-import { AppRoles } from '@common/roles';
-import { useApi } from '@ui/util/api';
-import ExistingRoomRequests from './ExistingRoomRequests';
-import NewRoomRequest from './NewRoomRequest';
+import React, { useEffect, useState } from "react";
+import { Container, Title, Tabs, Select, Loader } from "@mantine/core";
+import { AuthGuard } from "@ui/components/AuthGuard";
+import { AppRoles } from "@common/roles";
+import { useApi } from "@ui/util/api";
+import ExistingRoomRequests from "./ExistingRoomRequests";
+import NewRoomRequest from "./NewRoomRequest";
 import {
   getPreviousSemesters,
   getSemesters,
   RoomRequestFormValues,
   RoomRequestGetAllResponse,
   RoomRequestPostResponse,
-} from '@common/types/roomRequest';
+} from "@common/types/roomRequest";
 
 export const ManageRoomRequestsPage: React.FC = () => {
-  const api = useApi('core');
+  const api = useApi("core");
   const [semester, setSemester] = useState<string | null>(null); // TODO: Create a selector for this
   const [isLoading, setIsLoading] = useState(false);
   const nextSemesters = getSemesters();
   const semesterOptions = [...getPreviousSemesters(), ...nextSemesters];
   const createRoomRequest = async (
-    payload: RoomRequestFormValues
+    payload: RoomRequestFormValues,
   ): Promise<RoomRequestPostResponse> => {
     const response = await api.post(`/api/v1/roomRequests`, payload);
     return response.data;
   };
 
-  const getRoomRequests = async (semester: string): Promise<RoomRequestGetAllResponse> => {
+  const getRoomRequests = async (
+    semester: string,
+  ): Promise<RoomRequestGetAllResponse> => {
     const response = await api.get(`/api/v1/roomRequests/${semester}`);
     return response.data;
   };
@@ -37,10 +39,13 @@ export const ManageRoomRequestsPage: React.FC = () => {
   return (
     <AuthGuard
       resourceDef={{
-        service: 'core',
-        validRoles: [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_UPDATE],
+        service: "core",
+        validRoles: [
+          AppRoles.ROOM_REQUEST_CREATE,
+          AppRoles.ROOM_REQUEST_UPDATE,
+        ],
       }}
-      showSidebar={true}
+      showSidebar
     >
       <Container>
         <Title>Room Requests</Title>
@@ -69,7 +74,10 @@ export const ManageRoomRequestsPage: React.FC = () => {
                 mb="sm"
               />
               {semester && (
-                <ExistingRoomRequests getRoomRequests={getRoomRequests} semester={semester} />
+                <ExistingRoomRequests
+                  getRoomRequests={getRoomRequests}
+                  semester={semester}
+                />
               )}
             </Tabs.Panel>
           )}

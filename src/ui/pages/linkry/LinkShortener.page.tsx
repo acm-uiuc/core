@@ -13,27 +13,33 @@ import {
   Tabs,
   Loader,
   useMantineColorScheme,
-} from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
-import { IconCancel, IconCross, IconEdit, IconPlus, IconTrash } from '@tabler/icons-react';
-import dayjs from 'dayjs';
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { z } from 'zod';
+} from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
+import {
+  IconCancel,
+  IconCross,
+  IconEdit,
+  IconPlus,
+  IconTrash,
+} from "@tabler/icons-react";
+import dayjs from "dayjs";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { z } from "zod";
 
-import { capitalizeFirstLetter } from './ManageLink.page.js';
-import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
-import { AuthGuard } from '@ui/components/AuthGuard';
-import { useApi } from '@ui/util/api';
-import { AppRoles } from '@common/roles.js';
-import { wrap } from 'module';
-import { linkRecord } from '@common/types/linkry.js';
+import { capitalizeFirstLetter } from "./ManageLink.page.js";
+import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import { AuthGuard } from "@ui/components/AuthGuard";
+import { useApi } from "@ui/util/api";
+import { AppRoles } from "@common/roles.js";
+import { wrap } from "module";
+import { linkRecord } from "@common/types/linkry.js";
 
 const wrapTextStyle: React.CSSProperties = {
-  wordWrap: 'break-word',
-  overflowWrap: 'break-word' as const,
-  whiteSpace: 'normal',
+  wordWrap: "break-word",
+  overflowWrap: "break-word" as const,
+  whiteSpace: "normal",
 };
 
 export type LinkryGetResponse = z.infer<typeof linkRecord>;
@@ -42,10 +48,11 @@ export const LinkShortener: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [ownedLinks, setOwnedLinks] = useState<LinkryGetResponse[]>([]);
   const [delegatedLinks, setDelegatedLinks] = useState<LinkryGetResponse[]>([]);
-  const api = useApi('core');
+  const api = useApi("core");
   const [opened, { open, close }] = useDisclosure(false);
   const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false); // Changed default to false
-  const [deleteLinkCandidate, setDeleteLinkCandidate] = useState<LinkryGetResponse | null>(null);
+  const [deleteLinkCandidate, setDeleteLinkCandidate] =
+    useState<LinkryGetResponse | null>(null);
   const navigate = useNavigate();
   const { colorScheme } = useMantineColorScheme();
 
@@ -53,23 +60,30 @@ export const LinkShortener: React.FC = () => {
     const shouldShow = true;
 
     return (
-      <Transition mounted={shouldShow} transition="fade" duration={10000} timingFunction="ease">
+      <Transition
+        mounted={shouldShow}
+        transition="fade"
+        duration={10000}
+        timingFunction="ease"
+      >
         {(styles) => (
           <tr
             style={{
               ...styles,
-              display: shouldShow ? 'table-row' : 'none',
+              display: shouldShow ? "table-row" : "none",
               backgroundColor:
-                colorScheme === 'dark'
+                colorScheme === "dark"
                   ? index % 2 === 0
-                    ? '#333333'
-                    : '#444444'
+                    ? "#333333"
+                    : "#444444"
                   : index % 2 === 0
-                    ? '#f0f8ff'
-                    : '#ffffff',
+                    ? "#f0f8ff"
+                    : "#ffffff",
             }}
           >
-            <Table.Td style={wrapTextStyle}>https://go.acm.illinois.edu/{link.slug}</Table.Td>
+            <Table.Td style={wrapTextStyle}>
+              https://go.acm.illinois.edu/{link.slug}
+            </Table.Td>
             <Table.Td style={wrapTextStyle}>
               <Anchor href={link.redirect} target="_blank" size="sm">
                 {link.redirect}
@@ -79,9 +93,9 @@ export const LinkShortener: React.FC = () => {
             <Table.Td style={wrapTextStyle}>{dayjs(link.updatedAt).format('MMM D YYYY hh:mm')}</Table.Td> */}
             <Table.Td
               style={{
-                textAlign: 'center',
-                justifyContent: 'rightcenter',
-                alignItems: 'center',
+                textAlign: "center",
+                justifyContent: "rightcenter",
+                alignItems: "center",
               }}
             >
               <ButtonGroup>
@@ -93,7 +107,7 @@ export const LinkShortener: React.FC = () => {
                   href={
                     link.slug
                       ? `/linkry/edit/${encodeURIComponent(link.slug)}?previousPage=${window.location.pathname}`
-                      : '#'
+                      : "#"
                   }
                 >
                   <IconEdit size={16} />
@@ -119,27 +133,35 @@ export const LinkShortener: React.FC = () => {
     const shouldShow = true;
 
     return (
-      <Transition mounted={shouldShow} transition="fade" duration={400} timingFunction="ease">
+      <Transition
+        mounted={shouldShow}
+        transition="fade"
+        duration={400}
+        timingFunction="ease"
+      >
         {(styles) => (
           <tr
             style={{
               ...styles,
-              display: shouldShow ? 'table-row' : 'none',
-              backgroundColor: index % 2 === 0 ? '#f0f8ff' : '#ffffff',
+              display: shouldShow ? "table-row" : "none",
+              backgroundColor: index % 2 === 0 ? "#f0f8ff" : "#ffffff",
             }}
           >
             <Table.Td style={wrapTextStyle}>
               <Anchor
-                href={'http://localhost:8080/api/v1/linkry/redir/' + link.slug}
+                href={`http://localhost:8080/api/v1/linkry/redir/${link.slug}`}
                 target="_blank"
               >
-                {' '}
+                {" "}
                 {/* Currently set to localhost for local testing purposes */}
                 https://go.acm.illinois.edu/{link.slug}
               </Anchor>
             </Table.Td>
             <Table.Td style={wrapTextStyle}>
-              <Anchor href={'/api/v1/linkry/redir/' + link.slug} target="_blank">
+              <Anchor
+                href={`/api/v1/linkry/redir/${link.slug}`}
+                target="_blank"
+              >
                 {link.redirect}
               </Anchor>
             </Table.Td>
@@ -149,7 +171,7 @@ export const LinkShortener: React.FC = () => {
                   key={index}
                   color="#999898"
                   radius="sm"
-                  style={{ marginRight: '2px', marginBottom: '2px' }}
+                  style={{ marginRight: "2px", marginBottom: "2px" }}
                 >
                   {group.trim()} {/* Trim any extra whitespace */}
                 </Badge>
@@ -159,10 +181,10 @@ export const LinkShortener: React.FC = () => {
             <Table.Td style={wrapTextStyle}>{dayjs(link.updatedAt).format('MMM D YYYY hh:mm')}</Table.Td> */}
             <Table.Td
               style={{
-                textAlign: 'center',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
+                textAlign: "center",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
               <ButtonGroup>
@@ -174,7 +196,7 @@ export const LinkShortener: React.FC = () => {
                   href={
                     link.slug
                       ? `/linkry/edit/${encodeURIComponent(link.slug)}?previousPage=${window.location.pathname}`
-                      : '#'
+                      : "#"
                   }
                 >
                   <IconEdit size={16} />
@@ -201,9 +223,7 @@ export const LinkShortener: React.FC = () => {
       setIsLoading(true);
       let response;
       try {
-        response = await api.get('/api/v1/linkry/redir');
-      } catch (e) {
-        throw e;
+        response = await api.get("/api/v1/linkry/redir");
       } finally {
         setIsLoading(false);
       }
@@ -221,44 +241,49 @@ export const LinkShortener: React.FC = () => {
       setIsLoading(true);
       try {
         await api.delete(`/api/v1/linkry/redir/${encodedSlug}`);
-      } catch (e) {
-        throw e;
       } finally {
         setIsLoading(false);
       }
-      setOwnedLinks((prevLinks) => prevLinks.filter((link) => link.slug !== slug));
-      setDelegatedLinks((prevLinks) => prevLinks.filter((link) => link.slug !== slug));
+      setOwnedLinks((prevLinks) =>
+        prevLinks.filter((link) => link.slug !== slug),
+      );
+      setDelegatedLinks((prevLinks) =>
+        prevLinks.filter((link) => link.slug !== slug),
+      );
       setIsLoading(false);
       notifications.show({
-        title: 'Link deleted',
-        message: 'The link was deleted successfully.',
+        title: "Link deleted",
+        message: "The link was deleted successfully.",
       });
       close();
     } catch (error) {
       console.error(error);
       notifications.show({
-        title: 'Error deleting event',
+        title: "Error deleting event",
         message: `${error}`,
-        color: 'red',
+        color: "red",
       });
     }
   };
 
   return (
     <AuthGuard
-      resourceDef={{ service: 'core', validRoles: [AppRoles.LINKS_ADMIN, AppRoles.LINKS_MANAGER] }}
+      resourceDef={{
+        service: "core",
+        validRoles: [AppRoles.LINKS_ADMIN, AppRoles.LINKS_MANAGER],
+      }}
     >
       <Box
         style={{
-          position: 'fixed',
+          position: "fixed",
           top: 0,
           left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(255, 255, 255, 0.7)', // semi-transparent background
-          display: isLoading ? 'flex' : 'none',
-          justifyContent: 'center',
-          alignItems: 'center',
+          width: "100vw",
+          height: "100vh",
+          backgroundColor: "rgba(255, 255, 255, 0.7)", // semi-transparent background
+          display: isLoading ? "flex" : "none",
+          justifyContent: "center",
+          alignItems: "center",
           zIndex: 9999, // make sure it’s on top
         }}
       >
@@ -274,8 +299,9 @@ export const LinkShortener: React.FC = () => {
           title="Confirm Deletion"
         >
           <Text size="sm">
-            Are you sure you want to delete the redirect from{' '}
-            <code>{deleteLinkCandidate.slug}</code> to <code>{deleteLinkCandidate.redirect}</code>?
+            Are you sure you want to delete the redirect from{" "}
+            <code>{deleteLinkCandidate.slug}</code> to{" "}
+            <code>{deleteLinkCandidate.redirect}</code>?
           </Text>
           <hr />
           <Group>
@@ -307,12 +333,17 @@ export const LinkShortener: React.FC = () => {
       </Title>
 
       <div
-        style={{ display: 'flex', columnGap: '1vw', verticalAlign: 'middle', marginBottom: '20px' }}
+        style={{
+          display: "flex",
+          columnGap: "1vw",
+          verticalAlign: "middle",
+          marginBottom: "20px",
+        }}
       >
         <Button
           leftSection={<IconPlus size={14} />}
           onClick={() => {
-            navigate('/linkry/add');
+            navigate("/linkry/add");
           }}
         >
           Add New Link
@@ -323,8 +354,8 @@ export const LinkShortener: React.FC = () => {
         defaultValue="owned"
         styles={{
           tab: {
-            fontWeight: 'bold',
-            color: 'rgb(34, 139, 230)',
+            fontWeight: "bold",
+            color: "rgb(34, 139, 230)",
           },
         }}
       >
@@ -334,8 +365,8 @@ export const LinkShortener: React.FC = () => {
         </Tabs.List>
 
         <Tabs.Panel value="owned" pt="xs">
-          <div style={{ width: '100%', overflowX: 'auto' }}>
-            <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+          <div style={{ width: "100%", overflowX: "auto" }}>
+            <Table style={{ tableLayout: "fixed", width: "100%" }}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Shortened Link</Table.Th>
@@ -349,8 +380,8 @@ export const LinkShortener: React.FC = () => {
         </Tabs.Panel>
 
         <Tabs.Panel value="delegated" pt="xs">
-          <div style={{ width: '100%', overflowX: 'auto' }}>
-            <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+          <div style={{ width: "100%", overflowX: "auto" }}>
+            <Table style={{ tableLayout: "fixed", width: "100%" }}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Shortened Link</Table.Th>

@@ -5,7 +5,7 @@ import {
   parseSQSPayload,
 } from "common/types/sqsMessage.js";
 
-const queueUrl = environmentConfig["dev"].SqsQueueUrl;
+const queueUrl = environmentConfig.dev.SqsQueueUrl;
 const sqsClient = new SQSClient({
   region: genericConfig.AwsRegion,
 });

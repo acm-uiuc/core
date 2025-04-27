@@ -17,7 +17,7 @@ export async function getUserRoles(
     fastifyApp.log.info(`Returning cached auth decision for user ${userId}`);
     return cachedValue as AppRoles[];
   }
-  const tableName = `${genericConfig["IAMTablePrefix"]}-userroles`;
+  const tableName = `${genericConfig.IAMTablePrefix}-userroles`;
   const command = new GetItemCommand({
     TableName: tableName,
     Key: {
@@ -37,7 +37,7 @@ export async function getUserRoles(
   if (!("roles" in items)) {
     return [];
   }
-  if (items["roles"][0] === "all") {
+  if (items.roles[0] === "all") {
     fastifyApp.nodeCache.set(
       `userroles-${userId}`,
       allAppRoles,
@@ -47,10 +47,10 @@ export async function getUserRoles(
   }
   fastifyApp.nodeCache.set(
     `userroles-${userId}`,
-    items["roles"],
+    items.roles,
     AUTH_DECISION_CACHE_SECONDS,
   );
-  return items["roles"] as AppRoles[];
+  return items.roles as AppRoles[];
 }
 
 export async function getGroupRoles(
@@ -63,7 +63,7 @@ export async function getGroupRoles(
     fastifyApp.log.info(`Returning cached auth decision for group ${groupId}`);
     return cachedValue as AppRoles[];
   }
-  const tableName = `${genericConfig["IAMTablePrefix"]}-grouproles`;
+  const tableName = `${genericConfig.IAMTablePrefix}-grouproles`;
   const command = new GetItemCommand({
     TableName: tableName,
     Key: {
@@ -93,7 +93,7 @@ export async function getGroupRoles(
     );
     return [];
   }
-  if (items["roles"][0] === "all") {
+  if (items.roles[0] === "all") {
     fastifyApp.nodeCache.set(
       `grouproles-${groupId}`,
       allAppRoles,
@@ -103,8 +103,8 @@ export async function getGroupRoles(
   }
   fastifyApp.nodeCache.set(
     `grouproles-${groupId}`,
-    items["roles"],
+    items.roles,
     AUTH_DECISION_CACHE_SECONDS,
   );
-  return items["roles"] as AppRoles[];
+  return items.roles as AppRoles[];
 }

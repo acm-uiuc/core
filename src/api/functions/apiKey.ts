@@ -46,10 +46,10 @@ export const getApiKeyParts = (apiKey: string): DecomposedApiKey => {
     });
   }
   if (
-    prefix != "acmuiuc" ||
-    id.length != 12 ||
-    rawKey.length != 64 ||
-    checksum.length != 6
+    prefix !== "acmuiuc" ||
+    id.length !== 12 ||
+    rawKey.length !== 64 ||
+    checksum.length !== 6
   ) {
     throw new UnauthenticatedError({
       message: "Invalid API key.",
@@ -125,9 +125,9 @@ export const getApiKeyData = async ({
     return undefined; // bad data, don't cache it
   }
   let cacheTime = API_KEY_DATA_CACHE_SECONDS;
-  if (unmarshalled["expiresAt"]) {
+  if (unmarshalled.expiresAt) {
     const currentEpoch = Date.now();
-    cacheTime = min(cacheTime, unmarshalled["expiresAt"] - currentEpoch);
+    cacheTime = min(cacheTime, unmarshalled.expiresAt - currentEpoch);
   }
   nodeCache.set(cacheKey, unmarshalled as ApiKeyDynamoEntry, cacheTime);
   return unmarshalled;

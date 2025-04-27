@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Avatar,
   Badge,
@@ -10,14 +10,17 @@ import {
   Modal,
   Loader,
   Skeleton,
-} from '@mantine/core';
-import { IconUserPlus, IconTrash } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
-import { GroupMemberGetResponse, EntraActionResponse } from '@common/types/iam';
+} from "@mantine/core";
+import { IconUserPlus, IconTrash } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
+import { GroupMemberGetResponse, EntraActionResponse } from "@common/types/iam";
 
 interface GroupMemberManagementProps {
   fetchMembers: () => Promise<GroupMemberGetResponse>;
-  updateMembers: (toAdd: string[], toRemove: string[]) => Promise<EntraActionResponse>;
+  updateMembers: (
+    toAdd: string[],
+    toRemove: string[],
+  ) => Promise<EntraActionResponse>;
 }
 
 const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
@@ -27,7 +30,7 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
   const [members, setMembers] = useState<GroupMemberGetResponse>([]);
   const [toAdd, setToAdd] = useState<string[]>([]);
   const [toRemove, setToRemove] = useState<string[]>([]);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [confirmationModal, setConfirmationModal] = useState(false);
   const loadMembers = async () => {
@@ -38,9 +41,9 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
       setMembers(memberList);
     } catch (error) {
       notifications.show({
-        title: 'Error',
-        message: 'Failed to retrieve members.',
-        color: 'red',
+        title: "Error",
+        message: "Failed to retrieve members.",
+        color: "red",
       });
     } finally {
       setIsLoading(false);
@@ -52,14 +55,18 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
   }, [fetchMembers]);
 
   const handleAddMember = () => {
-    if (email && !members.some((member) => member.email === email) && !toAdd.includes(email)) {
+    if (
+      email &&
+      !members.some((member) => member.email === email) &&
+      !toAdd.includes(email)
+    ) {
       setToAdd((prev) => [...prev, email]);
-      setEmail('');
+      setEmail("");
     } else {
       notifications.show({
-        title: 'Invalid Input',
-        message: 'Email is missing or the user already exists.',
-        color: 'orange',
+        title: "Invalid Input",
+        message: "Email is missing or the user already exists.",
+        color: "orange",
       });
     }
   };
@@ -76,13 +83,27 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
       const response = await updateMembers(toAdd, toRemove);
       const { success = [], failure = [] } = response;
 
-      const successfulAdds = success.filter((entry) => toAdd.includes(entry.email));
-      const successfulRemoves = success.filter((entry) => toRemove.includes(entry.email));
+      const successfulAdds = success.filter((entry) =>
+        toAdd.includes(entry.email),
+      );
+      const successfulRemoves = success.filter((entry) =>
+        toRemove.includes(entry.email),
+      );
 
       setMembers((prev) =>
         prev
-          .filter((member) => !successfulRemoves.some((remove) => remove.email === member.email))
-          .concat(successfulAdds.map(({ email }) => ({ name: email.split('@')[0], email })))
+          .filter(
+            (member) =>
+              !successfulRemoves.some(
+                (remove) => remove.email === member.email,
+              ),
+          )
+          .concat(
+            successfulAdds.map(({ email }) => ({
+              name: email.split("@")[0],
+              email,
+            })),
+          ),
       );
       loadMembers();
       setToAdd([]);
@@ -90,24 +111,24 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
 
       if (failure.length === 0) {
         notifications.show({
-          title: 'Success',
-          message: 'All changes processed successfully!',
-          color: 'green',
+          title: "Success",
+          message: "All changes processed successfully!",
+          color: "green",
         });
       } else {
         failure.forEach(({ email, message }) => {
           notifications.show({
             title: `Error with ${email}`,
             message,
-            color: 'red',
+            color: "red",
           });
         });
       }
     } catch (error) {
       notifications.show({
-        title: 'Error',
-        message: 'Failed to save changes.',
-        color: 'red',
+        title: "Error",
+        message: "Failed to save changes.",
+        color: "red",
       });
     } finally {
       setIsLoading(false);
@@ -119,7 +140,7 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
       <Table.Tr key={member.email}>
         <Table.Td>
           <Group gap="sm">
-            <Avatar name={member.name || member.email[0]} color="initials"></Avatar>
+            <Avatar name={member.name || member.email[0]} color="initials" />
             <div>
               <Text fz="sm" fw={500}>
                 {member.name}
@@ -158,10 +179,10 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
       <Table.Tr key={email}>
         <Table.Td>
           <Group gap="sm">
-            <Avatar name={email} color="initials"></Avatar>
+            <Avatar name={email} color="initials" />
             <div>
               <Text fz="sm" fw={500}>
-                {email.split('@')[0]}
+                {email.split("@")[0]}
               </Text>
               <Text fz="xs" c="dimmed">
                 {email}
@@ -179,7 +200,9 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
             color="red"
             variant="light"
             size="xs"
-            onClick={() => setToAdd((prev) => prev.filter((item) => item !== email))}
+            onClick={() =>
+              setToAdd((prev) => prev.filter((item) => item !== email))
+            }
             leftSection={<IconTrash size={14} />}
           >
             Cancel
@@ -203,9 +226,9 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
           {isLoading ? (
             <Table.Tr key="skeleton">
               <Table.Td>
-                <Skeleton visible={true}>
+                <Skeleton visible>
                   <Group gap="sm">
-                    <Avatar name={email} color="initials"></Avatar>
+                    <Avatar name={email} color="initials" />
                     <div>
                       <Text fz="sm" fw={500}>
                         Johnathan Doe
@@ -218,12 +241,12 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
                 </Skeleton>
               </Table.Td>
               <Table.Td>
-                <Skeleton visible={true}>
-                  <Badge color="blue" variant="light"></Badge>
+                <Skeleton visible>
+                  <Badge color="blue" variant="light" />
                 </Skeleton>
               </Table.Td>
               <Table.Td>
-                <Skeleton visible={true}>
+                <Skeleton visible>
                   <Button
                     color="red"
                     variant="light"

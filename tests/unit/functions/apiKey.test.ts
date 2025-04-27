@@ -16,7 +16,7 @@ const ddbMock = mockClient(DynamoDBClient);
 const countOccurrencesOfChar = (s: string, char: string): number => {
   let count = 0;
   for (const item of s) {
-    if (item == char) {
+    if (item === char) {
       count++;
     }
   }

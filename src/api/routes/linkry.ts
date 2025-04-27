@@ -166,7 +166,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         // Send the response
         reply.code(200).send({
           ownedLinks: ownedLinksWithGroups,
-          delegatedLinks: delegatedLinks,
+          delegatedLinks,
         });
       },
     );
@@ -212,10 +212,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         if (currentRecord && !request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
           const setUserGroups = new Set(request.tokenPayload?.groups || []);
           const mutualGroups = intersection(
-            new Set(currentRecord["access"]),
+            new Set(currentRecord.access),
             setUserGroups,
           );
-          if (mutualGroups.size == 0) {
+          if (mutualGroups.size === 0) {
             throw new UnauthorizedError({
               message:
                 "You do not own this record and have not been delegated access.",
@@ -230,12 +230,12 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           const mode = currentRecord ? "modify" : "create";
           request.log.info(`Operating in ${mode} mode.`);
           const currentUpdatedAt =
-            currentRecord && currentRecord["updatedAt"]
-              ? currentRecord["updatedAt"]
+            currentRecord && currentRecord.updatedAt
+              ? currentRecord.updatedAt
               : null;
           const currentCreatedAt =
-            currentRecord && currentRecord["createdAt"]
-              ? currentRecord["createdAt"]
+            currentRecord && currentRecord.createdAt
+              ? currentRecord.createdAt
               : null;
 
           // Generate new timestamp for all records
@@ -284,7 +284,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           const ownerRecord: OwnerRecord = {
             slug: request.body.slug,
             redirect: request.body.redirect,
-            access: "OWNER#" + request.username,
+            access: `OWNER#${request.username}`,
             updatedAt: newUpdatedAt,
             createdAt: newCreatedAt,
           };
@@ -310,12 +310,12 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           // Add new GROUP records
           const accessGroups: string[] = request.body.access || [];
           const newGroupSet = new Set(
-            accessGroups.map((group) => "GROUP#" + group),
+            accessGroups.map((group) => `GROUP#${group}`),
           );
 
           // Add new GROUP records that don't already exist
           for (const accessGroup of accessGroups) {
-            const groupKey = "GROUP#" + accessGroup;
+            const groupKey = `GROUP#${accessGroup}`;
 
             // Skip if this group already exists
             if (existingGroupSet.has(groupKey)) {
@@ -481,10 +481,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           if (!request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
             const setUserGroups = new Set(request.tokenPayload?.groups || []);
             const mutualGroups = intersection(
-              new Set(item["access"]),
+              new Set(item.access),
               setUserGroups,
             );
-            if (mutualGroups.size == 0) {
+            if (mutualGroups.size === 0) {
               throw new UnauthorizedError({
                 message: "You have not been delegated access.",
               });
@@ -540,10 +540,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         if (currentRecord && !request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
           const setUserGroups = new Set(request.tokenPayload?.groups || []);
           const mutualGroups = intersection(
-            new Set(currentRecord["access"]),
+            new Set(currentRecord.access),
             setUserGroups,
           );
-          if (mutualGroups.size == 0) {
+          if (mutualGroups.size === 0) {
             throw new UnauthorizedError({
               message:
                 "You do not own this record and have not been delegated access.",

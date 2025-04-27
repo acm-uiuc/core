@@ -1,8 +1,8 @@
-import { render, screen } from '@testing-library/react';
-import App from './App';
+import { render, screen } from "@testing-library/react";
+import App from "./App";
 
-describe('App', () => {
-  it('renders the App component and verifies the logo and text', () => {
+describe("App", () => {
+  it("renders the App component and verifies the logo and text", () => {
     render(<App />);
 
     // Verify there are two instances of the logo
@@ -22,7 +22,9 @@ describe('App', () => {
     expect(authText).toBeInTheDocument();
 
     // Verify the explanation text is present
-    const explanationText = screen.getByText(/Unauthorized or improper use or access/i);
+    const explanationText = screen.getByText(
+      /Unauthorized or improper use or access/i,
+    );
     expect(explanationText).toBeInTheDocument();
   });
 
@@ -30,15 +32,17 @@ describe('App', () => {
     render(<App />);
 
     // Verify the button is present
-    const signInButton = screen.getByRole('button', { name: /Sign in with Illinois NetID/i });
+    const signInButton = screen.getByRole("button", {
+      name: /Sign in with Illinois NetID/i,
+    });
     expect(signInButton).toBeInTheDocument();
   });
 
-  it('verifies the theme toggle is present', () => {
+  it("verifies the theme toggle is present", () => {
     render(<App />);
 
     // Verify the theme toggle is present
-    const themeToggle = screen.getByRole('switch'); // Assuming it uses a switch role
+    const themeToggle = screen.getByRole("switch"); // Assuming it uses a switch role
     expect(themeToggle).toBeInTheDocument();
   });
 });

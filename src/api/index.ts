@@ -296,7 +296,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const app = await init(true);
   app.listen({ port: 8080 }, async (err) => {
     /* eslint no-console: ["error", {"allow": ["log", "error"]}] */
-    if (err) console.error(err);
+    if (err) {
+      console.error(err);
+    }
   });
 }
 export default init;

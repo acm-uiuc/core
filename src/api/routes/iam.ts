@@ -66,15 +66,14 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
       );
       return clients;
-    } else {
-      fastify.log.debug(
-        "Did not assume Entra role as no env variable was present",
-      );
-      return {
-        smClient: fastify.secretsManagerClient,
-        dynamoClient: fastify.dynamoClient,
-      };
     }
+    fastify.log.debug(
+      "Did not assume Entra role as no env variable was present",
+    );
+    return {
+      smClient: fastify.secretsManagerClient,
+      dynamoClient: fastify.dynamoClient,
+    };
   };
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
     "/profile",
@@ -94,7 +93,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not find token payload and/or username.",
         });
       }
-      const userOid = request.tokenPayload["oid"];
+      const userOid = request.tokenPayload.oid;
       const entraIdToken = await getEntraIdToken(
         await getAuthorizedClients(),
         fastify.environmentConfig.AadValidClientId,

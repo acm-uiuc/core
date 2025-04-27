@@ -60,15 +60,14 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
       );
       return clients;
-    } else {
-      fastify.log.debug(
-        "Did not assume Entra role as no env variable was present",
-      );
-      return {
-        smClient: fastify.secretsManagerClient,
-        dynamoClient: fastify.dynamoClient,
-      };
     }
+    fastify.log.debug(
+      "Did not assume Entra role as no env variable was present",
+    );
+    return {
+      smClient: fastify.secretsManagerClient,
+      dynamoClient: fastify.dynamoClient,
+    };
   };
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     await fastify.register(rateLimiter, {
@@ -310,7 +309,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           if (
             event.data.object.metadata &&
             "initiator" in event.data.object.metadata &&
-            event.data.object.metadata["initiator"] == "purchase-membership"
+            event.data.object.metadata.initiator === "purchase-membership"
           ) {
             const customerEmail = event.data.object.customer_email;
             if (!customerEmail) {
@@ -351,11 +350,11 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
               requestId: request.id,
               queueId: result.MessageId,
             });
-          } else {
-            return reply
-              .code(200)
-              .send({ handled: false, requestId: request.id });
           }
+          return reply
+            .code(200)
+            .send({ handled: false, requestId: request.id });
+
         default:
           request.log.warn(`Unhandled event type: ${event.type}`);
       }

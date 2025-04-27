@@ -1,12 +1,12 @@
-import "zod-openapi/extend"
-import '@testing-library/jest-dom/vitest';
-import { vi } from 'vitest';
+import "zod-openapi/extend";
+import "@testing-library/jest-dom/vitest";
+import { vi } from "vitest";
 
 const { getComputedStyle } = window;
 window.getComputedStyle = (elt) => getComputedStyle(elt);
 window.HTMLElement.prototype.scrollIntoView = () => {};
 
-Object.defineProperty(window, 'matchMedia', {
+Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query) => ({
     matches: false,
@@ -28,20 +28,20 @@ class ResizeObserver {
 
 window.ResizeObserver = ResizeObserver;
 
-vi.mock('react-router-dom', async () => {
-  const actualRouter = await vi.importActual('react-router-dom');
+vi.mock("react-router-dom", async () => {
+  const actualRouter = await vi.importActual("react-router-dom");
   return {
     ...actualRouter, // Retain all actual exports
     useNavigate: vi.fn(() => vi.fn()), // Mock `useNavigate`
   };
 });
 
-vi.mock('@mantine/hooks', async () => {
-  const rrdactual = await vi.importActual('react-router-dom');
+vi.mock("@mantine/hooks", async () => {
+  const rrdactual = await vi.importActual("react-router-dom");
   return {
     ...rrdactual,
-    useLocalStorage: vi.fn().mockReturnValue(['light', vi.fn()]),
-    useColorScheme: vi.fn(() => 'light'),
+    useLocalStorage: vi.fn().mockReturnValue(["light", vi.fn()]),
+    useColorScheme: vi.fn(() => "light"),
     useDisclosure: vi.fn(() => {
       const state = { isOpen: false };
       const open = vi.fn(() => (state.isOpen = true));
@@ -49,5 +49,5 @@ vi.mock('@mantine/hooks', async () => {
       const toggle = vi.fn(() => (state.isOpen = !state.isOpen));
       return [state.isOpen, { open, close, toggle }];
     }),
-  }
+  };
 });

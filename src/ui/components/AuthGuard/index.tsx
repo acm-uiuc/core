@@ -1,13 +1,13 @@
-import { Card, Text, Title } from '@mantine/core';
-import React, { ReactNode, useEffect, useState } from 'react';
+import { Card, Text, Title } from "@mantine/core";
+import React, { ReactNode, useEffect, useState } from "react";
 
-import { AcmAppShell, AcmAppShellProps } from '@ui/components/AppShell';
-import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
-import { getRunEnvironmentConfig, ValidService } from '@ui/config';
-import { useApi } from '@ui/util/api';
-import { AppRoles } from '@common/roles';
+import { AcmAppShell, AcmAppShellProps } from "@ui/components/AppShell";
+import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import { getRunEnvironmentConfig, ValidService } from "@ui/config";
+import { useApi } from "@ui/util/api";
+import { AppRoles } from "@common/roles";
 
-export const CACHE_KEY_PREFIX = 'auth_response_cache_';
+export const CACHE_KEY_PREFIX = "auth_response_cache_";
 const CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
 
 type CacheData = {
@@ -25,15 +25,17 @@ const getAuthCacheKey = (service: ValidService, route: string) =>
 
 export const getCachedResponse = async (
   service: ValidService,
-  route: string
+  route: string,
 ): Promise<CacheData | null> => {
   const cacheKey = getAuthCacheKey(service, route);
   const item = (await navigator.locks.request(
     `lock_${cacheKey}`,
-    { mode: 'shared' },
+    { mode: "shared" },
     async (lock) => {
       const cached = sessionStorage.getItem(getAuthCacheKey(service, route));
-      if (!cached) return null;
+      if (!cached) {
+        return null;
+      }
 
       try {
         const data = JSON.parse(cached) as CacheData;
@@ -45,24 +47,32 @@ export const getCachedResponse = async (
         // Clear expired cache
         sessionStorage.removeItem(getAuthCacheKey(service, route));
       } catch (e) {
-        console.error('Error parsing auth cache:', e);
+        console.error("Error parsing auth cache:", e);
         sessionStorage.removeItem(getAuthCacheKey(service, route));
       }
       return null;
-    }
+    },
   )) as CacheData | null;
   return item;
 };
 
-export const setCachedResponse = async (service: ValidService, route: string, data: any) => {
+export const setCachedResponse = async (
+  service: ValidService,
+  route: string,
+  data: any,
+) => {
   const cacheData: CacheData = {
     data,
     timestamp: Date.now(),
   };
   const cacheKey = getAuthCacheKey(service, route);
-  await navigator.locks.request(`lock_${cacheKey}`, { mode: 'exclusive' }, async (lock) => {
-    sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
-  });
+  await navigator.locks.request(
+    `lock_${cacheKey}`,
+    { mode: "exclusive" },
+    async (lock) => {
+      sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
+    },
+  );
 };
 
 // Function to clear auth cache for all services
@@ -81,7 +91,13 @@ export const AuthGuard: React.FC<
     isAppShell?: boolean;
     loadingSkeleton?: ReactNode;
   } & AcmAppShellProps
-> = ({ resourceDef, children, isAppShell = true, loadingSkeleton, ...appShellProps }) => {
+> = ({
+  resourceDef,
+  children,
+  isAppShell = true,
+  loadingSkeleton,
+  ...appShellProps
+}) => {
   const { service, validRoles } = resourceDef;
   const { baseEndpoint, authCheckRoute, friendlyName } =
     getRunEnvironmentConfig().ServiceConfiguration[service];
@@ -102,17 +118,40 @@ export const AuthGuard: React.FC<
         return;
       }
       const cachedData = await getCachedResponse(service, authCheckRoute);
-      const lockMode = cachedData ? 'shared' : 'exclusive';
-      await navigator.locks.request(`lock_authGuard_loader`, { mode: lockMode }, async (lock) => {
-        try {
-          // We have to check the cache twice because if one exclusive process before us
-          // retrieved it we should now be able to use it. Theoretically this shouldn't
-          // ever trigger because AuthGuard on the navbar will always call first, but
-          // to protect against future implementations.
-          setIsLoading(true);
-          const cachedData = await getCachedResponse(service, authCheckRoute);
-          if (cachedData !== null) {
-            const userRoles = cachedData.data.roles;
+      const lockMode = cachedData ? "shared" : "exclusive";
+      await navigator.locks.request(
+        `lock_authGuard_loader`,
+        { mode: lockMode },
+        async (lock) => {
+          try {
+            // We have to check the cache twice because if one exclusive process before us
+            // retrieved it we should now be able to use it. Theoretically this shouldn't
+            // ever trigger because AuthGuard on the navbar will always call first, but
+            // to protect against future implementations.
+            setIsLoading(true);
+            const cachedData = await getCachedResponse(service, authCheckRoute);
+            if (cachedData !== null) {
+              const userRoles = cachedData.data.roles;
+              let authenticated = false;
+              for (const item of userRoles) {
+                if (validRoles.indexOf(item) !== -1) {
+                  authenticated = true;
+                  break;
+                }
+              }
+              setUsername(cachedData.data.username);
+              setRoles(cachedData.data.roles);
+              setIsAuthenticated(authenticated);
+              setIsLoading(false);
+              return;
+            }
+
+            // If no cache, make the API call
+            const result = await api.get(authCheckRoute);
+            // Cache just the response data
+            await setCachedResponse(service, authCheckRoute, result.data);
+
+            const userRoles = result.data.roles;
             let authenticated = false;
             for (const item of userRoles) {
               if (validRoles.indexOf(item) !== -1) {
@@ -120,36 +159,17 @@ export const AuthGuard: React.FC<
                 break;
               }
             }
-            setUsername(cachedData.data.username);
-            setRoles(cachedData.data.roles);
             setIsAuthenticated(authenticated);
+            setRoles(result.data.roles);
+            setUsername(result.data.username);
             setIsLoading(false);
-            return;
+          } catch (e) {
+            setIsAuthenticated(false);
+            setIsLoading(false);
+            console.error(e);
           }
-
-          // If no cache, make the API call
-          const result = await api.get(authCheckRoute);
-          // Cache just the response data
-          await setCachedResponse(service, authCheckRoute, result.data);
-
-          const userRoles = result.data.roles;
-          let authenticated = false;
-          for (const item of userRoles) {
-            if (validRoles.indexOf(item) !== -1) {
-              authenticated = true;
-              break;
-            }
-          }
-          setIsAuthenticated(authenticated);
-          setRoles(result.data.roles);
-          setUsername(result.data.username);
-          setIsLoading(false);
-        } catch (e) {
-          setIsAuthenticated(false);
-          setIsLoading(false);
-          console.error(e);
-        }
-      });
+        },
+      );
     }
     getAuth();
   }, [baseEndpoint, authCheckRoute, service]);
@@ -169,9 +189,11 @@ export const AuthGuard: React.FC<
         <AcmAppShell>
           <Title>Unauthorized</Title>
           <Text>
-            You have not been granted access to this module. Please fill out the{' '}
-            <a href="https://go.acm.illinois.edu/access_request">access request form</a> to request
-            access to this module.
+            You have not been granted access to this module. Please fill out the{" "}
+            <a href="https://go.acm.illinois.edu/access_request">
+              access request form
+            </a>{" "}
+            to request access to this module.
           </Text>
           <Card withBorder>
             <Title order={3} mb="md">
@@ -183,9 +205,10 @@ export const AuthGuard: React.FC<
                 Service: {friendlyName} (<code>{service}</code>)
               </li>
               <li>User: {username}</li>
-              <li>Roles: {roles ? roles.join(', ') : <code>none</code>}</li>
+              <li>Roles: {roles ? roles.join(", ") : <code>none</code>}</li>
               <li>
-                Time: {new Date().toDateString()} {new Date().toLocaleTimeString()}
+                Time: {new Date().toDateString()}{" "}
+                {new Date().toLocaleTimeString()}
               </li>
             </ul>
           </Card>

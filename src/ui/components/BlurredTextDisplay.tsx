@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { Text, Overlay, Box, ActionIcon } from '@mantine/core';
-import { IconEye, IconEyeOff } from '@tabler/icons-react';
+import React, { useState } from "react";
+import { Text, Overlay, Box, ActionIcon } from "@mantine/core";
+import { IconEye, IconEyeOff } from "@tabler/icons-react";
 
-export const BlurredTextDisplay: React.FC<{ text: string; initialState?: boolean }> = ({
-  text,
-  initialState = false,
-}) => {
+export const BlurredTextDisplay: React.FC<{
+  text: string;
+  initialState?: boolean;
+}> = ({ text, initialState = false }) => {
   const [visible, setVisible] = useState(initialState);
 
   return (
@@ -17,7 +17,7 @@ export const BlurredTextDisplay: React.FC<{ text: string; initialState?: boolean
         p="md"
         bg="var(--mantine-color-gray-light)"
         style={{
-          wordBreak: 'break-all',
+          wordBreak: "break-all",
           borderRadius: 4,
         }}
       >
@@ -33,7 +33,7 @@ export const BlurredTextDisplay: React.FC<{ text: string; initialState?: boolean
           zIndex={5}
           center
           style={{
-            position: 'absolute', // Made position explicit
+            position: "absolute", // Made position explicit
             top: 0,
             left: 0,
             right: 0,
