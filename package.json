@@ -67,8 +67,6 @@
     "prettier": "^3.3.3",
     "prop-types": "^15.8.1",
     "request": "^2.88.2",
-    "storybook": "^8.2.8",
-    "storybook-dark-mode": "^4.0.2",
     "stylelint": "^16.8.1",
     "stylelint-config-standard-scss": "^13.1.0",
     "supertest": "^7.0.0",
