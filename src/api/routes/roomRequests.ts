@@ -282,8 +282,11 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       const body = {
         ...request.body,
-        eventStart: request.body.eventStart.toUTCString(),
-        eventEnd: request.body.eventStart.toUTCString(),
+        eventStart: request.body.eventStart.toISOString(),
+        eventEnd: request.body.eventStart.toISOString(),
+        ...(request.body.recurrenceEndDate
+          ? { recurrenceEndDate: request.body.recurrenceEndDate.toISOString() }
+          : {}),
         requestId,
         userId: request.username,
         "userId#requestId": `${request.username}#${requestId}`,
