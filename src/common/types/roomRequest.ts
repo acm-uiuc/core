@@ -164,14 +164,14 @@ export const roomRequestDataSchema = roomRequestBaseSchema.extend({
   eventEnd: z.coerce.date({
     required_error: "Event end date and time is required",
     invalid_type_error: "Event end must be a valid date and time",
-  }),
-  theme: z.enum(eventThemeOptions, {
-    required_error: "Event theme must be provided",
-    invalid_type_error: "Event theme must be provided",
   }).transform((date) => {
     const d = new Date(date);
     d.setSeconds(0, 0);
     return d;
+  }),
+  theme: z.enum(eventThemeOptions, {
+    required_error: "Event theme must be provided",
+    invalid_type_error: "Event theme must be provided",
   }),
   description: z
     .string()

@@ -399,8 +399,8 @@ describe("Test Room Request Creation", async () => {
       theme: "Athletics",
       description:
         "A well-formed description that has at least ten total words.",
-      eventStart: new Date("2025-04-24T12:00:00Z"),
-      eventEnd: new Date("2025-04-24T13:00:00Z"),
+      eventStart: "2025-04-24T12:00:00Z",
+      eventEnd: "2025-04-24T13:00:00Z",
       isRecurring: false,
       setupNeeded: false,
       hostingMinors: false,
