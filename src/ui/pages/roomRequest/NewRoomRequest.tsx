@@ -30,6 +30,8 @@ import {
 } from "@common/types/roomRequest";
 import { useNavigate } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
+import { fromError } from "zod-validation-error";
+import { ZodError } from "zod";
 
 // Component for yes/no questions with conditional content
 interface ConditionalFieldProps {
@@ -208,7 +210,6 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
       // Get all validation errors from zod, which returns ReactNode
       const allErrors: Record<string, React.ReactNode> =
         zodResolver(roomRequestSchema)(values);
-
       // If in view mode, return no errors
       if (viewOnly) {
         return {};
@@ -310,7 +311,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   }, [form.values.isRecurring]);
 
   const handleSubmit = async () => {
-    if (viewOnly) {
+    if (viewOnly || isSubmitting) {
       return;
     }
     const apiFormValues = { ...form.values };
@@ -331,19 +332,24 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
       try {
         values = await roomRequestSchema.parseAsync(apiFormValues);
       } catch (e) {
+        let message = "Check the browser console for more details.";
+        if (e instanceof ZodError) {
+          message = fromError(e).toString();
+        }
         notifications.show({
           title: "Submission failed to validate",
-          message: "Check the browser console for more details.",
+          message,
+          color: "red",
         });
-        throw e;
+        setIsSubmitting(false);
+        return;
       }
       const response = await createRoomRequest(values);
+      await navigate("/roomRequests");
       notifications.show({
         title: "Room Request Submitted",
         message: `The request ID is ${response.id}.`,
       });
-      setIsSubmitting(false);
-      navigate("/roomRequests");
     } catch (e) {
       notifications.show({
         color: "red",

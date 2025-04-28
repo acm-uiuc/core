@@ -156,6 +156,10 @@ export const roomRequestDataSchema = roomRequestBaseSchema.extend({
   eventStart: z.coerce.date({
     required_error: "Event start date and time is required",
     invalid_type_error: "Event start must be a valid date and time",
+  }).transform((date) => {
+    const d = new Date(date);
+    d.setSeconds(0, 0);
+    return d;
   }),
   eventEnd: z.coerce.date({
     required_error: "Event end date and time is required",
@@ -164,6 +168,10 @@ export const roomRequestDataSchema = roomRequestBaseSchema.extend({
   theme: z.enum(eventThemeOptions, {
     required_error: "Event theme must be provided",
     invalid_type_error: "Event theme must be provided",
+  }).transform((date) => {
+    const d = new Date(date);
+    d.setSeconds(0, 0);
+    return d;
   }),
   description: z
     .string()
@@ -199,7 +207,7 @@ export const roomRequestDataSchema = roomRequestBaseSchema.extend({
 export const roomRequestSchema = roomRequestDataSchema
   .refine(
     (data) => {
-      return data.eventEnd.getTime() > data.eventStart.getTime();
+      return data.eventEnd > data.eventStart;
     },
     {
       message: "End date/time must be after start date/time",
