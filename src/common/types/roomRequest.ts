@@ -183,7 +183,12 @@ export const roomRequestDataSchema = roomRequestBaseSchema.extend({
   // Recurring event fields
   isRecurring: z.boolean().default(false),
   recurrencePattern: z.enum(["weekly", "biweekly", "monthly"]).optional(),
-  recurrenceEndDate: z.coerce.date().optional(),
+  recurrenceEndDate: z.coerce.date().optional().transform((date) => {
+    if (!date) { return date; }
+    const d = new Date(date);
+    d.setSeconds(0, 0);
+    return d;
+  }),
   // Setup time fields
   setupNeeded: z.boolean().default(false),
   setupMinutesBefore: z.number().min(5).max(60).optional(),
