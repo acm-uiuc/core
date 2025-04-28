@@ -154,6 +154,37 @@ describe("Test Room Request Creation", async () => {
     );
     expect(ddbMock.calls.length).toEqual(0);
   });
+  test("Validation failure: eventEnd equals eventStart", async () => {
+    const testJwt = createJwt();
+    ddbMock.rejects();
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        host: "Infrastructure Committee",
+        title: "Valid Title",
+        semester: "sp25",
+        theme: "Athletics",
+        description: "This is a valid description with at least ten words.",
+        eventStart: "2025-04-25T10:00:00Z",
+        eventEnd: "2025-04-25T10:00:00Z",
+        isRecurring: false,
+        setupNeeded: false,
+        hostingMinors: false,
+        locationType: "virtual",
+        foodOrDrink: false,
+        crafting: false,
+        onCampusPartners: null,
+        offCampusPartners: null,
+        nonIllinoisSpeaker: null,
+        nonIllinoisAttendees: null,
+      });
+    expect(response.statusCode).toBe(400);
+    expect(response.body.message).toContain(
+      "End date/time must be after start date/time",
+    );
+    expect(ddbMock.calls.length).toEqual(0);
+  });
   test("Validation failure: isRecurring without recurrencePattern and endDate", async () => {
     const testJwt = createJwt();
     ddbMock.rejects();
@@ -368,8 +399,8 @@ describe("Test Room Request Creation", async () => {
       theme: "Athletics",
       description:
         "A well-formed description that has at least ten total words.",
-      eventStart: new Date("2025-04-24T12:00:00Z"),
-      eventEnd: new Date("2025-04-24T13:00:00Z"),
+      eventStart: "2025-04-24T12:00:00Z",
+      eventEnd: "2025-04-24T13:00:00Z",
       isRecurring: false,
       setupNeeded: false,
       hostingMinors: false,

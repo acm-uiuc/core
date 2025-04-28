@@ -24,6 +24,7 @@ import {
   RoomRequestStatusUpdatePostBody,
   roomRequestStatusUpdateRequest,
   formatStatus,
+  roomRequestDataSchema,
 } from "@common/types/roomRequest";
 import { useParams } from "react-router-dom";
 import { getStatusColor, getStatusIcon } from "./roomRequestUtils";
@@ -55,11 +56,23 @@ export const ViewRoomRequest: React.FC = () => {
     const response = await api.get(
       `/api/v1/roomRequests/${semesterId}/${requestId}`,
     );
-    const parsed = {
-      data: await roomRequestSchema.parseAsync(response.data.data),
-      updates: response.data.updates,
-    };
-    setData(parsed);
+    try {
+      const parsed = {
+        data: await roomRequestSchema.parseAsync(response.data.data),
+        updates: response.data.updates,
+      };
+      setData(parsed);
+    } catch (e) {
+      notifications.show({
+        title: "Failed to validate room reservation",
+        message: "Data may not render correctly or may be invalid.",
+        color: "red",
+      });
+      setData({
+        data: await roomRequestDataSchema.parseAsync(response.data.data),
+        updates: response.data.updates,
+      });
+    }
   };
   const submitStatusChange = async () => {
     try {
