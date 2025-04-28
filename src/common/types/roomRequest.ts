@@ -152,58 +152,54 @@ export const roomRequestBaseSchema = z.object({
     .string()
     .regex(/^(fa|sp|su|wi)\d{2}$/, "Invalid semester provided"),
 });
+export const roomRequestDataSchema = roomRequestBaseSchema.extend({
+  eventStart: z.coerce.date({
+    required_error: "Event start date and time is required",
+    invalid_type_error: "Event start must be a valid date and time",
+  }),
+  eventEnd: z.coerce.date({
+    required_error: "Event end date and time is required",
+    invalid_type_error: "Event end must be a valid date and time",
+  }),
+  theme: z.enum(eventThemeOptions, {
+    required_error: "Event theme must be provided",
+    invalid_type_error: "Event theme must be provided",
+  }),
+  description: z
+    .string()
+    .min(10, "Description must have at least 10 words")
+    .max(1000, "Description cannot exceed 1000 characters")
+    .refine((val) => val.split(/\s+/).filter(Boolean).length >= 10, {
+      message: "Description must have at least 10 words",
+    }),
+  // Recurring event fields
+  isRecurring: z.boolean().default(false),
+  recurrencePattern: z.enum(["weekly", "biweekly", "monthly"]).optional(),
+  recurrenceEndDate: z.coerce.date().optional(),
+  // Setup time fields
+  setupNeeded: z.boolean().default(false),
+  setupMinutesBefore: z.number().min(5).max(60).optional(),
+  // Existing fields
+  hostingMinors: z.boolean(),
+  locationType: z.enum(["in-person", "virtual", "both"]),
+  spaceType: z.optional(z.string().min(1)),
+  specificRoom: z.optional(z.string().min(1)),
+  estimatedAttendees: z.optional(z.number().positive()),
+  seatsNeeded: z.optional(z.number().positive()),
+  setupDetails: z.string().min(1).nullable().optional(),
+  onCampusPartners: z.string().min(1).nullable(),
+  offCampusPartners: z.string().min(1).nullable(),
+  nonIllinoisSpeaker: z.string().min(1).nullable(),
+  nonIllinoisAttendees: z.number().min(1).nullable(),
+  foodOrDrink: z.boolean(),
+  crafting: z.boolean(),
+  comments: z.string().optional(),
+})
 
-export const roomRequestSchema = roomRequestBaseSchema
-  .extend({
-    eventStart: z.coerce.date({
-      required_error: "Event start date and time is required",
-      invalid_type_error: "Event start must be a valid date and time",
-    }),
-    eventEnd: z.coerce.date({
-      required_error: "Event end date and time is required",
-      invalid_type_error: "Event end must be a valid date and time",
-    }),
-    theme: z.enum(eventThemeOptions, {
-      required_error: "Event theme must be provided",
-      invalid_type_error: "Event theme must be provided",
-    }),
-    description: z
-      .string()
-      .min(10, "Description must have at least 10 words")
-      .max(1000, "Description cannot exceed 1000 characters")
-      .refine((val) => val.split(/\s+/).filter(Boolean).length >= 10, {
-        message: "Description must have at least 10 words",
-      }),
-    // Recurring event fields
-    isRecurring: z.boolean().default(false),
-    recurrencePattern: z.enum(["weekly", "biweekly", "monthly"]).optional(),
-    recurrenceEndDate: z.coerce.date().optional(),
-    // Setup time fields
-    setupNeeded: z.boolean().default(false),
-    setupMinutesBefore: z.number().min(5).max(60).optional(),
-    // Existing fields
-    hostingMinors: z.boolean(),
-    locationType: z.enum(["in-person", "virtual", "both"]),
-    spaceType: z.optional(z.string().min(1)),
-    specificRoom: z.optional(z.string().min(1)),
-    estimatedAttendees: z.optional(z.number().positive()),
-    seatsNeeded: z.optional(z.number().positive()),
-    setupDetails: z.string().min(1).nullable().optional(),
-    onCampusPartners: z.string().min(1).nullable(),
-    offCampusPartners: z.string().min(1).nullable(),
-    nonIllinoisSpeaker: z.string().min(1).nullable(),
-    nonIllinoisAttendees: z.number().min(1).nullable(),
-    foodOrDrink: z.boolean(),
-    crafting: z.boolean(),
-    comments: z.string().optional(),
-  })
+export const roomRequestSchema = roomRequestDataSchema
   .refine(
     (data) => {
-      // Check if end time is after start time
-      if (data.eventStart && data.eventEnd) {
-        return data.eventEnd > data.eventStart;
-      }
-      return true;
+      return data.eventEnd.getTime() > data.eventStart.getTime();
     },
     {
       message: "End date/time must be after start date/time",
@@ -241,7 +237,7 @@ export const roomRequestSchema = roomRequestBaseSchema
       if (data.isRecurring && data.recurrenceEndDate && data.eventStart) {
         const endDateWithTime = new Date(data.recurrenceEndDate);
         endDateWithTime.setHours(23, 59, 59, 999);
-        return endDateWithTime >= data.eventStart;
+        return endDateWithTime.getTime() >= data.eventStart.getTime();
       }
       return true;
     },
