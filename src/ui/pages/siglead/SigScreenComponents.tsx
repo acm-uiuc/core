@@ -8,13 +8,14 @@ import { SigMemberCount } from '@common/types/siglead';
 const renderSigLink = (sigMemCount: SigMemberCount, index: number) => {
   const color = 'light-dark(var(--mantine-color-black), var(--mantine-color-white))';
   const size = '18px';
-  const org = sigMemCount.sigid;
+  const name = sigMemCount.signame;
+  const id = sigMemCount.sigid;
   const count = sigMemCount.count;
   return (
     <NavLink
-      href={`${useLocation().pathname}/${org}`}
+      href={`${useLocation().pathname}/${id}`}
       active={index % 2 === 0}
-      label={org}
+      label={name}
       color="var(--mantine-color-blue-light)"
       variant="filled"
       rightSection={

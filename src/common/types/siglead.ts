@@ -19,5 +19,6 @@ export type SigleadGetRequest = {
 
 export type SigMemberCount = {
   sigid: string;
+  signame: string;
   count: number;
 };

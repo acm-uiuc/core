@@ -4,11 +4,14 @@ import {
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { OrganizationList } from "common/orgs.js";
 import {
   SigDetailRecord,
   SigMemberCount,
   SigMemberRecord,
 } from "common/types/siglead.js";
+import { transformSigLeadToURI } from "common/utils.js";
+import { string } from "zod";
 
 export async function fetchMemberRecords(
   sigid: string,
@@ -81,8 +84,13 @@ export async function fetchSigCounts(
 
   const result = await dynamoClient.send(scan);
 
-  const counts: Record<string, number> = {};
+  const ids2Name: Record<string, string> = {};
+  OrganizationList.forEach((org) => {
+    const sigid = transformSigLeadToURI(org);
+    ids2Name[sigid] = org;
+  });
 
+  const counts: Record<string, number> = {};
   (result.Items || []).forEach((item) => {
     const sigGroupId = item.sigGroupId?.S;
     if (sigGroupId) {
@@ -90,9 +98,15 @@ export async function fetchSigCounts(
     }
   });
 
-  const countsArray: SigMemberCount[] = Object.entries(counts).map(
-    ([sigid, count]) => ({
+  const joined: Record<string, [string, number]> = {};
+  Object.keys(counts).forEach((sigid) => {
+    joined[sigid] = [ids2Name[sigid], counts[sigid]];
+  });
+
+  const countsArray: SigMemberCount[] = Object.entries(joined).map(
+    ([sigid, [signame, count]]) => ({
       sigid,
+      signame,
       count,
     }),
   );

@@ -4,7 +4,7 @@ export const SIGList = [
   "GameBuilders",
   "SIGAIDA",
   "SIGGRAPH",
-  "ICPC",
+  "SIGICPC",
   "SIGMobile",
   "SIGMusic",
   "GLUG",
