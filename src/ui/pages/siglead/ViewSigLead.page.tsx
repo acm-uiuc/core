@@ -25,6 +25,7 @@ import { AuthGuard } from '@ui/components/AuthGuard';
 import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { AppRoles } from '@common/roles';
+import { IconUsersGroup } from '@tabler/icons-react';
 
 const baseSigSchema = z.object({
   sigid: z.string().min(1),
@@ -49,34 +50,17 @@ export const ViewSigLeadPage: React.FC = () => {
   const api = useApi('core');
   const { colorScheme } = useMantineColorScheme();
   const { sigId } = useParams();
-  const [sigMembers, setSigMembers] = useState<sigMemberDetails[]>([
-    {
-      sigGroupId: sigId || '',
-      email: 'alice1@illinois.edu',
-      designation: 'L',
-      memberName: 'Alice',
-    },
-    {
-      sigGroupId: sigId || '',
-      email: 'bob2@illinois.edu',
-      designation: 'M',
-      memberName: 'Bob',
-    },
-  ]);
-  const [sigDetails, setSigDetails] = useState<sigDetails>({
-    sigid: sigId || '',
-    signame: 'Default Sig',
-    description:
-      'A cool Sig with a lot of money and members. Founded in 1999 by Sir Charlie of Edinburgh. Focuses on making money and helping others earn more money via education.',
-  });
+  const [sigMembers, setSigMembers] = useState<sigMemberDetails[]>([]);
+  const [sigDetails, setSigDetails] = useState<sigDetails>();
 
   useEffect(() => {
     // Fetch sig data and populate form / for now dummy data...
     const getSig = async () => {
       try {
-        /*const formValues = { 
-          };
-          form.setValues(formValues);*/
+        const sigDetailsData = await api.get(`/api/v1/siglead/sigdetail/${sigId}`);
+        setSigDetails(sigDetailsData.data);
+        const sigMembersData = await api.get(`/api/v1/siglead/sigmembers/${sigId}`);
+        setSigMembers(sigMembersData.data);
       } catch (error) {
         console.error('Error fetching sig data:', error);
         notifications.show({
@@ -168,13 +152,14 @@ export const ViewSigLeadPage: React.FC = () => {
       <Container>
         <Group align="flex-start">
           <Box style={{ flex: 8 }}>
-            <Title order={1}>{sigDetails.sigid}</Title>
-            {sigDetails.description || ''}
+            <Title order={1}>{sigDetails?.signame}</Title>
+            {sigDetails?.description || ''}
           </Box>
           <Box style={{ flex: 1, textAlign: 'right', alignItems: 'right' }}>
             <Stack>
-              <Button variant="white">Member Count: {sigMembers.length}</Button>
-
+              <Button variant="white" leftSection={<IconUsersGroup />}>
+                Member Count: {sigMembers.length}
+              </Button>
               <Button>Add Member</Button>
               <Button
                 onClick={() => navigate('../siglead-management')}

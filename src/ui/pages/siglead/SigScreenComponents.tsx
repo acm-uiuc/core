@@ -3,15 +3,19 @@ import { OrganizationList } from '@common/orgs';
 import { NavLink, Paper } from '@mantine/core';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { useLocation } from 'react-router-dom';
+import { SigMemberCount } from '@common/types/siglead';
 
-const renderSigLink = (org: string, index: number) => {
+const renderSigLink = (sigMemCount: SigMemberCount, index: number) => {
   const color = 'light-dark(var(--mantine-color-black), var(--mantine-color-white))';
   const size = '18px';
+  const name = sigMemCount.signame;
+  const id = sigMemCount.sigid;
+  const count = sigMemCount.count;
   return (
     <NavLink
-      href={`${useLocation().pathname}/${org}`}
+      href={`${useLocation().pathname}/${id}`}
       active={index % 2 === 0}
-      label={org}
+      label={name}
       color="var(--mantine-color-blue-light)"
       variant="filled"
       rightSection={
@@ -24,7 +28,7 @@ const renderSigLink = (org: string, index: number) => {
             fontSize: `${size}`,
           }}
         >
-          <span>MemberCount[{index}]</span>
+          <span>MemberCount: {count}</span>
           <IconUsersGroup />
         </div>
       }
@@ -38,7 +42,11 @@ const renderSigLink = (org: string, index: number) => {
   );
 };
 
-export const ScreenComponent: React.FC = () => {
+type props = {
+  SigMemberCounts: SigMemberCount[];
+};
+
+export const ScreenComponent: React.FC<props> = ({ SigMemberCounts }) => {
   return (
     <>
       <Paper
@@ -58,7 +66,8 @@ export const ScreenComponent: React.FC = () => {
         <span>Organization</span>
         <span>Member Count</span>
       </Paper>
-      {OrganizationList.map(renderSigLink)}
+      {/* {OrganizationList.map(renderSigLink)} */}
+      {SigMemberCounts.map(renderSigLink)}
     </>
   );
 };
