@@ -30,6 +30,8 @@ export type GenericConfigType = {
   EventsDynamoTableName: string;
   CacheDynamoTableName: string;
   LinkryDynamoTableName: string;
+  SigleadDynamoSigDetailTableName: string;
+  SigleadDynamoSigMemberTableName: string;
   StripeLinksDynamoTableName: string;
   ConfigSecretName: string;
   EntraSecretName: string;
@@ -70,6 +72,8 @@ const genericConfig: GenericConfigType = {
   StripeLinksDynamoTableName: "infra-core-api-stripe-links",
   CacheDynamoTableName: "infra-core-api-cache",
   LinkryDynamoTableName: "infra-core-api-linkry",
+  SigleadDynamoSigDetailTableName: "infra-core-api-sig-details",
+  SigleadDynamoSigMemberTableName: "infra-core-api-sig-member-details",
   ConfigSecretName: "infra-core-api-config",
   EntraSecretName: "infra-core-api-entra",
   EntraReadOnlySecretName: "infra-core-api-ro-entra",
