@@ -221,6 +221,15 @@ export const roomRequestSchema = roomRequestDataSchema
   )
   .refine(
     (data) => {
+      return (data.eventEnd.getTime() - data.eventStart.getTime()) >= (30 * 60 * 1000);
+    },
+    {
+      message: "Event must be at least 30 minutes long",
+      path: ["eventEnd"],
+    },
+  )
+  .refine(
+    (data) => {
       // If recurrence is enabled, recurrence pattern must be provided
       if (data.isRecurring) {
         return !!data.recurrencePattern;
