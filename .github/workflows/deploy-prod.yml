@@ -35,7 +35,7 @@ jobs:
       id-token: write
       contents: read
     needs:
-      - deploy-test-dev
+      - test-unit
     environment: "AWS PROD"
     steps:
       - name: Set up Node for testing
