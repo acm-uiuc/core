@@ -9,6 +9,8 @@
   ],
   "packageManager": "yarn@1.22.22",
   "scripts": {
+    "postinstall": "npm run setup",
+    "setup": "git config blame.ignoreRevsFile .git-blame-ignore-revs",
     "build": "yarn workspaces run build && yarn lockfile-manage",
     "dev": "concurrently --names 'api,ui' 'yarn workspace infra-core-api run dev' 'yarn workspace infra-core-ui run dev'",
     "lockfile-manage": "synp --with-workspace --source-file yarn.lock && cp package-lock.json dist/lambda/ && cp package-lock.json dist/sqsConsumer/ && cp src/api/package.lambda.json dist/lambda/package.json && cp src/api/package.lambda.json dist/sqsConsumer/package.json && rm package-lock.json",
