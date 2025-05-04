@@ -90,7 +90,7 @@ export const ManageEventPage: React.FC = () => {
     const getEvent = async () => {
       try {
         const response = await api.get(
-          `/api/v1/events/${eventId}?ts=${Date.now()}`,
+          `/api/v1/events/${eventId}?ts=${Date.now()}&includeMetadata=true`,
         );
         const eventData = response.data;
 
