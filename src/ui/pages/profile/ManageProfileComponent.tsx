@@ -95,7 +95,8 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
           }}
         >
           <TextInput
-            label="Full Name"
+            label="Display Name"
+            description="This is how your name will be shown accross all ACM @ UIUC services."
             value={userProfile?.displayName || ""}
             onChange={(e) =>
               setUserProfile(
@@ -142,17 +143,6 @@ export const ManageProfileComponent: React.FC<ManageProfileComponentProps> = ({
             required
             disabled
             data-testid="edit-email"
-          />
-
-          <TextInput
-            label="Discord Username"
-            value={userProfile?.discordUsername || ""}
-            onChange={(e) =>
-              setUserProfile(
-                (prev) => prev && { ...prev, discordUsername: e.target.value },
-              )
-            }
-            data-testid="edit-discordUsername"
           />
 
           <Group mt="md">

@@ -24,7 +24,7 @@ import {
   EntraInvitationResponse,
   ProfilePatchRequest,
 } from "../../common/types/iam.js";
-import { UserProfileDataBase } from "common/types/msGraphApi.js";
+import { UserProfileData } from "common/types/msGraphApi.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { checkPaidMembershipFromTable } from "./membership.js";
@@ -366,15 +366,15 @@ export async function listGroupMembers(
  * @param token - Entra ID token authorized to perform this action.
  * @param userId - The user ID to fetch the profile for.
  * @throws {EntraUserError} If fetching the user profile fails.
- * @returns {Promise<UserProfileDataBase>} The user's profile information.
+ * @returns {Promise<UserProfileData>} The user's profile information.
  */
 export async function getUserProfile(
   token: string,
   email: string,
-): Promise<UserProfileDataBase> {
+): Promise<UserProfileData> {
   const userId = await resolveEmailToOid(token, email);
   try {
-    const url = `https://graph.microsoft.com/v1.0/users/${userId}?$select=userPrincipalName,givenName,surname,displayName,otherMails,mail`;
+    const url = `https://graph.microsoft.com/v1.0/users/${userId}?$select=userPrincipalName,givenName,surname,displayName,mail`;
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -392,7 +392,7 @@ export async function getUserProfile(
         email,
       });
     }
-    return (await response.json()) as UserProfileDataBase;
+    return (await response.json()) as UserProfileData;
   } catch (error) {
     if (error instanceof EntraFetchError) {
       throw error;

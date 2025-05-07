@@ -51,7 +51,6 @@ describe("ManageProfileComponent tests", () => {
       givenName: "John",
       surname: "Doe",
       mail: "john.doe@example.com",
-      discordUsername: "johndoe#1234",
     });
     const setProfile = vi.fn();
 
@@ -62,9 +61,6 @@ describe("ManageProfileComponent tests", () => {
     expect(screen.getByTestId("edit-lastName")).toHaveValue("Doe");
     expect(screen.getByTestId("edit-email")).toHaveValue(
       "john.doe@example.com",
-    );
-    expect(screen.getByTestId("edit-discordUsername")).toHaveValue(
-      "johndoe#1234",
     );
   });
 
@@ -94,7 +90,6 @@ describe("ManageProfileComponent tests", () => {
       givenName: "John",
       surname: "Doe",
       mail: "john.doe@example.com",
-      discordUsername: "",
     });
     const setProfile = vi.fn().mockResolvedValue({});
 
@@ -105,7 +100,6 @@ describe("ManageProfileComponent tests", () => {
     // Edit fields
     await user.clear(screen.getByTestId("edit-displayName"));
     await user.type(screen.getByTestId("edit-displayName"), "Jane Doe");
-    await user.type(screen.getByTestId("edit-discordUsername"), "janedoe#5678");
 
     // Save changes
     const saveButton = screen.getByRole("button", { name: "Save" });
@@ -116,7 +110,6 @@ describe("ManageProfileComponent tests", () => {
       givenName: "John",
       surname: "Doe",
       mail: "john.doe@example.com",
-      discordUsername: "janedoe#5678",
     });
 
     expect(notificationsMock).toHaveBeenCalledWith(
@@ -136,7 +129,6 @@ describe("ManageProfileComponent tests", () => {
       givenName: "",
       surname: "",
       mail: "new.user@example.com",
-      discordUsername: "",
     });
     const setProfile = vi.fn();
 
@@ -156,7 +148,6 @@ describe("ManageProfileComponent tests", () => {
       givenName: "John",
       surname: "Doe",
       mail: "john.doe@example.com",
-      discordUsername: "",
     });
     const setProfile = vi
       .fn()
