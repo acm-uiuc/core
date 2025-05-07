@@ -71,7 +71,6 @@ export const entraProfilePatchRequest = z.object({
   givenName: z.string().min(1),
   surname: z.string().min(1),
   mail: z.string().email(),
-  otherMails: z.array(z.string()).min(1),
 });
 
 export type ProfilePatchRequest = z.infer<typeof entraProfilePatchRequest>;
