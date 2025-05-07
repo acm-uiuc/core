@@ -198,10 +198,10 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       } else {
         command = new QueryCommand({
           TableName: genericConfig.RoomRequestsTableName,
-          KeyConditionExpression: "semesterId = :semesterValue",
-          FilterExpression: "begins_with(#hashKey, :username)",
+          KeyConditionExpression:
+            "semesterId = :semesterValue AND begins_with(#sortKey, :username)",
           ExpressionAttributeNames: {
-            "#hashKey": "userId#requestId",
+            "#sortKey": "userId#requestId",
           },
           ProjectionExpression: "requestId, host, title, semester",
           ExpressionAttributeValues: {
