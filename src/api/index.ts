@@ -275,6 +275,7 @@ async function init(prettyPrint: boolean = false) {
   );
   await app.register(cors, {
     origin: app.environmentConfig.ValidCorsOrigins,
+    methods: ["GET", "HEAD", "POST", "PATCH", "DELETE"],
   });
   app.log.info("Initialized new Fastify instance...");
   return app;

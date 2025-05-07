@@ -51,8 +51,8 @@ export const ManageProfilePage: React.FC = () => {
 
   const setProfile = async (data: UserProfileData) => {
     const newOtherEmails = [data.mail || data.userPrincipalName];
-    if (data.discordUsername && data.discordUsername !== "") {
-      newOtherEmails.push(`${data.discordUsername}@discord`);
+    if (data.discordUsername && data.discordUsername.trim() !== "") {
+      newOtherEmails.push(`${data.discordUsername.trim()}@discord`);
     }
     data.otherMails = newOtherEmails;
     delete data.discordUsername;

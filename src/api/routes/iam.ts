@@ -92,6 +92,8 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const entraIdToken = await getEntraIdToken(
         await getAuthorizedClients(),
         fastify.environmentConfig.AadValidClientId,
+        undefined,
+        genericConfig.EntraSecretName,
       );
       await patchUserProfile(
         entraIdToken,
