@@ -121,11 +121,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       try {
         const groupId = request.params.groupId;
-        const roles = await getGroupRoles(
-          fastify.dynamoClient,
-          fastify,
-          groupId,
-        );
+        const roles = await getGroupRoles(fastify.dynamoClient, groupId);
         return reply.send(roles);
       } catch (e: unknown) {
         if (e instanceof BaseError) {

@@ -14,7 +14,7 @@ import moment from "moment-timezone";
 import { FastifyBaseLogger } from "fastify";
 import { DiscordEventError } from "../../common/errors/index.js";
 import { getSecretValue } from "../plugins/auth.js";
-import { genericConfig } from "../../common/config.js";
+import { genericConfig, SecretConfig } from "../../common/config.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 
 // https://stackoverflow.com/a/3809435/5684541
@@ -26,19 +26,16 @@ export type IUpdateDiscord = EventPostRequest & { id: string };
 const urlRegex = /https:\/\/[a-z0-9.-]+\/calendar\?id=([a-f0-9-]+)/;
 
 export const updateDiscord = async (
-  smClient: SecretsManagerClient,
+  secretApiConfig: SecretConfig,
   event: IUpdateDiscord,
   actor: string,
   isDelete: boolean = false,
   logger: FastifyBaseLogger,
 ): Promise<null | GuildScheduledEventCreateOptions> => {
-  const secretApiConfig =
-    (await getSecretValue(smClient, genericConfig.ConfigSecretName)) || {};
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
   let payload: GuildScheduledEventCreateOptions | null = null;
-
   client.once(Events.ClientReady, async (readyClient: Client<true>) => {
-    logger.info(`Logged in as ${readyClient.user.tag}`);
+    logger.debug(`Logged in as ${readyClient.user.tag}`);
     const guildID = secretApiConfig.discord_guild_id;
     const guild = await client.guilds.fetch(guildID?.toString() || "");
     const discordEvents = await guild.scheduledEvents.fetch();
@@ -69,6 +66,7 @@ export const updateDiscord = async (
         logger.warn(`Event with id ${id} not found in Discord`);
       }
       await client.destroy();
+      logger.debug("Logged out of Discord.");
       return null;
     }
 
@@ -108,6 +106,7 @@ export const updateDiscord = async (
     }
 
     await client.destroy();
+    logger.debug("Logged out of Discord.");
     return payload;
   });
 

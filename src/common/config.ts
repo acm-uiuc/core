@@ -26,7 +26,6 @@ export type ConfigType = {
 };
 
 export type GenericConfigType = {
-  RateLimiterDynamoTableName: string;
   EventsDynamoTableName: string;
   CacheDynamoTableName: string;
   LinkryDynamoTableName: string;
@@ -65,7 +64,6 @@ export const commChairsGroupId = "105e7d32-7289-435e-a67a-552c7f215507";
 export const miscTestingGroupId = "ff25ec56-6a33-420d-bdb0-51d8a3920e46";
 
 const genericConfig: GenericConfigType = {
-  RateLimiterDynamoTableName: "infra-core-api-rate-limiter",
   EventsDynamoTableName: "infra-core-api-events",
   StripeLinksDynamoTableName: "infra-core-api-stripe-links",
   CacheDynamoTableName: "infra-core-api-cache",
@@ -149,6 +147,7 @@ export type SecretConfig = {
   apple_signing_cert_base64: string;
   stripe_secret_key: string;
   stripe_endpoint_secret: string;
+  redis_url: string;
 };
 
 const roleArns = {
