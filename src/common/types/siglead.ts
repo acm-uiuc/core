@@ -4,6 +4,13 @@ export type SigDetailRecord = {
   description: string;
 };
 
+export type SigEntraRecord = {
+    sigid: string;
+    signame: string;
+    leadGroupId: string;
+    memberGroupId: string;
+  };
+
 export type SigMemberRecord = {
   sigGroupId: string;
   email: string;

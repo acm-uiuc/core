@@ -1,17 +1,28 @@
 import {
+  DeleteItemCommand,
   DynamoDBClient,
+  PutItemCommand,
   QueryCommand,
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import {
+  EntraFetchError,
+  EntraGroupError,
+  EntraPatchError,
+  NotImplementedError,
+} from "common/errors/index.js";
 import { OrganizationList } from "common/orgs.js";
 import {
   SigDetailRecord,
+  SigEntraRecord,
   SigMemberCount,
   SigMemberRecord,
 } from "common/types/siglead.js";
 import { transformSigLeadToURI } from "common/utils.js";
 import { string } from "zod";
+import { getEntraIdToken, modifyGroup } from "./entraId.js";
+import { EntraGroupActions } from "common/types/iam.js";
 
 export async function fetchMemberRecords(
   sigid: string,
@@ -62,11 +73,39 @@ export async function fetchSigDetail(
   return (result.Items || [{}]).map((item) => {
     const unmarshalledItem = unmarshall(item);
 
-    // Strip '#' from access field
     delete unmarshalledItem.leadGroupId;
     delete unmarshalledItem.memberGroupId;
 
     return unmarshalledItem as SigDetailRecord;
+  })[0];
+}
+
+export async function fetchSigEntraDetail(
+  sigid: string,
+  tableName: string,
+  dynamoClient: DynamoDBClient,
+) {
+  const fetchSigDetail = new QueryCommand({
+    TableName: tableName,
+    KeyConditionExpression: "#sigid = :accessVal",
+    ExpressionAttributeNames: {
+      "#sigid": "sigid",
+    },
+    ExpressionAttributeValues: {
+      ":accessVal": { S: sigid },
+    },
+    ScanIndexForward: false,
+  });
+
+  const result = await dynamoClient.send(fetchSigDetail);
+
+  // Process the results
+  return (result.Items || [{}]).map((item) => {
+    const unmarshalledItem = unmarshall(item);
+
+    delete unmarshalledItem.description;
+
+    return unmarshalledItem as SigEntraRecord;
   })[0];
 }
 
@@ -112,4 +151,47 @@ export async function fetchSigCounts(
   );
   console.log(countsArray);
   return countsArray;
+}
+
+export async function addMemberRecordToSig(
+  newMemberRecord: SigMemberRecord,
+  sigMemberTableName: string,
+  dynamoClient: DynamoDBClient,
+  entraIdToken: string,
+) {
+  await dynamoClient.send(
+    new PutItemCommand({
+      TableName: sigMemberTableName,
+      Item: marshall(newMemberRecord),
+    }),
+  );
+  try {
+    const sigEntraDetails: SigEntraRecord = await fetchSigEntraDetail(
+      newMemberRecord.sigGroupId,
+      sigMemberTableName,
+      dynamoClient,
+    );
+    await modifyGroup(
+      entraIdToken,
+      newMemberRecord.email,
+      sigEntraDetails.memberGroupId,
+      EntraGroupActions.ADD,
+      dynamoClient,
+    );
+  } catch (e: unknown) {
+    // restore original Dynamo status if AAD update fails.
+    await dynamoClient.send(
+      new DeleteItemCommand({
+        TableName: sigMemberTableName,
+        Key: {
+          sigGroupId: { S: newMemberRecord.sigGroupId },
+          email: { S: newMemberRecord.email },
+        },
+      }),
+    );
+    throw new EntraPatchError({
+      message: "Could not add member to sig AAD group.",
+      email: newMemberRecord.email,
+    });
+  }
 }

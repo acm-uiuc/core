@@ -13,6 +13,8 @@ import {
   Table,
   Group,
   Stack,
+  Modal,
+  Text,
 } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { useForm, zodResolver } from '@mantine/form';
@@ -26,9 +28,13 @@ import { getRunEnvironmentConfig } from '@ui/config';
 import { useApi } from '@ui/util/api';
 import { AppRoles } from '@common/roles';
 import { SigDetailRecord, SigMemberRecord } from '@common/types/siglead.js';
+import { IconCancel, IconCross, IconEdit, IconPlus, IconTrash } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
 
 export const ViewSigLeadPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isAddingMember, setIsAddingMember] = useState<boolean>(false);
+  const [opened, { open, close }] = useDisclosure(false);
   const navigate = useNavigate();
   const api = useApi('core');
   const { colorScheme } = useMantineColorScheme();
@@ -39,6 +45,16 @@ export const ViewSigLeadPage: React.FC = () => {
     signame: 'Default Sig',
     description:
       'A cool Sig with a lot of money and members. Founded in 1999 by Sir Charlie of Edinburgh. Focuses on making money and helping others earn more money via education.',
+  });
+
+  const form = useForm<SigMemberRecord>({
+    //validate: zodResolver(requestBodySchema),
+    initialValues: {
+      sigGroupId: sigId || '',
+      email: '',
+      designation: 'M',
+      memberName: '',
+    },
   });
 
   useEffect(() => {
@@ -91,53 +107,28 @@ export const ViewSigLeadPage: React.FC = () => {
     );
   };
 
-  /*
-    const form = useForm<EventPostRequest>({
-      validate: zodResolver(requestBodySchema),
-      initialValues: {
-        title: '',
-        description: '',
-        start: new Date(),
-        end: new Date(new Date().valueOf() + 3.6e6), // 1 hr later
-        location: 'ACM Room (Siebel CS 1104)',
-        locationLink: 'https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8',
-        host: 'ACM',
-        featured: false,
-        repeats: undefined,
-        repeatEnds: undefined,
-        paidEventId: undefined,
-      },
-    });
-    /*
-    const handleSubmit = async (values: EventPostRequest) => {
-      try {
-        setIsSubmitting(true);
-        const realValues = {
-          ...values,
-          start: dayjs(values.start).format('YYYY-MM-DD[T]HH:mm:00'),
-          end: values.end ? dayjs(values.end).format('YYYY-MM-DD[T]HH:mm:00') : undefined,
-          repeatEnds:
-            values.repeatEnds && values.repeats
-              ? dayjs(values.repeatEnds).format('YYYY-MM-DD[T]HH:mm:00')
-              : undefined,
-          repeats: values.repeats ? values.repeats : undefined,
-        };
-  
-        const eventURL = isEditing ? `/api/v1/events/${eventId}` : '/api/v1/events';
-        const response = await api.post(eventURL, realValues);
-        notifications.show({
-          title: isEditing ? 'Event updated!' : 'Event created!',
-          message: isEditing ? undefined : `The event ID is "${response.data.id}".`,
-        });
-        navigate('/events/manage');
-      } catch (error) {
-        setIsSubmitting(false);
-        console.error('Error creating/editing event:', error);
-        notifications.show({
-          message: 'Failed to create/edit event, please try again.',
-        });
-      }
-    };*/
+  const handleSubmit = async (values: SigMemberRecord) => {
+    try {
+      setIsSubmitting(true);
+
+      values.sigGroupId = sigDetails.sigid;
+
+      const submitURL = `/api/v1/siglead/addMember/${sigDetails.sigid}`;
+      const response = await api.post(submitURL, values);
+      notifications.show({
+        title: 'Member added!',
+        message: '',
+      });
+      setIsAddingMember(false);
+    } catch (error: any) {
+      setIsSubmitting(false);
+      console.error('Error adding member:', error);
+      notifications.show({
+        title: 'Failed to add member, please try again.',
+        message: error.response && error.response.data ? error.response.data.message : undefined,
+      });
+    }
+  };
 
   return (
     <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.SIGLEAD_MANAGER] }}>
@@ -151,7 +142,14 @@ export const ViewSigLeadPage: React.FC = () => {
             <Stack>
               <Button variant="white">Member Count: {sigMembers.length}</Button>
 
-              <Button>Add Member</Button>
+              <Button
+                onClick={() => {
+                  setIsAddingMember(true);
+                  open();
+                }}
+              >
+                Add Member
+              </Button>
               <Button
                 onClick={() => navigate('../siglead-management')}
                 variant="outline"
@@ -177,6 +175,51 @@ export const ViewSigLeadPage: React.FC = () => {
           </Table>
         </div>
       </Container>
+      <Modal
+        opened={opened}
+        onClose={() => {
+          setIsAddingMember(false);
+          close();
+        }}
+        title={`Add Member to ${sigDetails.signame}`}
+      >
+        <form onSubmit={form.onSubmit(handleSubmit)}>
+          <TextInput
+            label="Member Name"
+            withAsterisk
+            placeholder="John Doe"
+            {...form.getInputProps('memberName')}
+          />
+          <TextInput
+            label="Member Email"
+            withAsterisk
+            placeholder="jdoe@illinois.edu"
+            {...form.getInputProps('email')}
+          />
+          <hr />
+          <Group>
+            <Button type="submit" leftSection={<IconPlus />} color="Green">
+              {isSubmitting ? (
+                <>
+                  <Loader size={16} color="white" />
+                  Submitting...
+                </>
+              ) : (
+                'Add Member'
+              )}
+            </Button>
+
+            <Button
+              leftSection={<IconCancel />}
+              onClick={() => {
+                close(); // Close the modal
+              }}
+            >
+              Cancel
+            </Button>
+          </Group>
+        </form>
+      </Modal>
     </AuthGuard>
   );
 };
