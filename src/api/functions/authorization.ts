@@ -31,6 +31,9 @@ export async function getUserRoles(
   if (!("roles" in items)) {
     return [];
   }
+  if (items.roles[0] === "all") {
+    return allAppRoles;
+  }
   return items.roles as AppRoles[];
 }
 
