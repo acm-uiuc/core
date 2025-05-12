@@ -1,13 +1,8 @@
 import { afterAll, expect, test, beforeEach, vi } from "vitest";
-import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
 import supertest from "supertest";
 import { describe } from "node:test";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
 import { EntraGroupError } from "../../src/common/errors/index.js";
 
 // Mock required dependencies - their real impl's are defined in the beforeEach section.
@@ -36,17 +31,12 @@ import {
   resolveEmailToOid,
 } from "../../src/api/functions/entraId.js";
 import { EntraGroupActions } from "../../src/common/types/iam.js";
-
-const smMock = mockClient(SecretsManagerClient);
 const app = await init();
 
 describe("Test Modify Group and List Group Routes", () => {
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
     vi.clearAllMocks();
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: JSON.stringify({ jwt_key: "test_jwt_key" }),
-    });
   });
 
   test("Modify group: Add and remove members", async () => {

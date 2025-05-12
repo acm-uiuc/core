@@ -1,9 +1,5 @@
 import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
 import init from "../../src/api/index.js";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
 import { mockClient } from "aws-sdk-client-mock";
 import { secretJson } from "./secret.testdata.js";
 import {
@@ -19,7 +15,6 @@ import { v4 as uuidv4 } from "uuid";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
 
-const smMock = mockClient(SecretsManagerClient);
 const ddbMock = mockClient(DynamoDBClient);
 const linkId = uuidv4();
 const productId = uuidv4();
@@ -84,9 +79,6 @@ describe("Test Stripe link creation", async () => {
     expect(response.statusCode).toBe(400);
   });
   test("Test body validation 1", async () => {
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
     ddbMock.on(PutItemCommand).rejects();
     const testJwt = createJwt();
     await app.ready();
@@ -108,12 +100,8 @@ describe("Test Stripe link creation", async () => {
         "body/invoiceId String must contain at least 1 character(s), body/invoiceAmountUsd Number must be greater than or equal to 50, body/contactName String must contain at least 1 character(s), body/contactEmail Required",
     });
     expect(ddbMock.calls().length).toEqual(0);
-    expect(smMock.calls().length).toEqual(0);
   });
   test("Test body validation 2", async () => {
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
     ddbMock.on(PutItemCommand).rejects();
     const testJwt = createJwt();
     await app.ready();
@@ -135,7 +123,6 @@ describe("Test Stripe link creation", async () => {
       message: "body/contactEmail Invalid email",
     });
     expect(ddbMock.calls().length).toEqual(0);
-    expect(smMock.calls().length).toEqual(0);
   });
   test("POST happy path", async () => {
     const invoicePayload = {
@@ -158,7 +145,6 @@ describe("Test Stripe link creation", async () => {
       link: `https://buy.stripe.com/${linkId}`,
     });
     expect(ddbMock.calls().length).toEqual(1);
-    expect(smMock.calls().length).toEqual(1);
   });
   test("Unauthenticated GET access (missing token)", async () => {
     await app.ready();
@@ -262,8 +248,5 @@ describe("Test Stripe link creation", async () => {
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
     vi.clearAllMocks();
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
   });
 });

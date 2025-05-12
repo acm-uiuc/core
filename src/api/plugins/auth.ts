@@ -264,7 +264,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           verifiedTokenData.sub;
         const expectedRoles = new Set(validRoles);
         const cachedRoles = await fastify.redisClient.get(
-          `authCache:${verifiedTokenData.sub}:roles`,
+          `authCache:${request.username}:roles`,
         );
         if (cachedRoles) {
           request.userRoles = new Set(JSON.parse(cachedRoles));
@@ -318,7 +318,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
           request.userRoles = userRoles;
           fastify.redisClient.set(
-            `authCache:${verifiedTokenData.sub}:roles`,
+            `authCache:${request.username}:roles`,
             JSON.stringify([...userRoles]),
             "EX",
             AUTH_DECISION_CACHE_SECONDS,

@@ -1,14 +1,9 @@
 import { afterAll, expect, test, beforeEach, vi } from "vitest";
-import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
-import { secretJson, secretObject } from "./secret.testdata.js";
+import { secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 import { describe } from "node:test";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
 
 vi.mock("../../src/api/functions/entraId.js", () => {
   return {
@@ -28,7 +23,6 @@ import {
 } from "../../src/api/functions/entraId.js";
 import { EntraInvitationError } from "../../src/common/errors/index.js";
 
-const smMock = mockClient(SecretsManagerClient);
 const jwt_secret = secretObject["jwt_key"];
 
 vi.stubEnv("JwtSigningKey", jwt_secret);
@@ -37,9 +31,6 @@ const app = await init();
 
 describe("Test Microsoft Entra ID user invitation", () => {
   test("Emails must end in @illinois.edu.", async () => {
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
     const testJwt = createJwt();
     await app.ready();
 
@@ -56,9 +47,6 @@ describe("Test Microsoft Entra ID user invitation", () => {
     expect(addToTenant).toHaveBeenCalled();
   });
   test("Happy path", async () => {
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
     const testJwt = createJwt();
     await app.ready();
 
@@ -73,9 +61,6 @@ describe("Test Microsoft Entra ID user invitation", () => {
     expect(addToTenant).toHaveBeenCalled();
   });
   test("Happy path", async () => {
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
     const testJwt = createJwt();
     await app.ready();
 
