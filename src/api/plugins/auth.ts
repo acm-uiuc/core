@@ -13,7 +13,7 @@ import {
   UnauthenticatedError,
   UnauthorizedError,
 } from "../../common/errors/index.js";
-import { SecretConfig } from "../../common/config.js";
+import { genericConfig, SecretConfig } from "../../common/config.js";
 import {
   AUTH_DECISION_CACHE_SECONDS,
   getGroupRoles,
@@ -193,10 +193,11 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
               message: "Custom JWTs cannot be used in Prod environment.",
             });
           }
+          const config = await fastify.getCachedSecret(
+            genericConfig.ConfigSecretName,
+          );
           signingKey =
-            process.env.JwtSigningKey ||
-            (fastify.secretConfig.jwt_key as string) ||
-            "";
+            process.env.JwtSigningKey || (config.jwt_key as string) || "";
           if (signingKey === "") {
             throw new UnauthenticatedError({
               message: "Invalid token.",
