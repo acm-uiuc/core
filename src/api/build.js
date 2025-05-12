@@ -25,6 +25,7 @@ const commonParams = {
     "@fastify/swagger",
     "@fastify/swagger-ui",
     "argon2",
+    "ioredis",
   ],
   alias: {
     "moment-timezone": resolve(
