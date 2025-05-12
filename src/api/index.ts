@@ -232,16 +232,22 @@ async function init(prettyPrint: boolean = false) {
   app.runEnvironment = process.env.RunEnvironment as RunEnvironment;
   app.environmentConfig =
     environmentConfig[app.runEnvironment as RunEnvironment];
-  app.nodeCache = new NodeCache({ checkperiod: 30 });
+  app.nodeCache = new NodeCache({ checkperiod: 15 });
   app.dynamoClient = dynamoClient;
   app.secretsManagerClient = secretsManagerClient;
   app.redisClient = redisClient;
-  app.secretConfig = secret;
-  app.refreshSecretConfig = async () => {
-    app.secretConfig = (await getSecretValue(
-      app.secretsManagerClient,
-      genericConfig.ConfigSecretName,
-    )) as SecretConfig;
+  app.getCachedSecret = async (secretName: string) => {
+    const cacheKey = `_SECRET:${secretName}`;
+    const cachedValue = app.nodeCache.get(cacheKey);
+    if (!cachedValue) {
+      const realValue = (await getSecretValue(
+        app.secretsManagerClient,
+        secretName,
+      )) as SecretConfig;
+      app.nodeCache.set(cacheKey, JSON.stringify(realValue), 90);
+      return realValue as SecretConfig;
+    }
+    return cachedValue as SecretConfig;
   };
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
