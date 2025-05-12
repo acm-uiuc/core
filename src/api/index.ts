@@ -4,14 +4,18 @@ import { randomUUID } from "crypto";
 import fastify, { FastifyInstance } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
 import fastifyStatic from "@fastify/static";
-import fastifyAuthPlugin from "./plugins/auth.js";
+import fastifyAuthPlugin, { getSecretValue } from "./plugins/auth.js";
 import protectedRoute from "./routes/protected.js";
 import errorHandlerPlugin from "./plugins/errorHandler.js";
 import { RunEnvironment, runEnvironments } from "../common/roles.js";
 import { InternalServerError } from "../common/errors/index.js";
 import eventsPlugin from "./routes/events.js";
 import cors from "@fastify/cors";
-import { environmentConfig, genericConfig } from "../common/config.js";
+import {
+  environmentConfig,
+  genericConfig,
+  SecretConfig,
+} from "../common/config.js";
 import organizationsPlugin from "./routes/organizations.js";
 import authorizeFromSchemaPlugin from "./plugins/authorizeFromSchema.js";
 import evaluatePoliciesPlugin from "./plugins/evaluatePolicies.js";
@@ -43,6 +47,7 @@ import {
 import { ZodOpenApiVersion } from "zod-openapi";
 import { withTags } from "./components/index.js";
 import apiKeyRoute from "./routes/apiKey.js";
+import RedisModule from "ioredis";
 
 dotenv.config();
 
@@ -56,6 +61,12 @@ async function init(prettyPrint: boolean = false) {
   const secretsManagerClient = new SecretsManagerClient({
     region: genericConfig.AwsRegion,
   });
+  const secret = (await getSecretValue(
+    secretsManagerClient,
+    genericConfig.ConfigSecretName,
+  )) as SecretConfig;
+  const redisClient = new RedisModule.default(secret.redis_url);
+
   const transport = prettyPrint
     ? {
         target: "pino-pretty",
@@ -224,6 +235,14 @@ async function init(prettyPrint: boolean = false) {
   app.nodeCache = new NodeCache({ checkperiod: 30 });
   app.dynamoClient = dynamoClient;
   app.secretsManagerClient = secretsManagerClient;
+  app.redisClient = redisClient;
+  app.secretConfig = secret;
+  app.refreshSecretConfig = async () => {
+    app.secretConfig = (await getSecretValue(
+      app.secretsManagerClient,
+      genericConfig.ConfigSecretName,
+    )) as SecretConfig;
+  };
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;
@@ -250,7 +269,13 @@ async function init(prettyPrint: boolean = false) {
         summary: "Verify that the API server is healthy.",
       }),
     },
-    (_, reply) => reply.send({ message: "UP" }),
+    async (_, reply) => {
+      const startTime = new Date().getTime();
+      await app.redisClient.ping();
+      const redisTime = new Date().getTime();
+      app.log.debug(`Redis latency: ${redisTime - startTime} ms.`);
+      return reply.send({ message: "UP" });
+    },
   );
   await app.register(
     async (api, _options) => {
@@ -295,7 +320,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
   const app = await init(true);
-  app.listen({ port: 8080 }, async (err) => {
+  app.listen({ port: 8080 }, (err) => {
     /* eslint no-console: ["error", {"allow": ["log", "error"]}] */
     if (err) {
       console.error(err);

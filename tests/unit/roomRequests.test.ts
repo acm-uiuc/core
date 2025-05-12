@@ -1,11 +1,6 @@
 import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
 import init from "../../src/api/index.js";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
 import { mockClient } from "aws-sdk-client-mock";
-import { secretJson } from "./secret.testdata.js";
 import {
   DynamoDBClient,
   PutItemCommand,
@@ -22,7 +17,6 @@ import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { AvailableSQSFunctions } from "../../src/common/types/sqsMessage.js";
 import { RoomRequestStatus } from "../../src/common/types/roomRequest.js";
 
-const smMock = mockClient(SecretsManagerClient);
 const ddbMock = mockClient(DynamoDBClient);
 const sqsMock = mockClient(SQSClient);
 
@@ -440,9 +434,6 @@ describe("Test Room Request Creation", async () => {
     ddbMock.reset();
     sqsMock.reset();
     vi.clearAllMocks();
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
   });
   test("Unauthenticated access is rejected", async () => {
     await app.ready();

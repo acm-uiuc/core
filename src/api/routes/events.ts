@@ -358,7 +358,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         try {
           if (request.body.featured && !request.body.repeats) {
             await updateDiscord(
-              fastify.secretsManagerClient,
+              fastify.secretConfig,
               entry,
               request.username,
               false,
@@ -496,7 +496,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           }),
         );
         await updateDiscord(
-          fastify.secretsManagerClient,
+          fastify.secretConfig,
           { id } as IUpdateDiscord,
           request.username,
           true,

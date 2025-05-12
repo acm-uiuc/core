@@ -1,7 +1,7 @@
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import jwksClient from "jwks-rsa";
-import jwt, { Algorithm } from "jsonwebtoken";
+import jwt, { Algorithm, Jwt } from "jsonwebtoken";
 import {
   SecretsManagerClient,
   GetSecretValueCommand,
@@ -13,8 +13,12 @@ import {
   UnauthenticatedError,
   UnauthorizedError,
 } from "../../common/errors/index.js";
-import { genericConfig, SecretConfig } from "../../common/config.js";
-import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
+import { SecretConfig } from "../../common/config.js";
+import {
+  AUTH_DECISION_CACHE_SECONDS,
+  getGroupRoles,
+  getUserRoles,
+} from "../functions/authorization.js";
 import { getApiKeyData, getApiKeyParts } from "api/functions/apiKey.js";
 
 export function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
@@ -26,7 +30,7 @@ export function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   }
   return _intersection;
 }
-
+const JWKS_CACHE_SECONDS = 21600; // 6 hours;
 export type AadToken = {
   aud: string;
   iss: string;
@@ -71,6 +75,31 @@ export const getSecretValue = async (
       string | number | boolean
     >;
   } catch {
+    return null;
+  }
+};
+
+export const getUserIdentifier = (request: FastifyRequest): string | null => {
+  try {
+    const apiKeyHeader = request.headers ? request.headers["x-api-key"] : null;
+    if (apiKeyHeader) {
+      const apiKeyValue =
+        typeof apiKeyHeader === "string" ? apiKeyHeader : apiKeyHeader[0];
+      const { id } = getApiKeyParts(apiKeyValue);
+      return id;
+    }
+    const authHeader = request.headers ? request.headers.authorization : null;
+    if (!authHeader) {
+      return request.ip;
+    }
+    const [method, token] = authHeader.split(" ");
+    const decoded = jwt.decode(token);
+    if (!decoded || typeof decoded === "string") {
+      throw new InternalServerError({ message: "Could not decode JWT." });
+    }
+    return (decoded as AadToken).sub || null;
+  } catch (e) {
+    request.log.error("Failed to determine user identifier", e);
     return null;
   }
 };
@@ -126,7 +155,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
       validRoles: AppRoles[],
       disableApiKeyAuth: boolean,
     ): Promise<Set<AppRoles>> => {
-      const userRoles = new Set([] as AppRoles[]);
+      const startTime = new Date().getTime();
       try {
         if (!disableApiKeyAuth) {
           const apiKeyHeader = request.headers
@@ -166,14 +195,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
           signingKey =
             process.env.JwtSigningKey ||
-            ((
-              (await getSecretValue(
-                fastify.secretsManagerClient,
-                genericConfig.ConfigSecretName,
-              )) || {
-                jwt_key: "",
-              }
-            ).jwt_key as string) ||
+            (fastify.secretConfig.jwt_key as string) ||
             "";
           if (signingKey === "") {
             throw new UnauthenticatedError({
@@ -203,10 +225,28 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
             header: decoded?.header,
             audience: `api://${AadClientId}`,
           };
-          const client = jwksClient({
-            jwksUri: "https://login.microsoftonline.com/common/discovery/keys",
-          });
-          signingKey = (await client.getSigningKey(header.kid)).getPublicKey();
+          const cachedJwksSigningKey = await fastify.redisClient.get(
+            `jwksKey:${header.kid}`,
+          );
+          if (cachedJwksSigningKey) {
+            signingKey = cachedJwksSigningKey;
+            request.log.debug("Got JWKS signing key from cache.");
+          } else {
+            const client = jwksClient({
+              jwksUri:
+                "https://login.microsoftonline.com/common/discovery/keys",
+            });
+            signingKey = (
+              await client.getSigningKey(header.kid)
+            ).getPublicKey();
+            await fastify.redisClient.set(
+              `jwksKey:${header.kid}`,
+              signingKey,
+              "EX",
+              JWKS_CACHE_SECONDS,
+            );
+            request.log.debug("Got JWKS signing key from server.");
+          }
         }
 
         const verifiedTokenData = jwt.verify(
@@ -214,62 +254,80 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           signingKey,
           verifyOptions,
         ) as AadToken;
+        request.log.debug(
+          `Start to verifying JWT took ${new Date().getTime() - startTime} ms.`,
+        );
         request.tokenPayload = verifiedTokenData;
         request.username =
           verifiedTokenData.email ||
           verifiedTokenData.upn?.replace("acm.illinois.edu", "illinois.edu") ||
           verifiedTokenData.sub;
         const expectedRoles = new Set(validRoles);
-        if (verifiedTokenData.groups) {
-          const groupRoles = await Promise.allSettled(
-            verifiedTokenData.groups.map((x) =>
-              getGroupRoles(fastify.dynamoClient, fastify, x),
-            ),
+        const cachedRoles = await fastify.redisClient.get(
+          `authCache:${request.username}:roles`,
+        );
+        if (cachedRoles) {
+          request.userRoles = new Set(JSON.parse(cachedRoles));
+          request.log.debug("Retrieved user roles from cache.");
+        } else {
+          const userRoles = new Set([] as AppRoles[]);
+          if (verifiedTokenData.groups) {
+            const groupRoles = await Promise.allSettled(
+              verifiedTokenData.groups.map((x) =>
+                getGroupRoles(fastify.dynamoClient, x),
+              ),
+            );
+            for (const result of groupRoles) {
+              if (result.status === "fulfilled") {
+                for (const role of result.value) {
+                  userRoles.add(role);
+                }
+              } else {
+                request.log.warn(`Failed to get group roles: ${result.reason}`);
+              }
+            }
+          } else if (
+            verifiedTokenData.roles &&
+            fastify.environmentConfig.AzureRoleMapping
+          ) {
+            for (const group of verifiedTokenData.roles) {
+              if (fastify.environmentConfig.AzureRoleMapping[group]) {
+                for (const role of fastify.environmentConfig.AzureRoleMapping[
+                  group
+                ]) {
+                  userRoles.add(role);
+                }
+              }
+            }
+          }
+          // add user-specific role overrides
+          if (request.username) {
+            try {
+              const userAuth = await getUserRoles(
+                fastify.dynamoClient,
+                request.username,
+              );
+              for (const role of userAuth) {
+                userRoles.add(role);
+              }
+            } catch (e) {
+              request.log.warn(
+                `Failed to get user role mapping for ${request.username}: ${e}`,
+              );
+            }
+          }
+          request.userRoles = userRoles;
+          fastify.redisClient.set(
+            `authCache:${request.username}:roles`,
+            JSON.stringify([...userRoles]),
+            "EX",
+            AUTH_DECISION_CACHE_SECONDS,
           );
-          for (const result of groupRoles) {
-            if (result.status === "fulfilled") {
-              for (const role of result.value) {
-                userRoles.add(role);
-              }
-            } else {
-              request.log.warn(`Failed to get group roles: ${result.reason}`);
-            }
-          }
-        } else if (
-          verifiedTokenData.roles &&
-          fastify.environmentConfig.AzureRoleMapping
-        ) {
-          for (const group of verifiedTokenData.roles) {
-            if (fastify.environmentConfig.AzureRoleMapping[group]) {
-              for (const role of fastify.environmentConfig.AzureRoleMapping[
-                group
-              ]) {
-                userRoles.add(role);
-              }
-            }
-          }
-        }
-
-        // add user-specific role overrides
-        if (request.username) {
-          try {
-            const userAuth = await getUserRoles(
-              fastify.dynamoClient,
-              fastify,
-              request.username,
-            );
-            for (const role of userAuth) {
-              userRoles.add(role);
-            }
-          } catch (e) {
-            request.log.warn(
-              `Failed to get user role mapping for ${request.username}: ${e}`,
-            );
-          }
+          request.log.debug("Retrieved user roles from database.");
         }
         if (
           expectedRoles.size > 0 &&
-          intersection(userRoles, expectedRoles).size === 0
+          intersection(request.userRoles, expectedRoles).size === 0
         ) {
           throw new UnauthorizedError({
             message: "User does not have the privileges for this task.",
@@ -285,7 +343,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
         if (err instanceof Error) {
-          request.log.error(`Failed to verify JWT: ${err.toString()} `);
+          request.log.error(`Failed to get user roles: ${err.toString()}`);
           throw err;
         }
         throw new UnauthenticatedError({
@@ -293,8 +351,10 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       request.log.info(`authenticated request from ${request.username} `);
-      request.userRoles = userRoles;
-      return userRoles;
+      request.log.debug(
+        `Start to authorization decision took ${new Date().getTime() - startTime} ms.`,
+      );
+      return request.userRoles;
     },
   );
 };
