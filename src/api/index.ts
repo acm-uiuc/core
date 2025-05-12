@@ -48,7 +48,6 @@ import { ZodOpenApiVersion } from "zod-openapi";
 import { withTags } from "./components/index.js";
 import apiKeyRoute from "./routes/apiKey.js";
 import RedisModule from "ioredis";
-import fastifyCron from "fastify-cron";
 
 dotenv.config();
 
@@ -244,18 +243,6 @@ async function init(prettyPrint: boolean = false) {
       genericConfig.ConfigSecretName,
     )) as SecretConfig;
   };
-  app.register(fastifyCron.default, {
-    // refresh secrets config
-    jobs: [
-      {
-        cronTime: "*/15 * * * *",
-        onTick: async (server) => {
-          server.log.info("Refreshing secrets manager config.");
-          await server.refreshSecretConfig();
-        },
-      },
-    ],
-  });
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;
