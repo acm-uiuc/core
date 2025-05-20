@@ -8,16 +8,11 @@ import {
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
-import { secretJson, secretObject } from "./secret.testdata.js";
+import { secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 import { marshall } from "@aws-sdk/util-dynamodb";
 
 const ddbMock = mockClient(DynamoDBClient);
-const smMock = mockClient(SecretsManagerClient);
 const jwt_secret = secretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
@@ -34,13 +29,7 @@ test("ETag should increment after event creation", async () => {
   // Setup
   (app as any).nodeCache.flushAll();
   ddbMock.reset();
-  smMock.reset();
   vi.useFakeTimers();
-
-  // Mock secrets manager
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
 
   // Mock successful DynamoDB operations
   ddbMock.on(PutItemCommand).resolves({});
@@ -122,13 +111,7 @@ test("Should return 304 Not Modified when If-None-Match header matches ETag", as
   // Setup
   (app as any).nodeCache.flushAll();
   ddbMock.reset();
-  smMock.reset();
   vi.useFakeTimers();
-
-  // Mock secrets manager
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
 
   // Mock successful DynamoDB operations
   ddbMock.on(PutItemCommand).resolves({});
@@ -172,13 +155,7 @@ test("Should return 304 Not Modified when If-None-Match header matches quoted ET
   // Setup
   (app as any).nodeCache.flushAll();
   ddbMock.reset();
-  smMock.reset();
   vi.useFakeTimers();
-
-  // Mock secrets manager
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
 
   // Mock successful DynamoDB operations
   ddbMock.on(PutItemCommand).resolves({});
@@ -222,13 +199,7 @@ test("Should NOT return 304 when ETag has changed", async () => {
   // Setup
   (app as any).nodeCache.flushAll();
   ddbMock.reset();
-  smMock.reset();
   vi.useFakeTimers();
-
-  // Mock secrets manager
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
 
   // Mock successful DynamoDB operations
   ddbMock.on(PutItemCommand).resolves({});
@@ -301,13 +272,7 @@ test("Should handle 304 responses for individual event endpoints", async () => {
   // Setup
   (app as any).nodeCache.flushAll();
   ddbMock.reset();
-  smMock.reset();
   vi.useFakeTimers();
-
-  // Mock secrets manager
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
 
   // Mock successful DynamoDB operations
   ddbMock.on(PutItemCommand).resolves({});
@@ -378,6 +343,5 @@ afterAll(async () => {
 beforeEach(() => {
   (app as any).nodeCache.flushAll();
   ddbMock.reset();
-  smMock.reset();
   vi.useFakeTimers();
 });

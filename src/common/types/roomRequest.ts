@@ -18,7 +18,7 @@ export function getPreviousSemesters() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1;
 
-  let semesters = [];
+  let semesters: { value: string, label: string }[] = [];
   let currentSemester = "";
 
   if (currentMonth >= 1 && currentMonth <= 5) {
@@ -63,7 +63,7 @@ export function getSemesters() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1;
 
-  let semesters = [];
+  let semesters: { value: string, label: string }[] = [];
   let currentSemester = "";
 
   if (currentMonth >= 1 && currentMonth <= 5) {
@@ -152,61 +152,79 @@ export const roomRequestBaseSchema = z.object({
     .string()
     .regex(/^(fa|sp|su|wi)\d{2}$/, "Invalid semester provided"),
 });
+export const roomRequestDataSchema = roomRequestBaseSchema.extend({
+  eventStart: z.coerce.date({
+    required_error: "Event start date and time is required",
+    invalid_type_error: "Event start must be a valid date and time",
+  }).transform((date) => {
+    const d = new Date(date);
+    d.setSeconds(0, 0);
+    return d;
+  }),
+  eventEnd: z.coerce.date({
+    required_error: "Event end date and time is required",
+    invalid_type_error: "Event end must be a valid date and time",
+  }).transform((date) => {
+    const d = new Date(date);
+    d.setSeconds(0, 0);
+    return d;
+  }),
+  theme: z.enum(eventThemeOptions, {
+    required_error: "Event theme must be provided",
+    invalid_type_error: "Event theme must be provided",
+  }),
+  description: z
+    .string()
+    .min(10, "Description must have at least 10 words")
+    .max(1000, "Description cannot exceed 1000 characters")
+    .refine((val) => val.split(/\s+/).filter(Boolean).length >= 10, {
+      message: "Description must have at least 10 words",
+    }),
+  // Recurring event fields
+  isRecurring: z.boolean().default(false),
+  recurrencePattern: z.enum(["weekly", "biweekly", "monthly"]).optional(),
+  recurrenceEndDate: z.coerce.date().optional().transform((date) => {
+    if (!date) { return date; }
+    const d = new Date(date);
+    d.setSeconds(0, 0);
+    return d;
+  }),
+  // Setup time fields
+  setupNeeded: z.boolean().default(false),
+  setupMinutesBefore: z.number().min(5).max(60).optional(),
+  // Existing fields
+  hostingMinors: z.boolean(),
+  locationType: z.enum(["in-person", "virtual", "both"]),
+  spaceType: z.optional(z.string().min(1)),
+  specificRoom: z.optional(z.string().min(1)),
+  estimatedAttendees: z.optional(z.number().positive()),
+  seatsNeeded: z.optional(z.number().positive()),
+  setupDetails: z.string().min(1).nullable().optional(),
+  onCampusPartners: z.string().min(1).nullable(),
+  offCampusPartners: z.string().min(1).nullable(),
+  nonIllinoisSpeaker: z.string().min(1).nullable(),
+  nonIllinoisAttendees: z.number().min(1).nullable(),
+  foodOrDrink: z.boolean(),
+  crafting: z.boolean(),
+  comments: z.string().optional(),
+})
 
-export const roomRequestSchema = roomRequestBaseSchema
-  .extend({
-    eventStart: z.coerce.date({
-      required_error: "Event start date and time is required",
-      invalid_type_error: "Event start must be a valid date and time",
-    }),
-    eventEnd: z.coerce.date({
-      required_error: "Event end date and time is required",
-      invalid_type_error: "Event end must be a valid date and time",
-    }),
-    theme: z.enum(eventThemeOptions, {
-      required_error: "Event theme must be provided",
-      invalid_type_error: "Event theme must be provided",
-    }),
-    description: z
-      .string()
-      .min(10, "Description must have at least 10 words")
-      .max(1000, "Description cannot exceed 1000 characters")
-      .refine((val) => val.split(/\s+/).filter(Boolean).length >= 10, {
-        message: "Description must have at least 10 words",
-      }),
-    // Recurring event fields
-    isRecurring: z.boolean().default(false),
-    recurrencePattern: z.enum(["weekly", "biweekly", "monthly"]).optional(),
-    recurrenceEndDate: z.coerce.date().optional(),
-    // Setup time fields
-    setupNeeded: z.boolean().default(false),
-    setupMinutesBefore: z.number().min(5).max(60).optional(),
-    // Existing fields
-    hostingMinors: z.boolean(),
-    locationType: z.enum(["in-person", "virtual", "both"]),
-    spaceType: z.optional(z.string().min(1)),
-    specificRoom: z.optional(z.string().min(1)),
-    estimatedAttendees: z.optional(z.number().positive()),
-    seatsNeeded: z.optional(z.number().positive()),
-    setupDetails: z.string().min(1).nullable().optional(),
-    onCampusPartners: z.string().min(1).nullable(),
-    offCampusPartners: z.string().min(1).nullable(),
-    nonIllinoisSpeaker: z.string().min(1).nullable(),
-    nonIllinoisAttendees: z.number().min(1).nullable(),
-    foodOrDrink: z.boolean(),
-    crafting: z.boolean(),
-    comments: z.string().optional(),
-  })
+export const roomRequestSchema = roomRequestDataSchema
   .refine(
     (data) => {
-      // Check if end time is after start time
-      if (data.eventStart && data.eventEnd) {
-        return data.eventEnd > data.eventStart;
-      }
-      return true;
+      return data.eventEnd > data.eventStart;
     },
     {
       message: "End date/time must be after start date/time",
+      path: ["eventEnd"],
+    },
+  )
+  .refine(
+    (data) => {
+      return (data.eventEnd.getTime() - data.eventStart.getTime()) >= (30 * 60 * 1000);
+    },
+    {
+      message: "Event must be at least 30 minutes long",
       path: ["eventEnd"],
     },
   )
@@ -241,7 +259,7 @@ export const roomRequestSchema = roomRequestBaseSchema
       if (data.isRecurring && data.recurrenceEndDate && data.eventStart) {
         const endDateWithTime = new Date(data.recurrenceEndDate);
         endDateWithTime.setHours(23, 59, 59, 999);
-        return endDateWithTime >= data.eventStart;
+        return endDateWithTime.getTime() >= data.eventStart.getTime();
       }
       return true;
     },
@@ -300,7 +318,7 @@ export const roomRequestSchema = roomRequestBaseSchema
         });
       }
 
-      if (data.estimatedAttendees == null || data.estimatedAttendees <= 0) {
+      if (data.estimatedAttendees === null || data.estimatedAttendees === undefined || data.estimatedAttendees <= 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please provide an estimated number of attendees",
@@ -308,7 +326,7 @@ export const roomRequestSchema = roomRequestBaseSchema
         });
       }
 
-      if (data.seatsNeeded == null || data.seatsNeeded <= 0) {
+      if (data.seatsNeeded === null || data.seatsNeeded === undefined || data.seatsNeeded <= 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please specify how many seats you need",

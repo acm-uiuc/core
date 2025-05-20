@@ -1,6 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
 import { AppRoles } from "../../common/roles.js";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   addToTenant,
   getEntraIdToken,
@@ -38,11 +37,7 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { groupId, withRoles, withTags } from "api/components/index.js";
-import {
-  FastifyZodOpenApiTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-zod-openapi";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { z } from "zod";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
@@ -66,15 +61,14 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
       );
       return clients;
-    } else {
-      fastify.log.debug(
-        "Did not assume Entra role as no env variable was present",
-      );
-      return {
-        smClient: fastify.secretsManagerClient,
-        dynamoClient: fastify.dynamoClient,
-      };
     }
+    fastify.log.debug(
+      "Did not assume Entra role as no env variable was present",
+    );
+    return {
+      smClient: fastify.secretsManagerClient,
+      dynamoClient: fastify.dynamoClient,
+    };
   };
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
     "/profile",
@@ -94,10 +88,12 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not find token payload and/or username.",
         });
       }
-      const userOid = request.tokenPayload["oid"];
+      const userOid = request.tokenPayload.oid;
       const entraIdToken = await getEntraIdToken(
         await getAuthorizedClients(),
         fastify.environmentConfig.AadValidClientId,
+        undefined,
+        genericConfig.EntraSecretName,
       );
       await patchUserProfile(
         entraIdToken,
@@ -125,11 +121,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       try {
         const groupId = request.params.groupId;
-        const roles = await getGroupRoles(
-          fastify.dynamoClient,
-          fastify,
-          groupId,
-        );
+        const roles = await getGroupRoles(fastify.dynamoClient, groupId);
         return reply.send(roles);
       } catch (e: unknown) {
         if (e instanceof BaseError) {

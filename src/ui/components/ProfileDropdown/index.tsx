@@ -12,19 +12,21 @@ import {
   rem,
   useMantineTheme,
   Avatar,
-} from '@mantine/core';
-import { IconChevronDown, IconUser, IconMail } from '@tabler/icons-react';
-import { useState } from 'react';
+} from "@mantine/core";
+import { IconChevronDown, IconUser, IconMail } from "@tabler/icons-react";
+import { useState } from "react";
 
-import { AuthContextData, useAuth } from '../AuthContext/index.js';
-import classes from '../Navbar/index.module.css';
-import { useNavigate } from 'react-router-dom';
+import { AuthContextData, useAuth } from "../AuthContext/index.js";
+import classes from "../Navbar/index.module.css";
+import { useNavigate } from "react-router-dom";
 
 interface ProfileDropdownProps {
   userData?: AuthContextData;
 }
 
-const AuthenticatedProfileDropdown: React.FC<ProfileDropdownProps> = ({ userData }) => {
+const AuthenticatedProfileDropdown: React.FC<ProfileDropdownProps> = ({
+  userData,
+}) => {
   const [opened, setOpened] = useState(false);
   const theme = useMantineTheme();
   const navigate = useNavigate();
@@ -55,7 +57,7 @@ const AuthenticatedProfileDropdown: React.FC<ProfileDropdownProps> = ({ userData
           <Center inline>
             <Box component="span" mr={5}>
               <Group visibleFrom="sm">
-                <Avatar name={userData.name} color="initials"></Avatar>
+                <Avatar name={userData.name} color="initials" />
               </Group>
               <Group hiddenFrom="sm">
                 <Text size="sm" fw={500}>
@@ -72,7 +74,7 @@ const AuthenticatedProfileDropdown: React.FC<ProfileDropdownProps> = ({ userData
       </Popover.Target>
 
       <Popover.Dropdown
-        style={{ overflow: 'hidden' }}
+        style={{ overflow: "hidden" }}
         aria-label="Authenticated My Account Dropdown"
       >
         <SimpleGrid cols={1} spacing={0}>
@@ -118,7 +120,7 @@ const AuthenticatedProfileDropdown: React.FC<ProfileDropdownProps> = ({ userData
             mb="sm"
             fullWidth
             onClick={() => {
-              navigate('/profile');
+              navigate("/profile");
             }}
           >
             Edit Profile

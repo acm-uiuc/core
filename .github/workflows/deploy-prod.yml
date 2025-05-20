@@ -25,55 +25,6 @@ jobs:
       - name: Run unit testing
         run: make test_unit
 
-  deploy-test-dev:
-    runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.event.repository.name }}-dev
-      cancel-in-progress: false
-    permissions:
-      id-token: write
-      contents: read
-    environment: "AWS DEV"
-    name: Deploy to DEV and Run Tests
-    needs:
-      - test-unit
-    steps:
-      - name: Set up Node for testing
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.x
-
-      - uses: actions/checkout@v4
-        env:
-          HUSKY: "0"
-      - uses: aws-actions/setup-sam@v2
-        with:
-          use-installer: true
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.11
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
-          role-session-name: Core_Dev_Prod_Deployment_${{ github.run_id }}
-          aws-region: us-east-1
-      - name: Publish to AWS
-        run: make deploy_dev
-        env:
-          HUSKY: "0"
-          VITE_RUN_ENVIRONMENT: dev
-
-      - name: Run live testing
-        run: make test_live_integration
-        env:
-          JWT_KEY: ${{ secrets.JWT_KEY }}
-      - name: Run E2E testing
-        run: make test_e2e
-        env:
-          PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME }}
-          PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD }}
-
   deploy-prod:
     runs-on: ubuntu-latest
     name: Deploy to Prod and Run Health Check
@@ -84,7 +35,7 @@ jobs:
       id-token: write
       contents: read
     needs:
-      - deploy-test-dev
+      - test-unit
     environment: "AWS PROD"
     steps:
       - name: Set up Node for testing
@@ -105,7 +56,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::298118738376:role/GitHubActionsRole
-          role-session-name: Core_Dev_Prod_Deployment_${{ github.run_id }}
+          role-session-name: Core_Prod_Deployment_${{ github.run_id }}
           aws-region: us-east-1
       - name: Publish to AWS
         run: make deploy_prod

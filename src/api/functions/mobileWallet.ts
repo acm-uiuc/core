@@ -67,7 +67,7 @@ export async function issueAppleWalletMembershipCard(
     secretApiConfig.apple_signing_cert_base64,
     "base64",
   ).toString("utf-8");
-  pass["passTypeIdentifier"] = environmentConfig["PasskitIdentifier"];
+  pass.passTypeIdentifier = environmentConfig.PasskitIdentifier;
   const pkpass = new PKPass(
     {
       "icon.png": await fs.readFile(icon),
@@ -82,7 +82,7 @@ export async function issueAppleWalletMembershipCard(
     },
     {
       // logoText: app.runEnvironment === "dev" ? "INVALID Membership Pass" : "Membership Pass",
-      serialNumber: environmentConfig["PasskitSerialNumber"],
+      serialNumber: environmentConfig.PasskitSerialNumber,
     },
   );
   pkpass.setBarcodes({

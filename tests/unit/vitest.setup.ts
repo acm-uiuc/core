@@ -2,12 +2,17 @@ import "zod-openapi/extend";
 import { vi, afterEach } from "vitest";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
+import {
+  GetSecretValueCommand,
+  SecretsManagerClient,
+} from "@aws-sdk/client-secrets-manager";
 import { mockClient } from "aws-sdk-client-mock";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
+import { secretJson } from "./secret.testdata.js";
 
 const ddbMock = mockClient(DynamoDBClient);
-
+const smMock = mockClient(SecretsManagerClient);
 vi.mock(
   import("../../src/api/functions/rateLimit.js"),
   async (importOriginal) => {
@@ -27,7 +32,7 @@ vi.mock(
     const mod = await importOriginal();
     return {
       ...mod,
-      getUserRoles: vi.fn(async (_, __, userEmail) => {
+      getUserRoles: vi.fn(async (_, userEmail) => {
         const mockUserRoles = {
           "infra-unit-test-nogrp@acm.illinois.edu": [AppRoles.TICKETS_SCANNER],
           "infra-unit-test-stripeonly@acm.illinois.edu": [
@@ -36,10 +41,10 @@ vi.mock(
           kLkvWTYwNnJfBkIK7mBi4niXXHYNR7ygbV8utlvFxjw: allAppRoles,
         };
 
-        return mockUserRoles[userEmail] || [];
+        return mockUserRoles[userEmail as any] || [];
       }),
 
-      getGroupRoles: vi.fn(async (_, __, groupId) => {
+      getGroupRoles: vi.fn(async (_, groupId) => {
         const mockGroupRoles = {
           "0": allAppRoles,
           "1": [],
@@ -48,7 +53,7 @@ vi.mock(
           LINKS_MANAGER: [AppRoles.LINKS_MANAGER],
         };
 
-        return mockGroupRoles[groupId] || [];
+        return mockGroupRoles[groupId as any] || [];
       }),
     };
   },
@@ -103,6 +108,15 @@ ddbMock.on(QueryCommand).callsFake((command) => {
   }
   return Promise.reject(new Error("Table not mocked"));
 });
+
+smMock.on(GetSecretValueCommand).callsFake((command) => {
+  if (command.SecretId == genericConfig.ConfigSecretName) {
+    return Promise.resolve({ SecretString: secretJson });
+  }
+  return Promise.reject(new Error("Secret ID not mocked"));
+});
+
+vi.mock("ioredis", () => import("ioredis-mock"));
 
 let mockCacheStore = new Map();
 

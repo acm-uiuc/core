@@ -12,35 +12,46 @@ import {
   CopyButton,
   Group,
   Loader,
-} from '@mantine/core';
-import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
-import { IconAlertCircle } from '@tabler/icons-react';
-import React, { useState } from 'react';
-import { PostInvoiceLinkRequest, PostInvoiceLinkResponse } from '@common/types/stripe';
-import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
+import { IconAlertCircle } from "@tabler/icons-react";
+import React, { useState } from "react";
+import {
+  PostInvoiceLinkRequest,
+  PostInvoiceLinkResponse,
+} from "@common/types/stripe";
+import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 
 interface StripeCreateLinkPanelProps {
-  createLink: (payload: PostInvoiceLinkRequest) => Promise<PostInvoiceLinkResponse>;
+  createLink: (
+    payload: PostInvoiceLinkRequest,
+  ) => Promise<PostInvoiceLinkResponse>;
 }
 
-export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({ createLink }) => {
+export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
+  createLink,
+}) => {
   const [modalOpened, setModalOpened] = useState(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [returnedLink, setReturnedLink] = useState<string | null>(null);
 
   const form = useForm({
     initialValues: {
-      invoiceId: '',
+      invoiceId: "",
       invoiceAmountUsd: 100,
-      contactName: '',
-      contactEmail: '',
+      contactName: "",
+      contactEmail: "",
     },
     validate: {
-      invoiceId: (value) => (value.length < 1 ? 'Invoice ID is required' : null),
-      invoiceAmountUsd: (value) => (value < 0.5 ? 'Amount must be at least $0.50' : null),
-      contactName: (value) => (value.length < 1 ? 'Contact Name is required' : null),
-      contactEmail: (value) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? null : 'Invalid email'),
+      invoiceId: (value) =>
+        value.length < 1 ? "Invoice ID is required" : null,
+      invoiceAmountUsd: (value) =>
+        value < 0.5 ? "Amount must be at least $0.50" : null,
+      contactName: (value) =>
+        value.length < 1 ? "Contact Name is required" : null,
+      contactEmail: (value) =>
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? null : "Invalid email",
     },
   });
 
@@ -55,9 +66,10 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({ cr
     } catch (e) {
       setIsLoading(false);
       notifications.show({
-        title: 'Error',
-        message: 'Failed to create payment link. Please try again or contact support.',
-        color: 'red',
+        title: "Error",
+        message:
+          "Failed to create payment link. Please try again or contact support.",
+        color: "red",
         icon: <IconAlertCircle size={16} />,
       });
       console.error(e);
@@ -74,7 +86,7 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({ cr
           label="Invoice ID"
           placeholder="ACM100"
           description="Make sure the Invoice ID is prefixed with a unique string for your group to avoid processing delays."
-          {...form.getInputProps('invoiceId')}
+          {...form.getInputProps("invoiceId")}
           required
         />
         <NumberInput
@@ -83,24 +95,24 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({ cr
           leftSection={<Text>$</Text>}
           placeholder="100"
           min={0.5}
-          {...form.getInputProps('invoiceAmountUsd')}
+          {...form.getInputProps("invoiceAmountUsd")}
           required
         />
         <TextInput
           label="Invoice Recipient Name"
           placeholder="John Doe"
-          {...form.getInputProps('contactName')}
+          {...form.getInputProps("contactName")}
           required
         />
         <TextInput
           label="Invoice Recipient Email"
           placeholder="email@illinois.edu"
-          {...form.getInputProps('contactEmail')}
+          {...form.getInputProps("contactEmail")}
           required
         />
 
         <Button type="submit" fullWidth mt="md" disabled={isLoading}>
-          {isLoading ? 'Creating...' : 'Create Link'}{' '}
+          {isLoading ? "Creating..." : "Create Link"}{" "}
           {isLoading && <Loader color="blue" size="sm" ml="sm" />}
         </Button>
       </form>
@@ -111,7 +123,7 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({ cr
         onClose={() => setModalOpened(false)}
         title="Payment Link Created!"
         closeOnClickOutside={false}
-        withCloseButton={true}
+        withCloseButton
       >
         {returnedLink && (
           <Box mt="md">
@@ -119,13 +131,15 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({ cr
               <Text color="blue">{returnedLink}</Text>
               <CopyButton value={returnedLink}>
                 {({ copied, copy }) => (
-                  <Button color={copied ? 'teal' : 'blue'} onClick={copy}>
-                    {copied ? 'Copied!' : 'Copy Link'}
+                  <Button color={copied ? "teal" : "blue"} onClick={copy}>
+                    {copied ? "Copied!" : "Copy Link"}
                   </Button>
                 )}
               </CopyButton>
             </Group>
-            <Text mt="sm">Provide this link to your billing contact for payment.</Text>
+            <Text mt="sm">
+              Provide this link to your billing contact for payment.
+            </Text>
           </Box>
         )}
       </Modal>

@@ -1,41 +1,35 @@
-import React from 'react';
-import { Container, Title } from '@mantine/core';
-import { AuthGuard } from '@ui/components/AuthGuard';
-import { useApi } from '@ui/util/api';
-import { UserProfileData, UserProfileDataBase } from '@common/types/msGraphApi';
-import { ManageProfileComponent } from './ManageProfileComponent';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@ui/components/AuthContext';
-import { transformCommaSeperatedName } from '@common/utils';
+import React from "react";
+import { Container, Title } from "@mantine/core";
+import { AuthGuard } from "@ui/components/AuthGuard";
+import { useApi } from "@ui/util/api";
+import { UserProfileData } from "@common/types/msGraphApi";
+import { ManageProfileComponent } from "./ManageProfileComponent";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@ui/components/AuthContext";
+import { transformCommaSeperatedName } from "@common/utils";
 
 export const ManageProfilePage: React.FC = () => {
-  const graphApi = useApi('msGraphApi');
-  const api = useApi('core');
+  const graphApi = useApi("msGraphApi");
+  const api = useApi("core");
   const { setLoginStatus } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get('returnTo') || undefined;
-  const firstTime = searchParams.get('firstTime') === 'true' || false;
+  const returnTo = searchParams.get("returnTo") || undefined;
+  const firstTime = searchParams.get("firstTime") === "true" || false;
   const getProfile = async () => {
     const raw = (
       await graphApi.get(
-        '/v1.0/me?$select=userPrincipalName,givenName,surname,displayName,otherMails,mail'
+        "/v1.0/me?$select=userPrincipalName,givenName,surname,displayName,mail",
       )
-    ).data as UserProfileDataBase;
-    const discordUsername = raw.otherMails?.filter((x) => x.endsWith('@discord'));
-    const enhanced = raw as UserProfileData;
-    if (discordUsername?.length === 1) {
-      enhanced.discordUsername = discordUsername[0].replace('@discord', '');
-      enhanced.otherMails = enhanced.otherMails?.filter((x) => !x.endsWith('@discord'));
-    }
-    const normalizedName = transformCommaSeperatedName(enhanced.displayName || '');
-    const extractedFirstName = enhanced.givenName || normalizedName.split(' ')[0];
-    let extractedLastName = enhanced.surname || normalizedName.split(' ')[1];
-    if (!enhanced.surname) {
+    ).data as UserProfileData;
+    const normalizedName = transformCommaSeperatedName(raw.displayName || "");
+    const extractedFirstName = raw.givenName || normalizedName.split(" ")[0];
+    let extractedLastName = raw.surname || normalizedName.split(" ")[1];
+    if (!raw.surname) {
       extractedLastName = extractedLastName.slice(1, extractedLastName.length);
     }
     return {
-      ...enhanced,
+      ...raw,
       displayName: normalizedName,
       givenName: extractedFirstName,
       surname: extractedLastName,
@@ -43,13 +37,7 @@ export const ManageProfilePage: React.FC = () => {
   };
 
   const setProfile = async (data: UserProfileData) => {
-    const newOtherEmails = [data.mail || data.userPrincipalName];
-    if (data.discordUsername && data.discordUsername !== '') {
-      newOtherEmails.push(`${data.discordUsername}@discord`);
-    }
-    data.otherMails = newOtherEmails;
-    delete data.discordUsername;
-    const response = await api.patch('/api/v1/iam/profile', data);
+    const response = await api.patch("/api/v1/iam/profile", data);
     if (response.status < 299 && firstTime) {
       setLoginStatus(true);
     }
@@ -60,7 +48,7 @@ export const ManageProfilePage: React.FC = () => {
   };
 
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: [] }} showSidebar={true}>
+    <AuthGuard resourceDef={{ service: "core", validRoles: [] }} showSidebar>
       <Container fluid>
         <Title>Edit Profile</Title>
         <ManageProfileComponent

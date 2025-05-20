@@ -32,7 +32,7 @@ const repeatingIcalMap: Record<EventRepeatOptions, ICalEventJSONRepeatingData> =
   };
 
 function generateHostName(host: string) {
-  if (host == "ACM" || !host) {
+  if (host === "ACM" || !host) {
     return "ACM@UIUC";
   }
   if (host.includes("ACM")) {
@@ -125,7 +125,7 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
         host && host.includes("ACM")
           ? `${host} Events`
           : `ACM@UIUC - ${host} Events`;
-      if (host == "ACM") {
+      if (host === "ACM") {
         calendarName = "ACM@UIUC - Major Events";
       }
       if (!host) {
@@ -145,9 +145,10 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
             : moment.tz(rawEvent.start, "America/Chicago"),
           summary: rawEvent.title,
           description: rawEvent.locationLink
-            ? `Host: ${rawEvent.host}\nGoogle Maps Link: ${rawEvent.locationLink}\n\n` +
-              rawEvent.description
-            : `Host: ${rawEvent.host}\n\n` + rawEvent.description,
+            ? `Host: ${rawEvent.host}\nGoogle Maps Link: ${rawEvent.locationLink}\n\n${
+                rawEvent.description
+              }`
+            : `Host: ${rawEvent.host}\n\n${rawEvent.description}`,
           timezone: "America/Chicago",
           organizer: generateHostName(host || "ACM"),
           id: rawEvent.id,

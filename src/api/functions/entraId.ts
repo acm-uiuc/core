@@ -24,7 +24,7 @@ import {
   EntraInvitationResponse,
   ProfilePatchRequest,
 } from "../../common/types/iam.js";
-import { UserProfileDataBase } from "common/types/msGraphApi.js";
+import { UserProfileData } from "common/types/msGraphApi.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { checkPaidMembershipFromTable } from "./membership.js";
@@ -40,11 +40,9 @@ export async function getEntraIdToken(
   scopes: string[] = ["https://graph.microsoft.com/.default"],
   secretName?: string,
 ) {
-  if (!secretName) {
-    secretName = genericConfig.EntraSecretName;
-  }
+  const localSecretName = secretName || genericConfig.EntraSecretName;
   const secretApiConfig =
-    (await getSecretValue(clients.smClient, secretName)) || {};
+    (await getSecretValue(clients.smClient, localSecretName)) || {};
   if (
     !secretApiConfig.entra_id_private_key ||
     !secretApiConfig.entra_id_thumbprint
@@ -59,14 +57,14 @@ export async function getEntraIdToken(
   ).toString("utf8");
   const cachedToken = await getItemFromCache(
     clients.dynamoClient,
-    `entra_id_access_token_${secretName}`,
+    `entra_id_access_token_${localSecretName}`,
   );
   if (cachedToken) {
-    return cachedToken["token"] as string;
+    return cachedToken.token as string;
   }
   const config = {
     auth: {
-      clientId: clientId,
+      clientId,
       authority: `https://login.microsoftonline.com/${genericConfig.EntraTenantId}`,
       clientCertificate: {
         thumbprint: (secretApiConfig.entra_id_thumbprint as string) || "",
@@ -89,7 +87,7 @@ export async function getEntraIdToken(
     if (result?.accessToken) {
       await insertItemIntoCache(
         clients.dynamoClient,
-        `entra_id_access_token_${secretName}`,
+        `entra_id_access_token_${localSecretName}`,
         { token: result?.accessToken },
         date,
       );
@@ -108,21 +106,21 @@ export async function getEntraIdToken(
 /**
  * Adds a user to the tenant by sending an invitation to their email
  * @param token - Entra ID token authorized to take this action.
- * @param email - The email address of the user to invite
+ * @param safeEmail - The email address of the user to invite
  * @throws {InternalServerError} If the invitation fails
  * @returns {Promise<boolean>} True if the invitation was successful
  */
 export async function addToTenant(token: string, email: string) {
-  email = email.toLowerCase().replace(/\s/g, "");
-  if (!email.endsWith("@illinois.edu")) {
+  const safeEmail = email.toLowerCase().replace(/\s/g, "");
+  if (!safeEmail.endsWith("@illinois.edu")) {
     throw new EntraInvitationError({
-      email,
+      email: safeEmail,
       message: "User's domain must be illinois.edu to be invited.",
     });
   }
   try {
     const body = {
-      invitedUserEmailAddress: email,
+      invitedUserEmailAddress: safeEmail,
       inviteRedirectUrl: "https://acm.illinois.edu",
     };
     const url = "https://graph.microsoft.com/v1.0/invitations";
@@ -139,11 +137,11 @@ export async function addToTenant(token: string, email: string) {
       const errorData = (await response.json()) as EntraInvitationResponse;
       throw new EntraInvitationError({
         message: errorData.error?.message || response.statusText,
-        email,
+        email: safeEmail,
       });
     }
 
-    return { success: true, email };
+    return { success: true, email: safeEmail };
   } catch (error) {
     if (error instanceof EntraInvitationError) {
       throw error;
@@ -151,7 +149,7 @@ export async function addToTenant(token: string, email: string) {
 
     throw new EntraInvitationError({
       message: error instanceof Error ? error.message : String(error),
-      email,
+      email: safeEmail,
     });
   }
 }
@@ -167,9 +165,9 @@ export async function resolveEmailToOid(
   token: string,
   email: string,
 ): Promise<string> {
-  email = email.toLowerCase().replace(/\s/g, "");
+  const safeEmail = email.toLowerCase().replace(/\s/g, "");
 
-  const url = `https://graph.microsoft.com/v1.0/users?$filter=mail eq '${email}'`;
+  const url = `https://graph.microsoft.com/v1.0/users?$filter=mail eq '${safeEmail}'`;
 
   const response = await fetch(url, {
     method: "GET",
@@ -191,7 +189,7 @@ export async function resolveEmailToOid(
   };
 
   if (!data.value || data.value.length === 0) {
-    throw new Error(`No user found with email: ${email}`);
+    throw new Error(`No user found with email: ${safeEmail}`);
   }
 
   return data.value[0].id;
@@ -214,8 +212,8 @@ export async function modifyGroup(
   action: EntraGroupActions,
   dynamoClient: DynamoDBClient,
 ): Promise<boolean> {
-  email = email.toLowerCase().replace(/\s/g, "");
-  if (!email.endsWith("@illinois.edu")) {
+  const safeEmail = email.toLowerCase().replace(/\s/g, "");
+  if (!safeEmail.endsWith("@illinois.edu")) {
     throw new EntraGroupError({
       group,
       message: "User's domain must be illinois.edu to be added to the group.",
@@ -234,7 +232,7 @@ export async function modifyGroup(
     paidMemberRequiredGroups.includes(group) &&
     action === EntraGroupActions.ADD
   ) {
-    const netId = email.split("@")[0];
+    const netId = safeEmail.split("@")[0];
     const isPaidMember = checkPaidMembershipFromTable(netId, dynamoClient); // we assume users have been provisioned into the table.
     if (!isPaidMember) {
       throw new EntraGroupError({
@@ -244,7 +242,7 @@ export async function modifyGroup(
     }
   }
   try {
-    const oid = await resolveEmailToOid(token, email);
+    const oid = await resolveEmailToOid(token, safeEmail);
     const methodMapper = {
       [EntraGroupActions.ADD]: "POST",
       [EntraGroupActions.REMOVE]: "DELETE",
@@ -368,15 +366,15 @@ export async function listGroupMembers(
  * @param token - Entra ID token authorized to perform this action.
  * @param userId - The user ID to fetch the profile for.
  * @throws {EntraUserError} If fetching the user profile fails.
- * @returns {Promise<UserProfileDataBase>} The user's profile information.
+ * @returns {Promise<UserProfileData>} The user's profile information.
  */
 export async function getUserProfile(
   token: string,
   email: string,
-): Promise<UserProfileDataBase> {
+): Promise<UserProfileData> {
   const userId = await resolveEmailToOid(token, email);
   try {
-    const url = `https://graph.microsoft.com/v1.0/users/${userId}?$select=userPrincipalName,givenName,surname,displayName,otherMails,mail`;
+    const url = `https://graph.microsoft.com/v1.0/users/${userId}?$select=userPrincipalName,givenName,surname,displayName,mail`;
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -394,7 +392,7 @@ export async function getUserProfile(
         email,
       });
     }
-    return (await response.json()) as UserProfileDataBase;
+    return (await response.json()) as UserProfileData;
   } catch (error) {
     if (error instanceof EntraFetchError) {
       throw error;
@@ -440,7 +438,6 @@ export async function patchUserProfile(
         email,
       });
     }
-    return;
   } catch (error) {
     if (error instanceof EntraPatchError) {
       throw error;
@@ -466,15 +463,15 @@ export async function isUserInGroup(
   email: string,
   group: string,
 ): Promise<boolean> {
-  email = email.toLowerCase().replace(/\s/g, "");
-  if (!email.endsWith("@illinois.edu")) {
+  const safeEmail = email.toLowerCase().replace(/\s/g, "");
+  if (!safeEmail.endsWith("@illinois.edu")) {
     throw new EntraGroupError({
       group,
       message: "User's domain must be illinois.edu to check group membership.",
     });
   }
   try {
-    const oid = await resolveEmailToOid(token, email);
+    const oid = await resolveEmailToOid(token, safeEmail);
     const url = `https://graph.microsoft.com/v1.0/groups/${group}/members/${oid}`;
 
     const response = await fetch(url, {

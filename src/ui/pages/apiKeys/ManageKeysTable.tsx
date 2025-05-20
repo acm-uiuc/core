@@ -13,20 +13,31 @@ import {
   Table,
   Text,
   TextInput,
-} from '@mantine/core';
-import { DateTimePicker } from '@mantine/dates';
-import { IconAlertCircle, IconEye, IconPlus, IconTrash } from '@tabler/icons-react';
-import React, { useEffect, useState } from 'react';
-import { apiKeyAllowedRoles, ApiKeyMaskedEntry, ApiKeyPostBody } from '@common/types/apiKey';
-import { useAuth } from '@ui/components/AuthContext';
-import { notifications } from '@mantine/notifications';
-import pluralize from 'pluralize';
-import dayjs from 'dayjs';
-import { AppRoles } from '@common/roles';
-import { BlurredTextDisplay } from '../../components/BlurredTextDisplay';
+} from "@mantine/core";
+import { DateTimePicker } from "@mantine/dates";
+import {
+  IconAlertCircle,
+  IconEye,
+  IconPlus,
+  IconTrash,
+} from "@tabler/icons-react";
+import React, { useEffect, useState } from "react";
+import {
+  apiKeyAllowedRoles,
+  ApiKeyMaskedEntry,
+  ApiKeyPostBody,
+} from "@common/types/apiKey";
+import { useAuth } from "@ui/components/AuthContext";
+import { notifications } from "@mantine/notifications";
+import pluralize from "pluralize";
+import dayjs from "dayjs";
+import { AppRoles } from "@common/roles";
+import { BlurredTextDisplay } from "../../components/BlurredTextDisplay";
 
 const HumanFriendlyDate = ({ date }: { date: number }) => {
-  return <Text size="sm">{dayjs(date * 1000).format('MMMM D, YYYY h:mm A')}</Text>;
+  return (
+    <Text size="sm">{dayjs(date * 1000).format("MMMM D, YYYY h:mm A")}</Text>
+  );
 };
 
 interface OrgApiKeyTableProps {
@@ -49,7 +60,8 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
   // New state for view permissions modal
-  const [viewPermissionsModalOpen, setViewPermissionsModalOpen] = useState(false);
+  const [viewPermissionsModalOpen, setViewPermissionsModalOpen] =
+    useState(false);
   const [selectedKeyForPermissions, setSelectedKeyForPermissions] =
     useState<ApiKeyMaskedEntry | null>(null);
 
@@ -62,9 +74,9 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
       setApiKeys(data);
     } catch (e) {
       notifications.show({
-        title: 'Error loading API keys',
-        message: 'Unable to fetch API keys. Try again later.',
-        color: 'red',
+        title: "Error loading API keys",
+        message: "Unable to fetch API keys. Try again later.",
+        color: "red",
         icon: <IconAlertCircle size={16} />,
       });
     } finally {
@@ -76,17 +88,17 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
     try {
       await deleteApiKeys(ids);
       notifications.show({
-        title: 'Deleted',
-        message: `${pluralize('API key', ids.length, true)} deleted successfully.`,
-        color: 'green',
+        title: "Deleted",
+        message: `${pluralize("API key", ids.length, true)} deleted successfully.`,
+        color: "green",
       });
       setSelected([]);
       fetchKeys();
     } catch (e) {
       notifications.show({
-        title: 'Delete failed',
-        message: 'Something went wrong while deleting the API keys.',
-        color: 'red',
+        title: "Delete failed",
+        message: "Something went wrong while deleting the API keys.",
+        color: "red",
         icon: <IconAlertCircle size={16} />,
       });
     } finally {
@@ -119,9 +131,9 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
       await fetchKeys();
     } catch (e) {
       notifications.show({
-        title: 'Create failed',
-        message: 'Unable to create API key.',
-        color: 'red',
+        title: "Create failed",
+        message: "Unable to create API key.",
+        color: "red",
       });
     }
   };
@@ -135,7 +147,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
             setSelected(
               event.currentTarget.checked
                 ? [...selected, entry.keyId]
-                : selected.filter((id) => id !== entry.keyId)
+                : selected.filter((id) => id !== entry.keyId),
             )
           }
         />
@@ -144,7 +156,9 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
         <Code>acmuiuc_{entry.keyId}</Code>
       </Table.Td>
       <Table.Td>{entry.description}</Table.Td>
-      <Table.Td>{entry.owner === userData?.email ? 'You' : entry.owner}</Table.Td>
+      <Table.Td>
+        {entry.owner === userData?.email ? "You" : entry.owner}
+      </Table.Td>
       <Table.Td>
         <HumanFriendlyDate date={entry.createdAt} />
       </Table.Td>
@@ -172,7 +186,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
 
   // --- Create Form State ---
   const [roles, setRoles] = useState<AppRoles[]>([]);
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState("");
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
 
   return (
@@ -185,7 +199,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
             leftSection={<IconPlus size={16} />}
             onClick={() => {
               setRoles([]);
-              setDescription('');
+              setDescription("");
               setExpiresAt(null);
               setCreateModalOpen(true);
               setCreatedKey(null);
@@ -199,7 +213,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
               leftSection={<IconTrash size={16} />}
               onClick={() => confirmDelete(selected)}
             >
-              Delete {pluralize('API Key', selected.length, true)}
+              Delete {pluralize("API Key", selected.length, true)}
             </Button>
           )}
         </Group>
@@ -214,7 +228,9 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
                   checked={apiKeys ? selected.length === apiKeys.length : false}
                   onChange={(event) =>
                     setSelected(
-                      event.currentTarget.checked && apiKeys ? apiKeys.map((k) => k.keyId) : []
+                      event.currentTarget.checked && apiKeys
+                        ? apiKeys.map((k) => k.keyId)
+                        : [],
                     )
                   }
                 />
@@ -257,7 +273,8 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
         </Table>
       </Table.ScrollContainer>
       <Text c="dimmed" size="sm">
-        All times shown in local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}).
+        All times shown in local timezone (
+        {Intl.DateTimeFormat().resolvedOptions().timeZone}).
       </Text>
 
       {/* Create Modal */}
@@ -287,7 +304,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
           label="Expires At (optional)"
           value={expiresAt}
           minDate={new Date(Date.now() + 60 * 24 * 60 * 1000)}
-          valueFormat={'MM-DD-YYYY h:mm A'}
+          valueFormat="MM-DD-YYYY h:mm A"
           onChange={setExpiresAt}
           clearable
           mt="md"
@@ -298,10 +315,12 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
               handleCreate({
                 roles,
                 description,
-                expiresAt: expiresAt ? Math.floor(expiresAt.getTime() / 1000) : undefined,
+                expiresAt: expiresAt
+                  ? Math.floor(expiresAt.getTime() / 1000)
+                  : undefined,
               })
             }
-            disabled={roles.length === 0 || description.trim() === ''}
+            disabled={roles.length === 0 || description.trim() === ""}
           >
             Create
           </Button>
@@ -321,13 +340,13 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
         {createdKey ? (
           <BlurredTextDisplay text={createdKey} />
         ) : (
-          'An error occurred and your key cannot be displayed'
+          "An error occurred and your key cannot be displayed"
         )}
         <Group justify="flex-end" mt="md">
-          <CopyButton value={createdKey || ''}>
+          <CopyButton value={createdKey || ""}>
             {({ copied, copy }) => (
-              <Button color={copied ? 'teal' : 'blue'} onClick={copy}>
-                {copied ? 'Copied!' : 'Copy Key'}
+              <Button color={copied ? "teal" : "blue"} onClick={copy}>
+                {copied ? "Copied!" : "Copy Key"}
               </Button>
             )}
           </CopyButton>
@@ -342,12 +361,15 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
         centered
       >
         <Text mb="md">
-          Are you sure you want to delete the following API {pluralize('key', idsToDelete.length)}?
+          Are you sure you want to delete the following API{" "}
+          {pluralize("key", idsToDelete.length)}?
         </Text>
         <Text mb="md" fw={500} c="red">
-          {pluralize('This', idsToDelete.length)} {pluralize('key', idsToDelete.length)} will
-          immediately be deactivated, and API requests using {pluralize('this', idsToDelete.length)}{' '}
-          {pluralize('key', idsToDelete.length)} will fail.
+          {pluralize("This", idsToDelete.length)}{" "}
+          {pluralize("key", idsToDelete.length)} will immediately be
+          deactivated, and API requests using{" "}
+          {pluralize("this", idsToDelete.length)}{" "}
+          {pluralize("key", idsToDelete.length)} will fail.
         </Text>
         <List>
           {idsToDelete.map((id) => (
@@ -414,7 +436,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
               {selectedKeyForPermissions.expiresAt ? (
                 <HumanFriendlyDate date={selectedKeyForPermissions.expiresAt} />
               ) : (
-                'Never'
+                "Never"
               )}
             </Text>
 
@@ -423,7 +445,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
             </Text>
             <Text mb="md" size="sm">
               {selectedKeyForPermissions.owner === userData?.email
-                ? 'You'
+                ? "You"
                 : selectedKeyForPermissions.owner}
             </Text>
 
@@ -433,13 +455,19 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
                   Policy Restrictions
                 </Text>
                 <Code block mt="sm">
-                  {JSON.stringify(selectedKeyForPermissions.restrictions, null, 2)}
+                  {JSON.stringify(
+                    selectedKeyForPermissions.restrictions,
+                    null,
+                    2,
+                  )}
                 </Code>
               </>
             )}
 
             <Group justify="flex-end" mt="lg">
-              <Button onClick={() => setViewPermissionsModalOpen(false)}>Close</Button>
+              <Button onClick={() => setViewPermissionsModalOpen(false)}>
+                Close
+              </Button>
             </Group>
           </>
         )}

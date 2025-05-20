@@ -81,7 +81,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       });
       const createdNotified =
         await fastify.dynamoClient.send(getReservationData);
-      if (!createdNotified.Items || createdNotified.Count == 0) {
+      if (!createdNotified.Items || createdNotified.Count === 0) {
         throw new InternalServerError({
           message: "Could not find original reservation request details",
         });
@@ -136,7 +136,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         payload: {
           to: [originalRequestor],
           subject: "Room Reservation Request Status Change",
-          content: `Your Room Reservation Request has been been moved to status "${formatStatus(request.body.status)}". Please visit ${fastify.environmentConfig["UserFacingUrl"]}/roomRequests/${semesterId}/${requestId} to view details.`,
+          content: `Your Room Reservation Request has been been moved to status "${formatStatus(request.body.status)}". Please visit ${fastify.environmentConfig.UserFacingUrl}/roomRequests/${semesterId}/${requestId} to view details.`,
         },
       };
       if (!fastify.sqsClient) {
@@ -198,10 +198,10 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       } else {
         command = new QueryCommand({
           TableName: genericConfig.RoomRequestsTableName,
-          KeyConditionExpression: "semesterId = :semesterValue",
-          FilterExpression: "begins_with(#hashKey, :username)",
+          KeyConditionExpression:
+            "semesterId = :semesterValue AND begins_with(#sortKey, :username)",
           ExpressionAttributeNames: {
-            "#hashKey": "userId#requestId",
+            "#sortKey": "userId#requestId",
           },
           ProjectionExpression: "requestId, host, title, semester",
           ExpressionAttributeValues: {
@@ -243,7 +243,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           if (
             !statusResponse ||
             !statusResponse.Items ||
-            statusResponse.Items.length == 0
+            statusResponse.Items.length === 0
           ) {
             return "unknown";
           }
@@ -282,8 +282,11 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       const body = {
         ...request.body,
-        eventStart: request.body.eventStart.toUTCString(),
-        eventEnd: request.body.eventStart.toUTCString(),
+        eventStart: request.body.eventStart.toISOString(),
+        eventEnd: request.body.eventEnd.toISOString(),
+        ...(request.body.recurrenceEndDate
+          ? { recurrenceEndDate: request.body.recurrenceEndDate.toISOString() }
+          : {}),
         requestId,
         userId: request.username,
         "userId#requestId": `${request.username}#${requestId}`,
@@ -347,7 +350,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         payload: {
           to: [notificationRecipients[fastify.runEnvironment].OfficerBoard],
           subject: "New Room Reservation Request",
-          content: `A new room reservation request has been created (${request.body.host} | ${request.body.title}). Please visit ${fastify.environmentConfig["UserFacingUrl"]}/roomRequests/${request.body.semester}/${requestId} to view details.`,
+          content: `A new room reservation request has been created (${request.body.host} | ${request.body.title}). Please visit ${fastify.environmentConfig.UserFacingUrl}/roomRequests/${request.body.semester}/${requestId} to view details.`,
         },
       };
       if (!fastify.sqsClient) {
@@ -426,7 +429,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       try {
         const resp = await fastify.dynamoClient.send(command);
-        if (!resp.Items || resp.Count != 1) {
+        if (!resp.Items || resp.Count !== 1) {
           throw new DatabaseFetchError({
             message: "Recieved no response.",
           });
@@ -451,10 +454,10 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           const updates = statusesResponse.Items?.map((x) => {
             const unmarshalled = unmarshall(x);
             return {
-              createdBy: unmarshalled["createdBy"],
+              createdBy: unmarshalled.createdBy,
               createdAt: unmarshalled["createdAt#status"].split("#")[0],
               status: unmarshalled["createdAt#status"].split("#")[1],
-              notes: unmarshalled["notes"],
+              notes: unmarshalled.notes,
             };
           });
           return reply

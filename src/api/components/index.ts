@@ -47,7 +47,7 @@ export function withRoles<T extends FastifyZodOpenApiSchema>(
     "x-disable-api-key-auth": disableApiKeyAuth,
     description:
       roles.length > 0
-        ? `${disableApiKeyAuth ? "API key authentication is not permitted for this route.\n\n" : ""}Requires one of the following roles: ${roles.join(", ")}.${schema.description ? "\n\n" + schema.description : ""}`
+        ? `${disableApiKeyAuth ? "API key authentication is not permitted for this route.\n\n" : ""}Requires one of the following roles: ${roles.join(", ")}.${schema.description ? `\n\n${schema.description}` : ""}`
         : "Requires valid authentication but no specific role.",
     ...schema,
   };

@@ -22,19 +22,19 @@ export async function fetchLinkEntry(
     ScanIndexForward: false,
   });
   const result = await dynamoClient.send(fetchLinkEntry);
-  if (!result.Items || result.Items.length == 0) {
+  if (!result.Items || result.Items.length === 0) {
     return null;
   }
   const unmarshalled = result.Items.map((x) => unmarshall(x));
   const ownerRecord = unmarshalled.filter((x) =>
-    (x["access"] as string).startsWith("OWNER#"),
+    (x.access as string).startsWith("OWNER#"),
   )[0];
   return {
     ...ownerRecord,
     access: unmarshalled
-      .filter((x) => (x["access"] as string).startsWith("GROUP#"))
-      .map((x) => (x["access"] as string).replace("GROUP#", "")),
-    owner: ownerRecord["access"].replace("OWNER#", ""),
+      .filter((x) => (x.access as string).startsWith("GROUP#"))
+      .map((x) => (x.access as string).replace("GROUP#", "")),
+    owner: ownerRecord.access.replace("OWNER#", ""),
   } as LinkRecord;
 }
 
@@ -148,10 +148,10 @@ export async function getAllLinks(
   const response = await dynamoClient.send(scan);
   const unmarshalled = (response.Items || []).map((item) => unmarshall(item));
   const ownerRecords = unmarshalled.filter((x) =>
-    (x["access"] as string).startsWith("OWNER#"),
+    (x.access as string).startsWith("OWNER#"),
   );
   const delegations = unmarshalled.filter(
-    (x) => !(x["access"] as string).startsWith("OWNER#"),
+    (x) => !(x.access as string).startsWith("OWNER#"),
   );
   const accessGroupMap: Record<string, string[]> = {}; // maps slug to access groups
   for (const deleg of delegations) {
@@ -164,7 +164,7 @@ export async function getAllLinks(
   return ownerRecords.map((x) => ({
     ...x,
     access: accessGroupMap[x.slug],
-    owner: x["access"].replace("OWNER#", ""),
+    owner: x.access.replace("OWNER#", ""),
   })) as LinkRecord[];
 }
 
@@ -200,7 +200,9 @@ export async function getDelegatedLinks(
         ),
       ];
 
-      if (!delegatedSlugs.length) return [];
+      if (!delegatedSlugs.length) {
+        return [];
+      }
 
       // Fetch entry records
       const results = await Promise.all(
@@ -225,7 +227,9 @@ export async function getDelegatedLinks(
               ? unmarshall(ownerResponse.Items[0])
               : null;
 
-            if (!ownerRecord) return null;
+            if (!ownerRecord) {
+              return null;
+            }
             const groupQuery = new QueryCommand({
               TableName: tableName,
               KeyConditionExpression:

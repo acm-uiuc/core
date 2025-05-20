@@ -21,8 +21,7 @@ import {
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { validateEmail } from "../functions/validation.js";
 import { AppRoles } from "../../common/roles.js";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ItemPostData, postMetadataSchema } from "common/types/tickets.js";
+import { postMetadataSchema } from "common/types/tickets.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
@@ -62,13 +61,11 @@ const ticketInfoEntryZod = ticketEntryZod.extend({
 
 type TicketInfoEntry = z.infer<typeof ticketInfoEntryZod>;
 
-const responseJsonSchema = zodToJsonSchema(ticketEntryZod);
+const responseJsonSchema = ticketEntryZod;
 
-const getTicketsResponseJsonSchema = zodToJsonSchema(
-  z.object({
-    tickets: z.array(ticketInfoEntryZod),
-  }),
-);
+const getTicketsResponse = z.object({
+  tickets: z.array(ticketInfoEntryZod),
+});
 
 const baseItemMetadata = z.object({
   itemId: z.string().min(1),
@@ -88,12 +85,10 @@ const ticketingItemMetadata = baseItemMetadata.extend({
 type ItemMetadata = z.infer<typeof baseItemMetadata>;
 type TicketItemMetadata = z.infer<typeof ticketingItemMetadata>;
 
-const listMerchItemsResponseJsonSchema = zodToJsonSchema(
-  z.object({
-    merch: z.array(baseItemMetadata),
-    tickets: z.array(ticketingItemMetadata),
-  }),
-);
+const listMerchItemsResponse = z.object({
+  merch: z.array(baseItemMetadata),
+  tickets: z.array(ticketingItemMetadata),
+});
 
 const postSchema = z.union([postMerchSchema, postTicketSchema]);
 
@@ -247,14 +242,14 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             issuedTickets.push({
               type: "merch",
               valid: true,
-              ticketId: unmarshalled["stripe_pi"],
-              refunded: unmarshalled["refunded"],
-              fulfilled: unmarshalled["fulfilled"],
+              ticketId: unmarshalled.stripe_pi,
+              refunded: unmarshalled.refunded,
+              fulfilled: unmarshalled.fulfilled,
               purchaserData: {
-                email: unmarshalled["email"],
+                email: unmarshalled.email,
                 productId: eventId,
-                quantity: unmarshalled["quantity"],
-                size: unmarshalled["size"],
+                quantity: unmarshalled.quantity,
+                size: unmarshalled.size,
               },
             });
           }
@@ -420,19 +415,19 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         }
         const attributes = unmarshall(ticketEntry.Attributes);
         if (request.body.type === "ticket") {
-          const rawData = attributes["ticketholder_netid"];
-          const isEmail = validateEmail(attributes["ticketholder_netid"]);
+          const rawData = attributes.ticketholder_netid;
+          const isEmail = validateEmail(attributes.ticketholder_netid);
           purchaserData = {
             email: isEmail ? rawData : `${rawData}@illinois.edu`,
-            productId: attributes["event_id"],
+            productId: attributes.event_id,
             quantity: 1,
           };
         } else {
           purchaserData = {
-            email: attributes["email"],
-            productId: attributes["item_id"],
-            quantity: attributes["quantity"],
-            size: attributes["size"],
+            email: attributes.email,
+            productId: attributes.item_id,
+            quantity: attributes.quantity,
+            size: attributes.size,
           };
         }
       } catch (e: unknown) {
@@ -446,12 +441,12 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         if (e instanceof ConditionalCheckFailedException) {
           if (e.Item) {
             const unmarshalled = unmarshall(e.Item);
-            if (unmarshalled["fulfilled"] || unmarshalled["used"]) {
+            if (unmarshalled.fulfilled || unmarshalled.used) {
               throw new TicketNotValidError({
                 message: "Ticket has already been used.",
               });
             }
-            if (unmarshalled["refunded"]) {
+            if (unmarshalled.refunded) {
               throw new TicketNotValidError({
                 message: "Ticket was already refunded.",
               });

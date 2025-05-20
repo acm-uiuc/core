@@ -10,15 +10,15 @@ import {
   Group,
   LoadingOverlay,
   Select,
-} from '@mantine/core';
-import { IconAlertCircle, IconCheck, IconCamera } from '@tabler/icons-react';
-import jsQR from 'jsqr';
-import React, { useEffect, useState, useRef } from 'react';
+} from "@mantine/core";
+import { IconAlertCircle, IconCheck, IconCamera } from "@tabler/icons-react";
+import jsQR from "jsqr";
+import React, { useEffect, useState, useRef } from "react";
 
-import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
-import { AuthGuard } from '@ui/components/AuthGuard';
-import { useApi } from '@ui/util/api';
-import { AppRoles } from '@common/roles';
+import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import { AuthGuard } from "@ui/components/AuthGuard";
+import { useApi } from "@ui/util/api";
+import { AppRoles } from "@common/roles";
 
 interface QRDataMerch {
   type: string;
@@ -39,8 +39,8 @@ export interface PurchaseData {
 }
 
 export enum ProductType {
-  Merch = 'merch',
-  Ticket = 'ticket',
+  Merch = "merch",
+  Ticket = "ticket",
 }
 
 export interface APIResponseSchema {
@@ -55,14 +55,18 @@ type QRData = QRDataMerch | QRDataTicket;
 export const recursiveToCamel = (item: unknown): unknown => {
   if (Array.isArray(item)) {
     return item.map((el: unknown) => recursiveToCamel(el));
-  } else if (typeof item === 'function' || item !== Object(item)) {
+  } else if (typeof item === "function" || item !== Object(item)) {
     return item;
   }
   return Object.fromEntries(
-    Object.entries(item as Record<string, unknown>).map(([key, value]: [string, unknown]) => [
-      key.replace(/([-_][a-z])/gi, (c) => c.toUpperCase().replace(/[-_]/g, '')),
-      recursiveToCamel(value),
-    ])
+    Object.entries(item as Record<string, unknown>).map(
+      ([key, value]: [string, unknown]) => [
+        key.replace(/([-_][a-z])/gi, (c) =>
+          c.toUpperCase().replace(/[-_]/g, ""),
+        ),
+        recursiveToCamel(value),
+      ],
+    ),
   );
 };
 
@@ -70,18 +74,20 @@ export const ScanTicketsPage: React.FC = () => {
   const [orgList, setOrgList] = useState<string[] | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [scanResult, setScanResult] = useState<APIResponseSchema | null>(null);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [lastScannedCode, setLastScannedCode] = useState<string>('');
-  const [videoDevices, setVideoDevices] = useState<{ value: string; label: string }[]>([]);
+  const [lastScannedCode, setLastScannedCode] = useState<string>("");
+  const [videoDevices, setVideoDevices] = useState<
+    { value: string; label: string }[]
+  >([]);
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
 
-  const api = useApi('core');
+  const api = useApi("core");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animationFrameId = useRef<number>();
+  const animationFrameId = useRef<number>(0);
   const lastScanTime = useRef<number>(0);
   const isScanningRef = useRef(false); // Use ref for immediate updates
 
@@ -89,14 +95,14 @@ export const ScanTicketsPage: React.FC = () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices
-        .filter((device) => device.kind === 'videoinput')
+        .filter((device) => device.kind === "videoinput")
         .map((device) => ({
           value: device.deviceId,
           label:
             device.label ||
             (device.deviceId.slice(0, 4)
               ? `Camera ${device.deviceId.slice(0, 4)}...`
-              : 'Unknown Camera'),
+              : "Unknown Camera"),
         }));
 
       setVideoDevices(videoDevices);
@@ -104,8 +110,8 @@ export const ScanTicketsPage: React.FC = () => {
       // Try to find and select a back-facing camera by default
       const backCamera = videoDevices.find(
         (device) =>
-          device.label.toLowerCase().includes('back') ||
-          device.label.toLowerCase().includes('environment')
+          device.label.toLowerCase().includes("back") ||
+          device.label.toLowerCase().includes("environment"),
       );
 
       if (backCamera) {
@@ -114,20 +120,20 @@ export const ScanTicketsPage: React.FC = () => {
         setSelectedDevice(videoDevices[0].value);
       }
     } catch (err) {
-      console.error('Error getting video devices:', err);
-      setError('Failed to get camera list. Please check camera permissions.');
+      console.error("Error getting video devices:", err);
+      setError("Failed to get camera list. Please check camera permissions.");
     }
   };
 
   useEffect(() => {
     const getOrgs = async () => {
-      const response = await api.get('/api/v1/organizations');
+      const response = await api.get("/api/v1/organizations");
       setOrgList(response.data);
     };
     getOrgs();
 
     // Initialize canvas
-    canvasRef.current = document.createElement('canvas');
+    canvasRef.current = document.createElement("canvas");
     getVideoDevices();
     return () => {
       stopScanning();
@@ -137,9 +143,13 @@ export const ScanTicketsPage: React.FC = () => {
     };
   }, []);
 
-  const processVideoFrame = async (video: HTMLVideoElement): Promise<string | null> => {
+  const processVideoFrame = async (
+    video: HTMLVideoElement,
+  ): Promise<string | null> => {
     const canvas = canvasRef.current;
-    if (!canvas) return null;
+    if (!canvas) {
+      return null;
+    }
 
     const width = video.videoWidth;
     const height = video.videoHeight;
@@ -147,21 +157,28 @@ export const ScanTicketsPage: React.FC = () => {
     canvas.width = width;
     canvas.height = height;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return null;
+    }
 
     ctx.drawImage(video, 0, 0, width, height);
     const imageData = ctx.getImageData(0, 0, width, height);
 
     const code = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: 'dontInvert',
+      inversionAttempts: "dontInvert",
     });
 
     return code?.data || null;
   };
 
   const processFrame = async () => {
-    if (!isScanningRef.current || !videoRef.current || !streamRef.current || showModal) {
+    if (
+      !isScanningRef.current ||
+      !videoRef.current ||
+      !streamRef.current ||
+      showModal
+    ) {
       return;
     }
 
@@ -170,7 +187,7 @@ export const ScanTicketsPage: React.FC = () => {
       if (qrCode && qrCode !== lastScannedCode) {
         try {
           const parsedData = JSON.parse(qrCode);
-          if (['merch', 'ticket'].includes(parsedData['type'])) {
+          if (["merch", "ticket"].includes(parsedData.type)) {
             const now = Date.now();
             if (now - lastScanTime.current > 2000) {
               lastScanTime.current = now;
@@ -181,11 +198,11 @@ export const ScanTicketsPage: React.FC = () => {
             }
           }
         } catch (err) {
-          console.warn('Invalid QR code format:', err);
+          console.warn("Invalid QR code format:", err);
         }
       }
     } catch (err) {
-      console.error('Frame processing error:', err);
+      console.error("Frame processing error:", err);
     }
 
     // Schedule next frame if still scanning
@@ -196,11 +213,11 @@ export const ScanTicketsPage: React.FC = () => {
 
   const startScanning = async () => {
     try {
-      setError('');
+      setError("");
       setIsLoading(true);
       setIsScanning(true);
       isScanningRef.current = true;
-      setLastScannedCode('');
+      setLastScannedCode("");
       lastScanTime.current = 0;
 
       if (streamRef.current) {
@@ -214,7 +231,7 @@ export const ScanTicketsPage: React.FC = () => {
       const constraints = {
         video: selectedDevice
           ? { deviceId: { exact: selectedDevice } }
-          : { facingMode: 'environment' },
+          : { facingMode: "environment" },
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -243,8 +260,8 @@ export const ScanTicketsPage: React.FC = () => {
         animationFrameId.current = requestAnimationFrame(processFrame);
       }
     } catch (err) {
-      console.error('Start scanning error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to start camera');
+      console.error("Start scanning error:", err);
+      setError(err instanceof Error ? err.message : "Failed to start camera");
       setIsScanning(false);
       isScanningRef.current = false;
       setIsLoading(false);
@@ -276,20 +293,26 @@ export const ScanTicketsPage: React.FC = () => {
 
   const handleSuccessfulScan = async (parsedData: QRData) => {
     try {
-      const response = await api.post(`/api/v1/tickets/checkIn`, recursiveToCamel(parsedData));
+      const response = await api.post(
+        `/api/v1/tickets/checkIn`,
+        recursiveToCamel(parsedData),
+      );
       if (!response.data.valid) {
-        throw new Error('Ticket is invalid.');
+        throw new Error("Ticket is invalid.");
       }
       setScanResult(response.data as APIResponseSchema);
       setShowModal(true);
     } catch (err: any) {
       if (err.response && err.response.data) {
         setError(
-          `Error ${err.response.data.id} (${err.response.data.name}): ${err.response.data.message}` ||
-            'System encountered a failure, please contact the ACM Infra Chairs.'
+          err.response.data
+            ? `Error ${err.response.data.id} (${err.response.data.name}): ${err.response.data.message}`
+            : "System encountered a failure, please contact the ACM Infra Chairs.",
         );
       } else {
-        setError(err instanceof Error ? err.message : 'Failed to process ticket');
+        setError(
+          err instanceof Error ? err.message : "Failed to process ticket",
+        );
       }
       setShowModal(true);
     }
@@ -297,7 +320,7 @@ export const ScanTicketsPage: React.FC = () => {
 
   const handleNextScan = () => {
     setScanResult(null);
-    setError('');
+    setError("");
     setShowModal(false);
   };
 
@@ -306,28 +329,30 @@ export const ScanTicketsPage: React.FC = () => {
   }
 
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_SCANNER] }}>
+    <AuthGuard
+      resourceDef={{ service: "core", validRoles: [AppRoles.TICKETS_SCANNER] }}
+    >
       <Box p="md">
         <Title order={2}>Scan Tickets</Title>
         <Paper shadow="sm" p="md" withBorder maw={600} mx="auto" w="100%">
           <Stack align="center" w="100%">
             <div
               style={{
-                width: '100%',
-                minHeight: '400px',
-                maxHeight: '70vh',
-                height: '100%',
-                position: 'relative',
-                aspectRatio: '4/3',
+                width: "100%",
+                minHeight: "400px",
+                maxHeight: "70vh",
+                height: "100%",
+                position: "relative",
+                aspectRatio: "4/3",
               }}
             >
               <video
                 ref={videoRef}
                 style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  borderRadius: '8px',
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  borderRadius: "8px",
                 }}
                 playsInline
                 muted
@@ -355,10 +380,10 @@ export const ScanTicketsPage: React.FC = () => {
             <Button
               onClick={isScanning ? stopScanning : startScanning}
               leftSection={<IconCamera size={16} />}
-              color={isScanning ? 'red' : 'blue'}
+              color={isScanning ? "red" : "blue"}
               fullWidth
             >
-              {isScanning ? 'Stop Camera' : 'Start Camera'}
+              {isScanning ? "Stop Camera" : "Start Camera"}
             </Button>
 
             {error && !showModal && (
@@ -377,7 +402,7 @@ export const ScanTicketsPage: React.FC = () => {
         <Modal
           opened={showModal}
           onClose={handleNextScan}
-          title={error ? 'Scan Error - DO NOT HONOR' : 'Scan Result'}
+          title={error ? "Scan Error - DO NOT HONOR" : "Scan Result"}
           size="lg"
           centered
         >

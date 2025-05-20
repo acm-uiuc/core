@@ -185,7 +185,7 @@ const dynamoTableDataUnmarshalledUpcomingOnly = dynamoTableData
     delete temp.createdBy;
     return temp;
   })
-  .filter((x: any) => x.title != "Event in the past.");
+  .filter((x: any) => x.title !== "Event in the past.");
 
 export {
   dynamoTableData,

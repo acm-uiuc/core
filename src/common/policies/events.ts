@@ -6,7 +6,7 @@ import { FastifyRequest } from "fastify";
 export const hostRestrictionPolicy = createPolicy(
   "EventsHostRestrictionPolicy",
   z.object({ host: z.array(z.enum(OrganizationList)) }),
-  (request: FastifyRequest, params) => {
+  (request: FastifyRequest & { username?: string }, params) => {
     if (!request.url.startsWith("/api/v1/events")) {
       return {
         allowed: true,
@@ -14,7 +14,7 @@ export const hostRestrictionPolicy = createPolicy(
         cacheKey: null,
       };
     }
-    const typedBody = request.body as { host: string };
+    const typedBody = request.body as { host: string, featured: boolean };
     if (!typedBody || !typedBody["host"]) {
       return {
         allowed: true,
@@ -22,10 +22,17 @@ export const hostRestrictionPolicy = createPolicy(
         cacheKey: null,
       };
     }
+    if (typedBody["featured"]) {
+      return {
+        allowed: false,
+        message: `Denied by policy "EventsHostRestrictionPolicy". Event must not be featured.`,
+        cacheKey: request.username || null,
+      };
+    }
     if (!params.host.includes(typedBody["host"])) {
       return {
         allowed: false,
-        message: `Denied by policy "EventsHostRestrictionPolicy".`,
+        message: `Denied by policy "EventsHostRestrictionPolicy". Host must be one of: ${params.host.toString()}.`,
         cacheKey: request.username || null,
       };
     }

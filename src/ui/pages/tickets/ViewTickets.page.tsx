@@ -1,14 +1,23 @@
-import { Table, Text, Group, Pagination, Select, Badge, Title, Button } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import pluralize from 'pluralize';
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { z } from 'zod';
+import {
+  Table,
+  Text,
+  Group,
+  Pagination,
+  Select,
+  Badge,
+  Title,
+  Button,
+} from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import pluralize from "pluralize";
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { z } from "zod";
 
-import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
-import { AuthGuard } from '@ui/components/AuthGuard';
-import { useApi } from '@ui/util/api';
-import { AppRoles } from '@common/roles';
+import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import { AuthGuard } from "@ui/components/AuthGuard";
+import { useApi } from "@ui/util/api";
+import { AppRoles } from "@common/roles";
 
 // Define the schemas
 const purchaseSchema = z.object({
@@ -20,7 +29,7 @@ const purchaseSchema = z.object({
 
 const ticketEntrySchema = z.object({
   valid: z.boolean(),
-  type: z.enum(['merch', 'ticket']),
+  type: z.enum(["merch", "ticket"]),
   ticketId: z.string().min(1),
   refunded: z.boolean(),
   fulfilled: z.boolean(),
@@ -34,15 +43,15 @@ const ticketsResponseSchema = z.object({
 type TicketEntry = z.infer<typeof ticketEntrySchema>;
 
 const getTicketStatus = (
-  ticket: TicketEntry
-): { status: 'fulfilled' | 'unfulfilled' | 'refunded'; color: string } => {
+  ticket: TicketEntry,
+): { status: "fulfilled" | "unfulfilled" | "refunded"; color: string } => {
   if (ticket.refunded) {
-    return { status: 'refunded', color: 'red' };
+    return { status: "refunded", color: "red" };
   }
   if (ticket.fulfilled) {
-    return { status: 'fulfilled', color: 'green' };
+    return { status: "fulfilled", color: "green" };
   }
-  return { status: 'unfulfilled', color: 'orange' };
+  return { status: "unfulfilled", color: "orange" };
 };
 
 enum TicketsCopyMode {
@@ -55,47 +64,47 @@ const ViewTicketsPage: React.FC = () => {
   const { eventId } = useParams();
   const [allTickets, setAllTickets] = useState<TicketEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const api = useApi('core');
+  const api = useApi("core");
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [totalQuantitySold, setTotalQuantitySold] = useState(0);
-  const [pageSize, setPageSize] = useState<string>('10');
-  const pageSizeOptions = ['10', '25', '50', '100'];
+  const [pageSize, setPageSize] = useState<string>("10");
+  const pageSizeOptions = ["10", "25", "50", "100"];
 
   const copyEmails = (mode: TicketsCopyMode) => {
     try {
       let emailsToCopy: string[] = [];
-      let copyModeHumanString = '';
+      let copyModeHumanString = "";
       const nonRefundedTickets = allTickets.filter((x) => !x.refunded);
       switch (mode) {
         case TicketsCopyMode.ALL:
           emailsToCopy = nonRefundedTickets.map((x) => x.purchaserData.email);
-          copyModeHumanString = 'All';
+          copyModeHumanString = "All";
           break;
         case TicketsCopyMode.FULFILLED:
           emailsToCopy = nonRefundedTickets
             .filter((x) => x.fulfilled)
             .map((x) => x.purchaserData.email);
-          copyModeHumanString = 'Fulfilled';
+          copyModeHumanString = "Fulfilled";
           break;
         case TicketsCopyMode.UNFULFILLED:
           emailsToCopy = nonRefundedTickets
             .filter((x) => !x.fulfilled)
             .map((x) => x.purchaserData.email);
-          copyModeHumanString = 'Unfulfilled';
+          copyModeHumanString = "Unfulfilled";
           break;
       }
       emailsToCopy = [...new Set(emailsToCopy)];
-      navigator.clipboard.writeText(emailsToCopy.join(';'));
+      navigator.clipboard.writeText(emailsToCopy.join(";"));
       notifications.show({
         message: `${copyModeHumanString} emails copied!`,
       });
     } catch (e) {
       notifications.show({
-        title: 'Failed to copy emails',
-        message: 'Please try again or contact support.',
-        color: 'red',
+        title: "Failed to copy emails",
+        message: "Please try again or contact support.",
+        color: "red",
       });
     }
   };
@@ -103,23 +112,23 @@ const ViewTicketsPage: React.FC = () => {
   async function checkInUser(ticket: TicketEntry) {
     try {
       const response = await api.post(`/api/v1/tickets/checkIn`, {
-        type: ticket['type'],
-        email: ticket['purchaserData']['email'],
-        stripePi: ticket['ticketId'],
+        type: ticket.type,
+        email: ticket.purchaserData.email,
+        stripePi: ticket.ticketId,
       });
       if (!response.data.valid) {
-        throw new Error('Ticket is invalid.');
+        throw new Error("Ticket is invalid.");
       }
       notifications.show({
-        title: 'Fulfilled',
-        message: 'Marked item as fulfilled.',
+        title: "Fulfilled",
+        message: "Marked item as fulfilled.",
       });
       await getTickets();
     } catch {
       notifications.show({
-        title: 'Error marking as fulfilled',
-        message: 'Failed to fulfill item. Please try again later.',
-        color: 'red',
+        title: "Error marking as fulfilled",
+        message: "Failed to fulfill item. Please try again later.",
+        color: "red",
       });
     }
   }
@@ -135,11 +144,11 @@ const ViewTicketsPage: React.FC = () => {
       setTotalQuantitySold(localQuantitySold);
       setAllTickets(parsedResponse.tickets);
     } catch (error) {
-      console.error('Error fetching tickets:', error);
+      console.error("Error fetching tickets:", error);
       notifications.show({
-        title: 'Error fetching tickets',
-        message: 'Failed to load tickets. Please try again later.',
-        color: 'red',
+        title: "Error fetching tickets",
+        message: "Failed to load tickets. Please try again later.",
+        color: "red",
       });
     } finally {
       setLoading(false);
@@ -155,12 +164,14 @@ const ViewTicketsPage: React.FC = () => {
 
   // Calculate pagination
   const totalItems = allTickets.length;
-  const totalPages = Math.ceil(totalItems / parseInt(pageSize));
-  const startIndex = (currentPage - 1) * parseInt(pageSize);
-  const endIndex = startIndex + parseInt(pageSize);
+  const totalPages = Math.ceil(totalItems / parseInt(pageSize, 10));
+  const startIndex = (currentPage - 1) * parseInt(pageSize, 10);
+  const endIndex = startIndex + parseInt(pageSize, 10);
   const currentTickets = allTickets.slice(startIndex, endIndex);
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}>
+    <AuthGuard
+      resourceDef={{ service: "core", validRoles: [AppRoles.TICKETS_MANAGER] }}
+    >
       <Title order={2}>View Tickets/Merch Sales</Title>
       <Group mt="md">
         <Button
@@ -188,7 +199,7 @@ const ViewTicketsPage: React.FC = () => {
       <Text size="xs">Note: all lists do not include refunded tickets.</Text>
       <div>
         <Title mt="md" order={4}>
-          {pluralize('item', totalQuantitySold, true)} sold
+          {pluralize("item", totalQuantitySold, true)} sold
         </Title>
         <Table>
           <Table.Thead>
@@ -211,12 +222,15 @@ const ViewTicketsPage: React.FC = () => {
                     <Badge color={color}>{status}</Badge>
                   </Table.Td>
                   <Table.Td>{ticket.purchaserData.quantity}</Table.Td>
-                  <Table.Td>{ticket.purchaserData.size || 'N/A'}</Table.Td>
+                  <Table.Td>{ticket.purchaserData.size || "N/A"}</Table.Td>
                   <Table.Td>{ticket.ticketId}</Table.Td>
                   <Table.Td>
                     {!(ticket.fulfilled || ticket.refunded) && (
                       <AuthGuard
-                        resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_SCANNER] }}
+                        resourceDef={{
+                          service: "core",
+                          validRoles: [AppRoles.TICKETS_SCANNER],
+                        }}
                         isAppShell={false}
                       >
                         <Button
@@ -243,15 +257,15 @@ const ViewTicketsPage: React.FC = () => {
             <Select
               value={pageSize}
               onChange={(value) => {
-                setPageSize(value || '10');
+                setPageSize(value || "10");
                 setCurrentPage(1); // Reset to first page when changing page size
               }}
               data={pageSizeOptions}
               style={{ width: 80 }}
             />
             <Text size="sm">
-              Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of{' '}
-              {pluralize('entry', totalItems, true)}
+              Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of{" "}
+              {pluralize("entry", totalItems, true)}
             </Text>
           </Group>
           <Pagination

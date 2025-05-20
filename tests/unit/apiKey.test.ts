@@ -2,12 +2,8 @@ import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
-import { secretJson, secretObject } from "./secret.testdata.js";
+import { secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
 import {
   ConditionalCheckFailedException,
   DynamoDBClient,
@@ -32,7 +28,6 @@ vi.mock("../../src/api/functions/apiKey.js", () => {
 
 // Mock DynamoDB client
 const dynamoMock = mockClient(DynamoDBClient);
-const smMock = mockClient(SecretsManagerClient);
 const jwt_secret = secretObject["jwt_key"];
 
 vi.stubEnv("JwtSigningKey", jwt_secret);
@@ -42,12 +37,7 @@ const app = await init();
 describe("API Key Route Tests", () => {
   beforeEach(() => {
     dynamoMock.reset();
-    smMock.reset();
     vi.clearAllMocks();
-
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
 
     dynamoMock.on(TransactWriteItemsCommand).resolves({});
 

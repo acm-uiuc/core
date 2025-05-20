@@ -31,11 +31,11 @@ export async function createAuditLogEntry({
   dynamoClient,
   entry,
 }: AuditLogParams) {
-  if (!dynamoClient) {
-    dynamoClient = new DynamoDBClient({
+  const safeDynamoClient =
+    dynamoClient ||
+    new DynamoDBClient({
       region: genericConfig.AwsRegion,
     });
-  }
 
   const item = buildMarshalledAuditLogItem(entry);
 
@@ -44,7 +44,7 @@ export async function createAuditLogEntry({
     Item: item,
   });
 
-  return dynamoClient.send(command);
+  return safeDynamoClient.send(command);
 }
 
 export function buildAuditLogTransactPut({

@@ -12,20 +12,13 @@ import {
 } from "../../common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { genericConfig } from "../../common/config.js";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import rateLimiter from "api/plugins/rateLimiter.js";
-import {
-  FastifyZodOpenApiTypeProvider,
-  serializerCompiler,
-  validatorCompiler,
-} from "fastify-zod-openapi";
+import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { withTags } from "api/components/index.js";
 
-const queuedResponseJsonSchema = zodToJsonSchema(
-  z.object({
-    queueId: z.string().uuid(),
-  }),
-);
+const queuedResponseJsonSchema = z.object({
+  queueId: z.string().uuid(),
+});
 
 const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {

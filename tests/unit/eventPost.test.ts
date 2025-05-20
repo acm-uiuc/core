@@ -8,16 +8,11 @@ import {
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
 import { secretJson, secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 import { marshall } from "@aws-sdk/util-dynamodb";
 
 const ddbMock = mockClient(DynamoDBClient);
-const smMock = mockClient(SecretsManagerClient);
 const jwt_secret = secretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
@@ -81,9 +76,6 @@ test("Sad path: Prevent empty body request", async () => {
 });
 test("Sad path: Prevent specifying repeatEnds on non-repeating events", async () => {
   ddbMock.on(PutItemCommand).resolves({});
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
   const testJwt = createJwt();
   await app.ready();
   const response = await supertest(app.server)
@@ -112,9 +104,6 @@ test("Sad path: Prevent specifying repeatEnds on non-repeating events", async ()
 
 test("Sad path: Prevent specifying unknown repeat frequencies", async () => {
   ddbMock.on(PutItemCommand).resolves({});
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
   const testJwt = createJwt();
   await app.ready();
   const response = await supertest(app.server)
@@ -144,9 +133,6 @@ test("Sad path: Prevent specifying unknown repeat frequencies", async () => {
 
 test("Happy path: Adding a non-repeating, featured, paid event", async () => {
   ddbMock.on(PutItemCommand).resolves({});
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
   const testJwt = createJwt();
   await app.ready();
   const response = await supertest(app.server)
@@ -176,9 +162,6 @@ test("Happy path: Adding a non-repeating, featured, paid event", async () => {
 
 test("Happy path: Adding a weekly repeating, non-featured, paid event", async () => {
   ddbMock.on(PutItemCommand).resolves({});
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
   const testJwt = createJwt();
   await app.ready();
   const response = await supertest(app.server)
@@ -211,13 +194,7 @@ describe("ETag Lifecycle Tests", () => {
     // Setup
     (app as any).nodeCache.flushAll();
     ddbMock.reset();
-    smMock.reset();
     vi.useFakeTimers();
-
-    // Mock secrets manager
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
 
     // Mock successful DynamoDB operations
     ddbMock.on(PutItemCommand).resolves({});
@@ -299,13 +276,7 @@ describe("ETag Lifecycle Tests", () => {
     // Setup
     (app as any).nodeCache.flushAll();
     ddbMock.reset();
-    smMock.reset();
     vi.useFakeTimers();
-
-    // Mock secrets manager
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
 
     // Mock successful DynamoDB operations
     ddbMock.on(PutItemCommand).resolves({});
@@ -397,13 +368,7 @@ describe("ETag Lifecycle Tests", () => {
     // Setup
     (app as any).nodeCache.flushAll();
     ddbMock.reset();
-    smMock.reset();
     vi.useFakeTimers();
-
-    // Mock secrets manager
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
 
     // Mock successful DynamoDB operations
     ddbMock.on(PutItemCommand).resolves({});
@@ -538,8 +503,8 @@ afterAll(async () => {
 });
 beforeEach(() => {
   (app as any).nodeCache.flushAll();
+  (app as any).redisClient.flushdb();
   ddbMock.reset();
-  smMock.reset();
   vi.clearAllMocks();
   vi.useFakeTimers();
 });

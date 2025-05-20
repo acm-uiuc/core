@@ -1,7 +1,17 @@
-import { Box, Button, Textarea, Text, Modal, Alert, Group, List, ListItem } from '@mantine/core';
-import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
-import React, { useState } from 'react';
-import { EntraActionResponse } from '@common/types/iam';
+import {
+  Box,
+  Button,
+  Textarea,
+  Text,
+  Modal,
+  Alert,
+  Group,
+  List,
+  ListItem,
+} from "@mantine/core";
+import { IconAlertCircle, IconCircleCheck } from "@tabler/icons-react";
+import React, { useState } from "react";
+import { EntraActionResponse } from "@common/types/iam";
 
 interface UserInvitePanelProps {
   onSubmit: (emails: string[]) => Promise<EntraActionResponse>;
@@ -13,14 +23,16 @@ interface ErrorModalState {
   message: string;
 }
 
-export const UserInvitePanel: React.FC<UserInvitePanelProps> = ({ onSubmit }) => {
-  const [emails, setEmails] = useState<string>('');
+export const UserInvitePanel: React.FC<UserInvitePanelProps> = ({
+  onSubmit,
+}) => {
+  const [emails, setEmails] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [results, setResults] = useState<EntraActionResponse | null>(null);
   const [errorModal, setErrorModal] = useState<ErrorModalState>({
     open: false,
-    email: '',
-    message: '',
+    email: "",
+    message: "",
   });
 
   const handleSubmit = async () => {
@@ -28,7 +40,7 @@ export const UserInvitePanel: React.FC<UserInvitePanelProps> = ({ onSubmit }) =>
       setIsSubmitting(true);
       // Split emails by newline and filter out empty lines
       const emailList = emails
-        .split('\n')
+        .split("\n")
         .map((email) => email.trim())
         .filter((email) => email.length > 0);
 
@@ -36,10 +48,10 @@ export const UserInvitePanel: React.FC<UserInvitePanelProps> = ({ onSubmit }) =>
       setResults(response);
       // Clear input on success
       if (response.success?.length && !response.failure?.length) {
-        setEmails('');
+        setEmails("");
       }
     } catch (error) {
-      console.error('Failed to invite users:', error);
+      console.error("Failed to invite users:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -56,8 +68,8 @@ export const UserInvitePanel: React.FC<UserInvitePanelProps> = ({ onSubmit }) =>
           Add Users to Entra ID Tenant
         </Text>
         <Text size="sm" color="dimmed" mb="sm">
-          Enter <code>illinois.edu</code> emails (one per line). Paid members are already added to
-          the tenant.
+          Enter <code>illinois.edu</code> emails (one per line). Paid members
+          are already added to the tenant.
         </Text>
         <Textarea
           value={emails}
@@ -75,7 +87,7 @@ export const UserInvitePanel: React.FC<UserInvitePanelProps> = ({ onSubmit }) =>
         disabled={!emails.trim() || isSubmitting}
         loading={isSubmitting}
       >
-        {isSubmitting ? 'Sending Invites...' : 'Send Invites'}
+        {isSubmitting ? "Sending Invites..." : "Send Invites"}
       </Button>
 
       {results && (
@@ -101,7 +113,11 @@ export const UserInvitePanel: React.FC<UserInvitePanelProps> = ({ onSubmit }) =>
           ) : null}
 
           {results.failure?.length ? (
-            <Alert icon={<IconAlertCircle size={16} />} color="red" title="Failed Invitations">
+            <Alert
+              icon={<IconAlertCircle size={16} />}
+              color="red"
+              title="Failed Invitations"
+            >
               <Box>
                 <List>
                   {results.failure.map(({ email, message }) => (
@@ -127,7 +143,7 @@ export const UserInvitePanel: React.FC<UserInvitePanelProps> = ({ onSubmit }) =>
 
       <Modal
         opened={errorModal.open}
-        onClose={() => setErrorModal({ open: false, email: '', message: '' })}
+        onClose={() => setErrorModal({ open: false, email: "", message: "" })}
         title="Invitation Error"
         size="md"
       >
@@ -144,7 +160,12 @@ export const UserInvitePanel: React.FC<UserInvitePanelProps> = ({ onSubmit }) =>
           <Text size="sm" mb="md">
             {errorModal.message}
           </Text>
-          <Button fullWidth onClick={() => setErrorModal({ open: false, email: '', message: '' })}>
+          <Button
+            fullWidth
+            onClick={() =>
+              setErrorModal({ open: false, email: "", message: "" })
+            }
+          >
             Close
           </Button>
         </Box>
