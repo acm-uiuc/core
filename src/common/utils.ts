@@ -12,3 +12,48 @@ export function transformCommaSeperatedName(name: string) {
   }
   return name;
 }
+
+const notUnreservedCharsRegex = /[^a-zA-Z0-9\-._~]/g;
+const reservedCharsRegex = /[:\/?#\[\]@!$&'()*+,;=]/g;
+/**
+ * Transforms an organization name (sig lead) into a URI-friendly format.
+ * The function performs the following transformations:
+ * - Removes characters that are reserved or not unreserved.
+ * - Adds spaces between camel case words.
+ * - Converts reserved characters to spaces.
+ * - Converts all characters to lowercase and replaces all types of whitespace with hyphens.
+ * - Replaces any sequence of repeated hyphens with a single hyphen.
+ * - Refer to RFC 3986 https://datatracker.ietf.org/doc/html/rfc3986#section-2.3
+ *
+ * @param {string} org - The organization (sig lead) name to be transformed.
+ * @returns {string} - The transformed organization name, ready for use as a URL.
+ */
+export function transformSigLeadToURI(org: string) {
+  console.log(`org\t${org}`)
+  org = org
+    // change not reserved chars to spaces
+    .trim()
+    .replace(notUnreservedCharsRegex, " ")
+    .trim()
+    .replace(/\s/g, "-")
+
+    // remove all that is reserved or not unreserved
+    .replace(reservedCharsRegex, "")
+
+    // convert SIG -> sig for camel case
+    .replace(/SIG/g, "sig")
+
+    // add hyphen for camel case
+    .replace(/([a-z])([A-Z])/g, "$1-$2")
+
+    // lower
+    .toLowerCase()
+    
+    // add spaces between chars and numbers (seq2seq -> seq-2-seq)
+    .replace(/(?<=[a-z])([0-9]+)(?=[a-z])/g, "-$1-")
+
+    // remove duplicate hyphens
+    .replace(/-{2,}/g, "-");
+
+  return org === "-" ? "" : org;
+}

@@ -1,72 +1,137 @@
-import { FastifyInstance, FastifyPluginAsync } from "fastify";
-import { allAppRoles, AppRoles } from "../../common/roles.js";
-import {
-  addToTenant,
-  getEntraIdToken,
-  listGroupMembers,
-  modifyGroup,
-  patchUserProfile,
-} from "../functions/entraId.js";
-import {
-  BaseError,
-  DatabaseFetchError,
-  DatabaseInsertError,
-  EntraGroupError,
-  EntraInvitationError,
-  InternalServerError,
-  NotFoundError,
-  UnauthorizedError,
-} from "../../common/errors/index.js";
-import { PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { FastifyPluginAsync } from "fastify";
+import { DatabaseFetchError } from "../../common/errors/index.js";
+
 import { genericConfig } from "../../common/config.js";
-import { marshall } from "@aws-sdk/util-dynamodb";
-import {
-  InviteUserPostRequest,
-  invitePostRequestSchema,
-  GroupMappingCreatePostRequest,
-  groupMappingCreatePostSchema,
-  entraActionResponseSchema,
-  groupModificationPatchSchema,
-  GroupModificationPatchRequest,
-  EntraGroupActions,
-  entraGroupMembershipListResponse,
-  ProfilePatchRequest,
-  entraProfilePatchRequest,
-} from "../../common/types/iam.js";
-import {
-  AUTH_DECISION_CACHE_SECONDS,
-  getGroupRoles,
-} from "../functions/authorization.js";
-import { OrganizationList } from "common/orgs.js";
-import { z } from "zod";
 
-const OrganizationListEnum = z.enum(OrganizationList as [string, ...string[]]);
-export type Org = z.infer<typeof OrganizationListEnum>;
-
-type Member = { name: string; email: string };
-type OrgMembersResponse = { org: Org; members: Member[] };
+import {
+  SigDetailRecord,
+  SigleadGetRequest,
+  SigMemberCount,
+  SigMemberRecord,
+} from "common/types/siglead.js";
+import {
+  fetchMemberRecords,
+  fetchSigCounts,
+  fetchSigDetail,
+} from "api/functions/siglead.js";
+import { intersection } from "api/plugins/auth.js";
 
 const sigleadRoutes: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.get<{
-    Reply: OrgMembersResponse[];
-  }>("/groups", async (request, reply) => {
-    const entraIdToken = await getEntraIdToken(
+  const limitedRoutes: FastifyPluginAsync = async (fastify) => {
+    /*fastify.register(rateLimiter, {
+      limit: 30,
+      duration: 60,
+      rateLimitIdentifier: "linkry",
+    });*/
+
+    fastify.get<SigleadGetRequest>(
+      "/sigmembers/:sigid",
       {
-        smClient: fastify.secretsManagerClient,
-        dynamoClient: fastify.dynamoClient,
+        onRequest: async (request, reply) => {
+          /*await fastify.authorize(request, reply, [
+            AppRoles.LINKS_MANAGER,
+            AppRoles.LINKS_ADMIN,
+          ]);*/
+        },
       },
-      fastify.environmentConfig.AadValidClientId,
+      async (request, reply) => {
+        const { sigid } = request.params;
+        const tableName = genericConfig.SigleadDynamoSigMemberTableName;
+
+        // First try-catch: Fetch owner records
+        let memberRecords: SigMemberRecord[];
+        try {
+          memberRecords = await fetchMemberRecords(
+            sigid,
+            tableName,
+            fastify.dynamoClient,
+          );
+        } catch (error) {
+          request.log.error(
+            `Failed to fetch member records: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+          );
+          throw new DatabaseFetchError({
+            message: "Failed to fetch member records from Dynamo table.",
+          });
+        }
+
+        // Send the response
+        reply.code(200).send(memberRecords);
+      },
     );
 
-    const data = await Promise.all(
-      OrganizationList.map(async (org) => {
-        const members: Member[] = await listGroupMembers(entraIdToken, org);
-        return { org, members } as OrgMembersResponse;
-      }),
+    fastify.get<SigleadGetRequest>(
+      "/sigdetail/:sigid",
+      {
+        onRequest: async (request, reply) => {
+          /*await fastify.authorize(request, reply, [
+              AppRoles.LINKS_MANAGER,
+              AppRoles.LINKS_ADMIN,
+            ]);*/
+        },
+      },
+      async (request, reply) => {
+        const { sigid } = request.params;
+        const tableName = genericConfig.SigleadDynamoSigDetailTableName;
+
+        // First try-catch: Fetch owner records
+        let sigDetail: SigDetailRecord;
+        try {
+          sigDetail = await fetchSigDetail(
+            sigid,
+            tableName,
+            fastify.dynamoClient,
+          );
+        } catch (error) {
+          request.log.error(
+            `Failed to fetch sig detail record: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+          );
+          throw new DatabaseFetchError({
+            message: "Failed to fetch sig detail record from Dynamo table.",
+          });
+        }
+
+        // Send the response
+        reply.code(200).send(sigDetail);
+      },
     );
 
-    reply.status(200).send(data);
-  });
+    // fetch sig count
+    fastify.get<SigleadGetRequest>(
+      "/sigcount",
+      {
+        onRequest: async (request, reply) => {
+          /*await fastify.authorize(request, reply, [
+              AppRoles.LINKS_MANAGER,
+              AppRoles.LINKS_ADMIN,
+            ]);*/
+        },
+      },
+      async (request, reply) => {
+        // First try-catch: Fetch owner records
+        let sigMemCounts: SigMemberCount[];
+        try {
+          sigMemCounts = await fetchSigCounts(
+            genericConfig.SigleadDynamoSigMemberTableName,
+            fastify.dynamoClient,
+          );
+        } catch (error) {
+          request.log.error(
+            `Failed to fetch sig member counts record: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+          );
+          throw new DatabaseFetchError({
+            message:
+              "Failed to fetch sig member counts record from Dynamo table.",
+          });
+        }
+
+        // Send the response
+        reply.code(200).send(sigMemCounts);
+      },
+    );
+  };
+
+  fastify.register(limitedRoutes);
 };
 
 export default sigleadRoutes;
