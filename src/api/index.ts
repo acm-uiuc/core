@@ -33,6 +33,7 @@ import mobileWalletRoute from "./routes/mobileWallet.js";
 import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
 import path from "path"; // eslint-disable-line import/no-nodejs-modules
+import sigleadRoutes from "./routes/siglead.js";
 import roomRequestRoutes from "./routes/roomRequests.js";
 import logsPlugin from "./routes/logs.js";
 import fastifySwagger from "@fastify/swagger";
@@ -289,6 +290,7 @@ async function init(prettyPrint: boolean = false) {
       api.register(linkryRoutes, { prefix: "/linkry" });
       api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
       api.register(stripeRoutes, { prefix: "/stripe" });
+      api.register(sigleadRoutes, { prefix: "/siglead" });
       api.register(roomRequestRoutes, { prefix: "/roomRequests" });
       api.register(logsPlugin, { prefix: "/logs" });
       api.register(apiKeyRoute, { prefix: "/apiKey" });
