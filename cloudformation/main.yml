@@ -678,6 +678,7 @@ Resources:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
+        HttpVersion: 'http2and3'
         Origins:
           - Id: S3WebsiteOrigin
             DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
@@ -860,6 +861,7 @@ Resources:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
+        HttpVersion: 'http2and3'
         Origins:
           - Id: ApiGatewayOrigin
             DomainName: !Sub "${AppApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
@@ -962,6 +964,7 @@ Resources:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
+        HttpVersion: 'http2and3'
         Enabled: true
         DefaultCacheBehavior:
           ViewerProtocolPolicy: redirect-to-https
