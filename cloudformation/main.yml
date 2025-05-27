@@ -814,7 +814,7 @@ Resources:
       CachePolicyConfig:
         Comment: Cache policy with caching disabled and Gzip/Brotli enabled
         DefaultTTL: 0
-        MaxTTL: 0
+        MaxTTL: 1
         MinTTL: 0
         Name: NoCache-GzipBrotli-Enabled
         ParametersInCacheKeyAndForwardedToOrigin:
