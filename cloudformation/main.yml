@@ -808,24 +808,24 @@ Resources:
             Action: s3:GetObject
             Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
 
-CloudfrontNoCachePolicy:
-  Type: AWS::CloudFront::CachePolicy
-  Properties:
-    CachePolicyConfig:
-      Comment: Cache policy with caching disabled and Gzip/Brotli enabled
-      DefaultTTL: 0
-      MaxTTL: 0
-      MinTTL: 0
-      Name: NoCache-GzipBrotli-Enabled
-      ParametersInCacheKeyAndForwardedToOrigin:
-        CookiesConfig:
-          CookieBehavior: none
-        EnableAcceptEncodingBrotli: true
-        EnableAcceptEncodingGzip: true
-        HeadersConfig:
-          HeaderBehavior: none
-        QueryStringsConfig:
-          QueryStringBehavior: none
+  CloudfrontNoCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Comment: Cache policy with caching disabled and Gzip/Brotli enabled
+        DefaultTTL: 0
+        MaxTTL: 0
+        MinTTL: 0
+        Name: NoCache-GzipBrotli-Enabled
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
 
   CloudfrontCachePolicy:
     Type: AWS::CloudFront::CachePolicy
