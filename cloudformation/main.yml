@@ -783,7 +783,7 @@ Resources:
             CachedMethods:
               - GET
               - HEAD
-            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # caching disabled
+            CachePolicyId: !Ref CloudfrontNoCachePolicy # caching disabled
             OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
             Compress: true
         ViewerCertificate:
@@ -807,6 +807,25 @@ Resources:
               CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
             Action: s3:GetObject
             Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
+
+  CloudfrontNoCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Comment: Cache policy with caching disabled and Gzip/Brotli enabled
+        DefaultTTL: 0
+        MaxTTL: 1
+        MinTTL: 0
+        Name: NoCache-GzipBrotli-Enabled
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
 
   CloudfrontCachePolicy:
     Type: AWS::CloudFront::CachePolicy
