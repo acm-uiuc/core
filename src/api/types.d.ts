@@ -36,8 +36,7 @@ declare module "fastify" {
     redisClient: Redis;
     secretsManagerClient: SecretsManagerClient;
     cloudfrontKvClient: CloudFrontKeyValueStoreClient;
-    secretConfig: SecretConfig;
-    refreshSecretConfig: CallableFunction;
+    getCachedSecret: (secretName: string) => Promise<SecretConfig>;
   }
   interface FastifyRequest {
     startTime: number;
