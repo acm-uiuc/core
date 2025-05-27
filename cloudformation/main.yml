@@ -788,7 +788,6 @@ Resources:
             - EnvCertificateArn
           MinimumProtocolVersion: TLSv1.2_2021
           SslSupportMethod: sni-only
-        HttpVersion: http2
         PriceClass: PriceClass_100
 
   AppFrontendS3BucketPolicy:
@@ -906,7 +905,6 @@ Resources:
             - EnvCertificateArn
           MinimumProtocolVersion: TLSv1.2_2021
           SslSupportMethod: sni-only
-        HttpVersion: http2
         PriceClass: PriceClass_100
 
   LinkryRecordsCloudfrontStore:
@@ -996,7 +994,6 @@ Resources:
             - EnvCertificateArn
           MinimumProtocolVersion: TLSv1.2_2021
           SslSupportMethod: sni-only
-        HttpVersion: http2
         PriceClass: PriceClass_100
 
   LinkryDomainProxy:
