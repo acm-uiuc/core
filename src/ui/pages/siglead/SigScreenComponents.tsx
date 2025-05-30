@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { OrganizationList } from "@common/orgs";
 import { NavLink, Paper } from "@mantine/core";
 import { IconUsersGroup } from "@tabler/icons-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { SigMemberCount } from "@common/types/siglead";
 
 const renderSigLink = (sigMemCount: SigMemberCount, index: number) => {
+  const navigate = useNavigate();
+
   const color =
     "light-dark(var(--mantine-color-black), var(--mantine-color-white))";
   const size = "18px";
@@ -14,7 +16,7 @@ const renderSigLink = (sigMemCount: SigMemberCount, index: number) => {
   const count = sigMemCount.count;
   return (
     <NavLink
-      href={`${useLocation().pathname}/${id}`}
+      onClick={() => navigate(`./${id}`)}
       active={index % 2 === 0}
       label={name}
       color="var(--mantine-color-blue-light)"

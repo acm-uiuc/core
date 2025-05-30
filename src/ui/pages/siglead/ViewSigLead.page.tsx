@@ -18,14 +18,20 @@ import { DateTimePicker } from "@mantine/dates";
 import { useForm, zodResolver } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import dayjs from "dayjs";
-import React, { useEffect, useState } from "react";
+import React, { FC, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { getRunEnvironmentConfig } from "@ui/config";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
-import { SigDetailRecord, SigMemberRecord } from "@common/types/siglead.js";
+import {
+  SigDetailRecord,
+  SigMemberRecord,
+  SigMemberUpdateRecord,
+} from "@common/types/siglead.js";
+import { getTimeInFormat } from "@common/utils";
+import { orgIds2Name } from "@common/orgs";
 
 export const ViewSigLeadPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -162,7 +168,9 @@ export const ViewSigLeadPage: React.FC = () => {
             <Stack>
               <Button variant="white">Member Count: {sigMembers.length}</Button>
 
-              <Button>Add Member</Button>
+              <Button onClick={() => navigate("./addMember")}>
+                Add Member
+              </Button>
               <Button
                 onClick={() => navigate("../siglead-management")}
                 variant="outline"
@@ -188,6 +196,62 @@ export const ViewSigLeadPage: React.FC = () => {
           </Table>
         </div>
       </Container>
+    </AuthGuard>
+  );
+};
+
+export const AddMemberToSigPage: FC = () => {
+  const { sigId } = useParams();
+  const api = useApi("core");
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    // console.log(formData)
+    const data = Object.fromEntries(
+      formData.entries(),
+    ) as SigMemberUpdateRecord;
+    data.designation = "M";
+    data.sigGroupId = sigId || "";
+    data.createdAt = getTimeInFormat();
+    data.updatedAt = data.createdAt;
+    // console.log(data)
+    await api.post(`/api/v1/siglead/addMember`, data);
+  }
+
+  return (
+    <AuthGuard
+      resourceDef={{ service: "core", validRoles: [AppRoles.SIGLEAD_MANAGER] }}
+    >
+      <h1>Add Member to {orgIds2Name[sigId || "acm"]}</h1>
+      <form id="form" onSubmit={handleSubmit}>
+        <label htmlFor="email">email: </label>
+        <input
+          type="email"
+          name="email"
+          id="email"
+          placeholder="you@illinois.edu"
+        />
+        <br />
+        <label htmlFor="id">uuid: </label>
+        <input
+          type="text"
+          name="id"
+          id="id"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        />
+        <br />
+        <label htmlFor="memberName">name: </label>
+        <input
+          type="text"
+          name="memberName"
+          id="memberName"
+          placeholder="John Doe"
+        />
+        <br />
+        {/* <button type="submit" onSubmit={handleSubmit}>Submit</button> */}
+        <button type="submit">Submit</button>
+      </form>
     </AuthGuard>
   );
 };

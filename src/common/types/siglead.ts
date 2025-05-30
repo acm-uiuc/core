@@ -22,3 +22,27 @@ export type SigMemberCount = {
   signame: string;
   count: number;
 };
+
+export type SigMemberUpdateRecord = {
+  sigGroupId: string;
+  email: string;
+  id: string;
+  memberName: string;
+  designation: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SigMemberUpdateRequest = {
+  
+}
+
+export type DynamoDBItem = {
+  Item: {
+    [key: string]: {
+      [key: string]: string;
+    };
+  };
+  ReturnConsumedCapacity: string;
+  TableName: string;
+}

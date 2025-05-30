@@ -1,16 +1,22 @@
 import {
+  AttributeValue,
   DynamoDBClient,
+  PutItemCommand,
+  PutItemCommandInput,
   QueryCommand,
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { OrganizationList } from "common/orgs.js";
+import { OrganizationList, orgIds2Name } from "common/orgs.js";
 import {
+  DynamoDBItem,
   SigDetailRecord,
   SigMemberCount,
   SigMemberRecord,
+  SigMemberUpdateRecord,
 } from "common/types/siglead.js";
 import { transformSigLeadToURI } from "common/utils.js";
+import { KeyObject } from "crypto";
 import { string } from "zod";
 
 export async function fetchMemberRecords(
@@ -84,13 +90,11 @@ export async function fetchSigCounts(
 
   const result = await dynamoClient.send(scan);
 
-  const ids2Name: Record<string, string> = {};
-  OrganizationList.forEach((org) => {
-    const sigid = transformSigLeadToURI(org);
-    ids2Name[sigid] = org;
-  });
-
   const counts: Record<string, number> = {};
+  // Object.entries(orgIds2Name).forEach(([id, _]) => {
+  //   counts[id] = 0;
+  // });
+
   (result.Items || []).forEach((item) => {
     const sigGroupId = item.sigGroupId?.S;
     if (sigGroupId) {
@@ -98,18 +102,32 @@ export async function fetchSigCounts(
     }
   });
 
-  const joined: Record<string, [string, number]> = {};
-  Object.keys(counts).forEach((sigid) => {
-    joined[sigid] = [ids2Name[sigid], counts[sigid]];
-  });
-
-  const countsArray: SigMemberCount[] = Object.entries(joined).map(
-    ([sigid, [signame, count]]) => ({
-      sigid,
-      signame,
+  const countsArray: SigMemberCount[] = Object.entries(counts).map(
+    ([id, count]) => ({
+      sigid: id,
+      signame: orgIds2Name[id],
       count,
     }),
   );
   console.log(countsArray);
   return countsArray;
+}
+
+export async function addMemberToSig(
+  sigMemberTableName: string,
+  sigMemberUpdateRequest: SigMemberUpdateRecord,
+  dynamoClient: DynamoDBClient,
+) {
+  const item: Record<string, AttributeValue> = {};
+  Object.entries(sigMemberUpdateRequest).forEach(([k, v]) => {
+    item[k] = { S: v };
+  });
+  const input: PutItemCommandInput = {
+    Item: item,
+    ReturnConsumedCapacity: "TOTAL",
+    TableName: sigMemberTableName,
+  };
+  // console.log(input);
+  const put = new PutItemCommand(input);
+  const response = await dynamoClient.send(put);
 }
