@@ -36,7 +36,7 @@ if (policySchemas.length === 0) {
   })
 }
 
-const policyUnion = policySchemas.length > 0
+export const policyUnion = policySchemas.length > 0
   ? z.discriminatedUnion("name", policySchemas as [typeof policySchemas[0], ...typeof policySchemas])
   : z.never();
 
