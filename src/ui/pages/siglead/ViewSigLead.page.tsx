@@ -1,12 +1,7 @@
 import {
   Title,
   Box,
-  TextInput,
-  Textarea,
-  Switch,
-  Select,
   Button,
-  Loader,
   Container,
   Transition,
   useMantineColorScheme,
@@ -14,17 +9,15 @@ import {
   Group,
   Stack,
 } from "@mantine/core";
-import { DateTimePicker } from "@mantine/dates";
-import { useForm, zodResolver } from "@mantine/form";
+
 import { notifications } from "@mantine/notifications";
-import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { AuthGuard } from "@ui/components/AuthGuard";
-import { getRunEnvironmentConfig } from "@ui/config";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
+import { IconUsersGroup } from "@tabler/icons-react";
 
 const baseSigSchema = z.object({
   sigid: z.string().min(1),
@@ -44,7 +37,6 @@ type sigDetails = z.infer<typeof baseSigSchema>;
 type sigMemberDetails = z.infer<typeof baseSigMemberSchema>;
 
 export const ViewSigLeadPage: React.FC = () => {
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigate = useNavigate();
   const api = useApi("core");
   const { colorScheme } = useMantineColorScheme();
@@ -74,9 +66,14 @@ export const ViewSigLeadPage: React.FC = () => {
     // Fetch sig data and populate form / for now dummy data...
     const getSig = async () => {
       try {
-        /*const formValues = { 
-          };
-          form.setValues(formValues);*/
+        const sigDetailsData = await api.get(
+          `/api/v1/siglead/sigdetail/${sigId}`,
+        );
+        setSigDetails(sigDetailsData.data);
+        const sigMembersData = await api.get(
+          `/api/v1/siglead/sigmembers/${sigId}`,
+        );
+        setSigMembers(sigMembersData.data);
       } catch (error) {
         console.error("Error fetching sig data:", error);
         notifications.show({
@@ -180,8 +177,9 @@ export const ViewSigLeadPage: React.FC = () => {
           </Box>
           <Box style={{ flex: 1, textAlign: "right", alignItems: "right" }}>
             <Stack>
-              <Button variant="white">Member Count: {sigMembers.length}</Button>
-
+              <Button variant="white" leftSection={<IconUsersGroup />}>
+                Member Count: {sigMembers.length}
+              </Button>
               <Button>Add Member</Button>
               <Button
                 onClick={() => navigate("../siglead-management")}
