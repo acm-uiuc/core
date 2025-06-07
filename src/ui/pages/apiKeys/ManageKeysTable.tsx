@@ -1,4 +1,5 @@
 import {
+  Alert,
   Badge,
   Button,
   Center,
@@ -6,6 +7,7 @@ import {
   Code,
   CopyButton,
   Group,
+  JsonInput,
   List,
   Modal,
   MultiSelect,
@@ -18,6 +20,7 @@ import { DateTimePicker } from "@mantine/dates";
 import {
   IconAlertCircle,
   IconEye,
+  IconHandStop,
   IconPlus,
   IconTrash,
 } from "@tabler/icons-react";
@@ -26,6 +29,7 @@ import {
   apiKeyAllowedRoles,
   ApiKeyMaskedEntry,
   ApiKeyPostBody,
+  policyUnion,
 } from "@common/types/apiKey";
 import { useAuth } from "@ui/components/AuthContext";
 import { notifications } from "@mantine/notifications";
@@ -33,6 +37,7 @@ import pluralize from "pluralize";
 import dayjs from "dayjs";
 import { AppRoles } from "@common/roles";
 import { BlurredTextDisplay } from "../../components/BlurredTextDisplay";
+import { z } from "zod";
 
 const HumanFriendlyDate = ({ date }: { date: number }) => {
   return (
@@ -131,8 +136,8 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
       await fetchKeys();
     } catch (e) {
       notifications.show({
-        title: "Create failed",
-        message: "Unable to create API key.",
+        title: "Unable to create API key.",
+        message: "Please try again or contact support.",
         color: "red",
       });
     }
@@ -188,6 +193,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
   const [roles, setRoles] = useState<AppRoles[]>([]);
   const [description, setDescription] = useState("");
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
+  const [policyDocument, setPolicyDocument] = useState("");
 
   return (
     <>
@@ -309,17 +315,62 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
           clearable
           mt="md"
         />
+        <JsonInput
+          label="Policy Document (optional)"
+          description={
+            <Alert
+              icon={<IconHandStop />}
+              title="Advanced Feature"
+              color="orange"
+            >
+              Errors in this field will prevent your API key from working!
+              Please consult the API documentation for instructions.
+            </Alert>
+          }
+          value={policyDocument}
+          onChange={setPolicyDocument}
+          placeholder={`[
+            {
+              "name": "EventsHostRestrictionPolicy",
+              "params": {
+                "host": [
+                  "ACM"
+                ]
+              }
+            }
+          ]`}
+          validationError="Invalid JSON"
+          formatOnBlur
+          autosize
+          minRows={6}
+        />
         <Group justify="flex-end" mt="lg">
           <Button
-            onClick={() =>
-              handleCreate({
-                roles,
-                description,
-                expiresAt: expiresAt
-                  ? Math.floor(expiresAt.getTime() / 1000)
-                  : undefined,
-              })
-            }
+            onClick={() => {
+              let parsedPolicyDocument = undefined;
+              try {
+                if (policyDocument && policyDocument.trim() !== "") {
+                  parsedPolicyDocument = z
+                    .array(policyUnion)
+                    .parse(JSON.parse(policyDocument));
+                }
+                handleCreate({
+                  roles,
+                  description,
+                  expiresAt: expiresAt
+                    ? Math.floor(expiresAt.getTime() / 1000)
+                    : undefined,
+                  restrictions: parsedPolicyDocument,
+                });
+              } catch (e) {
+                console.error(e);
+                notifications.show({
+                  title: "Invalid policy document!",
+                  message: "Please correct the policy document and try again.",
+                  color: "red",
+                });
+              }
+            }}
             disabled={roles.length === 0 || description.trim() === ""}
           >
             Create
