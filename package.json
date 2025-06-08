@@ -28,7 +28,7 @@
     "test:e2e-ui": "playwright test --ui"
   },
   "dependencies": {
-    "@acm-uiuc/js-shared": "^2.0.1"
+    "@acm-uiuc/js-shared": "^2.1.0"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.8",
