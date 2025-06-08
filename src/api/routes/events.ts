@@ -2,7 +2,7 @@ import "zod-openapi/extend";
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { AppRoles } from "../../common/roles.js";
 import { z } from "zod";
-import { OrganizationList } from "@acm-uiuc/js-shared";
+import { AllOrganizationList } from "@acm-uiuc/js-shared";
 import {
   DeleteItemCommand,
   GetItemCommand,
@@ -111,7 +111,7 @@ const baseSchema = z.object({
     description: "Google Maps link for easy navigation to the event location.",
     example: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
   }),
-  host: z.enum(OrganizationList as [string, ...string[]]),
+  host: z.enum(AllOrganizationList as [string, ...string[]]),
   featured: z.boolean().default(false).openapi({
     description:
       "Whether or not the event should be shown on the ACM @ UIUC website home page (and added to Discord, as available).",
@@ -165,7 +165,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
                 "If true, only get events which are marked as featured.",
             }),
             host: z
-              .enum(OrganizationList as [string, ...string[]])
+              .enum(AllOrganizationList as [string, ...string[]])
               .optional()
               .openapi({
                 description: "Retrieve events only for a specific host.",
