@@ -1,6 +1,5 @@
 import { expect, test } from "vitest";
-import { describe } from "node:test";
-import { OrganizationList } from "../../src/common/orgs.js";
+import { OrganizationList } from "@acm-uiuc/js-shared";
 import ical from "node-ical";
 const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
 

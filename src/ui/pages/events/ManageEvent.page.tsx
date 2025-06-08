@@ -20,7 +20,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
-import { OrganizationList as orgList } from "@common/orgs";
+import { OrganizationList as orgList } from "@acm-uiuc/js-shared";
 import { AppRoles } from "@common/roles";
 import { EVENT_CACHED_DURATION } from "@common/config";
 import { IconPlus, IconTrash } from "@tabler/icons-react";

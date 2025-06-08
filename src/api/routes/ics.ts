@@ -14,7 +14,7 @@ import ical, {
 } from "ical-generator";
 import moment from "moment";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
-import { OrganizationList } from "../../common/orgs.js";
+import { OrganizationList } from "@acm-uiuc/js-shared";
 import { CLIENT_HTTP_CACHE_POLICY, EventRepeatOptions } from "./events.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { getCacheCounter } from "api/functions/cache.js";

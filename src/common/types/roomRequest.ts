@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { OrganizationList } from "../orgs.js";
+import { OrganizationList } from "@acm-uiuc/js-shared";
 
 export const eventThemeOptions = [
   "Arts & Music",

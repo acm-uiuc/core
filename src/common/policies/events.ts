@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createPolicy } from "./evaluator.js";
-import { OrganizationList } from "../orgs.js";
+import { OrganizationList } from "@acm-uiuc/js-shared";
 import { FastifyRequest } from "fastify";
 
 export const hostRestrictionPolicy = createPolicy(

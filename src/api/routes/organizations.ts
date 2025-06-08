@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
-import { OrganizationList } from "../../common/orgs.js";
+import { OrganizationList } from "@acm-uiuc/js-shared";
 import fastifyCaching from "@fastify/caching";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { withTags } from "api/components/index.js";
