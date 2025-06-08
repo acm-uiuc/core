@@ -2,7 +2,7 @@ import "zod-openapi/extend";
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { AppRoles } from "../../common/roles.js";
 import { z } from "zod";
-import { OrganizationList } from "../../common/orgs.js";
+import { OrganizationList } from "@acm-uiuc/js-shared";
 import {
   DeleteItemCommand,
   GetItemCommand,

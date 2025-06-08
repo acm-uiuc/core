@@ -18,7 +18,7 @@ import {
 } from "@mantine/core";
 import { useForm, zodResolver } from "@mantine/form";
 import { DateInput, DateTimePicker } from "@mantine/dates";
-import { OrganizationList } from "@common/orgs";
+import { OrganizationList } from "@acm-uiuc/js-shared";
 import {
   eventThemeOptions,
   spaceTypeOptions,
