@@ -219,6 +219,13 @@ export const AddMemberToSigPage: FC = () => {
     await api.post(`/api/v1/siglead/addMember`, data);
   }
 
+  async function testAddGroup() {
+    await api.patch(
+      `/api/v1/iam/groups/:e37a2420-1030-48da-9d17-f7e201b446e1`,
+      { add: ["d115c8cb-2520-4ba4-bc36-dd55af69c590"], remove: [] },
+    );
+  }
+
   return (
     <AuthGuard
       resourceDef={{ service: "core", validRoles: [AppRoles.SIGLEAD_MANAGER] }}
@@ -252,6 +259,9 @@ export const AddMemberToSigPage: FC = () => {
         {/* <button type="submit" onSubmit={handleSubmit}>Submit</button> */}
         <button type="submit">Submit</button>
       </form>
+      <button type="button" onClick={testAddGroup}>
+        Test
+      </button>
     </AuthGuard>
   );
 };

@@ -11,7 +11,7 @@ import {
   SigMemberUpdateRecord,
 } from "common/types/siglead.js";
 import {
-  addMemberToSig,
+  addMemberToSigDynamo,
   fetchMemberRecords,
   fetchSigCounts,
   fetchSigDetail,
@@ -127,7 +127,7 @@ const sigleadRoutes: FastifyPluginAsync = async (fastify, _options) => {
       "/addMember",
       async (request, reply) => {
         try {
-          await addMemberToSig(
+          await addMemberToSigDynamo(
             genericConfig.SigleadDynamoSigMemberTableName,
             request.body,
             fastify.dynamoClient,

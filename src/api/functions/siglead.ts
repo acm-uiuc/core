@@ -1,12 +1,14 @@
 import {
   AttributeValue,
   DynamoDBClient,
+  GetItemCommand,
   PutItemCommand,
   PutItemCommandInput,
   QueryCommand,
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { DatabaseInsertError } from "common/errors/index.js";
 import { OrganizationList, orgIds2Name } from "common/orgs.js";
 import {
   DynamoDBItem,
@@ -113,7 +115,7 @@ export async function fetchSigCounts(
   return countsArray;
 }
 
-export async function addMemberToSig(
+export async function addMemberToSigDynamo(
   sigMemberTableName: string,
   sigMemberUpdateRequest: SigMemberUpdateRecord,
   dynamoClient: DynamoDBClient,
@@ -122,12 +124,50 @@ export async function addMemberToSig(
   Object.entries(sigMemberUpdateRequest).forEach(([k, v]) => {
     item[k] = { S: v };
   });
-  const input: PutItemCommandInput = {
+
+  // put into table
+  const put = new PutItemCommand({
     Item: item,
     ReturnConsumedCapacity: "TOTAL",
     TableName: sigMemberTableName,
-  };
-  // console.log(input);
-  const put = new PutItemCommand(input);
-  const response = await dynamoClient.send(put);
+  });
+  try {
+    const response = await dynamoClient.send(put);
+    console.log(response);
+  } catch (e) {
+    console.error("Put to dynamo db went wrong.");
+    throw e;
+  }
+
+  // fetch from db and check if fetched item update time = input item update time
+  const validatePutQuery = new GetItemCommand({
+    TableName: sigMemberTableName,
+    Key: {
+      sigGroupId: { S: sigMemberUpdateRequest.sigGroupId },
+      email: { S: sigMemberUpdateRequest.email },
+    },
+    ProjectionExpression: "updatedAt",
+  });
+
+  try {
+    const response = await dynamoClient.send(validatePutQuery);
+    const item = response.Item;
+
+    if (!item || !item.updatedAt?.S) {
+      throw new Error("Item not found or missing 'updatedAt'");
+    }
+
+    if (item.updatedAt.S !== sigMemberUpdateRequest.updatedAt) {
+      throw new DatabaseInsertError({
+        message: "The member exists, but was updated by someone else!",
+      });
+    }
+  } catch (e) {
+    console.error("Validate DynamoDB get went wrong.", e);
+    throw e;
+  }
+}
+
+export async function addMemberToSigEntra() {
+  // uuid validation not implemented yet
 }

@@ -33,10 +33,6 @@ export type SigMemberUpdateRecord = {
   updatedAt: string;
 }
 
-export type SigMemberUpdateRequest = {
-  
-}
-
 export type DynamoDBItem = {
   Item: {
     [key: string]: {

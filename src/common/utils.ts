@@ -29,7 +29,7 @@ const reservedCharsRegex = /[:\/?#\[\]@!$&'()*+,;=]/g;
  * @returns {string} - The transformed organization name, ready for use as a URL.
  */
 export function transformSigLeadToURI(org: string) {
-  console.log(`org\t${org}`)
+  // console.log(`org\t${org}`)
   org = org
     // change not reserved chars to spaces
     .trim()
