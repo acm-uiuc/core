@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { OrganizationList } from "@common/orgs";
 import { NavLink, Paper } from "@mantine/core";
 import { IconUsersGroup } from "@tabler/icons-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { SigMemberCount } from "@common/types/siglead";
 
 const renderSigLink = (sigMemCount: SigMemberCount, index: number) => {
@@ -48,6 +48,7 @@ const renderSigLink = (sigMemCount: SigMemberCount, index: number) => {
 type props = {
   SigMemberCounts: SigMemberCount[];
 };
+
 export const ScreenComponent: React.FC<props> = ({ SigMemberCounts }) => {
   return (
     <>

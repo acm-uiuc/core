@@ -32,13 +32,3 @@ export type SigMemberUpdateRecord = {
   createdAt: string;
   updatedAt: string;
 }
-
-export type DynamoDBItem = {
-  Item: {
-    [key: string]: {
-      [key: string]: string;
-    };
-  };
-  ReturnConsumedCapacity: string;
-  TableName: string;
-}

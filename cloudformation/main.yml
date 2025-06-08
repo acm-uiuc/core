@@ -702,6 +702,7 @@ Resources:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
+        HttpVersion: 'http2and3'
         Origins:
           - Id: S3WebsiteOrigin
             DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
@@ -723,6 +724,7 @@ Resources:
             - UiDomainName
 
         DefaultCacheBehavior:
+          Compress: true
           TargetOriginId: S3WebsiteOrigin
           ViewerProtocolPolicy: redirect-to-https
           AllowedMethods:
@@ -756,6 +758,7 @@ Resources:
               - HEAD
             CachePolicyId: !Ref CloudfrontCachePolicy
             OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            Compress: true
           - PathPattern: "/api/v1/organizations"
             TargetOriginId: ApiGatewayOrigin
             ViewerProtocolPolicy: redirect-to-https
@@ -772,6 +775,7 @@ Resources:
               - HEAD
             CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
             OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            Compress: true
           - PathPattern: "/api/documentation*"
             TargetOriginId: ApiGatewayOrigin
             ViewerProtocolPolicy: redirect-to-https
@@ -788,6 +792,7 @@ Resources:
               - HEAD
             CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
             OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            Compress: true
           - PathPattern: "/api/*"
             TargetOriginId: ApiGatewayOrigin
             ViewerProtocolPolicy: redirect-to-https
@@ -802,8 +807,9 @@ Resources:
             CachedMethods:
               - GET
               - HEAD
-            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # caching disabled
+            CachePolicyId: !Ref CloudfrontNoCachePolicy # caching disabled
             OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            Compress: true
         ViewerCertificate:
           AcmCertificateArn: !FindInMap
             - ApiGwConfig
@@ -811,7 +817,6 @@ Resources:
             - EnvCertificateArn
           MinimumProtocolVersion: TLSv1.2_2021
           SslSupportMethod: sni-only
-        HttpVersion: http2
         PriceClass: PriceClass_100
 
   AppFrontendS3BucketPolicy:
@@ -826,6 +831,25 @@ Resources:
               CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
             Action: s3:GetObject
             Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
+
+  CloudfrontNoCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Comment: Cache policy with caching disabled and Gzip/Brotli enabled
+        DefaultTTL: 0
+        MaxTTL: 1
+        MinTTL: 0
+        Name: NoCache-GzipBrotli-Enabled
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
 
   CloudfrontCachePolicy:
     Type: AWS::CloudFront::CachePolicy
@@ -884,6 +908,7 @@ Resources:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
+        HttpVersion: 'http2and3'
         Origins:
           - Id: ApiGatewayOrigin
             DomainName: !Sub "${AppApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
@@ -902,6 +927,7 @@ Resources:
                 - !Ref RunEnvironment
                 - EnvDomainName
         DefaultCacheBehavior:
+          Compress: true
           TargetOriginId: ApiGatewayOrigin
           ViewerProtocolPolicy: redirect-to-https
           AllowedMethods:
@@ -928,7 +954,6 @@ Resources:
             - EnvCertificateArn
           MinimumProtocolVersion: TLSv1.2_2021
           SslSupportMethod: sni-only
-        HttpVersion: http2
         PriceClass: PriceClass_100
 
   LinkryRecordsCloudfrontStore:
@@ -986,6 +1011,7 @@ Resources:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
+        HttpVersion: 'http2and3'
         Enabled: true
         DefaultCacheBehavior:
           ViewerProtocolPolicy: redirect-to-https
@@ -1017,7 +1043,6 @@ Resources:
             - EnvCertificateArn
           MinimumProtocolVersion: TLSv1.2_2021
           SslSupportMethod: sni-only
-        HttpVersion: http2
         PriceClass: PriceClass_100
 
   LinkryDomainProxy:

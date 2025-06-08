@@ -5,6 +5,7 @@ import {
   RouterProvider,
   useLocation,
 } from "react-router-dom";
+
 import { AcmAppShell } from "./components/AppShell";
 import { useAuth } from "./components/AuthContext";
 import AuthCallback from "./components/AuthContext/AuthCallbackHandler.page";
@@ -24,6 +25,7 @@ import { ManageIamPage } from "./pages/iam/ManageIam.page";
 import { ManageProfilePage } from "./pages/profile/ManageProfile.page";
 import { ManageStripeLinksPage } from "./pages/stripe/ViewLinks.page";
 import { ManageRoomRequestsPage } from "./pages/roomRequest/RoomRequestLanding.page";
+import { EditSigLeadsPage } from "./pages/siglead/EditSigLeads.page";
 import { ManageSigLeadsPage } from "./pages/siglead/ManageSigLeads.page";
 import {
   AddMemberToSigPage,
@@ -195,6 +197,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: "/siglead-management",
     element: <ManageSigLeadsPage />,
+  },
+  {
+    path: "/siglead-management/edit",
+    element: <EditSigLeadsPage />,
   },
   {
     path: "/siglead-management/:sigId",

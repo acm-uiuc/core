@@ -1,12 +1,7 @@
 import {
   Title,
   Box,
-  TextInput,
-  Textarea,
-  Switch,
-  Select,
   Button,
-  Loader,
   Container,
   Transition,
   useMantineColorScheme,
@@ -14,15 +9,11 @@ import {
   Group,
   Stack,
 } from "@mantine/core";
-import { DateTimePicker } from "@mantine/dates";
-import { useForm, zodResolver } from "@mantine/form";
+
 import { notifications } from "@mantine/notifications";
-import dayjs from "dayjs";
 import React, { FC, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { z } from "zod";
 import { AuthGuard } from "@ui/components/AuthGuard";
-import { getRunEnvironmentConfig } from "@ui/config";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
 import {
@@ -34,7 +25,6 @@ import { getTimeInFormat } from "@common/utils";
 import { orgIds2Name } from "@common/orgs";
 
 export const ViewSigLeadPage: React.FC = () => {
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigate = useNavigate();
   const api = useApi("core");
   const { colorScheme } = useMantineColorScheme();

@@ -25,6 +25,7 @@ import * as dotenv from "dotenv";
 import iamRoutes from "./routes/iam.js";
 import ticketsPlugin from "./routes/tickets.js";
 import linkryRoutes from "./routes/linkry.js";
+import sigleadRoutes from "./routes/siglead.js";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -33,7 +34,6 @@ import mobileWalletRoute from "./routes/mobileWallet.js";
 import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
 import path from "path"; // eslint-disable-line import/no-nodejs-modules
-import sigleadRoutes from "./routes/siglead.js";
 import roomRequestRoutes from "./routes/roomRequests.js";
 import logsPlugin from "./routes/logs.js";
 import fastifySwagger from "@fastify/swagger";

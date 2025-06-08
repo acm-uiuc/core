@@ -11,7 +11,6 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { DatabaseInsertError } from "common/errors/index.js";
 import { OrganizationList, orgIds2Name } from "common/orgs.js";
 import {
-  DynamoDBItem,
   SigDetailRecord,
   SigMemberCount,
   SigMemberRecord,
