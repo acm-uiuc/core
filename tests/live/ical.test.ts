@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { OrganizationList } from "@acm-uiuc/js-shared";
+import { AllOrganizationList } from "@acm-uiuc/js-shared";
 import ical from "node-ical";
 const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
 
@@ -27,7 +27,7 @@ const fetchWithRateLimit = async (url: string) => {
 };
 
 test("Get calendars with rate limit handling", { timeout: 45000 }, async () => {
-  for (const org of OrganizationList) {
+  for (const org of AllOrganizationList) {
     const response = await fetchWithRateLimit(
       `${baseEndpoint}/api/v1/ical/${org}`,
     );

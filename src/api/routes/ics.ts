@@ -14,7 +14,7 @@ import ical, {
 } from "ical-generator";
 import moment from "moment";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
-import { OrganizationList } from "@acm-uiuc/js-shared";
+import { AllOrganizationList } from "@acm-uiuc/js-shared";
 import { CLIENT_HTTP_CACHE_POLICY, EventRepeatOptions } from "./events.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { getCacheCounter } from "api/functions/cache.js";
@@ -43,7 +43,7 @@ function generateHostName(host: string) {
 
 const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {
-    limit: OrganizationList.length,
+    limit: AllOrganizationList.length,
     duration: 30,
     rateLimitIdentifier: "ical",
   });
@@ -53,7 +53,7 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
       schema: withTags(["iCalendar Integration"], {
         params: z.object({
           host: z
-            .optional(z.enum(OrganizationList as [string, ...string[]]))
+            .optional(z.enum(AllOrganizationList as [string, ...string[]]))
             .openapi({ description: "Host to get calendar for." }),
         }),
         summary:
@@ -87,7 +87,7 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
         reply.header("etag", etag);
       }
       if (host) {
-        if (!OrganizationList.includes(host)) {
+        if (!AllOrganizationList.includes(host)) {
           throw new ValidationError({
             message: `Invalid host parameter "${host}" in path.`,
           });
