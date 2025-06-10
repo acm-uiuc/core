@@ -99,6 +99,14 @@ Resources:
             Resource:
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
 
+          - Sid: DynamoDBRateLimitTableAccess
+            Effect: Allow
+            Action:
+              - dynamodb:DescribeTable
+              - dynamodb:UpdateItem
+            Resource:
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-rate-limiter
+
           - Sid: DynamoDBAuditLogTableAccess
             Effect: Allow
             Action:

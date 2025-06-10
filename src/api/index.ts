@@ -288,9 +288,9 @@ async function init(prettyPrint: boolean = false) {
       api.register(iamRoutes, { prefix: "/iam" });
       api.register(ticketsPlugin, { prefix: "/tickets" });
       api.register(linkryRoutes, { prefix: "/linkry" });
-      api.register(sigleadRoutes, { prefix: "/siglead" });
       api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
       api.register(stripeRoutes, { prefix: "/stripe" });
+      api.register(sigleadRoutes, { prefix: "/siglead" });
       api.register(roomRequestRoutes, { prefix: "/roomRequests" });
       api.register(logsPlugin, { prefix: "/logs" });
       api.register(apiKeyRoute, { prefix: "/apiKey" });

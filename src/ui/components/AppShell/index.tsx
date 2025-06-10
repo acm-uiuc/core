@@ -18,10 +18,10 @@ import {
   IconPizza,
   IconTicket,
   IconLock,
-  IconUsers,
   IconDoor,
   IconHistory,
   IconKey,
+  IconUsers,
 } from "@tabler/icons-react";
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";

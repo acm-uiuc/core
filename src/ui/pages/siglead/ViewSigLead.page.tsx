@@ -11,51 +11,26 @@ import {
 } from "@mantine/core";
 
 import { notifications } from "@mantine/notifications";
-import React, { useEffect, useState } from "react";
+import React, { FC, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { z } from "zod";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
-import { IconUsersGroup } from "@tabler/icons-react";
-
-const baseSigSchema = z.object({
-  sigid: z.string().min(1),
-  signame: z.string().min(1),
-  description: z.string().optional(),
-});
-
-const baseSigMemberSchema = z.object({
-  sigGroupId: z.string().min(1),
-  email: z.string().email("Invalid email"),
-  designation: z.enum(["L", "M"]),
-  id: z.string().optional(),
-  memberName: z.string(),
-});
-
-type sigDetails = z.infer<typeof baseSigSchema>;
-type sigMemberDetails = z.infer<typeof baseSigMemberSchema>;
+import {
+  SigDetailRecord,
+  SigMemberRecord,
+  SigMemberUpdateRecord,
+} from "@common/types/siglead.js";
+import { getTimeInFormat } from "@common/utils";
+import { orgIds2Name } from "@common/orgs";
 
 export const ViewSigLeadPage: React.FC = () => {
   const navigate = useNavigate();
   const api = useApi("core");
   const { colorScheme } = useMantineColorScheme();
   const { sigId } = useParams();
-  const [sigMembers, setSigMembers] = useState<sigMemberDetails[]>([
-    {
-      sigGroupId: sigId || "",
-      email: "alice1@illinois.edu",
-      designation: "L",
-      memberName: "Alice",
-    },
-    {
-      sigGroupId: sigId || "",
-      email: "bob2@illinois.edu",
-      designation: "M",
-      memberName: "Bob",
-    },
-  ]);
-  const [sigDetails, setSigDetails] = useState<sigDetails>({
+  const [sigMembers, setSigMembers] = useState<SigMemberRecord[]>([]);
+  const [sigDetails, setSigDetails] = useState<SigDetailRecord>({
     sigid: sigId || "",
     signame: "Default Sig",
     description:
@@ -63,17 +38,21 @@ export const ViewSigLeadPage: React.FC = () => {
   });
 
   useEffect(() => {
-    // Fetch sig data and populate form / for now dummy data...
+    // Fetch sig data and populate form
     const getSig = async () => {
       try {
-        const sigDetailsData = await api.get(
-          `/api/v1/siglead/sigdetail/${sigId}`,
-        );
-        setSigDetails(sigDetailsData.data);
-        const sigMembersData = await api.get(
+        /*const formValues = { 
+          };
+          form.setValues(formValues);*/
+        const sigMemberRequest = await api.get(
           `/api/v1/siglead/sigmembers/${sigId}`,
         );
-        setSigMembers(sigMembersData.data);
+        setSigMembers(sigMemberRequest.data);
+
+        const sigDetailRequest = await api.get(
+          `/api/v1/siglead/sigdetail/${sigId}`,
+        );
+        setSigDetails(sigDetailRequest.data);
       } catch (error) {
         console.error("Error fetching sig data:", error);
         notifications.show({
@@ -84,7 +63,7 @@ export const ViewSigLeadPage: React.FC = () => {
     getSig();
   }, [sigId]);
 
-  const renderSigMember = (members: sigMemberDetails, index: number) => {
+  const renderSigMember = (member: SigMemberRecord, index: number) => {
     const shouldShow = true;
     return (
       <Transition
@@ -108,9 +87,9 @@ export const ViewSigLeadPage: React.FC = () => {
                     : "#ffffff",
             }}
           >
-            <Table.Td>{members.memberName}</Table.Td>
-            <Table.Td>{members.email}</Table.Td>
-            <Table.Td>{members.designation}</Table.Td>
+            <Table.Td>{member.memberName}</Table.Td>
+            <Table.Td>{member.email}</Table.Td>
+            <Table.Td>{member.designation}</Table.Td>
           </tr>
         )}
       </Transition>
@@ -172,15 +151,16 @@ export const ViewSigLeadPage: React.FC = () => {
       <Container>
         <Group align="flex-start">
           <Box style={{ flex: 8 }}>
-            <Title order={1}>{sigDetails.sigid}</Title>
+            <Title order={1}>{sigDetails.signame}</Title>
             {sigDetails.description || ""}
           </Box>
           <Box style={{ flex: 1, textAlign: "right", alignItems: "right" }}>
             <Stack>
-              <Button variant="white" leftSection={<IconUsersGroup />}>
-                Member Count: {sigMembers.length}
+              <Button variant="white">Member Count: {sigMembers.length}</Button>
+
+              <Button onClick={() => navigate("./addMember")}>
+                Add Member
               </Button>
-              <Button>Add Member</Button>
               <Button
                 onClick={() => navigate("../siglead-management")}
                 variant="outline"
@@ -200,10 +180,78 @@ export const ViewSigLeadPage: React.FC = () => {
                 <Table.Th>Roles</Table.Th>
               </Table.Tr>
             </Table.Thead>
-            <Table.Tbody>{sigMembers.map(renderSigMember)}</Table.Tbody>
+            <Table.Tbody>
+              {sigMembers.length > 0 ? sigMembers.map(renderSigMember) : <></>}
+            </Table.Tbody>
           </Table>
         </div>
       </Container>
+    </AuthGuard>
+  );
+};
+
+export const AddMemberToSigPage: FC = () => {
+  const { sigId } = useParams();
+  const api = useApi("core");
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    // console.log(formData)
+    const data = Object.fromEntries(
+      formData.entries(),
+    ) as SigMemberUpdateRecord;
+    data.designation = "M";
+    data.sigGroupId = sigId || "";
+    data.createdAt = getTimeInFormat();
+    data.updatedAt = data.createdAt;
+    // console.log(data)
+    await api.post(`/api/v1/siglead/addMember`, data);
+  }
+
+  async function testAddGroup() {
+    await api.patch(
+      `/api/v1/iam/groups/:e37a2420-1030-48da-9d17-f7e201b446e1`,
+      { add: ["d115c8cb-2520-4ba4-bc36-dd55af69c590"], remove: [] },
+    );
+  }
+
+  return (
+    <AuthGuard
+      resourceDef={{ service: "core", validRoles: [AppRoles.SIGLEAD_MANAGER] }}
+    >
+      <h1>Add Member to {orgIds2Name[sigId || "acm"]}</h1>
+      <form id="form" onSubmit={handleSubmit}>
+        <label htmlFor="email">email: </label>
+        <input
+          type="email"
+          name="email"
+          id="email"
+          placeholder="you@illinois.edu"
+        />
+        <br />
+        <label htmlFor="id">uuid: </label>
+        <input
+          type="text"
+          name="id"
+          id="id"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        />
+        <br />
+        <label htmlFor="memberName">name: </label>
+        <input
+          type="text"
+          name="memberName"
+          id="memberName"
+          placeholder="John Doe"
+        />
+        <br />
+        {/* <button type="submit" onSubmit={handleSubmit}>Submit</button> */}
+        <button type="submit">Submit</button>
+      </form>
+      <button type="button" onClick={testAddGroup}>
+        Test
+      </button>
     </AuthGuard>
   );
 };

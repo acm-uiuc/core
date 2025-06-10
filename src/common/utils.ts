@@ -29,6 +29,7 @@ const reservedCharsRegex = /[:\/?#\[\]@!$&'()*+,;=]/g;
  * @returns {string} - The transformed organization name, ready for use as a URL.
  */
 export function transformSigLeadToURI(org: string) {
+  // console.log(`org\t${org}`)
   org = org
     // change not reserved chars to spaces
     .trim()
@@ -55,4 +56,16 @@ export function transformSigLeadToURI(org: string) {
     .replace(/-{2,}/g, "-");
 
   return org === "-" ? "" : org;
+}
+
+export function getTimeInFormat() {
+  const date = new Date();
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}Z`;
 }

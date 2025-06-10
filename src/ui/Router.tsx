@@ -27,7 +27,10 @@ import { ManageStripeLinksPage } from "./pages/stripe/ViewLinks.page";
 import { ManageRoomRequestsPage } from "./pages/roomRequest/RoomRequestLanding.page";
 import { EditSigLeadsPage } from "./pages/siglead/EditSigLeads.page";
 import { ManageSigLeadsPage } from "./pages/siglead/ManageSigLeads.page";
-import { ViewSigLeadPage } from "./pages/siglead/ViewSigLead.page";
+import {
+  AddMemberToSigPage,
+  ViewSigLeadPage,
+} from "./pages/siglead/ViewSigLead.page";
 import { ViewRoomRequest } from "./pages/roomRequest/ViewRoomRequest.page";
 import { ViewLogsPage } from "./pages/logs/ViewLogs.page";
 import { TermsOfService } from "./pages/tos/TermsOfService.page";
@@ -202,6 +205,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: "/siglead-management/:sigId",
     element: <ViewSigLeadPage />,
+  },
+  {
+    path: "/siglead-management/:sigId/addMember",
+    element: <AddMemberToSigPage />,
   },
   {
     path: "/roomRequests",

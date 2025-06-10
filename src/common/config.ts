@@ -29,8 +29,6 @@ export type GenericConfigType = {
   EventsDynamoTableName: string;
   CacheDynamoTableName: string;
   LinkryDynamoTableName: string;
-  SigleadDynamoSigDetailTableName: string;
-  SigleadDynamoSigMemberTableName: string;
   StripeLinksDynamoTableName: string;
   ConfigSecretName: string;
   EntraSecretName: string;
@@ -50,6 +48,10 @@ export type GenericConfigType = {
   EntraReadOnlySecretName: string;
   AuditLogTable: string;
   ApiKeyTable: string;
+
+  RateLimiterDynamoTableName: string;
+  SigleadDynamoSigDetailTableName: string;
+  SigleadDynamoSigMemberTableName: string;
 };
 
 type EnvironmentConfigType = {
@@ -65,13 +67,13 @@ export const commChairsTestingGroupId = "d714adb7-07bb-4d4d-a40a-b035bc2a35a3";
 export const commChairsGroupId = "105e7d32-7289-435e-a67a-552c7f215507";
 export const miscTestingGroupId = "ff25ec56-6a33-420d-bdb0-51d8a3920e46";
 
+export const orgsGroupId = "0b3be7c2-748e-46ce-97e7-cf86f9ca7337";
+
 const genericConfig: GenericConfigType = {
   EventsDynamoTableName: "infra-core-api-events",
   StripeLinksDynamoTableName: "infra-core-api-stripe-links",
   CacheDynamoTableName: "infra-core-api-cache",
   LinkryDynamoTableName: "infra-core-api-linkry",
-  SigleadDynamoSigDetailTableName: "infra-core-api-sig-details",
-  SigleadDynamoSigMemberTableName: "infra-core-api-sig-member-details",
   ConfigSecretName: "infra-core-api-config",
   EntraSecretName: "infra-core-api-entra",
   EntraReadOnlySecretName: "infra-core-api-ro-entra",
@@ -90,6 +92,10 @@ const genericConfig: GenericConfigType = {
   RoomRequestsStatusTableName: "infra-core-api-room-requests-status",
   AuditLogTable: "infra-core-api-audit-log",
   ApiKeyTable: "infra-core-api-keys",
+
+  RateLimiterDynamoTableName: "infra-core-api-rate-limiter",
+  SigleadDynamoSigDetailTableName: "infra-core-api-sig-details",
+  SigleadDynamoSigMemberTableName: "infra-core-api-sig-member-details",
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {

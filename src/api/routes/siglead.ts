@@ -1,17 +1,23 @@
 import { FastifyPluginAsync } from "fastify";
 import { DatabaseFetchError } from "../../common/errors/index.js";
+
 import { genericConfig } from "../../common/config.js";
+
 import {
   SigDetailRecord,
   SigleadGetRequest,
   SigMemberCount,
   SigMemberRecord,
+  SigMemberUpdateRecord,
 } from "common/types/siglead.js";
 import {
+  addMemberToSigDynamo,
   fetchMemberRecords,
   fetchSigCounts,
   fetchSigDetail,
 } from "api/functions/siglead.js";
+import { intersection } from "api/plugins/auth.js";
+import { request } from "http";
 
 const sigleadRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
@@ -94,36 +100,47 @@ const sigleadRoutes: FastifyPluginAsync = async (fastify, _options) => {
     );
 
     // fetch sig count
-    fastify.get<SigleadGetRequest>(
-      "/sigcount",
-      {
-        onRequest: async (request, reply) => {
-          /*await fastify.authorize(request, reply, [
-              AppRoles.LINKS_MANAGER,
-              AppRoles.LINKS_ADMIN,
-            ]);*/
-        },
-      },
+    fastify.get<SigleadGetRequest>("/sigcount", async (request, reply) => {
+      // First try-catch: Fetch owner records
+      let sigMemCounts: SigMemberCount[];
+      try {
+        sigMemCounts = await fetchSigCounts(
+          genericConfig.SigleadDynamoSigMemberTableName,
+          fastify.dynamoClient,
+        );
+      } catch (error) {
+        request.log.error(
+          `Failed to fetch sig member counts record: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+        );
+        throw new DatabaseFetchError({
+          message:
+            "Failed to fetch sig member counts record from Dynamo table.",
+        });
+      }
+
+      // Send the response
+      reply.code(200).send(sigMemCounts);
+    });
+
+    // add member
+    fastify.post<{ Body: SigMemberUpdateRecord }>(
+      "/addMember",
       async (request, reply) => {
-        // First try-catch: Fetch owner records
-        let sigMemCounts: SigMemberCount[];
         try {
-          sigMemCounts = await fetchSigCounts(
+          await addMemberToSigDynamo(
             genericConfig.SigleadDynamoSigMemberTableName,
+            request.body,
             fastify.dynamoClient,
           );
         } catch (error) {
           request.log.error(
-            `Failed to fetch sig member counts record: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+            `Failed to add member: ${error instanceof Error ? error.toString() : "Unknown error"}`,
           );
           throw new DatabaseFetchError({
-            message:
-              "Failed to fetch sig member counts record from Dynamo table.",
+            message: "Failed to add sig member record to Dynamo table.",
           });
         }
-
-        // Send the response
-        reply.code(200).send(sigMemCounts);
+        reply.code(200);
       },
     );
   };
