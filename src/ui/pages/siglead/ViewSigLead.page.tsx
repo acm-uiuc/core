@@ -191,67 +191,74 @@ export const ViewSigLeadPage: React.FC = () => {
 };
 
 export const AddMemberToSigPage: FC = () => {
-  const { sigId } = useParams();
+  // const { sigId } = useParams();
   const api = useApi("core");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     // console.log(formData)
-    const data = Object.fromEntries(
-      formData.entries(),
-    ) as SigMemberUpdateRecord;
-    data.designation = "M";
-    data.sigGroupId = sigId || "";
-    data.createdAt = getTimeInFormat();
-    data.updatedAt = data.createdAt;
-    // console.log(data)
-    await api.post(`/api/v1/siglead/addMember`, data);
+    const data = Object.fromEntries(formData.entries()) as {
+      groupid: string;
+      aid: string;
+      rid: string;
+    };
+
+    await api.patch(`/api/v1/iam/groups/:${data.groupid}`, {
+      add: [data.aid],
+      remove: [data.rid],
+    });
+    // console.log(
+    //   `/api/v1/iam/groups/:${data.groupid}`,
+    //   { add: [data.aid], remove: [data.rid] },
+    // );
+    // ) as SigMemberUpdateRecord;
+    // data.designation = "M";
+    // data.sigGroupId = sigId || "";
+    // data.createdAt = getTimeInFormat();
+    // data.updatedAt = data.createdAt;
+    // // console.log(data)
+    // await api.post(`/api/v1/siglead/addMember`, data);
   }
 
-  async function testAddGroup() {
-    await api.patch(
-      `/api/v1/iam/groups/:e37a2420-1030-48da-9d17-f7e201b446e1`,
-      { add: ["d115c8cb-2520-4ba4-bc36-dd55af69c590"], remove: [] },
-    );
-  }
+  // async function testAddGroup() {
+  //   await api.patch(
+  //     `/api/v1/iam/groups/:e37a2420-1030-48da-9d17-f7e201b446e1`,
+  //     { add: ["d115c8cb-2520-4ba4-bc36-dd55af69c590"], remove: [] },
+  //   );
+  // }
 
   return (
     <AuthGuard
       resourceDef={{ service: "core", validRoles: [AppRoles.SIGLEAD_MANAGER] }}
     >
-      <h1>Add Member to {orgIds2Name[sigId || "acm"]}</h1>
       <form id="form" onSubmit={handleSubmit}>
-        <label htmlFor="email">email: </label>
-        <input
-          type="email"
-          name="email"
-          id="email"
-          placeholder="you@illinois.edu"
-        />
-        <br />
-        <label htmlFor="id">uuid: </label>
+        <label htmlFor="groupid">group id: </label>
         <input
           type="text"
-          name="id"
-          id="id"
+          name="groupid"
+          id="groupid"
           placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         />
         <br />
-        <label htmlFor="memberName">name: </label>
+        <label htmlFor="id">add uuid: </label>
         <input
           type="text"
-          name="memberName"
-          id="memberName"
-          placeholder="John Doe"
+          name="aid"
+          id="aid"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         />
         <br />
-        {/* <button type="submit" onSubmit={handleSubmit}>Submit</button> */}
+        <label htmlFor="id">remove uuid: </label>
+        <input
+          type="text"
+          name="rid"
+          id="rid"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        />
+        <br />
         <button type="submit">Submit</button>
       </form>
-      <button type="button" onClick={testAddGroup}>
-        Test
-      </button>
     </AuthGuard>
   );
 };
