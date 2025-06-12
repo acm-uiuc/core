@@ -204,10 +204,24 @@ export const AddMemberToSigPage: FC = () => {
       rid: string;
     };
 
-    await api.patch(`/api/v1/iam/groups/:${data.groupid}`, {
-      add: [data.aid],
-      remove: [data.rid],
-    });
+    try {
+      const response = await api.patch(`/api/v1/iam/groups/:${data.groupid}`, {
+        add: [data.aid],
+        remove: [data.rid],
+      });
+
+      console.warn(`GRAPH API RESPONSE: ${response}`);
+      notifications.show({
+        message: JSON.stringify(response),
+      });
+    } catch (error) {
+      notifications.show({
+        message: JSON.stringify(error),
+      });
+    }
+
+    // console.log(response);
+
     // console.log(
     //   `/api/v1/iam/groups/:${data.groupid}`,
     //   { add: [data.aid], remove: [data.rid] },
