@@ -205,9 +205,9 @@ export const AddMemberToSigPage: FC = () => {
     };
 
     try {
-      const response = await api.patch(`/api/v1/iam/groups/:${data.groupid}`, {
-        add: [data.aid],
-        remove: [data.rid],
+      const response = await api.patch(`/api/v1/iam/groups/${data.groupid}`, {
+        add: data.aid !== "" ? [data.aid] : [],
+        remove: data.rid !== "" ? [data.rid] : [],
       });
 
       console.warn(`GRAPH API RESPONSE: ${response}`);
@@ -221,18 +221,6 @@ export const AddMemberToSigPage: FC = () => {
     }
 
     // console.log(response);
-
-    // console.log(
-    //   `/api/v1/iam/groups/:${data.groupid}`,
-    //   { add: [data.aid], remove: [data.rid] },
-    // );
-    // ) as SigMemberUpdateRecord;
-    // data.designation = "M";
-    // data.sigGroupId = sigId || "";
-    // data.createdAt = getTimeInFormat();
-    // data.updatedAt = data.createdAt;
-    // // console.log(data)
-    // await api.post(`/api/v1/siglead/addMember`, data);
   }
 
   // async function testAddGroup() {
