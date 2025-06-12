@@ -408,6 +408,30 @@ Resources:
         - AttributeName: userEmail
           KeyType: HASH
 
+  RateLimiterTable:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: "Delete"
+    UpdateReplacePolicy: "Delete"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: infra-core-api-rate-limiter
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
   EventRecordsTable:
     Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
