@@ -5,6 +5,8 @@ import {
   QueryCommand,
   ScanCommand,
   UpdateItemCommand,
+  TransactWriteItemsCommand,
+  TransactWriteItemsInput,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import {
@@ -93,6 +95,21 @@ const listMerchItemsResponse = z.object({
 const postSchema = z.union([postMerchSchema, postTicketSchema]);
 
 type VerifyPostRequest = z.infer<typeof postSchema>;
+
+const itemExchangeSchema = z.object({
+  itemId: z.string().min(1),
+  ticketId: z.string().min(1),
+  originalSize: z.string(),
+  newSize: z.string(),
+  quantityExchanged: z.number(),
+});
+
+type ItemExchangeRequest = z.infer<typeof itemExchangeSchema>;
+
+const itemExchangeResponseSchema = z.object({
+  ticketId: z.string().min(1),
+  successful: z.boolean(),
+});
 
 type TicketsGetRequest = {
   Params: { id: string };
@@ -476,6 +493,65 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           requestId: request.id,
         },
       });
+    },
+  );
+  fastify.post<{ Body: ItemExchangeRequest }>(
+    "/exchange",
+    {
+      schema: {
+        response: { 200: itemExchangeResponseSchema },
+      },
+      preValidation: async (request, reply) => {
+        await fastify.zodValidateBody(request, reply, itemExchangeSchema);
+      },
+      onRequest: async (request, reply) => {
+        await fastify.authorize(request, reply, [AppRoles.TICKETS_SCANNER]);
+      },
+    },
+    async (request, reply) => {
+      const transaction: TransactWriteItemsInput = {
+        TransactItems: [
+          {
+            Update: {
+              Key: { itemId: { S: request.body.itemId } },
+              UpdateExpression:
+                "SET total_avail.#sizeold =  total_avail.#sizeold + :quantity, total_avail.#sizenew = total_avail.#sizenew + :quantity",
+              ConditionExpression: "total_avail.#sizenew >= :quantity",
+              ExpressionAttributeNames: {
+                "#sizeold": request.body.originalSize,
+                "#sizenew": request.body.newSize,
+              },
+              ExpressionAttributeValues: {
+                ":quantity": { N: request.body.quantityExchanged.toString() },
+              },
+              TableName: genericConfig.MerchStoreMetadataTableName,
+            },
+          },
+          {
+            Update: {
+              Key: { stripePi: { S: request.body.ticketId } },
+              UpdateExpression: "SET size = :sizenew",
+              ConditionExpression: "quantity >= :quantity",
+              ExpressionAttributeValues: {
+                ":quantity": { N: request.body.quantityExchanged.toString() },
+                ":sizenew": { S: request.body.newSize },
+              },
+              TableName: genericConfig.MerchStorePurchasesTableName,
+            },
+          },
+        ],
+      };
+      const command = new TransactWriteItemsCommand(transaction);
+      try {
+        const resp = await fastify.dynamoClient.send(command);
+        if (resp.$metadata.httpStatusCode == 200) {
+          reply.send({ ticketId: request.body.ticketId, successful: true });
+        } else {
+          reply.send({ ticketId: request.body.ticketId, successful: false });
+        }
+      } catch {
+        reply.send({ ticketId: request.body.ticketId, successful: false });
+      }
     },
   );
 };
