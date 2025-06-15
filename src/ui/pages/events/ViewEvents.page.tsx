@@ -9,22 +9,23 @@ import {
   Title,
   Badge,
   Anchor,
-} from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
-import dayjs from 'dayjs';
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { z } from 'zod';
+  Divider,
+} from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
+import { IconPlus, IconTrash } from "@tabler/icons-react";
+import dayjs from "dayjs";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { z } from "zod";
 
-import { capitalizeFirstLetter } from './ManageEvent.page.js';
-import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
-import { AuthGuard } from '@ui/components/AuthGuard';
-import { useApi } from '@ui/util/api';
-import { AppRoles } from '@common/roles.js';
+import { capitalizeFirstLetter } from "./ManageEvent.page.js";
+import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import { AuthGuard } from "@ui/components/AuthGuard";
+import { useApi } from "@ui/util/api";
+import { AppRoles } from "@common/roles.js";
 
-const repeatOptions = ['weekly', 'biweekly'] as const;
+const repeatOptions = ["weekly", "biweekly"] as const;
 
 const baseSchema = z.object({
   title: z.string().min(1),
@@ -54,104 +55,144 @@ export type EventsGetResponse = z.infer<typeof getEventsSchema>;
 
 export const ViewEventsPage: React.FC = () => {
   const [eventList, setEventList] = useState<EventsGetResponse>([]);
-  const api = useApi('core');
+  const api = useApi("core");
   const [opened, { open, close }] = useDisclosure(false);
-  const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false); // Changed default to false
-  const [deleteCandidate, setDeleteCandidate] = useState<EventGetResponse | null>(null);
+  const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false);
+  const [deleteCandidate, setDeleteCandidate] =
+    useState<EventGetResponse | null>(null);
   const navigate = useNavigate();
 
-  const renderTableRow = (event: EventGetResponse) => {
-    const shouldShow = event.upcoming || (!event.upcoming && showPrevious);
+  // Use useMemo to sort and filter events only when dependencies change
+  const sortedUpcomingEvents = useMemo(() => {
+    return eventList
+      .filter((event: EventGetResponse) => event.upcoming)
+      .sort(
+        (a: EventGetResponse, b: EventGetResponse) =>
+          new Date(a.start).getTime() - new Date(b.start).getTime(),
+      );
+  }, [eventList]);
 
-    return (
-      <Transition
-        mounted={shouldShow}
-        transition="fade"
-        duration={400}
-        timingFunction="ease"
-        key={`${event.id}-tr-transition`}
-      >
-        {(styles) => (
-          <tr
-            style={{ ...styles, display: shouldShow ? 'table-row' : 'none' }}
-            key={`${event.id}-tr`}
-          >
-            <Table.Td>
-              {event.title} {event.featured ? <Badge color="green">Featured</Badge> : null}
-            </Table.Td>
-            <Table.Td>{dayjs(event.start).format('MMM D YYYY hh:mm A')}</Table.Td>
-            <Table.Td>{event.end ? dayjs(event.end).format('MMM D YYYY hh:mm A') : 'N/A'}</Table.Td>
-            <Table.Td>
-              {event.locationLink ? (
-                <Anchor target="_blank" size="sm" href={event.locationLink}>
-                  {event.location}
-                </Anchor>
-              ) : (
-                event.location
-              )}
-            </Table.Td>
-            <Table.Td>{event.host}</Table.Td>
-            <Table.Td>{capitalizeFirstLetter(event.repeats || 'Never')}</Table.Td>
-            <Table.Td>
-              <ButtonGroup>
-                <Button component="a" href={`/events/edit/${event.id}`}>
-                  Edit
-                </Button>
-                <Button
-                  color="red"
-                  onClick={() => {
-                    setDeleteCandidate(event);
-                    open();
-                  }}
-                >
-                  Delete
-                </Button>
-              </ButtonGroup>
-            </Table.Td>
-          </tr>
-        )}
-      </Transition>
-    );
-  };
+  // Use useMemo to sort and filter previous events only when dependencies change
+  const sortedPreviousEvents = useMemo(() => {
+    return eventList
+      .filter((event: EventGetResponse) => !event.upcoming)
+      .sort((a: EventGetResponse, b: EventGetResponse) => {
+        // For repeating events, compare by repeatEnds date first (if available)
+        if (a.repeatEnds && b.repeatEnds) {
+          return (
+            new Date(b.repeatEnds).getTime() - new Date(a.repeatEnds).getTime()
+          );
+        } else if (a.repeatEnds) {
+          return -1; // a has repeatEnds, b doesn't, so a comes first
+        } else if (b.repeatEnds) {
+          return 1; // b has repeatEnds, a doesn't, so b comes first
+        }
+        // Otherwise sort by start date in reverse order (newest first)
+        return new Date(b.start).getTime() - new Date(a.start).getTime();
+      });
+  }, [eventList]);
 
   useEffect(() => {
     const getEvents = async () => {
-      // setting ts lets us tell cloudfront I want fresh data
-      const response = await api.get(`/api/v1/events?ts=${Date.now()}`);
-      const upcomingEvents = await api.get(`/api/v1/events?upcomingOnly=true&ts=${Date.now()}`);
-      const upcomingEventsSet = new Set(upcomingEvents.data.map((x: EventGetResponse) => x.id));
-      const events = response.data;
-      events.sort((a: EventGetResponse, b: EventGetResponse) => {
-        return a.start.localeCompare(b.start);
-      });
-      const enrichedResponse = response.data.map((item: EventGetResponse) => {
-        if (upcomingEventsSet.has(item.id)) {
-          return { ...item, upcoming: true };
-        }
-        return { ...item, upcoming: false };
-      });
-      setEventList(enrichedResponse);
+      try {
+        // Setting ts lets us tell cloudfront I want fresh data
+        const response = await api.get(`/api/v1/events?ts=${Date.now()}`);
+        const upcomingEvents = await api.get(
+          `/api/v1/events?upcomingOnly=true&ts=${Date.now()}`,
+        );
+
+        const upcomingEventsSet = new Set(
+          upcomingEvents.data.map((x: EventGetResponse) => x.id),
+        );
+
+        const events = response.data;
+        events.sort((a: EventGetResponse, b: EventGetResponse) => {
+          return a.start.localeCompare(b.start);
+        });
+
+        const enrichedResponse = response.data.map((item: EventGetResponse) => {
+          if (upcomingEventsSet.has(item.id)) {
+            return { ...item, upcoming: true };
+          }
+          return { ...item, upcoming: false };
+        });
+
+        setEventList(enrichedResponse);
+      } catch (error) {
+        console.error("Error fetching events:", error);
+        notifications.show({
+          title: "Error fetching events",
+          message: `${error}`,
+          color: "red",
+        });
+      }
     };
+
     getEvents();
   }, []);
 
   const deleteEvent = async (eventId: string) => {
     try {
       await api.delete(`/api/v1/events/${eventId}`);
-      setEventList((prevEvents) => prevEvents.filter((event) => event.id !== eventId));
+      setEventList((prevEvents) =>
+        prevEvents.filter((event) => event.id !== eventId),
+      );
       notifications.show({
-        title: 'Event deleted',
-        message: 'The event was successfully deleted.',
+        title: "Event deleted",
+        message: "The event was successfully deleted.",
       });
       close();
     } catch (error) {
       console.error(error);
       notifications.show({
-        title: 'Error deleting event',
+        title: "Error deleting event",
         message: `${error}`,
-        color: 'red',
+        color: "red",
       });
     }
+  };
+
+  const renderEvent = (event: EventGetResponse) => {
+    return (
+      <tr key={`${event.id}-tr`}>
+        <Table.Td>
+          {event.title}{" "}
+          {event.featured ? <Badge color="green">Featured</Badge> : null}
+        </Table.Td>
+        <Table.Td>{dayjs(event.start).format("MMM D YYYY hh:mm A")}</Table.Td>
+        <Table.Td>
+          {event.end ? dayjs(event.end).format("MMM D YYYY hh:mm A") : "N/A"}
+        </Table.Td>
+        <Table.Td>
+          {event.locationLink ? (
+            <Anchor target="_blank" size="sm" href={event.locationLink}>
+              {event.location}
+            </Anchor>
+          ) : (
+            event.location
+          )}
+        </Table.Td>
+        <Table.Td>{event.host}</Table.Td>
+        <Table.Td>{capitalizeFirstLetter(event.repeats || "Never")}</Table.Td>
+        <Table.Td>
+          <ButtonGroup>
+            <Button component="a" href={`/events/edit/${event.id}`}>
+              Edit
+            </Button>
+            <Button
+              color="red"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteCandidate(event);
+                open();
+              }}
+            >
+              Delete
+            </Button>
+          </ButtonGroup>
+        </Table.Td>
+      </tr>
+    );
   };
 
   if (eventList.length === 0) {
@@ -159,10 +200,13 @@ export const ViewEventsPage: React.FC = () => {
   }
 
   return (
-    <AuthGuard resourceDef={{ service: 'core', validRoles: [AppRoles.EVENTS_MANAGER] }}>
-      <Title order={1} mb={'md'}>
+    <AuthGuard
+      resourceDef={{ service: "core", validRoles: [AppRoles.EVENTS_MANAGER] }}
+    >
+      <Title order={1} mb="md">
         Event Management
       </Title>
+
       {deleteCandidate && (
         <Modal
           opened={opened}
@@ -173,7 +217,8 @@ export const ViewEventsPage: React.FC = () => {
           title="Confirm action"
         >
           <Text>
-            Are you sure you want to delete the event <i>{deleteCandidate?.title}</i>?
+            Are you sure you want to delete the event{" "}
+            <i>{deleteCandidate?.title}</i>?
           </Text>
           <hr />
           <Group>
@@ -188,20 +233,27 @@ export const ViewEventsPage: React.FC = () => {
           </Group>
         </Modal>
       )}
-      <div style={{ display: 'flex', columnGap: '1vw', verticalAlign: 'middle' }}>
+
+      <div
+        style={{ display: "flex", columnGap: "1vw", verticalAlign: "middle" }}
+      >
         <Button
           leftSection={<IconPlus size={14} />}
           onClick={() => {
-            navigate('/events/add');
+            navigate("/events/add");
           }}
         >
           New Calendar Event
         </Button>
         <Button onClick={togglePrevious}>
-          {showPrevious ? 'Hide Previous Events' : 'Show Previous Events'}
+          {showPrevious ? "Hide Previous Events" : "Show Previous Events"}
         </Button>
       </div>
-      <Table style={{ tableLayout: 'fixed', width: '100%' }} data-testid="events-table">
+
+      <Table
+        style={{ tableLayout: "fixed", width: "100%" }}
+        data-testid="events-table"
+      >
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Title</Table.Th>
@@ -213,8 +265,21 @@ export const ViewEventsPage: React.FC = () => {
             <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
-        <Table.Tbody>{eventList.map(renderTableRow)}</Table.Tbody>
+        <Table.Tbody>{sortedUpcomingEvents.map(renderEvent)}</Table.Tbody>
       </Table>
+      {showPrevious && (
+        <>
+          <Divider labelPosition="center" label="Previous Events" />
+          <Table
+            style={{ tableLayout: "fixed", width: "100%" }}
+            data-testid="events-previous-table"
+          >
+            <Table.Tbody>
+              {showPrevious && sortedPreviousEvents.map(renderEvent)}
+            </Table.Tbody>
+          </Table>
+        </>
+      )}
     </AuthGuard>
   );
 };

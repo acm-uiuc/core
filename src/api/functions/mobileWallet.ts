@@ -17,6 +17,8 @@ import { promises as fs } from "fs";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { RunEnvironment } from "common/roles.js";
 import pino from "pino";
+import { createAuditLogEntry } from "./auditLog.js";
+import { Modules } from "common/modules.js";
 
 function trim(s: string) {
   return (s || "").replace(/^\s+|\s+$/g, "");
@@ -65,8 +67,7 @@ export async function issueAppleWalletMembershipCard(
     secretApiConfig.apple_signing_cert_base64,
     "base64",
   ).toString("utf-8");
-  pass["passTypeIdentifier"] = environmentConfig["PasskitIdentifier"];
-
+  pass.passTypeIdentifier = environmentConfig.PasskitIdentifier;
   const pkpass = new PKPass(
     {
       "icon.png": await fs.readFile(icon),
@@ -81,7 +82,7 @@ export async function issueAppleWalletMembershipCard(
     },
     {
       // logoText: app.runEnvironment === "dev" ? "INVALID Membership Pass" : "Membership Pass",
-      serialNumber: environmentConfig["PasskitSerialNumber"],
+      serialNumber: environmentConfig.PasskitSerialNumber,
     },
   );
   pkpass.setBarcodes({
@@ -117,9 +118,13 @@ export async function issueAppleWalletMembershipCard(
   pkpass.backFields.push({ label: "Pass Created On", key: "iat", value: iat });
   pkpass.backFields.push({ label: "Membership ID", key: "id", value: email });
   const buffer = pkpass.getAsBuffer();
-  logger.info(
-    { type: "audit", module: "mobileWallet", actor: initiator, target: email },
-    "Created membership verification pass",
-  );
+  await createAuditLogEntry({
+    entry: {
+      module: Modules.MOBILE_WALLET,
+      actor: initiator,
+      target: email,
+      message: "Created membership verification pass",
+    },
+  });
   return buffer;
 }

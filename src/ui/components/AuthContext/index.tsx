@@ -2,9 +2,9 @@ import {
   AuthenticationResult,
   InteractionRequiredAuthError,
   InteractionStatus,
-} from '@azure/msal-browser';
-import { useMsal } from '@azure/msal-react';
-import { MantineProvider } from '@mantine/core';
+} from "@azure/msal-browser";
+import { useMsal } from "@azure/msal-react";
+import { MantineProvider } from "@mantine/core";
 import React, {
   createContext,
   ReactNode,
@@ -12,15 +12,15 @@ import React, {
   useState,
   useEffect,
   useCallback,
-} from 'react';
+} from "react";
 
-import { CACHE_KEY_PREFIX, setCachedResponse } from '../AuthGuard/index.js';
+import { CACHE_KEY_PREFIX, setCachedResponse } from "../AuthGuard/index.js";
 
-import FullScreenLoader from './LoadingScreen.js';
+import FullScreenLoader from "./LoadingScreen.js";
 
-import { getRunEnvironmentConfig, ValidServices } from '@ui/config.js';
-import { transformCommaSeperatedName } from '@common/utils.js';
-import { useApi } from '@ui/util/api.js';
+import { getRunEnvironmentConfig, ValidServices } from "@ui/config.js";
+import { transformCommaSeperatedName } from "@common/utils.js";
+import { useApi } from "@ui/util/api.js";
 
 interface AuthContextDataWrapper {
   isLoggedIn: boolean;
@@ -47,20 +47,17 @@ interface AuthProviderProps {
 }
 
 export const clearAuthCache = () => {
-  for (const key of Object.keys(sessionStorage)) {
-    if (key.startsWith(CACHE_KEY_PREFIX)) {
-      sessionStorage.removeItem(key);
-    }
-  }
+  sessionStorage.clear();
 };
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { instance, inProgress, accounts } = useMsal();
   const [userData, setUserData] = useState<AuthContextData | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const checkRoute = getRunEnvironmentConfig().ServiceConfiguration['core'].authCheckRoute;
+  const checkRoute =
+    getRunEnvironmentConfig().ServiceConfiguration.core.authCheckRoute;
   if (!checkRoute) {
-    throw new Error('no check route found!');
+    throw new Error("no check route found!");
   }
 
   const navigate = (path: string) => {
@@ -75,7 +72,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else if (accounts.length > 0) {
         setUserData({
           email: accounts[0].username,
-          name: transformCommaSeperatedName(accounts[0].name || ''),
+          name: transformCommaSeperatedName(accounts[0].name || ""),
         });
         setIsLoggedIn(true);
       }
@@ -93,18 +90,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // If accounts array is empty, try silent authentication
           instance
             .ssoSilent({
-              scopes: ['openid', 'profile', 'email'],
+              scopes: ["openid", "profile", "email"],
               loginHint: response.account.username,
             })
             .then(async (silentResponse) => {
               if (silentResponse?.account?.name) {
                 setUserData({
                   email: accounts[0].username,
-                  name: transformCommaSeperatedName(accounts[0].name || ''),
+                  name: transformCommaSeperatedName(accounts[0].name || ""),
                 });
-                const api = useApi('core');
+                const api = useApi("core");
                 const result = await api.get(checkRoute);
-                await setCachedResponse('core', checkRoute, result.data);
+                await setCachedResponse("core", checkRoute, result.data);
                 setIsLoggedIn(true);
               }
             })
@@ -113,12 +110,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         setUserData({
           email: accounts[0].username,
-          name: transformCommaSeperatedName(accounts[0].name || ''),
+          name: transformCommaSeperatedName(accounts[0].name || ""),
         });
         setIsLoggedIn(true);
       }
     },
-    [accounts, instance]
+    [accounts, instance],
   );
 
   const getApiToken = useCallback(
@@ -126,7 +123,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!userData) {
         return null;
       }
-      const scope = getRunEnvironmentConfig().ServiceConfiguration[service].loginScope;
+      const scope =
+        getRunEnvironmentConfig().ServiceConfiguration[service].loginScope;
       const { apiId } = getRunEnvironmentConfig().ServiceConfiguration[service];
       if (!scope || !apiId) {
         return null;
@@ -141,9 +139,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const tokenResponse = await instance.acquireTokenSilent(silentRequest);
         return tokenResponse.accessToken;
       }
-      throw new Error('More than one account found, cannot proceed.');
+      throw new Error("More than one account found, cannot proceed.");
     },
-    [userData, instance]
+    [userData, instance],
   );
 
   const getToken = useCallback(async () => {
@@ -155,25 +153,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (msalAccounts.length > 0) {
         const silentRequest = {
           account: msalAccounts[0],
-          scopes: ['.default'], // Adjust scopes as needed
+          scopes: [".default"], // Adjust scopes as needed
         };
         const tokenResponse = await instance.acquireTokenSilent(silentRequest);
         return tokenResponse.accessToken;
       }
-      throw new Error('More than one account found, cannot proceed.');
+      throw new Error("More than one account found, cannot proceed.");
     } catch (error) {
-      console.error('Silent token acquisition failed.', error);
+      console.error("Silent token acquisition failed.", error);
       if (error instanceof InteractionRequiredAuthError) {
         // Fallback to interaction when silent token acquisition fails
         try {
           const interactiveRequest = {
-            scopes: ['.default'], // Adjust scopes as needed
-            redirectUri: '/auth/callback', // Redirect URI after login
+            scopes: [".default"], // Adjust scopes as needed
+            redirectUri: "/auth/callback", // Redirect URI after login
           };
-          const tokenResponse: any = await instance.acquireTokenRedirect(interactiveRequest);
+          const tokenResponse: any =
+            await instance.acquireTokenRedirect(interactiveRequest);
           return tokenResponse.accessToken;
         } catch (interactiveError) {
-          console.error('Interactive token acquisition failed.', interactiveError);
+          console.error(
+            "Interactive token acquisition failed.",
+            interactiveError,
+          );
           throw interactiveError;
         }
       } else {
@@ -185,24 +187,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loginMsal = useCallback(
     async (returnTo: string) => {
       if (!checkRoute) {
-        throw new Error('could not get user roles!');
+        throw new Error("could not get user roles!");
       }
       const accountsLocal = instance.getAllAccounts();
       if (accountsLocal.length > 0) {
         instance.setActiveAccount(accountsLocal[0]);
-        const api = useApi('core');
+        const api = useApi("core");
         const result = await api.get(checkRoute);
-        await setCachedResponse('core', checkRoute, result.data);
+        await setCachedResponse("core", checkRoute, result.data);
         setIsLoggedIn(true);
       } else {
         await instance.loginRedirect({
-          scopes: ['openid', 'profile', 'email'],
+          scopes: ["openid", "profile", "email"],
           state: returnTo,
           redirectUri: `${window.location.origin}/auth/callback`,
         });
       }
     },
-    [instance]
+    [instance],
   );
   const setLoginStatus = useCallback((val: boolean) => {
     setIsLoggedIn(val);
@@ -213,7 +215,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       clearAuthCache();
       await instance.logoutRedirect();
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     }
   }, [instance, userData]);
   const logoutCallback = () => {

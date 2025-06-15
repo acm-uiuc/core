@@ -15,6 +15,8 @@ Parameters:
     Type: String
   SqsQueueArn:
     Type: String
+  LinkryKvArn:
+    Type: String
 
 Conditions:
   IsDev: !Equals [!Ref RunEnvironment, "dev"]
@@ -72,6 +74,17 @@ Resources:
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-provisioning
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-external
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests-status
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-linkry
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-keys
+              # Index accesses
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-purchase-history/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests-status/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-linkry/index/*
 
           - Sid: DynamoDBCacheAccess
             Effect: Allow
@@ -86,22 +99,15 @@ Resources:
             Resource:
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-cache
 
-          - Sid: DynamoDBRateLimitTableAccess
+          - Sid: DynamoDBAuditLogTableAccess
             Effect: Allow
             Action:
               - dynamodb:DescribeTable
-              - dynamodb:UpdateItem
-            Resource:
-              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-rate-limiter
-
-          - Sid: DynamoDBIndexAccess
-            Effect: Allow
-            Action:
+              - dynamodb:PutItem
               - dynamodb:Query
             Resource:
-              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/index/*
-              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/index/*
-              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-merchstore-purchase-history/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-audit-log
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-audit-log/index/*
 
           - Sid: DynamoDBStreamAccess
             Effect: Allow
@@ -113,6 +119,12 @@ Resources:
             Resource:
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links/stream/*
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-events/stream/*
+          - Sid: CloudfrontKvStreamAccess
+            Effect: Allow
+            Action:
+              - cloudfront-keyvaluestore:*
+            Resource:
+              - !Ref LinkryKvArn
 
   # API Lambda IAM Role
   ApiLambdaIAMRole:
@@ -177,6 +189,7 @@ Resources:
                 Effect: Allow
                 Resource:
                   - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-entra*
+                  - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-ro-entra*
 
   # SQS Lambda IAM Role
   SqsLambdaIAMRole:
@@ -211,6 +224,19 @@ Resources:
                   ForAllValues:StringLike:
                     ses:Recipients:
                       - "*@illinois.edu"
+        - PolicyName: ses-notifications
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Effect: Allow
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    ses:FromAddress:
+                      Fn::Sub: "notifications@${SesEmailDomain}"
         - PolicyName: ses-sales
           PolicyDocument:
             Version: "2012-10-17"

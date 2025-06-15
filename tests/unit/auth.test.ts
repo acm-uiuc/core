@@ -1,12 +1,7 @@
 import { expect, test, vi } from "vitest";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import {
-  secretJson,
   secretObject,
   jwtPayload,
   jwtPayloadNoGroups,
@@ -15,11 +10,9 @@ import jwt from "jsonwebtoken";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 import { beforeEach, describe } from "node:test";
 
-const ddbMock = mockClient(SecretsManagerClient);
-
 const app = await init();
 const jwt_secret = secretObject["jwt_key"];
-export function createJwt(date?: Date, group?: string, email?: string) {
+export function createJwt(date?: Date, groups?: string[], email?: string) {
   let modifiedPayload = {
     ...jwtPayload,
     email: email || jwtPayload.email,
@@ -36,8 +29,8 @@ export function createJwt(date?: Date, group?: string, email?: string) {
     };
   }
 
-  if (group) {
-    modifiedPayload.groups[0] = group;
+  if (groups) {
+    modifiedPayload.groups = groups;
   }
   return jwt.sign(modifiedPayload, jwt_secret, { algorithm: "HS256" });
 }
@@ -54,9 +47,6 @@ const testJwtNoGroups = createJwtNoGroups();
 
 describe("Test authentication", () => {
   test("Test happy path", async () => {
-    ddbMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
     const response = await app.inject({
       method: "GET",
       url: "/api/v1/protected",
@@ -73,9 +63,6 @@ describe("Test authentication", () => {
   });
 
   test("Test user-specific role grants", async () => {
-    ddbMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
     const response = await app.inject({
       method: "GET",
       url: "/api/v1/protected",
@@ -93,5 +80,6 @@ describe("Test authentication", () => {
 
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushAll();
   });
 });

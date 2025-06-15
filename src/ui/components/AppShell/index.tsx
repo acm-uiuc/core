@@ -1,4 +1,5 @@
 import {
+  Anchor,
   AppShell,
   Divider,
   Group,
@@ -7,8 +8,8 @@ import {
   Skeleton,
   Text,
   useMantineColorScheme,
-} from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+} from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import {
   IconCalendar,
   IconCoin,
@@ -17,16 +18,19 @@ import {
   IconPizza,
   IconTicket,
   IconLock,
-} from '@tabler/icons-react';
-import { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+  IconDoor,
+  IconHistory,
+  IconKey,
+} from "@tabler/icons-react";
+import { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { useAuth } from '../AuthContext/index.js';
-import { HeaderNavbar } from '../Navbar/index.js';
-import { AuthenticatedProfileDropdown } from '../ProfileDropdown/index.js';
-import { getCurrentRevision } from '@ui/util/revision.js';
-import { AppRoles } from '@common/roles.js';
-import { AuthGuard } from '../AuthGuard/index.js';
+import { useAuth } from "../AuthContext/index.js";
+import { HeaderNavbar } from "../Navbar/index.js";
+import { AuthenticatedProfileDropdown } from "../ProfileDropdown/index.js";
+import { getCurrentRevision } from "@ui/util/revision.js";
+import { AppRoles } from "@common/roles.js";
+import { AuthGuard } from "../AuthGuard/index.js";
 
 export interface AcmAppShellProps {
   children: ReactNode;
@@ -38,62 +42,87 @@ export interface AcmAppShellProps {
 
 export const navItems = [
   {
-    link: '/events/manage',
-    name: 'Events',
+    link: "/events/manage",
+    name: "Events",
     icon: IconCalendar,
     description: null,
     validRoles: [AppRoles.EVENTS_MANAGER],
   },
   {
-    link: '/tickets',
-    name: 'Ticketing/Merch',
+    link: "/tickets",
+    name: "Ticketing/Merch",
     icon: IconTicket,
     description: null,
     validRoles: [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
   },
   {
-    link: '/iam',
-    name: 'IAM',
+    link: "/iam",
+    name: "IAM",
     icon: IconLock,
     description: null,
     validRoles: [AppRoles.IAM_ADMIN, AppRoles.IAM_INVITE_ONLY],
   },
   {
-    link: '/stripe',
-    name: 'Stripe Link Creator',
+    link: "/stripe",
+    name: "Stripe Link Creator",
     icon: IconCoin,
     description: null,
     validRoles: [AppRoles.STRIPE_LINK_CREATOR],
+  },
+  {
+    link: "/roomRequests",
+    name: "Room Requests",
+    icon: IconDoor,
+    description: null,
+    validRoles: [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_UPDATE],
+  },
+  {
+    link: "/linkry",
+    name: "Link Shortener",
+    icon: IconLink,
+    description: null,
+    validRoles: [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+  },
+  {
+    link: "/logs",
+    name: "Audit Logs",
+    icon: IconHistory,
+    description: null,
+    validRoles: [AppRoles.AUDIT_LOG_VIEWER],
+  },
+  {
+    link: "/apiKeys",
+    name: "API Keys",
+    icon: IconKey,
+    description: null,
+    validRoles: [AppRoles.MANAGE_ORG_API_KEYS],
   },
 ];
 
 export const extLinks = [
   {
-    link: 'https://go.acm.illinois.edu/create',
-    name: 'Link Shortener',
-    icon: IconLink,
-    description: null,
-  },
-  {
-    link: 'https://go.acm.illinois.edu/reimburse',
-    name: 'Funding and Reimbursement Requests',
+    link: "https://go.acm.illinois.edu/reimburse",
+    name: "Funding and Reimbursement Requests",
     icon: IconFileDollar,
     description: null,
   },
   {
-    link: 'https://go.acm.illinois.edu/sigpizza',
-    name: 'Pizza Request Form',
+    link: "https://go.acm.illinois.edu/sigpizza",
+    name: "Pizza Request Form",
     icon: IconPizza,
     description: null,
   },
 ];
 
-function isSameParentPath(path1: string | undefined, path2: string | undefined) {
+function isSameParentPath(
+  path1: string | undefined,
+  path2: string | undefined,
+) {
   if (!path1 || !path2) {
     return false;
   }
-  const splitPath1 = path1.split('/');
-  const splitPath2 = path2.split('/');
+  const splitPath1 = path1.split("/");
+  const splitPath2 = path2.split("/");
 
   // Ensure both paths are long enough to have a parent path
   if (splitPath1.length < 2 || splitPath2.length < 2) {
@@ -101,15 +130,15 @@ function isSameParentPath(path1: string | undefined, path2: string | undefined) 
   }
 
   // Remove the last element (assumed to be the file or final directory)
-  const parentPath1 = splitPath1.slice(0, -1).join('/');
-  const parentPath2 = splitPath2.slice(0, -1).join('/');
-  return parentPath1 === parentPath2 && parentPath1 !== '/app';
+  const parentPath1 = splitPath1.slice(0, -1).join("/");
+  const parentPath2 = splitPath2.slice(0, -1).join("/");
+  return parentPath1 === parentPath2 && parentPath1 !== "/app";
 }
 
 export const renderNavItems = (
   items: Record<string, any>[],
   active: string | undefined,
-  navigate: CallableFunction
+  navigate: CallableFunction,
 ) =>
   items.map((item) => {
     const link = (
@@ -118,7 +147,7 @@ export const renderNavItems = (
         h={48}
         mt="sm"
         onClick={() => {
-          if (item.link.includes('://')) {
+          if (item.link.includes("://")) {
             window.location.href = item.link;
           } else {
             navigate(item.link);
@@ -137,13 +166,15 @@ export const renderNavItems = (
         {item.children ? renderNavItems(item.children, active, navigate) : null}
       </NavLink>
     );
-    if (item.link.at(0) == '/') {
+    if (item.link.at(0) === "/") {
       return (
         <AuthGuard
-          resourceDef={{ service: 'core', validRoles: item.validRoles }}
+          resourceDef={{ service: "core", validRoles: item.validRoles }}
           isAppShell={false}
           key={`${item.name}-wrap`}
-          loadingSkeleton={<Skeleton h={48} style={{ borderRadius: 5 }} mt="sm"></Skeleton>}
+          loadingSkeleton={
+            <Skeleton h={48} style={{ borderRadius: 5 }} mt="sm" />
+          }
         >
           {link}
         </AuthGuard>
@@ -157,7 +188,11 @@ type SidebarNavItemsProps = {
   visible: boolean;
   active?: string;
 };
-const SidebarNavItems: React.FC<SidebarNavItemsProps> = ({ items, visible, active }) => {
+const SidebarNavItems: React.FC<SidebarNavItemsProps> = ({
+  items,
+  visible,
+  active,
+}) => {
   const navigate = useNavigate();
   if (!visible) {
     return null;
@@ -181,13 +216,14 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
   }
   const [opened, { toggle }] = useDisclosure();
   const { userData } = useAuth();
+  const navigate = useNavigate();
   return (
     <AppShell
       padding="md"
       header={{ height: 60 }}
       navbar={{
         width: showSidebar ? 200 : 0,
-        breakpoint: 'sm',
+        breakpoint: "sm",
         collapsed: { mobile: !opened },
       }}
     >
@@ -197,10 +233,18 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
       {showSidebar && (
         <AppShell.Navbar p="sm">
           <AppShell.Section grow>
-            <SidebarNavItems items={navItems} visible={showSidebar} active={active} />
+            <SidebarNavItems
+              items={navItems}
+              visible={showSidebar}
+              active={active}
+            />
             <br />
             <Divider label="Other Services" />
-            <SidebarNavItems items={extLinks} visible={showSidebar} active={active} />
+            <SidebarNavItems
+              items={extLinks}
+              visible={showSidebar}
+              active={active}
+            />
             <Group hiddenFrom="sm">
               <Divider />
               <AuthenticatedProfileDropdown userData={userData || {}} />
@@ -213,6 +257,14 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
             <Text size="xs" fw={500}>
               Revision <code>{getCurrentRevision()}</code>
             </Text>
+            <Anchor
+              component="button"
+              size="xs"
+              fw={500}
+              onClick={() => navigate("/tos")}
+            >
+              Terms of Service
+            </Anchor>
           </AppShell.Section>
         </AppShell.Navbar>
       )}
@@ -220,7 +272,7 @@ const AcmAppShell: React.FC<AcmAppShellProps> = ({
         {showLoader ? (
           <LoadingOverlay
             visible={showLoader}
-            loaderProps={{ color: colorScheme === 'dark' ? 'white' : 'black' }}
+            loaderProps={{ color: colorScheme === "dark" ? "white" : "black" }}
           />
         ) : (
           children

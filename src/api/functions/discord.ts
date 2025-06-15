@@ -14,7 +14,7 @@ import moment from "moment-timezone";
 import { FastifyBaseLogger } from "fastify";
 import { DiscordEventError } from "../../common/errors/index.js";
 import { getSecretValue } from "../plugins/auth.js";
-import { genericConfig } from "../../common/config.js";
+import { genericConfig, SecretConfig } from "../../common/config.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 
 // https://stackoverflow.com/a/3809435/5684541
@@ -23,21 +23,20 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 
 export type IUpdateDiscord = EventPostRequest & { id: string };
 
-const urlRegex = /https:\/\/[a-z0-9\.-]+\/calendar\?id=([a-f0-9-]+)/;
+const urlRegex = /https:\/\/[a-z0-9.-]+\/calendar\?id=([a-f0-9-]+)/;
+
 export const updateDiscord = async (
-  smClient: SecretsManagerClient,
+  secretApiConfig: SecretConfig,
   event: IUpdateDiscord,
+  actor: string,
   isDelete: boolean = false,
   logger: FastifyBaseLogger,
 ): Promise<null | GuildScheduledEventCreateOptions> => {
-  const secretApiConfig =
-    (await getSecretValue(smClient, genericConfig.ConfigSecretName)) || {};
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
   let payload: GuildScheduledEventCreateOptions | null = null;
-
   client.once(Events.ClientReady, async (readyClient: Client<true>) => {
-    logger.info(`Logged in as ${readyClient.user.tag}`);
-    const guildID = secretApiConfig["discord_guild_id"];
+    logger.debug(`Logged in as ${readyClient.user.tag}`);
+    const guildID = secretApiConfig.discord_guild_id;
     const guild = await client.guilds.fetch(guildID?.toString() || "");
     const discordEvents = await guild.scheduledEvents.fetch();
     const snowflakeMeetingLookup = discordEvents.reduce(
@@ -67,6 +66,7 @@ export const updateDiscord = async (
         logger.warn(`Event with id ${id} not found in Discord`);
       }
       await client.destroy();
+      logger.debug("Logged out of Discord.");
       return null;
     }
 
@@ -90,6 +90,7 @@ export const updateDiscord = async (
       entityMetadata: {
         location,
       },
+      reason: `${existingMetadata ? "Modified" : "Created"} by ${actor}.`,
     };
 
     if (existingMetadata) {
@@ -98,19 +99,18 @@ export const updateDiscord = async (
       } else {
         await guild.scheduledEvents.edit(existingMetadata.id, payload);
       }
+    } else if (payload.scheduledStartTime < new Date()) {
+      logger.warn(`Refusing to create past event "${title}"`);
     } else {
-      if (payload.scheduledStartTime < new Date()) {
-        logger.warn(`Refusing to create past event "${title}"`);
-      } else {
-        await guild.scheduledEvents.create(payload);
-      }
+      await guild.scheduledEvents.create(payload);
     }
 
     await client.destroy();
+    logger.debug("Logged out of Discord.");
     return payload;
   });
 
-  const token = secretApiConfig["discord_bot_token"];
+  const token = secretApiConfig.discord_bot_token;
 
   if (!token) {
     logger.error("No Discord bot token found in secrets!");

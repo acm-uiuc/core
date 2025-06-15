@@ -4,12 +4,12 @@ import {
   execCouncilGroupId,
   execCouncilTestingGroupId,
   miscTestingGroupId,
-} from '@common/config';
+} from "@common/config";
 
-export const runEnvironments = ['dev', 'prod', 'local-dev'] as const;
+export const runEnvironments = ["dev", "prod", "local-dev"] as const;
 // local dev should be used when you want to test against a local instance of the API
 
-export const services = ['core', 'tickets', 'merch', 'msGraphApi'] as const;
+export const services = ["core", "tickets", "merch", "msGraphApi"] as const;
 export type RunEnvironment = (typeof runEnvironments)[number];
 export type ValidServices = (typeof services)[number];
 export type ValidService = ValidServices;
@@ -41,29 +41,30 @@ type EnvironmentConfigType = {
 };
 
 const environmentConfig: EnvironmentConfigType = {
-  'local-dev': {
-    AadValidClientId: 'd1978c23-6455-426a-be4d-528b2d2e4026',
+  "local-dev": {
+    AadValidClientId: "d1978c23-6455-426a-be4d-528b2d2e4026",
     ServiceConfiguration: {
       core: {
-        friendlyName: 'Core Management Service (NonProd)',
-        baseEndpoint: 'http://localhost:8080',
-        authCheckRoute: '/api/v1/protected',
-        loginScope: 'api://39c28870-94e4-47ee-b4fb-affe0bf96c9f/ACM.Events.Login',
-        apiId: 'api://39c28870-94e4-47ee-b4fb-affe0bf96c9f',
+        friendlyName: "Core Management Service (NonProd)",
+        baseEndpoint: "http://localhost:8080",
+        authCheckRoute: "/api/v1/protected",
+        loginScope:
+          "api://39c28870-94e4-47ee-b4fb-affe0bf96c9f/ACM.Events.Login",
+        apiId: "api://39c28870-94e4-47ee-b4fb-affe0bf96c9f",
       },
       tickets: {
-        friendlyName: 'Ticketing Service (NonProd)',
-        baseEndpoint: 'https://ticketing.aws.qa.acmuiuc.org',
+        friendlyName: "Ticketing Service (NonProd)",
+        baseEndpoint: "https://ticketing.aws.qa.acmuiuc.org",
       },
       merch: {
-        friendlyName: 'Merch Sales Service (Prod)',
-        baseEndpoint: 'https://merchapi.acm.illinois.edu',
+        friendlyName: "Merch Sales Service (Prod)",
+        baseEndpoint: "https://merchapi.acm.illinois.edu",
       },
       msGraphApi: {
-        friendlyName: 'Microsoft Graph API',
-        baseEndpoint: 'https://graph.microsoft.com',
-        loginScope: 'https://graph.microsoft.com/.default',
-        apiId: 'https://graph.microsoft.com',
+        friendlyName: "Microsoft Graph API",
+        baseEndpoint: "https://graph.microsoft.com",
+        loginScope: "https://graph.microsoft.com/.default",
+        apiId: "https://graph.microsoft.com",
       },
     },
     KnownGroupMappings: {
@@ -73,28 +74,29 @@ const environmentConfig: EnvironmentConfigType = {
     },
   },
   dev: {
-    AadValidClientId: 'd1978c23-6455-426a-be4d-528b2d2e4026',
+    AadValidClientId: "d1978c23-6455-426a-be4d-528b2d2e4026",
     ServiceConfiguration: {
       core: {
-        friendlyName: 'Core Management Service (NonProd)',
-        baseEndpoint: 'https://core.aws.qa.acmuiuc.org',
-        authCheckRoute: '/api/v1/protected',
-        loginScope: 'api://39c28870-94e4-47ee-b4fb-affe0bf96c9f/ACM.Events.Login',
-        apiId: 'api://39c28870-94e4-47ee-b4fb-affe0bf96c9f',
+        friendlyName: "Core Management Service (NonProd)",
+        baseEndpoint: "https://core.aws.qa.acmuiuc.org",
+        authCheckRoute: "/api/v1/protected",
+        loginScope:
+          "api://39c28870-94e4-47ee-b4fb-affe0bf96c9f/ACM.Events.Login",
+        apiId: "api://39c28870-94e4-47ee-b4fb-affe0bf96c9f",
       },
       tickets: {
-        friendlyName: 'Ticketing Service (NonProd)',
-        baseEndpoint: 'https://ticketing.aws.qa.acmuiuc.org',
+        friendlyName: "Ticketing Service (NonProd)",
+        baseEndpoint: "https://ticketing.aws.qa.acmuiuc.org",
       },
       merch: {
-        friendlyName: 'Merch Sales Service (Prod)',
-        baseEndpoint: 'https://merchapi.acm.illinois.edu',
+        friendlyName: "Merch Sales Service (Prod)",
+        baseEndpoint: "https://merchapi.acm.illinois.edu",
       },
       msGraphApi: {
-        friendlyName: 'Microsoft Graph API',
-        baseEndpoint: 'https://graph.microsoft.com',
-        loginScope: 'https://graph.microsoft.com/.default',
-        apiId: 'https://graph.microsoft.com',
+        friendlyName: "Microsoft Graph API",
+        baseEndpoint: "https://graph.microsoft.com",
+        loginScope: "https://graph.microsoft.com/.default",
+        apiId: "https://graph.microsoft.com",
       },
     },
     KnownGroupMappings: {
@@ -104,39 +106,42 @@ const environmentConfig: EnvironmentConfigType = {
     },
   },
   prod: {
-    AadValidClientId: '43fee67e-e383-4071-9233-ef33110e9386',
+    AadValidClientId: "43fee67e-e383-4071-9233-ef33110e9386",
     ServiceConfiguration: {
       core: {
-        friendlyName: 'Core Management Service',
-        baseEndpoint: 'https://core.acm.illinois.edu',
-        authCheckRoute: '/api/v1/protected',
-        loginScope: 'api://5e08cf0f-53bb-4e09-9df2-e9bdc3467296/ACM.Events.Login',
-        apiId: 'api://5e08cf0f-53bb-4e09-9df2-e9bdc3467296',
+        friendlyName: "Core Management Service",
+        baseEndpoint: "https://core.acm.illinois.edu",
+        authCheckRoute: "/api/v1/protected",
+        loginScope:
+          "api://5e08cf0f-53bb-4e09-9df2-e9bdc3467296/ACM.Events.Login",
+        apiId: "api://5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
       },
       tickets: {
-        friendlyName: 'Ticketing Service',
-        baseEndpoint: 'https://ticketing.aws.acmuiuc.org',
+        friendlyName: "Ticketing Service",
+        baseEndpoint: "https://ticketing.aws.acmuiuc.org",
       },
       merch: {
-        friendlyName: 'Merch Sales Service',
-        baseEndpoint: 'https://merchapi.acm.illinois.edu',
+        friendlyName: "Merch Sales Service",
+        baseEndpoint: "https://merchapi.acm.illinois.edu",
       },
       msGraphApi: {
-        friendlyName: 'Microsoft Graph API',
-        baseEndpoint: 'https://graph.microsoft.com',
-        loginScope: 'https://graph.microsoft.com/.default',
-        apiId: 'https://graph.microsoft.com',
+        friendlyName: "Microsoft Graph API",
+        baseEndpoint: "https://graph.microsoft.com",
+        loginScope: "https://graph.microsoft.com/.default",
+        apiId: "https://graph.microsoft.com",
       },
     },
     KnownGroupMappings: {
       Exec: execCouncilGroupId,
       CommChairs: commChairsGroupId,
-      StripeLinkCreators: '675203eb-fbb9-4789-af2f-e87a3243f8e6',
+      StripeLinkCreators: "675203eb-fbb9-4789-af2f-e87a3243f8e6",
     },
   },
 } as const;
 
 const getRunEnvironmentConfig = () =>
-  environmentConfig[(import.meta.env.VITE_RUN_ENVIRONMENT || 'dev') as RunEnvironment];
+  environmentConfig[
+    (import.meta.env.VITE_RUN_ENVIRONMENT || "dev") as RunEnvironment
+  ];
 
 export { getRunEnvironmentConfig };

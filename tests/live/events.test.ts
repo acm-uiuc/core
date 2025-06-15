@@ -23,8 +23,32 @@ test("getting events for a given host", async () => {
   });
 });
 
+test("metadata is included when includeMetadata query parameter is set", async () => {
+  const response = await fetch(
+    `${baseEndpoint}/api/v1/events?host=Infrastructure Committee&includeMetadata=true&ts=${Date.now()}`,
+  );
+  expect(response.status).toBe(200);
+
+  const responseJson = (await response.json()) as EventsGetResponse;
+  expect(responseJson.length).toBeGreaterThan(0);
+  const withMetadata = responseJson.filter((x) => x["metadata"]);
+  expect(withMetadata.length).toBeGreaterThanOrEqual(1);
+});
+
+test("metadata is not included when includeMetadata query parameter is unset", async () => {
+  const response = await fetch(
+    `${baseEndpoint}/api/v1/events?host=Infrastructure Committee&ts=${Date.now()}`,
+  );
+  expect(response.status).toBe(200);
+
+  const responseJson = (await response.json()) as EventsGetResponse;
+  expect(responseJson.length).toBeGreaterThan(0);
+  const withMetadata = responseJson.filter((x) => x["metadata"]);
+  expect(withMetadata.length).toEqual(0);
+});
+
 describe("Event lifecycle tests", async () => {
-  let createdEventUuid;
+  let createdEventUuid: string;
   test("creating an event", { timeout: 30000 }, async () => {
     const token = await createJwt();
     const response = await fetch(`${baseEndpoint}/api/v1/events`, {
@@ -34,19 +58,40 @@ describe("Event lifecycle tests", async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        title: "Testing Event",
+        title: "Live Testing Event",
         description: "An event of all time",
         start: "2024-12-31T02:00:00",
         end: "2024-12-31T03:30:00",
         location: "ACM Room (Siebel 1104)",
         host: "ACM",
         featured: true,
+        repeats: "weekly",
       }),
     });
     const responseJson = await response.json();
     expect(response.status).toBe(201);
     expect(responseJson).toHaveProperty("id");
     expect(responseJson).toHaveProperty("resource");
+    createdEventUuid = responseJson.id;
+  });
+  test("getting a created event", { timeout: 30000 }, async () => {
+    if (!createdEventUuid) {
+      throw new Error("Event UUID not found");
+    }
+    const response = await fetch(
+      `${baseEndpoint}/api/v1/events/${createdEventUuid}?ts=${Date.now()}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    const responseJson = await response.json();
+    expect(response.status).toBe(200);
+    expect(responseJson).toHaveProperty("id");
+    expect(responseJson).toHaveProperty("repeats");
+    expect(responseJson["repeatEnds"]).toBeUndefined();
     createdEventUuid = responseJson.id;
   });
 
@@ -64,7 +109,7 @@ describe("Event lifecycle tests", async () => {
         },
       },
     );
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(204);
   });
 
   test("check that deleted events cannot be found", async () => {
@@ -72,7 +117,7 @@ describe("Event lifecycle tests", async () => {
       throw new Error("Event UUID not found");
     }
     const response = await fetch(
-      `${baseEndpoint}/api/v1/events/${createdEventUuid}`,
+      `${baseEndpoint}/api/v1/events/${createdEventUuid}?ts=${Date.now()}`,
       {
         method: "GET",
       },

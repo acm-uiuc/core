@@ -8,16 +8,11 @@ import {
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
 import { secretJson, secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 import { marshall } from "@aws-sdk/util-dynamodb";
 
 const ddbMock = mockClient(DynamoDBClient);
-const smMock = mockClient(SecretsManagerClient);
 const jwt_secret = secretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
@@ -48,7 +43,7 @@ test("Sad path: Not authenticated", async () => {
 
 test("Sad path: Authenticated but not authorized", async () => {
   await app.ready();
-  const testJwt = createJwt(undefined, "1");
+  const testJwt = createJwt(undefined, ["1"]);
   const response = await supertest(app.server)
     .post("/api/v1/events")
     .set("Authorization", `Bearer ${testJwt}`)
@@ -66,7 +61,7 @@ test("Sad path: Authenticated but not authorized", async () => {
 });
 test("Sad path: Prevent empty body request", async () => {
   await app.ready();
-  const testJwt = createJwt(undefined, "0");
+  const testJwt = createJwt(undefined, ["0"]);
   const response = await supertest(app.server)
     .post("/api/v1/events")
     .set("Authorization", `Bearer ${testJwt}`)
@@ -76,14 +71,11 @@ test("Sad path: Prevent empty body request", async () => {
     error: true,
     name: "ValidationError",
     id: 104,
-    message: `Required at "title"; Required at "description"; Required at "start"; Required at "location"; Required at "host"`,
+    message: "body/ Expected object, received null",
   });
 });
 test("Sad path: Prevent specifying repeatEnds on non-repeating events", async () => {
   ddbMock.on(PutItemCommand).resolves({});
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
   const testJwt = createJwt();
   await app.ready();
   const response = await supertest(app.server)
@@ -106,15 +98,12 @@ test("Sad path: Prevent specifying repeatEnds on non-repeating events", async ()
     error: true,
     name: "ValidationError",
     id: 104,
-    message: "repeats is required when repeatEnds is defined",
+    message: "body/ repeats is required when repeatEnds is defined",
   });
 });
 
 test("Sad path: Prevent specifying unknown repeat frequencies", async () => {
   ddbMock.on(PutItemCommand).resolves({});
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
   const testJwt = createJwt();
   await app.ready();
   const response = await supertest(app.server)
@@ -137,15 +126,13 @@ test("Sad path: Prevent specifying unknown repeat frequencies", async () => {
     error: true,
     name: "ValidationError",
     id: 104,
-    message: `Invalid enum value. Expected 'weekly' | 'biweekly', received 'forever_and_ever' at "repeats"`,
+    message:
+      "body/repeats Invalid enum value. Expected 'weekly' | 'biweekly', received 'forever_and_ever'",
   });
 });
 
 test("Happy path: Adding a non-repeating, featured, paid event", async () => {
   ddbMock.on(PutItemCommand).resolves({});
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
   const testJwt = createJwt();
   await app.ready();
   const response = await supertest(app.server)
@@ -175,9 +162,6 @@ test("Happy path: Adding a non-repeating, featured, paid event", async () => {
 
 test("Happy path: Adding a weekly repeating, non-featured, paid event", async () => {
   ddbMock.on(PutItemCommand).resolves({});
-  smMock.on(GetSecretValueCommand).resolves({
-    SecretString: secretJson,
-  });
   const testJwt = createJwt();
   await app.ready();
   const response = await supertest(app.server)
@@ -210,13 +194,7 @@ describe("ETag Lifecycle Tests", () => {
     // Setup
     (app as any).nodeCache.flushAll();
     ddbMock.reset();
-    smMock.reset();
     vi.useFakeTimers();
-
-    // Mock secrets manager
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
 
     // Mock successful DynamoDB operations
     ddbMock.on(PutItemCommand).resolves({});
@@ -226,7 +204,7 @@ describe("ETag Lifecycle Tests", () => {
       Items: [],
     });
 
-    const testJwt = createJwt(undefined, "0");
+    const testJwt = createJwt(undefined, ["0"]);
 
     // 1. Check initial etag for all events is 0
     const initialAllResponse = await app.inject({
@@ -298,13 +276,7 @@ describe("ETag Lifecycle Tests", () => {
     // Setup
     (app as any).nodeCache.flushAll();
     ddbMock.reset();
-    smMock.reset();
     vi.useFakeTimers();
-
-    // Mock secrets manager
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
 
     // Mock successful DynamoDB operations
     ddbMock.on(PutItemCommand).resolves({});
@@ -312,7 +284,7 @@ describe("ETag Lifecycle Tests", () => {
       Items: [],
     });
 
-    const testJwt = createJwt(undefined, "0");
+    const testJwt = createJwt(undefined, ["0"]);
 
     // 1. Create an event
     const eventResponse = await supertest(app.server)
@@ -360,7 +332,7 @@ describe("ETag Lifecycle Tests", () => {
       .delete(`/api/v1/events/${eventId}`)
       .set("Authorization", `Bearer ${testJwt}`);
 
-    expect(deleteResponse.statusCode).toBe(201);
+    expect(deleteResponse.statusCode).toBe(204);
 
     // 4. Verify the event no longer exists (should return 404)
     // Change the mock to return empty response (simulating deleted event)
@@ -396,13 +368,7 @@ describe("ETag Lifecycle Tests", () => {
     // Setup
     (app as any).nodeCache.flushAll();
     ddbMock.reset();
-    smMock.reset();
     vi.useFakeTimers();
-
-    // Mock secrets manager
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
 
     // Mock successful DynamoDB operations
     ddbMock.on(PutItemCommand).resolves({});
@@ -412,7 +378,7 @@ describe("ETag Lifecycle Tests", () => {
       Items: [],
     });
 
-    const testJwt = createJwt(undefined, "0");
+    const testJwt = createJwt(undefined, ["0"]);
 
     // 1. Check initial etag for all events is 0
     const initialAllResponse = await app.inject({
@@ -537,8 +503,8 @@ afterAll(async () => {
 });
 beforeEach(() => {
   (app as any).nodeCache.flushAll();
+  (app as any).redisClient.flushdb();
   ddbMock.reset();
-  smMock.reset();
   vi.clearAllMocks();
   vi.useFakeTimers();
 });

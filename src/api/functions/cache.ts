@@ -29,7 +29,7 @@ export async function getItemFromCache(
       }),
     }),
   );
-  if (!Items || Items.length == 0) {
+  if (!Items || Items.length === 0) {
     return null;
   }
   const item = unmarshall(Items[0]);

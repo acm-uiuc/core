@@ -98,3 +98,16 @@ export const createCheckoutSession = async ({
   }
   return session.url;
 };
+
+export const deactivateStripeLink = async ({
+  linkId,
+  stripeApiKey,
+}: {
+  linkId: string;
+  stripeApiKey: string;
+}): Promise<void> => {
+  const stripe = new Stripe(stripeApiKey);
+  await stripe.paymentLinks.update(linkId, {
+    active: false,
+  });
+};

@@ -1,23 +1,30 @@
 /* eslint import/no-nodejs-modules: ["error", {"allow": ["crypto"]}] */
+import "zod-openapi/extend";
 import { randomUUID } from "crypto";
 import fastify, { FastifyInstance } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
 import fastifyStatic from "@fastify/static";
-import fastifyAuthPlugin from "./plugins/auth.js";
+import fastifyAuthPlugin, { getSecretValue } from "./plugins/auth.js";
 import protectedRoute from "./routes/protected.js";
 import errorHandlerPlugin from "./plugins/errorHandler.js";
 import { RunEnvironment, runEnvironments } from "../common/roles.js";
 import { InternalServerError } from "../common/errors/index.js";
 import eventsPlugin from "./routes/events.js";
 import cors from "@fastify/cors";
-import fastifyZodValidationPlugin from "./plugins/validate.js";
-import { environmentConfig, genericConfig } from "../common/config.js";
+import {
+  environmentConfig,
+  genericConfig,
+  SecretConfig,
+} from "../common/config.js";
 import organizationsPlugin from "./routes/organizations.js";
+import authorizeFromSchemaPlugin from "./plugins/authorizeFromSchema.js";
+import evaluatePoliciesPlugin from "./plugins/evaluatePolicies.js";
 import icalPlugin from "./routes/ics.js";
 import vendingPlugin from "./routes/vending.js";
 import * as dotenv from "dotenv";
 import iamRoutes from "./routes/iam.js";
 import ticketsPlugin from "./routes/tickets.js";
+import linkryRoutes from "./routes/linkry.js";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -26,6 +33,21 @@ import mobileWalletRoute from "./routes/mobileWallet.js";
 import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
 import path from "path"; // eslint-disable-line import/no-nodejs-modules
+import roomRequestRoutes from "./routes/roomRequests.js";
+import logsPlugin from "./routes/logs.js";
+import fastifySwagger from "@fastify/swagger";
+import fastifySwaggerUI from "@fastify/swagger-ui";
+import {
+  fastifyZodOpenApiPlugin,
+  fastifyZodOpenApiTransform,
+  fastifyZodOpenApiTransformObject,
+  serializerCompiler,
+  validatorCompiler,
+} from "fastify-zod-openapi";
+import { ZodOpenApiVersion } from "zod-openapi";
+import { withTags } from "./components/index.js";
+import apiKeyRoute from "./routes/apiKey.js";
+import RedisModule from "ioredis";
 
 dotenv.config();
 
@@ -39,6 +61,12 @@ async function init(prettyPrint: boolean = false) {
   const secretsManagerClient = new SecretsManagerClient({
     region: genericConfig.AwsRegion,
   });
+  const secret = (await getSecretValue(
+    secretsManagerClient,
+    genericConfig.ConfigSecretName,
+  )) as SecretConfig;
+  const redisClient = new RedisModule.default(secret.redis_url);
+
   const transport = prettyPrint
     ? {
         target: "pino-pretty",
@@ -61,8 +89,6 @@ async function init(prettyPrint: boolean = false) {
       const customDomainBaseMappers: Record<string, string> = {
         "ical.acm.illinois.edu": `/api/v1/ical${url}`,
         "ical.aws.qa.acmuiuc.org": `/api/v1/ical${url}`,
-        "go.acm.illinois.edu": `/api/v1/linkry/redir${url}`,
-        "go.aws.qa.acmuiuc.org": `/api/v1/linkry/redir${url}`,
       };
       if (hostname in customDomainBaseMappers) {
         return customDomainBaseMappers[hostname];
@@ -80,10 +106,117 @@ async function init(prettyPrint: boolean = false) {
       return event.requestContext.requestId;
     },
   });
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+  await app.register(authorizeFromSchemaPlugin);
   await app.register(fastifyAuthPlugin);
-  await app.register(fastifyZodValidationPlugin);
   await app.register(FastifyAuthProvider);
+  await app.register(evaluatePoliciesPlugin);
   await app.register(errorHandlerPlugin);
+  await app.register(fastifyZodOpenApiPlugin);
+  await app.register(fastifySwagger, {
+    openapi: {
+      info: {
+        title: "ACM @ UIUC Core API",
+        description: "ACM @ UIUC Core Management Platform",
+        version: "1.0.0",
+        contact: {
+          name: "ACM @ UIUC Infrastructure Team",
+          email: "infra@acm.illinois.edu",
+          url: "infra.acm.illinois.edu",
+        },
+        license: {
+          name: "BSD 3-Clause",
+          identifier: "BSD-3-Clause",
+          url: "https://github.com/acm-uiuc/core/blob/main/LICENSE",
+        },
+        termsOfService: "https://core.acm.illinois.edu/tos",
+      },
+      servers: [
+        {
+          url: "https://core.acm.illinois.edu",
+          description: "Production API server",
+        },
+        {
+          url: "https://core.aws.qa.acmuiuc.org",
+          description: "QA API server",
+        },
+      ],
+      tags: [
+        {
+          name: "Events",
+          description:
+            "Retrieve ACM @ UIUC-wide and organization-specific calendars and event metadata.",
+        },
+        {
+          name: "Generic",
+          description: "Retrieve metadata about a user or ACM @ UIUC .",
+        },
+        {
+          name: "iCalendar Integration",
+          description:
+            "Retrieve Events calendars in iCalendar format (for integration with external calendar clients).",
+        },
+        {
+          name: "IAM",
+          description: "Identity and Access Management for internal services.",
+        },
+        { name: "Linkry", description: "Link Shortener." },
+        {
+          name: "Logging",
+          description: "View audit logs for various services.",
+        },
+        {
+          name: "Membership",
+          description: "Purchasing or checking ACM @ UIUC membership.",
+        },
+        {
+          name: "Tickets/Merchandise",
+          description: "Handling the tickets and merchandise lifecycle.",
+        },
+        {
+          name: "Mobile Wallet",
+          description: "Issuing Apple/Google Wallet passes.",
+        },
+        {
+          name: "Stripe",
+          description:
+            "Collecting payments for ACM @ UIUC invoices and other services.",
+        },
+        {
+          name: "Room Requests",
+          description:
+            "Creating room reservation requests for ACM @ UIUC within University buildings.",
+        },
+        {
+          name: "API Keys",
+          description: "Manage the lifecycle of API keys.",
+        },
+      ],
+      openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+            description:
+              "Authorization: Bearer {token}\n\nThis API uses JWT tokens issued by Entra ID (Azure AD) with the Core API audience. Tokens must be included in the Authorization header as a Bearer token for all protected endpoints.",
+          },
+          apiKeyAuth: {
+            type: "apiKey",
+            in: "header",
+            name: "X-Api-Key",
+          },
+        },
+      },
+    },
+    transform: fastifyZodOpenApiTransform,
+    transformObject: fastifyZodOpenApiTransformObject,
+  });
+  await app.register(fastifySwaggerUI, {
+    routePrefix: "/api/documentation",
+  });
   await app.register(fastifyStatic, {
     root: path.join(__dirname, "public"),
     prefix: "/",
@@ -102,6 +235,14 @@ async function init(prettyPrint: boolean = false) {
   app.nodeCache = new NodeCache({ checkperiod: 30 });
   app.dynamoClient = dynamoClient;
   app.secretsManagerClient = secretsManagerClient;
+  app.redisClient = redisClient;
+  app.secretConfig = secret;
+  app.refreshSecretConfig = async () => {
+    app.secretConfig = (await getSecretValue(
+      app.secretsManagerClient,
+      genericConfig.ConfigSecretName,
+    )) as SecretConfig;
+  };
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;
@@ -121,7 +262,21 @@ async function init(prettyPrint: boolean = false) {
     );
     done();
   });
-  app.get("/api/v1/healthz", (_, reply) => reply.send({ message: "UP" }));
+  app.get(
+    "/api/v1/healthz",
+    {
+      schema: withTags(["Generic"], {
+        summary: "Verify that the API server is healthy.",
+      }),
+    },
+    async (_, reply) => {
+      const startTime = new Date().getTime();
+      await app.redisClient.ping();
+      const redisTime = new Date().getTime();
+      app.log.debug(`Redis latency: ${redisTime - startTime} ms.`);
+      return reply.send({ message: "UP" });
+    },
+  );
   await app.register(
     async (api, _options) => {
       api.register(protectedRoute, { prefix: "/protected" });
@@ -131,8 +286,12 @@ async function init(prettyPrint: boolean = false) {
       api.register(icalPlugin, { prefix: "/ical" });
       api.register(iamRoutes, { prefix: "/iam" });
       api.register(ticketsPlugin, { prefix: "/tickets" });
+      api.register(linkryRoutes, { prefix: "/linkry" });
       api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
       api.register(stripeRoutes, { prefix: "/stripe" });
+      api.register(roomRequestRoutes, { prefix: "/roomRequests" });
+      api.register(logsPlugin, { prefix: "/logs" });
+      api.register(apiKeyRoute, { prefix: "/apiKey" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }
@@ -141,6 +300,7 @@ async function init(prettyPrint: boolean = false) {
   );
   await app.register(cors, {
     origin: app.environmentConfig.ValidCorsOrigins,
+    methods: ["GET", "HEAD", "POST", "PATCH", "DELETE"],
   });
   app.log.info("Initialized new Fastify instance...");
   return app;
@@ -160,9 +320,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
   const app = await init(true);
-  app.listen({ port: 8080 }, async (err) => {
+  app.listen({ port: 8080 }, (err) => {
     /* eslint no-console: ["error", {"allow": ["log", "error"]}] */
-    if (err) console.error(err);
+    if (err) {
+      console.error(err);
+    }
   });
 }
 export default init;

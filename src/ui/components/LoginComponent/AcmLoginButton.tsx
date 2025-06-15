@@ -1,10 +1,11 @@
-import { useMsal } from '@azure/msal-react';
-import { Button, ButtonProps } from '@mantine/core';
+import { useMsal } from "@azure/msal-react";
+import { Button, ButtonProps } from "@mantine/core";
 
-import { useAuth } from '../AuthContext/index.js';
+import { useAuth } from "../AuthContext/index.js";
 
 export function AcmLoginButton(
-  props: ButtonProps & React.ComponentPropsWithoutRef<'button'> & { returnTo: string }
+  props: ButtonProps &
+    React.ComponentPropsWithoutRef<"button"> & { returnTo: string },
 ) {
   const { loginMsal } = useAuth();
   const { inProgress } = useMsal();

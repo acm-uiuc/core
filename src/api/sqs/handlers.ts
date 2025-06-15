@@ -21,6 +21,8 @@ import { SESClient } from "@aws-sdk/client-ses";
 import pino from "pino";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { setPaidMembership } from "api/functions/membership.js";
+import { createAuditLogEntry } from "api/functions/auditLog.js";
+import { Modules } from "common/modules.js";
 
 const getAuthorizedClients = async (
   logger: pino.Logger,
@@ -43,13 +45,12 @@ const getAuthorizedClients = async (
     };
     logger.info(`Assumed Entra role ${roleArns.Entra} to get the Entra token.`);
     return clients;
-  } else {
-    logger.debug("Did not assume Entra role as no env variable was present");
-    return {
-      smClient: new SecretsManagerClient(commonConfig),
-      dynamoClient: new DynamoDBClient(commonConfig),
-    };
   }
+  logger.debug("Did not assume Entra role as no env variable was present");
+  return {
+    smClient: new SecretsManagerClient(commonConfig),
+    dynamoClient: new DynamoDBClient(commonConfig),
+  };
 };
 
 export const emailMembershipPassHandler: SQSHandlerFunction<
@@ -108,20 +109,19 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
     paidMemberGroup: currentEnvironmentConfig.PaidMemberGroupId,
   });
   if (updated) {
-    logger.info(
-      {
-        type: "audit",
-        module: "provisionNewMember",
+    const logPromise = createAuditLogEntry({
+      entry: {
+        module: Modules.PROVISION_NEW_MEMBER,
         actor: metadata.initiator,
         target: email,
+        message: "Marked target as a paid member.",
       },
-      "marked user as a paid member.",
-    );
+    });
     logger.info(
       `${email} added as a paid member. Emailing their membership pass.`,
     );
-
     await emailMembershipPassHandler(payload, metadata, logger);
+    await logPromise;
   } else {
     logger.info(`${email} was already a paid member.`);
   }

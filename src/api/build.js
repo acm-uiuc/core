@@ -1,6 +1,6 @@
 import esbuild from "esbuild";
 import { resolve } from "path";
-
+import { copy } from "esbuild-plugin-copy";
 
 const commonParams = {
   bundle: true,
@@ -15,9 +15,23 @@ const commonParams = {
   target: "es2022", // Target ES2022
   sourcemap: false,
   platform: "node",
-  external: ["aws-sdk", "moment-timezone", "passkit-generator", "fastify"],
+  external: [
+    "aws-sdk",
+    "moment-timezone",
+    "passkit-generator",
+    "fastify",
+    "zod",
+    "zod-openapi",
+    "@fastify/swagger",
+    "@fastify/swagger-ui",
+    "argon2",
+    "ioredis",
+  ],
   alias: {
-    'moment-timezone': resolve(process.cwd(), '../../node_modules/moment-timezone/builds/moment-timezone-with-data-10-year-range.js')
+    "moment-timezone": resolve(
+      process.cwd(),
+      "../../node_modules/moment-timezone/builds/moment-timezone-with-data-10-year-range.js",
+    ),
   },
   banner: {
     js: `
@@ -27,9 +41,27 @@ const commonParams = {
       const require = topLevelCreateRequire(import.meta.url);
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
+      import "zod-openapi/extend";
     `.trim(),
   }, // Banner for compatibility with CommonJS
-}
+  plugins: [
+    copy({
+      resolveFrom: "cwd",
+      assets: {
+        from: ["../../node_modules/@fastify/swagger-ui/static/*"],
+        to: ["../../dist/lambda/static"],
+      },
+    }),
+    copy({
+      resolveFrom: "cwd",
+      assets: {
+        from: ["./public/*"],
+        to: ["../../dist/lambda/public"],
+      },
+    }),
+  ],
+  inject: [resolve(process.cwd(), "./zod-openapi-patch.js")],
+};
 esbuild
   .build({
     ...commonParams,
@@ -43,7 +75,7 @@ esbuild
     process.exit(1);
   });
 
-  esbuild
+esbuild
   .build({
     ...commonParams,
     entryPoints: ["api/sqs/index.js", "api/sqs/driver.js"],

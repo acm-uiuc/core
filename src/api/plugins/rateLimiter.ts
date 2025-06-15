@@ -1,6 +1,8 @@
 import fp from "fastify-plugin";
 import { isAtLimit } from "api/functions/rateLimit.js";
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
+import { getUserIdentifier } from "./auth.js";
+import { ValidationError } from "common/errors/index.js";
 
 interface RateLimiterOptions {
   limit?: number | ((request: FastifyRequest) => number);
@@ -20,7 +22,13 @@ const rateLimiterPlugin: FastifyPluginAsync<RateLimiterOptions> = async (
   fastify.addHook(
     "preHandler",
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userIdentifier = request.ip;
+      const startTime = new Date().getTime();
+      const userIdentifier = getUserIdentifier(request);
+      if (!userIdentifier) {
+        throw new ValidationError({
+          message: "Could not find user identifier.",
+        });
+      }
       let computedLimit = limit;
       let computedIdentifier = rateLimitIdentifier;
       if (typeof computedLimit === "function") {
@@ -30,12 +38,15 @@ const rateLimiterPlugin: FastifyPluginAsync<RateLimiterOptions> = async (
         computedIdentifier = computedIdentifier(request);
       }
       const { limited, resetTime, used } = await isAtLimit({
-        ddbClient: fastify.dynamoClient,
+        redisClient: fastify.redisClient,
         rateLimitIdentifier: computedIdentifier,
         duration,
         limit: computedLimit,
         userIdentifier,
       });
+      request.log.debug(
+        `Computing rate limit took ${new Date().getTime() - startTime} ms.`,
+      );
       reply.header("X-RateLimit-Limit", computedLimit.toString());
       reply.header("X-RateLimit-Reset", resetTime?.toString() || "0");
       reply.header(

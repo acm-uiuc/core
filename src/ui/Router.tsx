@@ -1,35 +1,44 @@
-import { Anchor } from '@mantine/core';
-import { element } from 'prop-types';
-import React, { useState, useEffect, ReactNode } from 'react';
-import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router-dom';
-
-import { AcmAppShell } from './components/AppShell';
-import { useAuth } from './components/AuthContext';
-import AuthCallback from './components/AuthContext/AuthCallbackHandler.page';
-import { Error404Page } from './pages/Error404.page';
-import { Error500Page } from './pages/Error500.page';
-import { HomePage } from './pages/Home.page';
-import { LoginPage } from './pages/Login.page';
-import { LogoutPage } from './pages/Logout.page';
-import { ManageEventPage } from './pages/events/ManageEvent.page';
-import { ViewEventsPage } from './pages/events/ViewEvents.page';
-import { ScanTicketsPage } from './pages/tickets/ScanTickets.page';
-import { SelectTicketsPage } from './pages/tickets/SelectEventId.page';
-import { ViewTicketsPage } from './pages/tickets/ViewTickets.page';
-import { ManageIamPage } from './pages/iam/ManageIam.page';
-import { ManageProfilePage } from './pages/profile/ManageProfile.page';
-import { ManageStripeLinksPage } from './pages/stripe/ViewLinks.page';
+import React, { useState, useEffect, ReactNode } from "react";
+import {
+  createBrowserRouter,
+  Navigate,
+  RouterProvider,
+  useLocation,
+} from "react-router-dom";
+import { AcmAppShell } from "./components/AppShell";
+import { useAuth } from "./components/AuthContext";
+import AuthCallback from "./components/AuthContext/AuthCallbackHandler.page";
+import { Error404Page } from "./pages/Error404.page";
+import { Error500Page } from "./pages/Error500.page";
+import { HomePage } from "./pages/Home.page";
+import { LoginPage } from "./pages/Login.page";
+import { LogoutPage } from "./pages/Logout.page";
+import { ManageEventPage } from "./pages/events/ManageEvent.page";
+import { ViewEventsPage } from "./pages/events/ViewEvents.page";
+import { LinkShortener } from "./pages/linkry/LinkShortener.page";
+import { ManageLinkPage } from "./pages/linkry/ManageLink.page";
+import { ScanTicketsPage } from "./pages/tickets/ScanTickets.page";
+import { SelectTicketsPage } from "./pages/tickets/SelectEventId.page";
+import { ViewTicketsPage } from "./pages/tickets/ViewTickets.page";
+import { ManageIamPage } from "./pages/iam/ManageIam.page";
+import { ManageProfilePage } from "./pages/profile/ManageProfile.page";
+import { ManageStripeLinksPage } from "./pages/stripe/ViewLinks.page";
+import { ManageRoomRequestsPage } from "./pages/roomRequest/RoomRequestLanding.page";
+import { ViewRoomRequest } from "./pages/roomRequest/ViewRoomRequest.page";
+import { ViewLogsPage } from "./pages/logs/ViewLogs.page";
+import { TermsOfService } from "./pages/tos/TermsOfService.page";
+import { ManageApiKeysPage } from "./pages/apiKeys/ManageKeys.page";
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
 
   // Don't store login-related paths and ALLOW the callback path
   const excludedPaths = [
-    '/login',
-    '/logout',
-    '/force_login',
-    '/a',
-    '/auth/callback', // Add this to excluded paths
+    "/login",
+    "/logout",
+    "/force_login",
+    "/a",
+    "/auth/callback", // Add this to excluded paths
   ];
 
   if (excludedPaths.includes(location.pathname)) {
@@ -48,11 +57,11 @@ const LoginRedirect: React.FC = () => {
 
   // Don't store login-related paths and ALLOW the callback path
   const excludedPaths = [
-    '/login',
-    '/logout',
-    '/force_login',
-    '/a',
-    '/auth/callback', // Add this to excluded paths
+    "/login",
+    "/logout",
+    "/force_login",
+    "/a",
+    "/auth/callback", // Add this to excluded paths
   ];
 
   if (excludedPaths.includes(location.pathname)) {
@@ -67,27 +76,31 @@ const LoginRedirect: React.FC = () => {
 
 const commonRoutes = [
   {
-    path: '/force_login',
+    path: "/force_login",
     element: <LoginPage />,
   },
   {
-    path: '/logout',
+    path: "/logout",
     element: <LogoutPage />,
   },
   {
-    path: '/auth/callback',
+    path: "/auth/callback",
     element: <AuthCallback />,
+  },
+  {
+    path: "/tos",
+    element: <TermsOfService />,
   },
 ];
 
 const profileRouter = createBrowserRouter([
   ...commonRoutes,
   {
-    path: '/profile',
+    path: "/profile",
     element: <ManageProfilePage />,
   },
   {
-    path: '*',
+    path: "*",
     element: <ProfileRediect />,
   },
 ]);
@@ -95,15 +108,15 @@ const profileRouter = createBrowserRouter([
 const unauthenticatedRouter = createBrowserRouter([
   ...commonRoutes,
   {
-    path: '/',
+    path: "/",
     element: <Navigate to="/login" replace />,
   },
   {
-    path: '/login',
+    path: "/login",
     element: <LoginPage />,
   },
   {
-    path: '*',
+    path: "*",
     element: <LoginRedirect />,
   },
 ]);
@@ -111,60 +124,88 @@ const unauthenticatedRouter = createBrowserRouter([
 const authenticatedRouter = createBrowserRouter([
   ...commonRoutes,
   {
-    path: '/',
+    path: "/",
     element: <AcmAppShell>{null}</AcmAppShell>,
   },
   {
-    path: '/login',
+    path: "/login",
     element: <LoginPage />,
   },
   {
-    path: '/logout',
+    path: "/logout",
     element: <LogoutPage />,
   },
   {
-    path: '/profile',
+    path: "/profile",
     element: <ManageProfilePage />,
   },
   {
-    path: '/home',
+    path: "/home",
     element: <HomePage />,
   },
   {
-    path: '/events/add',
+    path: "/events/add",
     element: <ManageEventPage />,
   },
   {
-    path: '/events/edit/:eventId',
+    path: "/events/edit/:eventId",
     element: <ManageEventPage />,
   },
   {
-    path: '/events/manage',
+    path: "/events/manage",
     element: <ViewEventsPage />,
   },
   {
-    path: '/tickets/scan',
+    path: "/linkry",
+    element: <LinkShortener />,
+  },
+  {
+    path: "/linkry/add",
+    element: <ManageLinkPage />,
+  },
+  {
+    path: "/linkry/edit/:slug",
+    element: <ManageLinkPage />,
+  },
+  {
+    path: "/tickets/scan",
     element: <ScanTicketsPage />,
   },
   {
-    path: '/tickets',
+    path: "/tickets",
     element: <SelectTicketsPage />,
   },
   {
-    path: '/iam',
+    path: "/iam",
     element: <ManageIamPage />,
   },
   {
-    path: '/tickets/manage/:eventId',
+    path: "/tickets/manage/:eventId",
     element: <ViewTicketsPage />,
   },
   {
-    path: '/stripe',
+    path: "/stripe",
     element: <ManageStripeLinksPage />,
+  },
+  {
+    path: "/roomRequests",
+    element: <ManageRoomRequestsPage />,
+  },
+  {
+    path: "/roomRequests/:semesterId/:requestId",
+    element: <ViewRoomRequest />,
+  },
+  {
+    path: "/logs",
+    element: <ViewLogsPage />,
+  },
+  {
+    path: "/apiKeys",
+    element: <ManageApiKeysPage />,
   },
   // Catch-all route for authenticated users shows 404 page
   {
-    path: '*',
+    path: "*",
     element: <Error404Page />,
   },
 ]);
@@ -188,14 +229,14 @@ const ErrorBoundary: React.FC<ErrorBoundaryProps> = ({ children }) => {
       onError(event.error);
     };
 
-    window.addEventListener('error', errorHandler);
+    window.addEventListener("error", errorHandler);
     return () => {
-      window.removeEventListener('error', errorHandler);
+      window.removeEventListener("error", errorHandler);
     };
   }, []);
 
   if (hasError && error) {
-    if (error.message === '404') {
+    if (error.message === "404") {
       return isLoggedIn ? <Error404Page /> : <LoginRedirect />;
     }
     return <Error500Page />;

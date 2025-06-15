@@ -10,7 +10,7 @@ describe("Role checking live API tests", async () => {
     "Test that auth is present on the GET route",
     { timeout: 10000 },
     async () => {
-      const response = await fetch(`${baseEndpoint}/api/v1/protected/`, {
+      const response = await fetch(`${baseEndpoint}/api/v1/protected`, {
         method: "GET",
       });
       expect(response.status).toBe(403);

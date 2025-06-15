@@ -1,9 +1,5 @@
 import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
 import init from "../../src/api/index.js";
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
 import { mockClient } from "aws-sdk-client-mock";
 import { secretJson } from "./secret.testdata.js";
 import {
@@ -11,13 +7,14 @@ import {
   PutItemCommand,
   QueryCommand,
   ScanCommand,
+  TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import supertest from "supertest";
 import { createJwt } from "./auth.test.js";
 import { v4 as uuidv4 } from "uuid";
 import { marshall } from "@aws-sdk/util-dynamodb";
+import { genericConfig } from "../../src/common/config.js";
 
-const smMock = mockClient(SecretsManagerClient);
 const ddbMock = mockClient(DynamoDBClient);
 const linkId = uuidv4();
 const productId = uuidv4();
@@ -82,9 +79,6 @@ describe("Test Stripe link creation", async () => {
     expect(response.statusCode).toBe(400);
   });
   test("Test body validation 1", async () => {
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
     ddbMock.on(PutItemCommand).rejects();
     const testJwt = createJwt();
     await app.ready();
@@ -103,15 +97,11 @@ describe("Test Stripe link creation", async () => {
       name: "ValidationError",
       id: 104,
       message:
-        'String must contain at least 1 character(s) at "invoiceId"; Number must be greater than or equal to 50 at "invoiceAmountUsd"; String must contain at least 1 character(s) at "contactName"; Required at "contactEmail"',
+        "body/invoiceId String must contain at least 1 character(s), body/invoiceAmountUsd Number must be greater than or equal to 50, body/contactName String must contain at least 1 character(s), body/contactEmail Required",
     });
     expect(ddbMock.calls().length).toEqual(0);
-    expect(smMock.calls().length).toEqual(0);
   });
   test("Test body validation 2", async () => {
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
     ddbMock.on(PutItemCommand).rejects();
     const testJwt = createJwt();
     await app.ready();
@@ -130,32 +120,31 @@ describe("Test Stripe link creation", async () => {
       error: true,
       name: "ValidationError",
       id: 104,
-      message: 'Invalid email at "contactEmail"',
+      message: "body/contactEmail Invalid email",
     });
     expect(ddbMock.calls().length).toEqual(0);
-    expect(smMock.calls().length).toEqual(0);
   });
   test("POST happy path", async () => {
-    ddbMock.on(PutItemCommand).resolves({});
+    const invoicePayload = {
+      invoiceId: "ACM102",
+      invoiceAmountUsd: 51,
+      contactName: "Infra User",
+      contactEmail: "testing@acm.illinois.edu",
+    };
+    ddbMock.on(TransactWriteItemsCommand).resolvesOnce({}).rejects();
     const testJwt = createJwt();
     await app.ready();
 
     const response = await supertest(app.server)
       .post("/api/v1/stripe/paymentLinks")
       .set("authorization", `Bearer ${testJwt}`)
-      .send({
-        invoiceId: "ACM102",
-        invoiceAmountUsd: 51,
-        contactName: "Infra User",
-        contactEmail: "testing@acm.illinois.edu",
-      });
+      .send(invoicePayload);
     expect(response.statusCode).toBe(201);
     expect(response.body).toStrictEqual({
       id: linkId,
       link: `https://buy.stripe.com/${linkId}`,
     });
     expect(ddbMock.calls().length).toEqual(1);
-    expect(smMock.calls().length).toEqual(1);
   });
   test("Unauthenticated GET access (missing token)", async () => {
     await app.ready();
@@ -234,7 +223,7 @@ describe("Test Stripe link creation", async () => {
     });
     const testJwt = createJwt(
       undefined,
-      "1",
+      ["1"],
       "infra-unit-test-stripeonly@acm.illinois.edu",
     );
     const response = await supertest(app.server)
@@ -259,8 +248,5 @@ describe("Test Stripe link creation", async () => {
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
     vi.clearAllMocks();
-    smMock.on(GetSecretValueCommand).resolves({
-      SecretString: secretJson,
-    });
   });
 });

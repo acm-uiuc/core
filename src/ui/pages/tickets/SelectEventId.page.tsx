@@ -8,23 +8,30 @@ import {
   Button,
   UnstyledButton,
   Center,
-} from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import { IconChevronUp, IconChevronDown, IconSelector } from '@tabler/icons-react';
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { z } from 'zod';
+} from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import {
+  IconChevronUp,
+  IconChevronDown,
+  IconSelector,
+} from "@tabler/icons-react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { z } from "zod";
 
-import FullScreenLoader from '@ui/components/AuthContext/LoadingScreen';
-import { AuthGuard } from '@ui/components/AuthGuard';
-import { useApi } from '@ui/util/api';
-import { AppRoles } from '@common/roles';
-import App from '@ui/App';
+import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import { AuthGuard } from "@ui/components/AuthGuard";
+import { useApi } from "@ui/util/api";
+import { AppRoles } from "@common/roles";
+import { ItemPostData } from "@common/types/tickets";
 
 const baseItemMetadata = z.object({
   itemId: z.string().min(1),
   itemName: z.string().min(1),
-  itemSalesActive: z.union([z.string().transform((str) => new Date(str)), z.literal(false)]),
+  itemSalesActive: z.union([
+    z.string().transform((str) => new Date(str)),
+    z.literal(false),
+  ]),
   priceDollars: z.object({
     member: z.number().min(0),
     nonMember: z.number().min(0),
@@ -48,17 +55,21 @@ interface ThProps {
   children: React.ReactNode;
   reversed: boolean;
   sorted: boolean;
-  onSort(): void;
+  onSort: () => void;
 }
 
 function Th({ children, reversed, sorted, onSort }: ThProps) {
-  const Icon = sorted ? (reversed ? IconChevronUp : IconChevronDown) : IconSelector;
+  const Icon = sorted
+    ? reversed
+      ? IconChevronUp
+      : IconChevronDown
+    : IconSelector;
 
   return (
     <Table.Th>
       <UnstyledButton
         onClick={onSort}
-        style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+        style={{ display: "flex", alignItems: "center", gap: "4px" }}
       >
         <Text fw={500} size="sm">
           {children}
@@ -73,28 +84,34 @@ function Th({ children, reversed, sorted, onSort }: ThProps) {
 
 const getTicketStatus = (item: TicketItemMetadata) => {
   if (item.itemSalesActive === false) {
-    return { text: 'Not Open', color: 'gray' as const };
+    return { text: "Not Open", color: "gray" as const };
   }
   if (item.ticketsSold >= item.eventCapacity) {
-    return { text: 'Sold Out', color: 'red' as const };
+    return { text: "Sold Out", color: "red" as const };
   }
-  if (typeof item.itemSalesActive === 'object' && item.itemSalesActive > new Date()) {
-    return { text: 'Coming Soon', color: 'yellow' as const };
+  if (
+    typeof item.itemSalesActive === "object" &&
+    item.itemSalesActive > new Date()
+  ) {
+    return { text: "Coming Soon", color: "yellow" as const };
   }
-  return { text: 'Active', color: 'green' as const };
+  return { text: "Active", color: "green" as const };
 };
 
 const getMerchStatus = (item: ItemMetadata) => {
   if (item.itemSalesActive === false) {
-    return { text: 'Not Available', color: 'gray' as const };
+    return { text: "Not Available", color: "gray" as const };
   }
-  if (typeof item.itemSalesActive === 'object' && item.itemSalesActive > new Date()) {
-    return { text: 'Coming Soon', color: 'yellow' as const };
+  if (
+    typeof item.itemSalesActive === "object" &&
+    item.itemSalesActive > new Date()
+  ) {
+    return { text: "Coming Soon", color: "yellow" as const };
   }
-  return { text: 'Available', color: 'green' as const };
+  return { text: "Available", color: "green" as const };
 };
 
-type SortBy = 'name' | 'status' | null;
+type SortBy = "name" | "status" | null;
 
 const SelectTicketsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -104,33 +121,31 @@ const SelectTicketsPage: React.FC = () => {
   }>({ tickets: [], merch: [] });
   const [sortBy, setSortBy] = useState<SortBy>(null);
   const [reversedSort, setReversedSort] = useState(false);
-  const api = useApi('core');
+  const api = useApi("core");
   const navigate = useNavigate();
-
+  const fetchItems = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/api/v1/tickets");
+      const parsed = listItemsResponseSchema.parse(response.data);
+      setItems({
+        tickets: parsed.tickets,
+        merch: parsed.merch,
+      });
+      handleSort("status");
+    } catch (error) {
+      console.error("Error fetching items:", error);
+      notifications.show({
+        title: "Error fetching items",
+        message: "Failed to load available items. Please try again later.",
+        color: "red",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get('/api/v1/tickets/');
-        const parsed = listItemsResponseSchema.parse(response.data);
-        setItems({
-          tickets: parsed.tickets,
-          merch: parsed.merch,
-        });
-      } catch (error) {
-        console.error('Error fetching items:', error);
-        notifications.show({
-          title: 'Error fetching items',
-          message: 'Failed to load available items. Please try again later.',
-          color: 'red',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchItems();
-    handleSort('status');
   }, []);
 
   const handleSort = (field: SortBy) => {
@@ -142,22 +157,32 @@ const SelectTicketsPage: React.FC = () => {
     }
   };
 
-  const isTicketItem = (item: ItemMetadata | TicketItemMetadata): item is TicketItemMetadata => {
-    return 'eventCapacity' in item && 'ticketsSold' in item;
+  const isTicketItem = (
+    item: ItemMetadata | TicketItemMetadata,
+  ): item is TicketItemMetadata => {
+    return "eventCapacity" in item && "ticketsSold" in item;
   };
 
-  const sortItems = <T extends ItemMetadata | TicketItemMetadata>(items: T[]) => {
-    if (!sortBy) return items;
+  const sortItems = <T extends ItemMetadata | TicketItemMetadata>(
+    items: T[],
+  ) => {
+    if (!sortBy) {
+      return items;
+    }
 
     return [...items].sort((a, b) => {
-      if (sortBy === 'name') {
+      if (sortBy === "name") {
         const comparison = a.itemName.localeCompare(b.itemName);
         return reversedSort ? -comparison : comparison;
       }
 
-      if (sortBy === 'status') {
-        const statusA = isTicketItem(a) ? getTicketStatus(a).text : getMerchStatus(a).text;
-        const statusB = isTicketItem(b) ? getTicketStatus(b).text : getMerchStatus(b).text;
+      if (sortBy === "status") {
+        const statusA = isTicketItem(a)
+          ? getTicketStatus(a).text
+          : getMerchStatus(a).text;
+        const statusB = isTicketItem(b)
+          ? getTicketStatus(b).text
+          : getMerchStatus(b).text;
         const comparison = statusA.localeCompare(statusB);
         return reversedSort ? -comparison : comparison;
       }
@@ -169,6 +194,37 @@ const SelectTicketsPage: React.FC = () => {
   if (loading) {
     return <FullScreenLoader />;
   }
+
+  const handleToggleSales = async (item: ItemMetadata | TicketItemMetadata) => {
+    let newIsActive = false;
+    if (isTicketItem(item)) {
+      newIsActive = !(getTicketStatus(item).color === "green");
+    } else {
+      newIsActive = !(getMerchStatus(item).color === "green");
+    }
+    try {
+      setLoading(true);
+      const data: ItemPostData = {
+        itemSalesActive: newIsActive,
+        type: isTicketItem(item) ? "ticket" : "merch",
+      };
+      await api.patch(`/api/v1/tickets/${item.itemId}`, data);
+      await fetchItems();
+      notifications.show({
+        title: "Changes saved",
+        message: `Sales for ${item.itemName} are ${newIsActive ? "enabled" : "disabled"}!`,
+      });
+    } catch (error) {
+      console.error("Error setting new status:", error);
+      notifications.show({
+        title: "Error setting status",
+        message: "Failed to set status. Please try again later.",
+        color: "red",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleManageClick = (itemId: string) => {
     navigate(`/tickets/manage/${itemId}`);
@@ -184,7 +240,7 @@ const SelectTicketsPage: React.FC = () => {
   return (
     <AuthGuard
       resourceDef={{
-        service: 'core',
+        service: "core",
         validRoles: [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
       }}
     >
@@ -193,13 +249,16 @@ const SelectTicketsPage: React.FC = () => {
       </Title>
       <AuthGuard
         isAppShell={false}
-        resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_SCANNER] }}
+        resourceDef={{
+          service: "core",
+          validRoles: [AppRoles.TICKETS_SCANNER],
+        }}
       >
         <Button
           variant="primary"
           onClick={() => handleScanClick()}
-          id={`merch-scan`}
-          style={{ marginBottom: '2vh' }}
+          id="merch-scan"
+          style={{ marginBottom: "2vh" }}
         >
           Scan Ticket/Merch Codes
         </Button>
@@ -212,16 +271,16 @@ const SelectTicketsPage: React.FC = () => {
           <Table.Thead>
             <Table.Tr>
               <Th
-                sorted={sortBy === 'name'}
+                sorted={sortBy === "name"}
                 reversed={reversedSort}
-                onSort={() => handleSort('name')}
+                onSort={() => handleSort("name")}
               >
                 Item Name
               </Th>
               <Th
-                sorted={sortBy === 'status'}
+                sorted={sortBy === "status"}
                 reversed={reversedSort}
-                onSort={() => handleSort('status')}
+                onSort={() => handleSort("status")}
               >
                 Status
               </Th>
@@ -235,7 +294,7 @@ const SelectTicketsPage: React.FC = () => {
               return (
                 <Table.Tr
                   key={item.itemId}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: "pointer" }}
                   data-testid={`merch-row-${item.itemId}`}
                 >
                   <Table.Td>{item.itemName}</Table.Td>
@@ -250,14 +309,31 @@ const SelectTicketsPage: React.FC = () => {
                     <Group>
                       <AuthGuard
                         isAppShell={false}
-                        resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}
+                        resourceDef={{
+                          service: "core",
+                          validRoles: [AppRoles.TICKETS_MANAGER],
+                        }}
                       >
                         <Button
-                          variant="outline"
+                          variant="primary"
                           onClick={() => handleManageClick(item.itemId)}
                           id={`merch-${item.itemId}-manage`}
                         >
                           View Sales
+                        </Button>
+                        <Button
+                          color={
+                            getMerchStatus(item).color === "green"
+                              ? "red"
+                              : "green"
+                          }
+                          onClick={() => handleToggleSales(item)}
+                          id={`tickets-${item.itemId}-toggle-status`}
+                        >
+                          {getMerchStatus(item).color === "green"
+                            ? "Disable"
+                            : "Enable"}{" "}
+                          Sales
                         </Button>
                       </AuthGuard>
                     </Group>
@@ -277,16 +353,16 @@ const SelectTicketsPage: React.FC = () => {
           <Table.Thead>
             <Table.Tr>
               <Th
-                sorted={sortBy === 'name'}
+                sorted={sortBy === "name"}
                 reversed={reversedSort}
-                onSort={() => handleSort('name')}
+                onSort={() => handleSort("name")}
               >
                 Event Name
               </Th>
               <Th
-                sorted={sortBy === 'status'}
+                sorted={sortBy === "status"}
                 reversed={reversedSort}
-                onSort={() => handleSort('status')}
+                onSort={() => handleSort("status")}
               >
                 Status
               </Th>
@@ -301,7 +377,7 @@ const SelectTicketsPage: React.FC = () => {
               return (
                 <Table.Tr
                   key={ticket.itemId}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: "pointer" }}
                   data-testid={`ticket-row-${ticket.itemId}`}
                 >
                   <Table.Td>{ticket.itemName}</Table.Td>
@@ -328,15 +404,34 @@ const SelectTicketsPage: React.FC = () => {
                     <Group>
                       <AuthGuard
                         isAppShell={false}
-                        resourceDef={{ service: 'core', validRoles: [AppRoles.TICKETS_MANAGER] }}
+                        resourceDef={{
+                          service: "core",
+                          validRoles: [AppRoles.TICKETS_MANAGER],
+                        }}
                       >
-                        <Button
-                          variant="outline"
-                          onClick={() => handleManageClick(ticket.itemId)}
-                          id={`tickets-${ticket.itemId}-manage`}
-                        >
-                          View Sales
-                        </Button>
+                        <Group>
+                          <Button
+                            variant="primary"
+                            onClick={() => handleManageClick(ticket.itemId)}
+                            id={`tickets-${ticket.itemId}-manage`}
+                          >
+                            View Sales
+                          </Button>
+                          <Button
+                            color={
+                              getTicketStatus(ticket).color === "green"
+                                ? "red"
+                                : "green"
+                            }
+                            onClick={() => handleToggleSales(ticket)}
+                            id={`tickets-${ticket.itemId}-toggle-status`}
+                          >
+                            {getTicketStatus(ticket).color === "green"
+                              ? "Disable"
+                              : "Enable"}{" "}
+                            Sales
+                          </Button>
+                        </Group>
                       </AuthGuard>
                     </Group>
                   </Table.Td>

@@ -1,5 +1,4 @@
-import { AssumeRoleCommand } from "@aws-sdk/client-sts";
-import { STSClient } from "@aws-sdk/client-sts";
+import { AssumeRoleCommand, STSClient } from "@aws-sdk/client-sts";
 import { genericConfig } from "common/config.js";
 import { InternalServerError } from "common/errors/index.js";
 
