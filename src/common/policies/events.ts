@@ -1,11 +1,11 @@
 import { string, z } from "zod";
 import { createPolicy } from "./evaluator.js";
-import { AllOrganizationList } from "@acm-uiuc/js-shared";
+import { CoreOrganizationList } from "@acm-uiuc/js-shared";
 import { FastifyRequest } from "fastify";
 
 export const hostRestrictionPolicy = createPolicy(
   "EventsHostRestrictionPolicy",
-  z.object({ host: z.array(z.enum(AllOrganizationList)) }),
+  z.object({ host: z.array(z.enum(CoreOrganizationList)) }),
   (request: FastifyRequest & { username?: string }, params) => {
     if (request.method === "GET") {
       return {
