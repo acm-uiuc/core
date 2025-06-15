@@ -1,0 +1,17 @@
+name: autoupdate
+on:
+  push:
+    branches:
+      - main
+jobs:
+  autoupdate:
+    permissions:
+      contents: write
+    name: autoupdate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker://chinthakagodawita/autoupdate-action:v1
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          PR_FILTER: "protected"
+          MERGE_MSG: "Auto-update feature branch with changes from the main branch"

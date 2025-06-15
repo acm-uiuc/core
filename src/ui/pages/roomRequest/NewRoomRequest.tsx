@@ -18,7 +18,7 @@ import {
 } from "@mantine/core";
 import { useForm, zodResolver } from "@mantine/form";
 import { DateInput, DateTimePicker } from "@mantine/dates";
-import { OrganizationList } from "@common/orgs";
+import { AllOrganizationList } from "@acm-uiuc/js-shared";
 import {
   eventThemeOptions,
   spaceTypeOptions,
@@ -401,7 +401,10 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             placeholder="Select host organization"
             withAsterisk
             searchable
-            data={OrganizationList.map((org) => ({ value: org, label: org }))}
+            data={AllOrganizationList.map((org) => ({
+              value: org,
+              label: org,
+            }))}
             {...form.getInputProps("host")}
           />
           <TextInput

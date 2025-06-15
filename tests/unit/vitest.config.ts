@@ -11,6 +11,7 @@ export default defineConfig({
     coverage: {
       provider: "istanbul",
       include: ["src/api/**/*.ts", "src/common/**/*.ts"],
+      exclude: ["src/api/lambda.ts"],
     },
   },
   resolve: {
