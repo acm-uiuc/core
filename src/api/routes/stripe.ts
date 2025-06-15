@@ -106,7 +106,9 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       if (!request.username) {
         throw new UnauthenticatedError({ message: "No username found" });
       }
-      const secretApiConfig = fastify.secretConfig;
+      const secretApiConfig = await fastify.getCachedSecret(
+        genericConfig.ConfigSecretName,
+      );
       const payload: StripeLinkCreateParams = {
         ...request.body,
         createdBy: request.username,
