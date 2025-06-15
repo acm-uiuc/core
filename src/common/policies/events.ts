@@ -7,6 +7,13 @@ export const hostRestrictionPolicy = createPolicy(
   "EventsHostRestrictionPolicy",
   z.object({ host: z.array(z.enum(OrganizationList)) }),
   (request: FastifyRequest & { username?: string }, params) => {
+    if (request.method === "GET") {
+      return {
+        allowed: true,
+        message: "Skipped as route not in scope.",
+        cacheKey: null,
+      };
+    }
     if (!request.url.startsWith("/api/v1/events")) {
       return {
         allowed: true,
