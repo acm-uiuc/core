@@ -1,11 +1,11 @@
 import { AvailableSQSFunctions } from "common/types/sqsMessage.js";
-import { currentEnvironmentConfig, SQSHandlerFunction } from "./index.js";
+import { currentEnvironmentConfig, SQSHandlerFunction } from "../index.js";
 import { SESClient } from "@aws-sdk/client-ses";
 import QRCode from "qrcode";
 import { generateSalesEmail } from "api/functions/ses.js";
 import { genericConfig } from "common/config.js";
 
-export const sendSaleEmailhandler: SQSHandlerFunction<
+export const sendSaleEmailHandler: SQSHandlerFunction<
   AvailableSQSFunctions.SendSaleEmail
 > = async (payload, _metadata, logger) => {
   const { qrCodeContent } = payload;
@@ -15,7 +15,7 @@ export const sendSaleEmailhandler: SQSHandlerFunction<
     errorCorrectionLevel: "H",
   });
   logger.info("Constructing email...");
-  const emailCommand = generateSalesEmail(payload, senderEmail, qrCode);
+  const emailCommand = generateSalesEmail(payload, senderEmail, qrCode as any);
   logger.info("Constructing email...");
   const sesClient = new SESClient({ region: genericConfig.AwsRegion });
   const response = await sesClient.send(emailCommand);
