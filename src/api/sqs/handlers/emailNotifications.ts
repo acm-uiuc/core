@@ -1,5 +1,5 @@
 import { AvailableSQSFunctions } from "common/types/sqsMessage.js";
-import { currentEnvironmentConfig, SQSHandlerFunction } from "./index.js";
+import { currentEnvironmentConfig, SQSHandlerFunction } from "../index.js";
 import { SendEmailCommand, SESClient } from "@aws-sdk/client-ses";
 import { genericConfig } from "common/config.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
