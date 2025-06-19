@@ -7,16 +7,9 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "../dist/tests",
-    "rootDir": ".",
-    "resolveJsonModule": true,
+    "rootDir": "../",
+    "resolveJsonModule": true
   },
-  "include": [
-    "./e2e/**/*.ts",
-    "./live/**/*.ts",
-    "./unit/**/*.ts"
-  ],
-  "exclude": [
-    "../node_modules",
-    "../dist"
-  ]
+  "include": ["../src/", "./e2e/**/*.ts", "./live/**/*.ts", "./unit/**/*.ts"],
+  "exclude": ["../node_modules", "../dist"]
 }
