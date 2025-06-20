@@ -1,6 +1,7 @@
 import { expect, test, describe } from "vitest";
+import { getBaseEndpoint } from "./utils.js";
 
-const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
+const baseEndpoint = getBaseEndpoint();
 
 describe("Membership API basic checks", async () => {
   test("Test that getting member succeeds", { timeout: 3000 }, async () => {

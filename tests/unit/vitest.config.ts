@@ -12,6 +12,11 @@ export default defineConfig({
       provider: "istanbul",
       include: ["src/api/**/*.ts", "src/common/**/*.ts"],
       exclude: ["src/api/lambda.ts"],
+      thresholds: {
+        statements: 54,
+        functions: 65,
+        lines: 54,
+      },
     },
   },
   resolve: {
