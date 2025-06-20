@@ -2,8 +2,10 @@ import { expect, test } from "vitest";
 import { EventsGetResponse } from "../../src/api/routes/events.js";
 import { createJwt } from "./utils.js";
 import { describe } from "node:test";
+import { getBaseEndpoint } from "./utils.js";
 
-const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
+const baseEndpoint = getBaseEndpoint();
+
 test("getting events", async () => {
   const response = await fetch(`${baseEndpoint}/api/v1/events`);
   expect(response.status).toBe(200);

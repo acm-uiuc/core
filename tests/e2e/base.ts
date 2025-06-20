@@ -1,4 +1,4 @@
-import { test as base } from "@playwright/test";
+import { test as base, Page } from "@playwright/test";
 import {
   SecretsManagerClient,
   GetSecretValueCommand,
@@ -7,7 +7,9 @@ import {
 export const getSecretValue = async (
   secretId: string,
 ): Promise<Record<string, string | number | boolean> | null> => {
-  const smClient = new SecretsManagerClient();
+  const smClient = new SecretsManagerClient({
+    region: process.env.AWS_REGION ?? "us-east-1",
+  });
   const data = await smClient.send(
     new GetSecretValueCommand({ SecretId: secretId }),
   );
@@ -32,10 +34,10 @@ async function getSecrets() {
   }
   response["PLAYWRIGHT_USERNAME"] =
     process.env.PLAYWRIGHT_USERNAME ||
-    (keyData ? keyData["playwright_username"] : "");
+    ((keyData ? keyData["playwright_username"] : "") as string);
   response["PLAYWRIGHT_PASSWORD"] =
     process.env.PLAYWRIGHT_PASSWORD ||
-    (keyData ? keyData["playwright_password"] : "");
+    ((keyData ? keyData["playwright_password"] : "") as string);
   return response;
 }
 
@@ -45,7 +47,7 @@ export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-async function becomeUser(page) {
+async function becomeUser(page: Page) {
   await page.goto("https://core.aws.qa.acmuiuc.org/login");
   await page
     .getByRole("button", { name: "Sign in with Illinois NetID" })
@@ -73,7 +75,7 @@ export async function getAllEvents() {
   return (await data.json()) as Record<string, string>[];
 }
 
-export const test = base.extend<{ becomeUser: (page) => Promise<void> }>({
+export const test = base.extend<{ becomeUser: (page: Page) => Promise<void> }>({
   becomeUser: async ({}, use) => {
     use(becomeUser);
   },

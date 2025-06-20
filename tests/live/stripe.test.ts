@@ -1,7 +1,8 @@
 import { expect, test, describe } from "vitest";
-import { createJwt } from "./utils";
+import { createJwt } from "./utils.js";
+import { getBaseEndpoint } from "./utils.js";
 
-const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
+const baseEndpoint = getBaseEndpoint();
 
 describe("Stripe live API authentication", async () => {
   const token = await createJwt();

@@ -1,8 +1,9 @@
 import { expect, test, describe } from "vitest";
-import { createJwt } from "./utils";
-import { allAppRoles } from "../../src/common/roles";
+import { createJwt } from "./utils.js";
+import { allAppRoles } from "../../src/common/roles.js";
+import { getBaseEndpoint } from "./utils.js";
 
-const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
+const baseEndpoint = getBaseEndpoint();
 
 describe("Role checking live API tests", async () => {
   const token = await createJwt();
