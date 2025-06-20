@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { CoreOrganizationList } from "@acm-uiuc/js-shared";
 import ical from "node-ical";
-const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
+import { getBaseEndpoint } from "./utils.js";
+const baseEndpoint = getBaseEndpoint();
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
