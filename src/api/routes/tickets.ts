@@ -212,7 +212,6 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           params: z.object({
             eventId: z.string().min(1),
           }),
-          security: [],
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
