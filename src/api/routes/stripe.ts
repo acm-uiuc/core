@@ -282,6 +282,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}). Invoice was paid ${paidInFull ? "in full." : "partially."}`,
             );
             // Notify link owner of payment
+            let queueId;
             if (unmarshalledEntry.userId.includes("@")) {
               request.log.info(
                 `Sending email to ${unmarshalledEntry.userId}...`,
@@ -310,15 +311,11 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   MessageBody: JSON.stringify(sqsPayload),
                 }),
               );
-              return reply.status(200).send({
-                handled: true,
-                requestId: request.id,
-                queueId: result.MessageId,
-              });
+              queueId = result.MessageId || "";
             }
             // If full payment is done, disable the link
             if (paidInFull) {
-              request.log.info("Paid in full, disabling link.");
+              request.log.debug("Paid in full, disabling link.");
               const logStatement = buildAuditLogTransactPut({
                 entry: {
                   module: Modules.STRIPE,
@@ -357,6 +354,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             return reply.status(200).send({
               handled: true,
               requestId: request.id,
+              queueId: queueId || "",
             });
           }
           return reply
