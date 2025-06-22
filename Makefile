@@ -54,7 +54,7 @@ clean:
 	rm -rf dist_devel/
 	rm -rf coverage/
 
-build: src/ cloudformation/ docs/
+build: src/ cloudformation/
 	yarn -D
 	VITE_BUILD_HASH=$(GIT_HASH) yarn build
 	cp -r src/api/resources/ dist/api/resources
