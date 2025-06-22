@@ -18,6 +18,13 @@ jobs:
           token: ${{ secrets.REQUIRED_REVIEWS_TOKEN }}
           status: Required Reviews
           requirements: |
+            - name: Cloud provider files
+              paths:
+                - '.github/'
+                - 'cloudformation/'
+              teams:
+                - "officers"
+                - "infra-chairs"
             - name: Base Requirement
               paths: unmatched
               teams:
