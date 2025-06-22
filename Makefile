@@ -52,6 +52,7 @@ clean:
 	rm -rf dist/
 	rm -rf dist_ui/
 	rm -rf dist_devel/
+	rm -rf coverage/
 
 build: src/ cloudformation/ docs/
 	yarn -D

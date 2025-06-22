@@ -64,6 +64,7 @@ jobs:
       - name: Upload Build files
         uses: actions/upload-artifact@v4
         with:
+          include-hidden-files: true
           name: build
           path: |
             .aws-sam/
