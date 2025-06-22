@@ -4,6 +4,16 @@ import { SendEmailCommand, SESClient } from "@aws-sdk/client-ses";
 import { genericConfig } from "common/config.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
+import Handlebars from "handlebars";
+import emailTemplate from "./templates/notification.js";
+
+Handlebars.registerHelper("nl2br", (text) => {
+  let nl2br = `${text}`.replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, "$1<br>$2");
+  nl2br = `<p>${nl2br.replace(/<br>/g, "</p><p>")}</p>`;
+  return new Handlebars.SafeString(nl2br);
+});
+
+const compiledTemplate = Handlebars.compile(emailTemplate);
 
 const stripHtml = (html: string): string => {
   return html
@@ -33,7 +43,7 @@ export const emailNotificationsHandler: SQSHandlerFunction<
       },
       Body: {
         Html: {
-          Data: content,
+          Data: compiledTemplate(payload),
           Charset: "UTF-8",
         },
         Text: {
