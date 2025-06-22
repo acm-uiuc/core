@@ -16,9 +16,13 @@ import {
   InternalServerError,
   NotFoundError,
 } from "../../common/errors/index.js";
-import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBClient,
+  PutItemCommand,
+  ScanCommand,
+} from "@aws-sdk/client-dynamodb";
 import { genericConfig, roleArns } from "../../common/config.js";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import {
   invitePostRequestSchema,
   groupMappingCreatePostSchema,
@@ -27,11 +31,9 @@ import {
   EntraGroupActions,
   entraGroupMembershipListResponse,
   entraProfilePatchRequest,
+  iamGetAllAssignedRolesResponse,
 } from "../../common/types/iam.js";
-import {
-  AUTH_DECISION_CACHE_SECONDS,
-  getGroupRoles,
-} from "../functions/authorization.js";
+import { AUTH_DECISION_CACHE_SECONDS } from "../functions/authorization.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
@@ -105,32 +107,55 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/groups/:groupId/roles",
+    "/assignments",
     {
       schema: withRoles(
         [AppRoles.IAM_ADMIN],
         withTags(["IAM"], {
-          params: z.object({
-            groupId,
-          }),
-          summary: "Get a group's application role mappings.",
+          response: {
+            200: iamGetAllAssignedRolesResponse,
+          },
+          summary: "Get all user and group role assignments.",
         }),
       ),
-      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
+      const allUserRoleAssignments = fastify.dynamoClient.send(
+        new ScanCommand({
+          TableName: `${genericConfig.IAMTablePrefix}-userroles`,
+        }),
+      );
+      const allGroupRoleAssignments = fastify.dynamoClient.send(
+        new ScanCommand({
+          TableName: `${genericConfig.IAMTablePrefix}-grouproles`,
+        }),
+      );
       try {
-        const groupId = request.params.groupId;
-        const roles = await getGroupRoles(fastify.dynamoClient, groupId);
-        return reply.send(roles);
-      } catch (e: unknown) {
+        const [userResponse, groupResponse] = await Promise.all([
+          allUserRoleAssignments,
+          allGroupRoleAssignments,
+        ]);
+        const userUnmarshalled = userResponse.Items?.map((x) => unmarshall(x));
+        const groupUnmarshalled = groupResponse.Items?.map((x) =>
+          unmarshall(x),
+        );
+        return reply.send({
+          user:
+            (userUnmarshalled as z.infer<
+              typeof iamGetAllAssignedRolesResponse
+            >["user"]) || [],
+          group:
+            (groupUnmarshalled as z.infer<
+              typeof iamGetAllAssignedRolesResponse
+            >["group"]) || [],
+        });
+      } catch (e) {
         if (e instanceof BaseError) {
           throw e;
         }
-
         request.log.error(e);
         throw new DatabaseFetchError({
-          message: "An error occurred finding the group role mapping.",
+          message: "Failed to get application mappings.",
         });
       }
     },

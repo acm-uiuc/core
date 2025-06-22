@@ -74,3 +74,16 @@ export const entraProfilePatchRequest = z.object({
 });
 
 export type ProfilePatchRequest = z.infer<typeof entraProfilePatchRequest>;
+
+export const iamGetAllAssignedRolesResponse = z.object({
+  user: z.array(z.object({
+    userEmail: z.string(),
+    createdAt: z.string().datetime(),
+    roles: z.array(z.string())
+  })),
+  group: z.array(z.object({
+    groupUuid: z.string(),
+    createdAt: z.string().datetime(),
+    roles: z.array(z.string())
+  }))
+})

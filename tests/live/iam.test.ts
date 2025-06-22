@@ -3,11 +3,32 @@ import { createJwt } from "./utils.js";
 import {
   EntraActionResponse,
   GroupMemberGetResponse,
+  iamGetAllAssignedRolesResponse,
 } from "../../src/common/types/iam.js";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 import { getBaseEndpoint } from "./utils.js";
+import { z } from "zod";
 
 const baseEndpoint = getBaseEndpoint();
+test("getting all role assignments", async () => {
+  const token = await createJwt();
+  const response = await fetch(`${baseEndpoint}/api/v1/iam/assignments`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  expect(response.status).toBe(200);
+  const responseJson = (await response.json()) as z.infer<
+    typeof iamGetAllAssignedRolesResponse
+  >;
+  expect(responseJson["user"]).toBeDefined();
+  expect(responseJson["group"]).toBeDefined();
+  expect(responseJson["user"].length).greaterThan(0);
+  expect(responseJson["group"].length).greaterThan(0);
+});
+
 test("getting members of a group", async () => {
   const token = await createJwt();
   const response = await fetch(
