@@ -275,34 +275,43 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             request.log.info(
               `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}).`,
             );
-            const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
-              {
-                function: AvailableSQSFunctions.EmailNotifications,
-                metadata: {
-                  initiator: eventId,
-                  reqId: request.id,
-                },
-                payload: {
-                  to: [unmarshalledEntry.invoiceId],
-                  subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
-                  content: `Received payment of ${withCurrency} by ${name} (${email}) for invoice ID ${unmarshalledEntry.invoiceId}. Please contact treasurer@acm.illinois.edu with any questions.`,
-                },
-              };
-            if (!fastify.sqsClient) {
-              fastify.sqsClient = new SQSClient({
-                region: genericConfig.AwsRegion,
+            if (unmarshalledEntry.userId.includes("@")) {
+              request.log.info(
+                `Sending email to ${unmarshalledEntry.userId}...`,
+              );
+              const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
+                {
+                  function: AvailableSQSFunctions.EmailNotifications,
+                  metadata: {
+                    initiator: eventId,
+                    reqId: request.id,
+                  },
+                  payload: {
+                    to: [unmarshalledEntry.userId],
+                    subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
+                    content: `Received payment of ${withCurrency} by ${name} (${email}) for invoice ID ${unmarshalledEntry.invoiceId}. Please contact treasurer@acm.illinois.edu with any questions.`,
+                  },
+                };
+              if (!fastify.sqsClient) {
+                fastify.sqsClient = new SQSClient({
+                  region: genericConfig.AwsRegion,
+                });
+              }
+              const result = await fastify.sqsClient.send(
+                new SendMessageCommand({
+                  QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+                  MessageBody: JSON.stringify(sqsPayload),
+                }),
+              );
+              return reply.status(200).send({
+                handled: true,
+                requestId: request.id,
+                queueId: result.MessageId,
               });
             }
-            const result = await fastify.sqsClient.send(
-              new SendMessageCommand({
-                QueueUrl: fastify.environmentConfig.SqsQueueUrl,
-                MessageBody: JSON.stringify(sqsPayload),
-              }),
-            );
             return reply.status(200).send({
               handled: true,
               requestId: request.id,
-              queueId: result.MessageId,
             });
           }
           return reply
