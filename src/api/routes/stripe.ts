@@ -318,6 +318,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             }
             // If full payment is done, disable the link
             if (paidInFull) {
+              request.log.info("Paid in full, disabling link.");
               const logStatement = buildAuditLogTransactPut({
                 entry: {
                   module: Modules.STRIPE,
