@@ -60,6 +60,10 @@ export const handler = middy()
             { sqsMessageId: record.messageId },
             parsedBody.toString(),
           );
+          logger.error(
+            { sqsMessageId: record.messageId },
+            parsedBody.errors.toString(),
+          );
           throw new ValidationError({
             message: "Could not parse SQS payload",
           });
