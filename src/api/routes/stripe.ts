@@ -200,7 +200,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         event = stripe.webhooks.constructEvent(
           request.rawBody,
           sig,
-          secretApiConfig.stripe_endpoint_secret as string,
+          secretApiConfig.stripe_links_endpoint_secret as string,
         );
       } catch (err: unknown) {
         if (err instanceof BaseError) {
