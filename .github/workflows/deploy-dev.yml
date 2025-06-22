@@ -80,7 +80,7 @@ jobs:
       group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
     environment: "AWS DEV"
-    name: Deploy to DEV and Run Tests
+    name: Deploy to DEV and Run Live Tests
     needs:
       - test
       - build
@@ -132,13 +132,9 @@ jobs:
       - name: Run health check
         run: make dev_health_check
 
-      - name: Run live testing
-        run: make test_live_integration
-        env:
-          JWT_KEY: ${{ secrets.JWT_KEY }}
-
-      - name: Run E2E testing
-        run: make test_e2e
+      - name: Run post-deploy testing (Live and E2E)
+        run: make test_post_deploy -j 2
         env:
           PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME }}
           PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD }}
+          JWT_KEY: ${{ secrets.JWT_KEY }}

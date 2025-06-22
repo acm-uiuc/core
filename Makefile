@@ -86,6 +86,7 @@ invalidate_cloudfront:
 	$(eval DISTRIBUTION_ID_2 := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontIcalDistributionId'].OutputValue" --output text))
 	$(eval INVALIDATION_ID := $(shell aws cloudfront create-invalidation --distribution-id $(DISTRIBUTION_ID) --paths "/*" --query 'Invalidation.Id' --output text --no-cli-page))
 	$(eval INVALIDATION_ID_2 := $(shell aws cloudfront create-invalidation --distribution-id $(DISTRIBUTION_ID_2) --paths "/*" --query 'Invalidation.Id' --output text --no-cli-page))
+	@echo "Triggered invalidation jobs $(INVALIDATION_ID) and $(INVALIDATION_ID_2)..."
 	@echo "Waiting on job $(INVALIDATION_ID)..."
 	aws cloudfront wait invalidation-completed --distribution-id $(DISTRIBUTION_ID) --id $(INVALIDATION_ID)
 	@echo "Waiting on job $(INVALIDATION_ID_2)..."
@@ -109,6 +110,8 @@ test_unit: install
 test_e2e: install
 	yarn playwright install
 	yarn test:e2e
+
+test_post_deploy: test_live_integration test_e2e
 
 dev_health_check:
 	curl -f https://core.aws.qa.acmuiuc.org/api/v1/healthz && curl -f https://core.aws.qa.acmuiuc.org/
