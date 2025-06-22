@@ -35,6 +35,8 @@ import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import stripe, { Stripe } from "stripe";
 import rawbody from "fastify-raw-body";
+import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -227,7 +229,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               name: null,
             };
             const paymentLinkId = event.data.object.payment_link.toString();
-            if (!paymentLinkId) {
+            if (!paymentLinkId || !paymentCurrency || !paymentAmount) {
               return reply
                 .code(200)
                 .send({ handled: false, requestId: request.id });
@@ -247,18 +249,60 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 message: "Could not check for payment link in table.",
               });
             }
-            if (!response.Count || response.Count !== 1) {
+            if (!response.Items || response.Items?.length !== 1) {
               return reply.status(200).send({
                 handled: false,
                 requestId: request.id,
               });
             }
+            const unmarshalledEntry = unmarshall(response.Items[0]) as {
+              userId: string;
+              invoiceId: string;
+            };
+            if (!unmarshalledEntry.userId || !unmarshalledEntry.invoiceId) {
+              return reply.status(200).send({
+                handled: false,
+                requestId: request.id,
+              });
+            }
+            const withCurrency = new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: paymentCurrency.toUpperCase(),
+            })
+              .formatToParts(paymentAmount / 100)
+              .map((val) => val.value)
+              .join("");
             request.log.info(
-              `Registered payment of ${paymentAmount} ${paymentCurrency} by ${name} (${email}) for payment link ${paymentLinkId}.`,
+              `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}).`,
+            );
+            const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
+              {
+                function: AvailableSQSFunctions.EmailNotifications,
+                metadata: {
+                  initiator: eventId,
+                  reqId: request.id,
+                },
+                payload: {
+                  to: [unmarshalledEntry.invoiceId],
+                  subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
+                  content: `Received payment of ${paymentAmount} ${paymentCurrency} by ${name} (${email}) for invoice ID ${unmarshalledEntry.invoiceId}. Please contact treasurer@acm.illinois.edu with any questions.`,
+                },
+              };
+            if (!fastify.sqsClient) {
+              fastify.sqsClient = new SQSClient({
+                region: genericConfig.AwsRegion,
+              });
+            }
+            const result = await fastify.sqsClient.send(
+              new SendMessageCommand({
+                QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+                MessageBody: JSON.stringify(sqsPayload),
+              }),
             );
             return reply.status(200).send({
               handled: true,
               requestId: request.id,
+              queueId: result.MessageId,
             });
           }
           return reply
