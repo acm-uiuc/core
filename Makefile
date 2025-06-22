@@ -52,6 +52,7 @@ clean:
 	rm -rf dist/
 	rm -rf dist_ui/
 	rm -rf dist_devel/
+	rm -rf coverage/
 
 build: src/ cloudformation/ docs/
 	yarn -D
@@ -65,14 +66,14 @@ build: src/ cloudformation/ docs/
 local:
 	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
 
-deploy_prod: check_account_prod build
+deploy_prod: check_account_prod
 	@echo "Deploying CloudFormation stack..."
 	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
 	@echo "Syncing S3 bucket..."
 	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
 	make invalidate_cloudfront
 
-deploy_dev: check_account_dev build
+deploy_dev: check_account_dev
 	@echo "Deploying CloudFormation stack..."
 	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
 	@echo "Syncing S3 bucket..."
