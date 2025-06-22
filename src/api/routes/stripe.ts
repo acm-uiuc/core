@@ -168,7 +168,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
   fastify.post(
-    "/stripe",
+    "/webhook",
     {
       config: { rawBody: true },
       schema: withTags(["Stripe"], {
