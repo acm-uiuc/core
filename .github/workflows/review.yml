@@ -16,7 +16,8 @@ jobs:
         with:
           token: ${{ secrets.REQUIRED_REVIEWS_TOKEN }}
           requirements: |
-            - paths: unmatched
+            - name: Base Requirement
+              paths: unmatched
               teams:
-                - @acm-uiuc/infra-chairs
-                - @acm-uiuc/infra-leads
+                - "@acm-uiuc/infra-chairs"
+                - "@acm-uiuc/infra-leads"
