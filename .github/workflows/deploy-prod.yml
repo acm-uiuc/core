@@ -7,23 +7,68 @@ on:
     branches:
       - main
 jobs:
-  test-unit:
+  test:
     runs-on: ubuntu-latest
     name: Run Unit Tests
     steps:
+      - uses: actions/checkout@v4
+        env:
+          HUSKY: "0"
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
+          cache: "yarn"
+
+      - name: Restore Yarn Cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          restore-keys: |
+            yarn-modules-${{ runner.os }}-
+
+      - name: Run unit testing
+        run: make test_unit
+
+  build:
+    runs-on: ubuntu-latest
+    name: Build Application
+    steps:
       - uses: actions/checkout@v4
         env:
           HUSKY: "0"
-      - name: Set up Python 3.11 for testing
-        uses: actions/setup-python@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          python-version: 3.11
-      - name: Run unit testing
-        run: make test_unit
+          node-version: 22.x
+          cache: "yarn"
+
+      - name: Restore Yarn Cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-prod
+          restore-keys: |
+            yarn-modules-${{ runner.os }}-
+
+      - name: Run build
+        run: make build
+        env:
+          HUSKY: "0"
+          VITE_RUN_ENVIRONMENT: prod
+
+      - name: Upload Build files
+        uses: actions/upload-artifact@v4
+        with:
+          include-hidden-files: true
+          name: build-prod
+          path: |
+            .aws-sam/
+            dist/
+            dist_ui/
 
   deploy-prod:
     runs-on: ubuntu-latest
@@ -35,7 +80,8 @@ jobs:
       id-token: write
       contents: read
     needs:
-      - test-unit
+      - test
+      - build
     environment: "AWS PROD"
     steps:
       - name: Set up Node for testing
@@ -53,13 +99,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
+      - name: Download Build files
+        uses: actions/download-artifact@v4
+        with:
+          name: build-prod
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::298118738376:role/GitHubActionsRole
           role-session-name: Core_Prod_Deployment_${{ github.run_id }}
           aws-region: us-east-1
       - name: Publish to AWS
-        run: make build && make deploy_prod
+        run: make deploy_prod
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: prod
