@@ -36,9 +36,6 @@ describe(
         const response = await fetchWithRateLimit(
           `${baseEndpoint}/api/v1/ical/${org}`,
         );
-        if (!response.ok) {
-          console.log(response);
-        }
         expect(response.status).toBe(200);
         expect(response.headers.get("Content-Disposition")).toEqual(
           'attachment; filename="calendar.ics"',
