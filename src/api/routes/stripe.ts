@@ -34,8 +34,14 @@ import {
 import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import stripe, { Stripe } from "stripe";
+import rawbody from "fastify-raw-body";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
+  await fastify.register(rawbody, {
+    field: "rawBody",
+    global: false,
+    runFirst: true,
+  });
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/paymentLinks",
     {
@@ -213,6 +219,13 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       switch (event.type) {
         case "checkout.session.completed":
           if (event.data.object.payment_link) {
+            const eventId = event.id;
+            const paymentAmount = event.data.object.amount_total;
+            const paymentCurrency = event.data.object.currency;
+            const { email, name } = event.data.object.customer_details || {
+              email: null,
+              name: null,
+            };
             const paymentLinkId = event.data.object.payment_link.toString();
             if (!paymentLinkId) {
               return reply
@@ -240,6 +253,9 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 requestId: request.id,
               });
             }
+            request.log.info(
+              `Registered payment of ${paymentAmount} ${paymentCurrency} by ${name} (${email}) for payment link ${paymentLinkId}.`,
+            );
             return reply.status(200).send({
               handled: true,
               requestId: request.id,
