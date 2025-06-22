@@ -2,6 +2,7 @@ import {
   QueryCommand,
   ScanCommand,
   TransactWriteItemsCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
@@ -190,16 +191,16 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       if (!request.rawBody) {
         throw new ValidationError({ message: "Could not get raw body." });
       }
+      const secretApiConfig =
+        (await getSecretValue(
+          fastify.secretsManagerClient,
+          genericConfig.ConfigSecretName,
+        )) || {};
       try {
         const sig = request.headers["stripe-signature"];
         if (!sig || typeof sig !== "string") {
           throw new Error("Missing or invalid Stripe signature");
         }
-        const secretApiConfig =
-          (await getSecretValue(
-            fastify.secretsManagerClient,
-            genericConfig.ConfigSecretName,
-          )) || {};
         if (!secretApiConfig) {
           throw new InternalServerError({
             message: "Could not connect to Stripe.",
@@ -259,6 +260,9 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             const unmarshalledEntry = unmarshall(response.Items[0]) as {
               userId: string;
               invoiceId: string;
+              amount: number;
+              priceId: string;
+              productId: string;
             };
             if (!unmarshalledEntry.userId || !unmarshalledEntry.invoiceId) {
               return reply.status(200).send({
@@ -266,6 +270,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 requestId: request.id,
               });
             }
+            const paidInFull = paymentAmount === unmarshalledEntry.amount;
             const withCurrency = new Intl.NumberFormat("en-US", {
               style: "currency",
               currency: paymentCurrency.toUpperCase(),
@@ -274,8 +279,10 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               .map((val) => val.value)
               .join("");
             request.log.info(
-              `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}).`,
+              `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}). Invoice was paid ${paidInFull ? "in full." : "partially."}`,
             );
+            // Notify link owner of payment
+            let queueId;
             if (unmarshalledEntry.userId.includes("@")) {
               request.log.info(
                 `Sending email to ${unmarshalledEntry.userId}...`,
@@ -290,7 +297,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   payload: {
                     to: [unmarshalledEntry.userId],
                     subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
-                    content: `Received payment of ${withCurrency} by ${name} (${email}) for Invoice ${unmarshalledEntry.invoiceId}. Please contact treasurer@acm.illinois.edu with any questions.`,
+                    content: `ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} by ${name}, ${email}).\n\nPlease contact Officer Board with any questions.`,
                   },
                 };
               if (!fastify.sqsClient) {
@@ -304,15 +311,50 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   MessageBody: JSON.stringify(sqsPayload),
                 }),
               );
-              return reply.status(200).send({
-                handled: true,
-                requestId: request.id,
-                queueId: result.MessageId,
+              queueId = result.MessageId || "";
+            }
+            // If full payment is done, disable the link
+            if (paidInFull) {
+              request.log.debug("Paid in full, disabling link.");
+              const logStatement = buildAuditLogTransactPut({
+                entry: {
+                  module: Modules.STRIPE,
+                  actor: eventId,
+                  target: `Link ${paymentLinkId} | Invoice ${unmarshalledEntry.invoiceId}`,
+                  message:
+                    "Disabled Stripe payment link as payment was made in full.",
+                },
               });
+              const dynamoCommand = new TransactWriteItemsCommand({
+                TransactItems: [
+                  logStatement,
+                  {
+                    Update: {
+                      TableName: genericConfig.StripeLinksDynamoTableName,
+                      Key: {
+                        userId: { S: unmarshalledEntry.userId },
+                        linkId: { S: paymentLinkId },
+                      },
+                      UpdateExpression: "SET active = :new_val",
+                      ConditionExpression: "active = :old_val",
+                      ExpressionAttributeValues: {
+                        ":new_val": { BOOL: false },
+                        ":old_val": { BOOL: true },
+                      },
+                    },
+                  },
+                ],
+              });
+              await deactivateStripeLink({
+                stripeApiKey: secretApiConfig.stripe_secret_key as string,
+                linkId: paymentLinkId,
+              });
+              await fastify.dynamoClient.send(dynamoCommand);
             }
             return reply.status(200).send({
               handled: true,
               requestId: request.id,
+              queueId: queueId || "",
             });
           }
           return reply
