@@ -9,7 +9,6 @@ import { marshall } from "@aws-sdk/util-dynamodb";
 import stripe from "stripe";
 import { genericConfig } from "../../src/common/config.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
-import { Z } from "vitest/dist/chunks/reporters.d.79o4mouw.js";
 
 const ddbMock = mockClient(DynamoDBClient);
 const sqsMock = mockClient(SQSClient);
