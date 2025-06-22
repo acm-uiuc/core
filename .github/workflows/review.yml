@@ -21,5 +21,6 @@ jobs:
             - name: Base Requirement
               paths: unmatched
               teams:
+                - "officers"
                 - "infra-chairs"
                 - "infra-leads"
