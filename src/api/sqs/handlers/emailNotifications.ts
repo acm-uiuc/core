@@ -48,6 +48,7 @@ export const emailNotificationsHandler: SQSHandlerFunction<
             ...payload,
             id: metadata.reqId,
             from: senderEmailAddress,
+            currentYear: new Date().getFullYear(),
           }),
           Charset: "UTF-8",
         },

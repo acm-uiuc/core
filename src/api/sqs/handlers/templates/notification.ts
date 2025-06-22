@@ -53,7 +53,7 @@ const template = /*html*/ `
                 emails. To ensure delivery, add {{from}} to your address book. </p>
               <p style="font-size: 12px; color: #888; margin-top: 15px;"> Please do not respond to this message, as
                 emails to this address are not monitored. </p>
-              <p style="font-size: 12px; color: #888; margin-top: 15px;"> &copy; {{date "" format="YYYY"}} ACM @ UIUC.
+              <p style="font-size: 12px; color: #888; margin-top: 15px;"> &copy; {{currentYear}} ACM @ UIUC.
                 All trademarks are the property of their respective owners. </p>
               <p style="font-size: 12px; color: #888; margin-top: 45px;"> {{id}} </p>
             </td>
