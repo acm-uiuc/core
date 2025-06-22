@@ -285,7 +285,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 payload: {
                   to: [unmarshalledEntry.invoiceId],
                   subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
-                  content: `Received payment of ${paymentAmount} ${paymentCurrency} by ${name} (${email}) for invoice ID ${unmarshalledEntry.invoiceId}. Please contact treasurer@acm.illinois.edu with any questions.`,
+                  content: `Received payment of ${withCurrency} by ${name} (${email}) for invoice ID ${unmarshalledEntry.invoiceId}. Please contact treasurer@acm.illinois.edu with any questions.`,
                 },
               };
             if (!fastify.sqsClient) {
