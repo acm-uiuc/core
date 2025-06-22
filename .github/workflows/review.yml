@@ -1,0 +1,22 @@
+name: Required Reviews
+on:
+  pull_request_review:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  check:
+    name: Checking required reviews
+    runs-on: ubuntu-latest
+
+    if: github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
+
+    steps:
+      - uses: Automattic/action-required-review@v4.1.0
+        with:
+          token: ${{ secrets.REQUIRED_REVIEWS_TOKEN }}
+          requirements: |
+            - paths: unmatched
+              teams:
+                - @acm-uiuc/infra-chairs
+                - @acm-uiuc/infra-leads
