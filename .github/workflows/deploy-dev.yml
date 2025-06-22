@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  test-unit:
+  test-build:
     runs-on: ubuntu-latest
     name: Run Unit Tests
     steps:
@@ -20,7 +20,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
-          cache: 'yarn'
+          cache: "yarn"
 
       - name: Restore Yarn Cache
         uses: actions/cache@v4
@@ -38,6 +38,19 @@ jobs:
       - name: Run unit testing
         run: make test_unit
 
+      - name: Run build
+        run: make build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-api
+          path: dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-ui
+          path: dist_ui/
+
   deploy-test-dev:
     runs-on: ubuntu-latest
     permissions:
@@ -49,7 +62,7 @@ jobs:
     environment: "AWS DEV"
     name: Deploy to DEV and Run Tests
     needs:
-      - test-unit
+      - test-build
     steps:
       - uses: actions/checkout@v4
         env:
@@ -59,7 +72,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
-          cache: 'yarn'
+          cache: "yarn"
 
       - name: Restore Yarn Cache
         uses: actions/cache@v4
@@ -68,6 +81,16 @@ jobs:
           key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
             yarn-modules-${{ runner.os }}-
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-api
+          path: dist/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-ui
+          path: dist_ui/
 
       - uses: aws-actions/setup-sam@v2
         with:
