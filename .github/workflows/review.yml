@@ -16,6 +16,7 @@ jobs:
       - uses: Automattic/action-required-review@v4.1.0
         with:
           token: ${{ secrets.REQUIRED_REVIEWS_TOKEN }}
+          status: Required Reviews
           requirements: |
             - name: Base Requirement
               paths: unmatched
