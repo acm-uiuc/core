@@ -22,6 +22,7 @@ import {
   DatabaseInsertError,
   InternalServerError,
   UnauthenticatedError,
+  ValidationError,
 } from "common/errors/index.js";
 import { Modules } from "common/modules.js";
 import { AppRoles } from "common/roles.js";
@@ -32,6 +33,7 @@ import {
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
+import stripe, { Stripe } from "stripe";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
@@ -163,6 +165,94 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       reply.status(201).send({ id: linkId, link: url });
+    },
+  );
+  fastify.post(
+    "/stripe",
+    {
+      config: { rawBody: true },
+      schema: withTags(["Stripe"], {
+        summary:
+          "Stripe webhook handler to track when Stripe payment links are used.",
+        hide: true,
+      }),
+    },
+    async (request, reply) => {
+      let event: Stripe.Event;
+      if (!request.rawBody) {
+        throw new ValidationError({ message: "Could not get raw body." });
+      }
+      try {
+        const sig = request.headers["stripe-signature"];
+        if (!sig || typeof sig !== "string") {
+          throw new Error("Missing or invalid Stripe signature");
+        }
+        const secretApiConfig =
+          (await getSecretValue(
+            fastify.secretsManagerClient,
+            genericConfig.ConfigSecretName,
+          )) || {};
+        if (!secretApiConfig) {
+          throw new InternalServerError({
+            message: "Could not connect to Stripe.",
+          });
+        }
+        event = stripe.webhooks.constructEvent(
+          request.rawBody,
+          sig,
+          secretApiConfig.stripe_endpoint_secret as string,
+        );
+      } catch (err: unknown) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        throw new ValidationError({
+          message: "Stripe webhook could not be validated.",
+        });
+      }
+      switch (event.type) {
+        case "checkout.session.completed":
+          if (event.data.object.payment_link) {
+            const paymentLinkId = event.data.object.payment_link.toString();
+            if (!paymentLinkId) {
+              return reply
+                .code(200)
+                .send({ handled: false, requestId: request.id });
+            }
+            const response = await fastify.dynamoClient.send(
+              new QueryCommand({
+                TableName: genericConfig.StripeLinksDynamoTableName,
+                IndexName: "LinkIdIndex",
+                KeyConditionExpression: "linkId = :linkId",
+                ExpressionAttributeValues: {
+                  ":linkId": { S: paymentLinkId },
+                },
+              }),
+            );
+            if (!response) {
+              throw new DatabaseFetchError({
+                message: "Could not check for payment link in table.",
+              });
+            }
+            if (!response.Count || response.Count !== 1) {
+              return reply.status(200).send({
+                handled: false,
+                requestId: request.id,
+              });
+            }
+            return reply.status(200).send({
+              handled: true,
+              requestId: request.id,
+            });
+          }
+          return reply
+            .code(200)
+            .send({ handled: false, requestId: request.id });
+
+        default:
+          request.log.warn(`Unhandled event type: ${event.type}`);
+      }
+      return reply.code(200).send({ handled: false, requestId: request.id });
     },
   );
 };
