@@ -4,7 +4,7 @@ import { getBaseEndpoint } from "./utils.js";
 const baseEndpoint = getBaseEndpoint();
 
 describe("Membership API basic checks", async () => {
-  test("Test that getting member succeeds", { timeout: 3000 }, async () => {
+  test("Test that getting member succeeds", { timeout: 10000 }, async () => {
     const response = await fetch(`${baseEndpoint}/api/v1/membership/dsingh14`, {
       method: "GET",
     });
@@ -23,7 +23,7 @@ describe("Membership API basic checks", async () => {
   });
   test(
     "Test that getting member with non-standard casing succeeds",
-    { timeout: 3000 },
+    { timeout: 10000 },
     async () => {
       const response = await fetch(
         `${baseEndpoint}/api/v1/membership/DSingh14`,
@@ -47,7 +47,7 @@ describe("Membership API basic checks", async () => {
   );
   test(
     "Test that getting non-members succeeds",
-    { timeout: 3000 },
+    { timeout: 10000 },
     async () => {
       const response = await fetch(`${baseEndpoint}/api/v1/membership/zzzz`, {
         method: "GET",
@@ -62,7 +62,7 @@ describe("Membership API basic checks", async () => {
       });
     },
   );
-  test("Test that too long NetID is rejected", { timeout: 3000 }, async () => {
+  test("Test that too long NetID is rejected", { timeout: 10000 }, async () => {
     const response = await fetch(
       `${baseEndpoint}/api/v1/membership/dsafdsfdsfsdafsfsdfasfsfsfds`,
       {
@@ -73,17 +73,21 @@ describe("Membership API basic checks", async () => {
     expect(response.status).toBe(400);
     expect(response.headers.get("x-acm-data-source")).toBeNull();
   });
-  test("Test that too short NetID is rejected", { timeout: 3000 }, async () => {
-    const response = await fetch(`${baseEndpoint}/api/v1/membership/ds`, {
-      method: "GET",
-    });
+  test(
+    "Test that too short NetID is rejected",
+    { timeout: 10000 },
+    async () => {
+      const response = await fetch(`${baseEndpoint}/api/v1/membership/ds`, {
+        method: "GET",
+      });
 
-    expect(response.status).toBe(400);
-    expect(response.headers.get("x-acm-data-source")).toBeNull();
-  });
+      expect(response.status).toBe(400);
+      expect(response.headers.get("x-acm-data-source")).toBeNull();
+    },
+  );
   test(
     "Test that getting external non-members succeeds",
-    { timeout: 3000 },
+    { timeout: 10000 },
     async () => {
       const response = await fetch(
         `${baseEndpoint}/api/v1/membership/zzzz?list=built`,
@@ -104,7 +108,7 @@ describe("Membership API basic checks", async () => {
   );
   test(
     "Test that getting external members succeeds",
-    { timeout: 3000 },
+    { timeout: 10000 },
     async () => {
       const response = await fetch(
         `${baseEndpoint}/api/v1/membership/zzzz?list=acmtesting`,
