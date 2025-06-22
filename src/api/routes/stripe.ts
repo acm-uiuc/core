@@ -22,6 +22,7 @@ import {
   DatabaseInsertError,
   InternalServerError,
   UnauthenticatedError,
+  ValidationError,
 } from "common/errors/index.js";
 import { Modules } from "common/modules.js";
 import { AppRoles } from "common/roles.js";
@@ -32,8 +33,17 @@ import {
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
+import stripe, { Stripe } from "stripe";
+import rawbody from "fastify-raw-body";
+import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
+  await fastify.register(rawbody, {
+    field: "rawBody",
+    global: false,
+    runFirst: true,
+  });
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/paymentLinks",
     {
@@ -165,6 +175,156 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       reply.status(201).send({ id: linkId, link: url });
+    },
+  );
+  fastify.post(
+    "/webhook",
+    {
+      config: { rawBody: true },
+      schema: withTags(["Stripe"], {
+        summary:
+          "Stripe webhook handler to track when Stripe payment links are used.",
+        hide: true,
+      }),
+    },
+    async (request, reply) => {
+      let event: Stripe.Event;
+      if (!request.rawBody) {
+        throw new ValidationError({ message: "Could not get raw body." });
+      }
+      try {
+        const sig = request.headers["stripe-signature"];
+        if (!sig || typeof sig !== "string") {
+          throw new Error("Missing or invalid Stripe signature");
+        }
+        const secretApiConfig =
+          (await getSecretValue(
+            fastify.secretsManagerClient,
+            genericConfig.ConfigSecretName,
+          )) || {};
+        if (!secretApiConfig) {
+          throw new InternalServerError({
+            message: "Could not connect to Stripe.",
+          });
+        }
+        event = stripe.webhooks.constructEvent(
+          request.rawBody,
+          sig,
+          secretApiConfig.stripe_links_endpoint_secret as string,
+        );
+      } catch (err: unknown) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        throw new ValidationError({
+          message: "Stripe webhook could not be validated.",
+        });
+      }
+      switch (event.type) {
+        case "checkout.session.completed":
+          if (event.data.object.payment_link) {
+            const eventId = event.id;
+            const paymentAmount = event.data.object.amount_total;
+            const paymentCurrency = event.data.object.currency;
+            const { email, name } = event.data.object.customer_details || {
+              email: null,
+              name: null,
+            };
+            const paymentLinkId = event.data.object.payment_link.toString();
+            if (!paymentLinkId || !paymentCurrency || !paymentAmount) {
+              request.log.info("Missing required fields.");
+              return reply
+                .code(200)
+                .send({ handled: false, requestId: request.id });
+            }
+            const response = await fastify.dynamoClient.send(
+              new QueryCommand({
+                TableName: genericConfig.StripeLinksDynamoTableName,
+                IndexName: "LinkIdIndex",
+                KeyConditionExpression: "linkId = :linkId",
+                ExpressionAttributeValues: {
+                  ":linkId": { S: paymentLinkId },
+                },
+              }),
+            );
+            if (!response) {
+              throw new DatabaseFetchError({
+                message: "Could not check for payment link in table.",
+              });
+            }
+            if (!response.Items || response.Items?.length !== 1) {
+              return reply.status(200).send({
+                handled: false,
+                requestId: request.id,
+              });
+            }
+            const unmarshalledEntry = unmarshall(response.Items[0]) as {
+              userId: string;
+              invoiceId: string;
+            };
+            if (!unmarshalledEntry.userId || !unmarshalledEntry.invoiceId) {
+              return reply.status(200).send({
+                handled: false,
+                requestId: request.id,
+              });
+            }
+            const withCurrency = new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: paymentCurrency.toUpperCase(),
+            })
+              .formatToParts(paymentAmount / 100)
+              .map((val) => val.value)
+              .join("");
+            request.log.info(
+              `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}).`,
+            );
+            if (unmarshalledEntry.userId.includes("@")) {
+              request.log.info(
+                `Sending email to ${unmarshalledEntry.userId}...`,
+              );
+              const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
+                {
+                  function: AvailableSQSFunctions.EmailNotifications,
+                  metadata: {
+                    initiator: eventId,
+                    reqId: request.id,
+                  },
+                  payload: {
+                    to: [unmarshalledEntry.userId],
+                    subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
+                    content: `Received payment of ${withCurrency} by ${name} (${email}) for Invoice ${unmarshalledEntry.invoiceId}. Please contact treasurer@acm.illinois.edu with any questions.`,
+                  },
+                };
+              if (!fastify.sqsClient) {
+                fastify.sqsClient = new SQSClient({
+                  region: genericConfig.AwsRegion,
+                });
+              }
+              const result = await fastify.sqsClient.send(
+                new SendMessageCommand({
+                  QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+                  MessageBody: JSON.stringify(sqsPayload),
+                }),
+              );
+              return reply.status(200).send({
+                handled: true,
+                requestId: request.id,
+                queueId: result.MessageId,
+              });
+            }
+            return reply.status(200).send({
+              handled: true,
+              requestId: request.id,
+            });
+          }
+          return reply
+            .code(200)
+            .send({ handled: false, requestId: request.id });
+
+        default:
+          request.log.warn(`Unhandled event type: ${event.type}`);
+      }
+      return reply.code(200).send({ handled: false, requestId: request.id });
     },
   );
 };

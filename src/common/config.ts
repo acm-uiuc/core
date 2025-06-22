@@ -147,6 +147,7 @@ export type SecretConfig = {
   apple_signing_cert_base64: string;
   stripe_secret_key: string;
   stripe_endpoint_secret: string;
+  stripe_links_endpoint_secret: string;
   redis_url: string;
 };
 
