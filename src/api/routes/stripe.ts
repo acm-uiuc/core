@@ -230,6 +230,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             };
             const paymentLinkId = event.data.object.payment_link.toString();
             if (!paymentLinkId || !paymentCurrency || !paymentAmount) {
+              request.log.info("Missing required fields.");
               return reply
                 .code(200)
                 .send({ handled: false, requestId: request.id });
@@ -289,7 +290,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   payload: {
                     to: [unmarshalledEntry.userId],
                     subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
-                    content: `Received payment of ${withCurrency} by ${name} (${email}) for invoice ID ${unmarshalledEntry.invoiceId}. Please contact treasurer@acm.illinois.edu with any questions.`,
+                    content: `Received payment of ${withCurrency} by ${name} (${email}) for Invoice ${unmarshalledEntry.invoiceId}. Please contact treasurer@acm.illinois.edu with any questions.`,
                   },
                 };
               if (!fastify.sqsClient) {
