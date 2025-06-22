@@ -296,7 +296,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   payload: {
                     to: [unmarshalledEntry.userId],
                     subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
-                    content: `We're writing to notify you that ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} by ${name} <${email}>).\n\nPlease contact Officer Board with any questions.`,
+                    content: `ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} by ${name}, ${email}).\n\nPlease contact Officer Board with any questions.`,
                   },
                 };
               if (!fastify.sqsClient) {
