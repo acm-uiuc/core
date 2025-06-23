@@ -155,7 +155,7 @@ describe("StripeCurrentLinksPanel Tests", () => {
     expect(checkbox).not.toBeChecked();
   });
 
-  it("triggers deactivation when clicking deactivate button", async () => {
+  it("triggers deactivation when clicking deactivate button with all active", async () => {
     getLinksMock.mockResolvedValue([
       {
         id: "abc123",
@@ -176,5 +176,63 @@ describe("StripeCurrentLinksPanel Tests", () => {
     await userEvent.click(deactivateButton);
 
     expect(deactivateLinkMock).toHaveBeenCalledWith("abc123");
+  });
+
+  it("doesn't show deactivation when clicking deactivate button on non-active", async () => {
+    getLinksMock.mockResolvedValue([
+      {
+        id: "abc123",
+        active: false,
+        invoiceId: "INV-001",
+        invoiceAmountUsd: 5000,
+        userId: "user@example.com",
+        createdAt: "2024-02-01",
+        link: "http://example.com",
+      },
+    ]);
+    await renderComponent();
+
+    const checkbox = screen.getByLabelText("Select row");
+    await userEvent.click(checkbox);
+
+    const deactivateButton = screen.queryByText(/Deactivate 1 link/);
+    expect(deactivateButton).not.toBeInTheDocument();
+
+    expect(deactivateLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("only offers to deactivate one link when there is one active and one non-active", async () => {
+    getLinksMock.mockResolvedValue([
+      {
+        id: "abc123",
+        active: false,
+        invoiceId: "INV-001",
+        invoiceAmountUsd: 5000,
+        userId: "user@example.com",
+        createdAt: "2024-02-01",
+        link: "http://example.com",
+      },
+      {
+        id: "def456",
+        active: true,
+        invoiceId: "INV-002",
+        invoiceAmountUsd: 5000,
+        userId: "user@example.com",
+        createdAt: "2024-02-01",
+        link: "http://example.com",
+      },
+    ]);
+    await renderComponent();
+
+    const checkboxes = screen.getAllByLabelText("Select row");
+    checkboxes.map(async (x) => await userEvent.click(x));
+
+    const deactivateButton = await screen.findByText(
+      /Deactivate 1 active link/,
+    );
+    await userEvent.click(deactivateButton);
+
+    expect(deactivateLinkMock).toHaveBeenCalledTimes(1);
+    expect(deactivateLinkMock).toHaveBeenNthCalledWith(1, "def456");
   });
 });

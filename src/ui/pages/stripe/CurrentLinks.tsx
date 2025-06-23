@@ -33,7 +33,9 @@ export const StripeCurrentLinksPanel: React.FC<
 > = ({ getLinks, deactivateLink }) => {
   const [links, setLinks] = useState<GetInvoiceLinksResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [selectedRows, setSelectedRows] = useState<
+    { id: string; active: boolean }[]
+  >([]);
   const { userData } = useAuth();
   const deleteLinks = async (linkIds: string[]) => {
     const promises = linkIds.map((x) => deactivateLink(x));
@@ -75,7 +77,7 @@ export const StripeCurrentLinksPanel: React.FC<
       <Table.Tr
         key={data.id}
         bg={
-          selectedRows.includes(data.id)
+          selectedRows.map((x) => x.id).includes(data.id)
             ? "var(--mantine-color-blue-light)"
             : undefined
         }
@@ -83,12 +85,12 @@ export const StripeCurrentLinksPanel: React.FC<
         <Table.Td>
           <Checkbox
             aria-label="Select row"
-            checked={selectedRows.includes(data.id)}
+            checked={selectedRows.map((x) => x.id).includes(data.id)}
             onChange={(event) =>
               setSelectedRows(
                 event.currentTarget.checked
-                  ? [...selectedRows, data.id]
-                  : selectedRows.filter((id) => id !== data.id),
+                  ? [...selectedRows, { id: data.id, active: data.active }]
+                  : selectedRows.filter(({ id }) => id !== data.id),
               )
             }
           />
@@ -160,14 +162,23 @@ export const StripeCurrentLinksPanel: React.FC<
         <Title order={2} mb="sm">
           Current Links
         </Title>
-        {selectedRows.length > 0 && (
+        {selectedRows.filter((x) => x.active).length > 0 && (
           <Button
             color="red"
             onClick={() => {
-              deactivateLinks(selectedRows);
+              deactivateLinks(
+                selectedRows.filter((x) => x.active).map((x) => x.id),
+              );
             }}
           >
-            Deactivate {pluralize("links", selectedRows.length, true)}
+            Deactivate {selectedRows.filter((x) => x.active).length}{" "}
+            {selectedRows.filter((x) => x.active).length !==
+              selectedRows.length && "active"}{" "}
+            {pluralize(
+              "link",
+              selectedRows.filter((x) => x.active).length,
+              false,
+            )}
           </Button>
         )}
       </Group>
@@ -179,16 +190,16 @@ export const StripeCurrentLinksPanel: React.FC<
               <Table.Th>
                 <Checkbox
                   aria-label="Select all rows"
-                  checked={links ? selectedRows.length === links.length : false}
+                  checked={links ? selectedRows.length >= links.length : false}
                   onChange={(event) =>
                     setSelectedRows(() => {
                       if (!links) {
                         return [];
                       }
-                      if (selectedRows.length === links.length) {
+                      if (selectedRows.length >= links.length) {
                         return [];
                       }
-                      return links.map((x) => x.id);
+                      return links.map((x) => ({ id: x.id, active: x.active }));
                     })
                   }
                 />
