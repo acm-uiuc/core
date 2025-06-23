@@ -22,6 +22,7 @@ export type KnownGroups = {
 
 export type ConfigType = {
   AadValidClientId: string;
+  LinkryPublicUrl: string;
   ServiceConfiguration: Record<ValidServices, ServiceConfiguration>;
   KnownGroupMappings: KnownGroups;
 };
@@ -43,6 +44,7 @@ type EnvironmentConfigType = {
 const environmentConfig: EnvironmentConfigType = {
   "local-dev": {
     AadValidClientId: "d1978c23-6455-426a-be4d-528b2d2e4026",
+    LinkryPublicUrl: "go.aws.qa.acmuiuc.org",
     ServiceConfiguration: {
       core: {
         friendlyName: "Core Management Service (NonProd)",
@@ -75,6 +77,7 @@ const environmentConfig: EnvironmentConfigType = {
   },
   dev: {
     AadValidClientId: "d1978c23-6455-426a-be4d-528b2d2e4026",
+    LinkryPublicUrl: "go.aws.qa.acmuiuc.org",
     ServiceConfiguration: {
       core: {
         friendlyName: "Core Management Service (NonProd)",
@@ -107,6 +110,7 @@ const environmentConfig: EnvironmentConfigType = {
   },
   prod: {
     AadValidClientId: "43fee67e-e383-4071-9233-ef33110e9386",
+    LinkryPublicUrl: "go.acm.illinois.edu",
     ServiceConfiguration: {
       core: {
         friendlyName: "Core Management Service",
