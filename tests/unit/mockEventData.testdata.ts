@@ -187,10 +187,63 @@ const dynamoTableDataUnmarshalledUpcomingOnly = dynamoTableData
   })
   .filter((x: any) => x.title !== "Event in the past.");
 
+const dynamoEventWithRepeatExclusion = {
+  id: {
+    S: "6ac35cf3-3a4d-4d45-957a-6fee8dea50a7",
+  },
+  createdAt: {
+    S: "2024-12-20T08:08:40.329Z",
+  },
+  description: {
+    S: "Test Description with now etag 1?",
+  },
+  end: {
+    S: "2024-12-20T02:21:00",
+  },
+  featured: {
+    BOOL: false,
+  },
+  host: {
+    S: "ACM",
+  },
+  location: {
+    S: "ACM Room (Siebel CS 1104)",
+  },
+  locationLink: {
+    S: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
+  },
+  paidEventId: {
+    S: "asasasasasas",
+  },
+  repeatEnds: {
+    S: "2025-12-21T00:00:00",
+  },
+  repeatExcludes: {
+    L: [
+      {
+        S: "2025-06-27",
+      },
+    ],
+  },
+  repeats: {
+    S: "weekly",
+  },
+  start: {
+    S: "2024-12-20T01:21:00",
+  },
+  title: {
+    S: "Test Title",
+  },
+  updatedAt: {
+    S: "2025-03-21T03:34:50.228Z",
+  },
+};
+
 export {
   dynamoTableData,
   dynamoTableDataUnmarshalled,
   dynamoTableDataUnmarshalledUpcomingOnly,
   infraEventsOnly,
   infraEventsOnlyUnmarshalled,
+  dynamoEventWithRepeatExclusion,
 };
