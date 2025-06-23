@@ -19,12 +19,13 @@ import { IconDeviceFloppy } from "@tabler/icons-react";
 import { LinkryGroupUUIDToGroupNameMap } from "@common/config";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { LINKRY_MAX_SLUG_LENGTH } from "@common/types/linkry";
+import { getRunEnvironmentConfig } from "@ui/config";
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-const baseUrl = "go.acm.illinois.edu";
+const baseUrl = getRunEnvironmentConfig().LinkryPublicUrl;
 const slugRegex = new RegExp("^(https?://)?[a-zA-Z0-9-._/]*$");
 const urlRegex = new RegExp("^https?://[a-zA-Z0-9-._/?=&+:]*$");
 
@@ -205,7 +206,7 @@ export const ManageLinkPage: React.FC = () => {
               rightSectionWidth="150px"
               leftSection={
                 <Button variant="outline" mr="auto" size="auto">
-                  {baseUrl || "go.acm.illinois.edu"}
+                  {baseUrl}
                 </Button>
               }
               rightSection={
@@ -216,7 +217,7 @@ export const ManageLinkPage: React.FC = () => {
                     color="blue"
                     onClick={generateRandomSlug}
                   >
-                    Generate Random URL
+                    Random
                   </Button>
                 )
               }

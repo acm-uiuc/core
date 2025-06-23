@@ -16,25 +16,16 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import {
-  IconCancel,
-  IconCross,
-  IconEdit,
-  IconPlus,
-  IconTrash,
-} from "@tabler/icons-react";
-import dayjs from "dayjs";
+import { IconCancel, IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 
-import { capitalizeFirstLetter } from "./ManageLink.page.js";
-import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles.js";
-import { wrap } from "module";
 import { linkRecord } from "@common/types/linkry.js";
+import { getRunEnvironmentConfig } from "@ui/config.js";
 
 const wrapTextStyle: React.CSSProperties = {
   wordWrap: "break-word",
@@ -82,7 +73,7 @@ export const LinkShortener: React.FC = () => {
             }}
           >
             <Table.Td style={wrapTextStyle}>
-              https://go.acm.illinois.edu/{link.slug}
+              {getRunEnvironmentConfig().LinkryPublicUrl}/{link.slug}
             </Table.Td>
             <Table.Td style={wrapTextStyle}>
               <Anchor href={link.redirect} target="_blank" size="sm">
