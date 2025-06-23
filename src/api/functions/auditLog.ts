@@ -31,6 +31,10 @@ export async function createAuditLogEntry({
   dynamoClient,
   entry,
 }: AuditLogParams) {
+  if (process.env.DISABLE_AUDIT_LOG && process.env.RunEnvironment === "dev") {
+    console.log(`Audit log entry: ${JSON.stringify(entry)}`);
+    return;
+  }
   const safeDynamoClient =
     dynamoClient ||
     new DynamoDBClient({
@@ -52,8 +56,11 @@ export function buildAuditLogTransactPut({
 }: {
   entry: AuditLogEntry;
 }): TransactWriteItem {
+  if (process.env.DISABLE_AUDIT_LOG && process.env.RunEnvironment === "dev") {
+    console.log(`Audit log entry: ${JSON.stringify(entry)}`);
+    return {};
+  }
   const item = buildMarshalledAuditLogItem(entry);
-
   return {
     Put: {
       TableName: genericConfig.AuditLogTable,
