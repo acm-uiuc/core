@@ -19,7 +19,7 @@ const msalConfiguration: Configuration = {
     postLogoutRedirectUri: `${window.location.origin}/logout`,
   },
   cache: {
-    cacheLocation: "sessionStorage",
+    cacheLocation: "localStorage",
     storeAuthStateInCookie: true,
   },
 };
