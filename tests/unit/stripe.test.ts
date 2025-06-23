@@ -1,4 +1,12 @@
-import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
+import {
+  afterAll,
+  expect,
+  test,
+  beforeEach,
+  vi,
+  describe,
+  afterEach,
+} from "vitest";
 import init from "../../src/api/index.js";
 import { mockClient } from "aws-sdk-client-mock";
 import { secretJson } from "./secret.testdata.js";
@@ -13,7 +21,6 @@ import supertest from "supertest";
 import { createJwt } from "./auth.test.js";
 import { v4 as uuidv4 } from "uuid";
 import { marshall } from "@aws-sdk/util-dynamodb";
-import { genericConfig } from "../../src/common/config.js";
 
 const ddbMock = mockClient(DynamoDBClient);
 const linkId = uuidv4();
@@ -31,12 +38,14 @@ vi.mock("stripe", () => {
     default: vi.fn(() => ({
       products: {
         create: vi.fn().mockResolvedValue(productMock),
+        update: vi.fn().mockResolvedValue({}),
       },
       prices: {
         create: vi.fn().mockResolvedValue(priceMock),
       },
       paymentLinks: {
         create: vi.fn().mockResolvedValue(paymentLinkMock),
+        update: vi.fn().mockResolvedValue({}),
       },
     })),
   };
@@ -207,7 +216,7 @@ describe("Test Stripe link creation", async () => {
     ddbMock
       .on(ScanCommand)
       .rejects(new Error("Should not be called when OLA is enforced!"));
-    ddbMock.on(QueryCommand).resolves({
+    ddbMock.on(QueryCommand).resolvesOnce({
       Count: 1,
       Items: [
         marshall({
@@ -242,8 +251,61 @@ describe("Test Stripe link creation", async () => {
       },
     ]);
   });
+  test("DELETE happy path", async () => {
+    ddbMock.on(QueryCommand).resolvesOnce({
+      Items: [
+        marshall({
+          userId: "infra@acm.illinois.edu",
+          invoiceId: "UNITTEST1",
+          amount: 10000,
+          priceId: "price_abc123",
+          productId: "prod_abc123",
+        }),
+      ],
+    });
+    ddbMock.on(TransactWriteItemsCommand).resolvesOnce({});
+    const testJwt = createJwt();
+    await app.ready();
+
+    const response = await supertest(app.server)
+      .delete("/api/v1/stripe/paymentLinks/plink_abc123")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send();
+    expect(response.statusCode).toBe(201);
+    expect(ddbMock.calls().length).toEqual(2);
+  });
+  test("DELETE fails on not user-owned links", async () => {
+    await app.ready();
+    ddbMock.on(QueryCommand).resolvesOnce({
+      Items: [
+        marshall({
+          userId: "defsuperdupernotme@acm.illinois.edu",
+          invoiceId: "UNITTEST1",
+          amount: 10000,
+          priceId: "price_abc123",
+          productId: "prod_abc123",
+        }),
+      ],
+    });
+    ddbMock.on(TransactWriteItemsCommand).rejects();
+    const testJwt = createJwt(
+      undefined,
+      ["999"],
+      "infra-unit-test-stripeonly@acm.illinois.edu",
+    );
+
+    const response = await supertest(app.server)
+      .delete("/api/v1/stripe/paymentLinks/plink_abc123")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send();
+    expect(response.statusCode).toBe(401);
+    expect(ddbMock.calls().length).toEqual(1);
+  });
   afterAll(async () => {
     await app.close();
+  });
+  afterEach(() => {
+    ddbMock.reset();
   });
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
