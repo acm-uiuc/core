@@ -155,15 +155,29 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
 
         if (rawEvent.repeats) {
+          const startTime = moment.tz(rawEvent.start, "America/Chicago");
+          const hours = startTime.hours();
+          const minutes = startTime.minutes();
+          const seconds = startTime.seconds();
+          const milliseconds = startTime.milliseconds();
+          const exclusions = ((rawEvent.repeatExcludes as string[]) || []).map(
+            (x) =>
+              moment
+                .tz(x, "America/Chicago")
+                .set({ hours, minutes, seconds, milliseconds }),
+          );
+
           if (rawEvent.repeatEnds) {
             event = event.repeating({
               ...repeatingIcalMap[rawEvent.repeats as EventRepeatOptions],
               until: moment.tz(rawEvent.repeatEnds, "America/Chicago"),
+              exclude: exclusions,
             });
           } else {
-            event.repeating(
-              repeatingIcalMap[rawEvent.repeats as EventRepeatOptions],
-            );
+            event.repeating({
+              ...repeatingIcalMap[rawEvent.repeats as EventRepeatOptions],
+              exclude: exclusions,
+            });
           }
         }
         if (rawEvent.location) {

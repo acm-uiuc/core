@@ -57,6 +57,7 @@ const createProjectionParams = (includeMetadata: boolean = false) => {
     id: "#id",
     repeats: "#repeats",
     repeatEnds: "#repeatEnds",
+    excludeDates: "#excludeDates",
     ...(includeMetadata ? { metadata: "#metadata" } : {}),
   };
 
@@ -123,14 +124,19 @@ const baseSchema = z.object({
 const requestSchema = baseSchema.extend({
   repeats: z.optional(z.enum(repeatOptions)),
   repeatEnds: z.string().optional(),
+  repeatExcludes: z.array(z.string().date()).optional().openapi({
+    description:
+      "Dates to exclude from recurrence rules (in the America/Chicago timezone).",
+  }),
 });
 
-const postRequestSchema = requestSchema.refine(
-  (data) => (data.repeatEnds ? data.repeats !== undefined : true),
-  {
+const postRequestSchema = requestSchema
+  .refine((data) => (data.repeatEnds ? data.repeats !== undefined : true), {
     message: "repeats is required when repeatEnds is defined",
-  },
-);
+  })
+  .refine((data) => (data.repeatExcludes ? data.repeats !== undefined : true), {
+    message: "repeats is required when repeatExcludes is defined",
+  });
 export type EventPostRequest = z.infer<typeof postRequestSchema>;
 
 const getEventSchema = requestSchema.extend({
