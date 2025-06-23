@@ -65,7 +65,7 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
       };
       const command = new TransactWriteItemsCommand({
         TransactItems: [
-          logStatement,
+          ...(logStatement ? [logStatement] : []),
           {
             Put: {
               TableName: genericConfig.ApiKeyTable,
@@ -123,7 +123,7 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
       });
       const command = new TransactWriteItemsCommand({
         TransactItems: [
-          logStatement,
+          ...(logStatement ? [logStatement] : []),
           {
             Delete: {
               TableName: genericConfig.ApiKeyTable,

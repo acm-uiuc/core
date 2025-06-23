@@ -103,7 +103,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ...request.body,
         }),
       };
-      const logPut = buildAuditLogTransactPut({
+      const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ROOM_RESERVATIONS,
           actor: request.username!,
@@ -115,7 +115,10 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       try {
         await fastify.dynamoClient.send(
           new TransactWriteItemsCommand({
-            TransactItems: [{ Put: itemPut }, logPut],
+            TransactItems: [
+              { Put: itemPut },
+              ...(logStatement ? [logStatement] : []),
+            ],
           }),
         );
       } catch (e) {
@@ -292,7 +295,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         "userId#requestId": `${request.username}#${requestId}`,
         semesterId: request.body.semester,
       };
-      const logPut = buildAuditLogTransactPut({
+      const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ROOM_RESERVATIONS,
           actor: request.username!,
@@ -324,7 +327,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 }),
               },
             },
-            logPut,
+            ...(logStatement ? [logStatement] : []),
           ],
         });
         await fastify.dynamoClient.send(transactionCommand);
