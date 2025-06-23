@@ -23,7 +23,9 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   InternalServerError,
+  NotFoundError,
   UnauthenticatedError,
+  UnauthorizedError,
   ValidationError,
 } from "common/errors/index.js";
 import { Modules } from "common/modules.js";
@@ -39,6 +41,7 @@ import stripe, { Stripe } from "stripe";
 import rawbody from "fastify-raw-body";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { z } from "zod";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -175,6 +178,113 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       reply.status(201).send({ id: linkId, link: url });
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
+    "/paymentLinks/:linkId",
+    {
+      schema: withRoles(
+        [AppRoles.STRIPE_LINK_CREATOR],
+        withTags(["Stripe"], {
+          summary: "Deactivate a Stripe payment link.",
+          params: z.object({
+            linkId: z.string().min(1).openapi({
+              description: "Payment Link ID",
+              example: "plink_abc123",
+            }),
+          }),
+          response: { 201: z.null() },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      if (!request.username) {
+        throw new UnauthenticatedError({ message: "No username found" });
+      }
+      const { linkId } = request.params;
+      const response = await fastify.dynamoClient.send(
+        new QueryCommand({
+          TableName: genericConfig.StripeLinksDynamoTableName,
+          IndexName: "LinkIdIndex",
+          KeyConditionExpression: "linkId = :linkId",
+          ExpressionAttributeValues: {
+            ":linkId": { S: linkId },
+          },
+        }),
+      );
+      if (!response) {
+        throw new DatabaseFetchError({
+          message: "Could not check for payment link in table.",
+        });
+      }
+      if (!response.Items || response.Items?.length !== 1) {
+        throw new NotFoundError({ endpointName: request.url });
+      }
+      const unmarshalledEntry = unmarshall(response.Items[0]) as {
+        userId: string;
+        invoiceId: string;
+        amount?: number;
+        priceId?: string;
+        productId?: string;
+      };
+      if (
+        unmarshalledEntry.userId !== request.username &&
+        !request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)
+      ) {
+        throw new UnauthorizedError({
+          message: "Not authorized to deactivate this payment link.",
+        });
+      }
+      const logStatement = buildAuditLogTransactPut({
+        entry: {
+          module: Modules.STRIPE,
+          actor: request.username,
+          target: `Link ${linkId} | Invoice ${unmarshalledEntry.invoiceId}`,
+          message: "Deactivated Stripe payment link",
+        },
+      });
+      const dynamoCommand = new TransactWriteItemsCommand({
+        TransactItems: [
+          logStatement,
+          {
+            Update: {
+              TableName: genericConfig.StripeLinksDynamoTableName,
+              Key: {
+                userId: { S: unmarshalledEntry.userId },
+                linkId: { S: linkId },
+              },
+              UpdateExpression: "SET active = :new_val",
+              ConditionExpression: "active = :old_val",
+              ExpressionAttributeValues: {
+                ":new_val": { BOOL: false },
+                ":old_val": { BOOL: true },
+              },
+            },
+          },
+        ],
+      });
+      const secretApiConfig =
+        (await getSecretValue(
+          fastify.secretsManagerClient,
+          genericConfig.ConfigSecretName,
+        )) || {};
+      if (unmarshalledEntry.productId) {
+        request.log.debug(
+          `Deactivating Stripe product ${unmarshalledEntry.productId}`,
+        );
+        await deactivateStripeProduct({
+          stripeApiKey: secretApiConfig.stripe_secret_key as string,
+          productId: unmarshalledEntry.productId,
+        });
+      }
+      request.log.debug(`Deactivating Stripe link ${linkId}`);
+      await deactivateStripeLink({
+        stripeApiKey: secretApiConfig.stripe_secret_key as string,
+        linkId,
+      });
+      await fastify.dynamoClient.send(dynamoCommand);
+      return reply.status(201).send();
     },
   );
   fastify.post(
