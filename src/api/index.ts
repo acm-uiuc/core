@@ -225,10 +225,26 @@ async function init(prettyPrint: boolean = false) {
   if (!process.env.RunEnvironment) {
     process.env.RunEnvironment = "dev";
   }
+
   if (!runEnvironments.includes(process.env.RunEnvironment as RunEnvironment)) {
     throw new InternalServerError({
       message: `Invalid run environment ${app.runEnvironment}.`,
     });
+  }
+  if (process.env.DISABLE_AUDIT_LOG) {
+    if (process.env.RunEnvironment !== "dev") {
+      throw new InternalServerError({
+        message: `Audit log can only be disabled if the run environment is "dev"!`,
+      });
+    }
+    if (process.env.LAMBDA_TASK_ROOT || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      throw new InternalServerError({
+        message: `Audit log cannot be disabled when running in AWS Lambda environment!`,
+      });
+    }
+    app.log.warn(
+      "Audit logging to Dynamo is disabled! Audit log statements will be logged to the console.",
+    );
   }
   app.runEnvironment = process.env.RunEnvironment as RunEnvironment;
   app.environmentConfig =

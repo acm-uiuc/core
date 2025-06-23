@@ -140,7 +140,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       });
       const dynamoCommand = new TransactWriteItemsCommand({
         TransactItems: [
-          logStatement,
+          ...(logStatement ? [logStatement] : []),
           {
             Put: {
               TableName: genericConfig.StripeLinksDynamoTableName,
@@ -245,7 +245,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       });
       const dynamoCommand = new TransactWriteItemsCommand({
         TransactItems: [
-          logStatement,
+          ...(logStatement ? [logStatement] : []),
           {
             Update: {
               TableName: genericConfig.StripeLinksDynamoTableName,
@@ -437,7 +437,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               });
               const dynamoCommand = new TransactWriteItemsCommand({
                 TransactItems: [
-                  logStatement,
+                  ...(logStatement ? [logStatement] : []),
                   {
                     Update: {
                       TableName: genericConfig.StripeLinksDynamoTableName,
