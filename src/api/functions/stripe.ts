@@ -111,3 +111,16 @@ export const deactivateStripeLink = async ({
     active: false,
   });
 };
+
+export const deactivateStripeProduct = async ({
+  productId,
+  stripeApiKey,
+}: {
+  productId: string;
+  stripeApiKey: string;
+}): Promise<void> => {
+  const stripe = new Stripe(stripeApiKey);
+  await stripe.products.update(productId, {
+    active: false,
+  });
+};
