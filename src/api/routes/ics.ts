@@ -171,12 +171,12 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
             event = event.repeating({
               ...repeatingIcalMap[rawEvent.repeats as EventRepeatOptions],
               until: moment.tz(rawEvent.repeatEnds, "America/Chicago"),
-              exclude: exclusions,
+              ...(exclusions.length > 0 && { exclude: exclusions }),
             });
           } else {
             event.repeating({
               ...repeatingIcalMap[rawEvent.repeats as EventRepeatOptions],
-              exclude: exclusions,
+              ...(exclusions.length > 0 && { exclude: exclusions }),
             });
           }
         }
