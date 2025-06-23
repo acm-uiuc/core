@@ -57,7 +57,7 @@ const createProjectionParams = (includeMetadata: boolean = false) => {
     id: "#id",
     repeats: "#repeats",
     repeatEnds: "#repeatEnds",
-    excludeDates: "#excludeDates",
+    repeatExcludes: "#repeatExcludes",
     ...(includeMetadata ? { metadata: "#metadata" } : {}),
   };
 
