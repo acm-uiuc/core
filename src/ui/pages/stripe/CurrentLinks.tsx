@@ -25,34 +25,49 @@ const HumanFriendlyDate = ({ date }: { date: string | Date }) => {
 
 interface StripeCurrentLinksPanelProps {
   getLinks: () => Promise<GetInvoiceLinksResponse>;
+  deactivateLink: (linkId: string) => Promise<void>;
 }
 
 export const StripeCurrentLinksPanel: React.FC<
   StripeCurrentLinksPanelProps
-> = ({ getLinks }) => {
+> = ({ getLinks, deactivateLink }) => {
   const [links, setLinks] = useState<GetInvoiceLinksResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const { userData } = useAuth();
-  useEffect(() => {
-    const getLinksOnLoad = async () => {
-      try {
-        setIsLoading(true);
-        const data = await getLinks();
-        setLinks(data);
-        setIsLoading(false);
-      } catch (e) {
-        setIsLoading(false);
-        notifications.show({
-          title: "Error",
-          message:
-            "Failed to get payment links. Please try again or contact support.",
-          color: "red",
-          icon: <IconAlertCircle size={16} />,
-        });
-        console.error(e);
+  const deleteLinks = async (linkIds: string[]) => {
+    const promises = linkIds.map((x) => deactivateLink(x));
+    const results = await Promise.allSettled(promises);
+    let success = 0;
+    let fail = 0;
+    for (const item of results) {
+      if (item.status === "rejected") {
+        fail++;
+      } else {
+        success++;
       }
-    };
+    }
+    return { fail, success };
+  };
+  const getLinksOnLoad = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getLinks();
+      setLinks(data);
+      setIsLoading(false);
+    } catch (e) {
+      setIsLoading(false);
+      notifications.show({
+        title: "Error",
+        message:
+          "Failed to get payment links. Please try again or contact support.",
+        color: "red",
+        icon: <IconAlertCircle size={16} />,
+      });
+      console.error(e);
+    }
+  };
+  useEffect(() => {
     getLinksOnLoad();
   }, []);
   const createTableRow = (data: GetInvoiceLinksResponse[number]) => {
@@ -116,13 +131,27 @@ export const StripeCurrentLinksPanel: React.FC<
       </Table.Tr>
     );
   };
-  const deactivateLinks = (linkIds: string[]) => {
-    notifications.show({
-      title: "Feature not available",
-      message: "Coming soon!",
-      color: "yellow",
-      icon: <IconAlertTriangle size={16} />,
-    });
+  const deactivateLinks = async (linkIds: string[]) => {
+    setIsLoading(true);
+    try {
+      const result = await deleteLinks(linkIds);
+      if (result.fail > 0) {
+        notifications.show({
+          title: `Failed to deactivate ${pluralize("link", result.fail, true)}.`,
+          message: "Please try again later.",
+          color: "red",
+        });
+      }
+      if (result.success > 0) {
+        notifications.show({
+          message: `Deactivated ${pluralize("link", result.success, true)}!`,
+          color: "green",
+        });
+      }
+      getLinksOnLoad();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
