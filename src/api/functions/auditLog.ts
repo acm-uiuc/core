@@ -55,7 +55,11 @@ export function buildAuditLogTransactPut({
   entry,
 }: {
   entry: AuditLogEntry;
-}): TransactWriteItem {
+}): TransactWriteItem | null {
+  if (process.env.DISABLE_AUDIT_LOG && process.env.RunEnvironment === "dev") {
+    console.log(`Audit log entry: ${JSON.stringify(entry)}`);
+    return null;
+  }
   const item = buildMarshalledAuditLogItem(entry);
   return {
     Put: {
