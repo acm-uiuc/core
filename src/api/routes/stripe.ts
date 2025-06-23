@@ -13,6 +13,7 @@ import {
 import {
   createStripeLink,
   deactivateStripeLink,
+  deactivateStripeProduct,
   StripeLinkCreateParams,
 } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
@@ -260,9 +261,9 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             const unmarshalledEntry = unmarshall(response.Items[0]) as {
               userId: string;
               invoiceId: string;
-              amount: number;
-              priceId: string;
-              productId: string;
+              amount?: number;
+              priceId?: string;
+              productId?: string;
             };
             if (!unmarshalledEntry.userId || !unmarshalledEntry.invoiceId) {
               return reply.status(200).send({
@@ -345,6 +346,16 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   },
                 ],
               });
+              if (unmarshalledEntry.productId) {
+                request.log.debug(
+                  `Deactivating Stripe product ${unmarshalledEntry.productId}`,
+                );
+                await deactivateStripeProduct({
+                  stripeApiKey: secretApiConfig.stripe_secret_key as string,
+                  productId: unmarshalledEntry.productId,
+                });
+              }
+              request.log.debug(`Deactivating Stripe link ${paymentLinkId}`);
               await deactivateStripeLink({
                 stripeApiKey: secretApiConfig.stripe_secret_key as string,
                 linkId: paymentLinkId,
