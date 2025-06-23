@@ -124,10 +124,15 @@ const baseSchema = z.object({
 const requestSchema = baseSchema.extend({
   repeats: z.optional(z.enum(repeatOptions)),
   repeatEnds: z.string().optional(),
-  repeatExcludes: z.array(z.string().date()).optional().openapi({
-    description:
-      "Dates to exclude from recurrence rules (in the America/Chicago timezone).",
-  }),
+  repeatExcludes: z
+    .array(z.string().date())
+    .min(1)
+    .max(100)
+    .optional()
+    .openapi({
+      description:
+        "Dates to exclude from recurrence rules (in the America/Chicago timezone).",
+    }),
 });
 
 const postRequestSchema = requestSchema
