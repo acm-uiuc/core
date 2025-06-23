@@ -29,7 +29,7 @@ const msalConfiguration: Configuration = {
 };
 
 const pca = new PublicClientApplication(msalConfiguration);
-await pca.initialize();
+pca.initialize();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <MsalProvider instance={pca}>
