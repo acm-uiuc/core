@@ -193,7 +193,6 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               example: "plink_abc123",
             }),
           }),
-          response: { 201: z.null() },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
