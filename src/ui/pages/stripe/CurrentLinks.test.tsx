@@ -16,6 +16,7 @@ vi.mock("@ui/components/AuthContext", async () => {
 
 describe("StripeCurrentLinksPanel Tests", () => {
   const getLinksMock = vi.fn();
+  const deactivateLinkMock = vi.fn();
 
   const renderComponent = async () => {
     await act(async () => {
@@ -26,7 +27,10 @@ describe("StripeCurrentLinksPanel Tests", () => {
             withCssVariables
             forceColorScheme="light"
           >
-            <StripeCurrentLinksPanel getLinks={getLinksMock} />
+            <StripeCurrentLinksPanel
+              getLinks={getLinksMock}
+              deactivateLink={deactivateLinkMock}
+            />
           </MantineProvider>
         </MemoryRouter>,
       );
@@ -154,7 +158,7 @@ describe("StripeCurrentLinksPanel Tests", () => {
   it("triggers deactivation when clicking deactivate button", async () => {
     getLinksMock.mockResolvedValue([
       {
-        id: "1",
+        id: "abc123",
         active: true,
         invoiceId: "INV-001",
         invoiceAmountUsd: 5000,
@@ -163,7 +167,6 @@ describe("StripeCurrentLinksPanel Tests", () => {
         link: "http://example.com",
       },
     ]);
-    const notificationsMock = vi.spyOn(notifications, "show");
     await renderComponent();
 
     const checkbox = screen.getByLabelText("Select row");
@@ -172,14 +175,6 @@ describe("StripeCurrentLinksPanel Tests", () => {
     const deactivateButton = await screen.findByText(/Deactivate 1 link/);
     await userEvent.click(deactivateButton);
 
-    expect(notificationsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Feature not available",
-        message: "Coming soon!",
-        color: "yellow",
-      }),
-    );
-
-    notificationsMock.mockRestore();
+    expect(deactivateLinkMock).toHaveBeenCalledWith("abc123");
   });
 });
