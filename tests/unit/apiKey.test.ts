@@ -12,6 +12,8 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { AppRoles } from "../../src/common/roles.js";
 import { createApiKey } from "../../src/api/functions/apiKey.js";
+import { randomUUID } from "crypto";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
 // Mock the createApiKey function
 vi.mock("../../src/api/functions/apiKey.js", () => {
@@ -28,6 +30,7 @@ vi.mock("../../src/api/functions/apiKey.js", () => {
 
 // Mock DynamoDB client
 const dynamoMock = mockClient(DynamoDBClient);
+const sqsMock = mockClient(SQSClient);
 const jwt_secret = secretObject["jwt_key"];
 
 vi.stubEnv("JwtSigningKey", jwt_secret);
@@ -37,6 +40,7 @@ const app = await init();
 describe("API Key Route Tests", () => {
   beforeEach(() => {
     dynamoMock.reset();
+    sqsMock.reset();
     vi.clearAllMocks();
 
     dynamoMock.on(TransactWriteItemsCommand).resolves({});
@@ -61,6 +65,8 @@ describe("API Key Route Tests", () => {
 
   describe("Create API Key", () => {
     test("Should create an API key successfully", async () => {
+      const queueId = randomUUID();
+      sqsMock.on(SendMessageCommand).resolves({ MessageId: queueId });
       const testJwt = createJwt();
       await app.ready();
 
@@ -79,10 +85,13 @@ describe("API Key Route Tests", () => {
       expect(response.body.apiKey).toBe("acmuiuc_test123_abcdefg12345");
       expect(createApiKey).toHaveBeenCalledTimes(1);
       expect(dynamoMock.calls()).toHaveLength(1);
+      expect(sqsMock.calls()).toHaveLength(1);
     });
 
     test("Should create an API key with expiration", async () => {
       const testJwt = createJwt();
+      const queueId = randomUUID();
+      sqsMock.on(SendMessageCommand).resolves({ MessageId: queueId });
       await app.ready();
 
       const expiryTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
@@ -104,9 +113,11 @@ describe("API Key Route Tests", () => {
       expect(response.body.expiresAt).toBe(expiryTime);
       expect(createApiKey).toHaveBeenCalledTimes(1);
       expect(dynamoMock.calls()).toHaveLength(1);
+      expect(sqsMock.calls()).toHaveLength(1);
     });
 
     test("Should not create an API key for invalid API key roles", async () => {
+      sqsMock.on(SendMessageCommand).rejects({});
       const testJwt = createJwt();
       await app.ready();
 
@@ -131,6 +142,7 @@ describe("API Key Route Tests", () => {
 
       expect(createApiKey).toHaveBeenCalledTimes(0);
       expect(dynamoMock.calls()).toHaveLength(0);
+      expect(sqsMock.calls()).toHaveLength(0);
     });
 
     test("Should handle DynamoDB insertion error", async () => {
@@ -138,7 +150,7 @@ describe("API Key Route Tests", () => {
       dynamoMock
         .on(TransactWriteItemsCommand)
         .rejects(new Error("DynamoDB error"));
-
+      sqsMock.on(SendMessageCommand).rejects({});
       const testJwt = createJwt();
       await app.ready();
 
@@ -157,6 +169,7 @@ describe("API Key Route Tests", () => {
       expect(response.body.message).toBe("Could not create API key.");
       expect(createApiKey).toHaveBeenCalledTimes(1);
       expect(dynamoMock.calls()).toHaveLength(1);
+      expect(sqsMock.calls()).toHaveLength(0);
     });
 
     test("Should require authorization", async () => {
@@ -177,6 +190,8 @@ describe("API Key Route Tests", () => {
 
   describe("Delete API Key", () => {
     test("Should delete an API key successfully", async () => {
+      const queueId = randomUUID();
+      sqsMock.on(SendMessageCommand).resolves({ MessageId: queueId });
       const testJwt = createJwt();
       await app.ready();
 
@@ -212,10 +227,12 @@ describe("API Key Route Tests", () => {
       expect(response.body).toHaveProperty("message");
       expect(response.body.message).toBe("Key does not exist.");
       expect(dynamoMock.calls()).toHaveLength(1);
+      expect(sqsMock.calls()).toHaveLength(0);
     });
 
     test("Should handle DynamoDB deletion error", async () => {
       // Mock the DynamoDB client to throw a generic error
+      sqsMock.on(SendMessageCommand).rejects();
       dynamoMock
         .on(TransactWriteItemsCommand)
         .rejects(new Error("DynamoDB error"));
@@ -233,6 +250,7 @@ describe("API Key Route Tests", () => {
       expect(response.body).toHaveProperty("message");
       expect(response.body.message).toBe("Could not delete API key.");
       expect(dynamoMock.calls()).toHaveLength(1);
+      expect(sqsMock.calls()).toHaveLength(0);
     });
 
     test("Should require authentication", async () => {
