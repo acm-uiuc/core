@@ -407,7 +407,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   payload: {
                     to: [unmarshalledEntry.userId],
                     subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
-                    content: `ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} by ${name}, ${email}).\n\nPlease contact Officer Board with any questions.`,
+                    content: `ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).\n\nPlease contact Officer Board with any questions.`,
                     callToActionButton: {
                       name: "View Your Stripe Links",
                       url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
