@@ -97,9 +97,9 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
         },
         payload: {
           to: [request.username!],
-          subject: "Important: ACM @ UIUC API Key Created",
+          subject: "Important: API Key Created",
           content: `
-This email confirms that an API key for the ACM @ UIUC API has been generated from your account.
+This email confirms that an API key for the Core API has been generated from your account.
 
 Key ID: acmuiuc_${keyId}
 
@@ -203,9 +203,9 @@ If you did not create this API key, please secure your account and notify the AC
         },
         payload: {
           to: [request.username!],
-          subject: "Important: ACM @ UIUC API Key Deleted",
+          subject: "Important: API Key Deleted",
           content: `
-This email confirms that an API key for the ACM @ UIUC API has been deleted from your account.
+This email confirms that an API key for the Core API has been deleted from your account.
 
 Key ID: acmuiuc_${keyId}
 
