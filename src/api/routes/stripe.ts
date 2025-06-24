@@ -17,7 +17,7 @@ import {
   StripeLinkCreateParams,
 } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
-import { genericConfig } from "common/config.js";
+import { environmentConfig, genericConfig } from "common/config.js";
 import {
   BaseError,
   DatabaseFetchError,
@@ -408,6 +408,10 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                     to: [unmarshalledEntry.userId],
                     subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
                     content: `ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} by ${name}, ${email}).\n\nPlease contact Officer Board with any questions.`,
+                    callToActionButton: {
+                      name: "View Your Stripe Links",
+                      url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
+                    },
                   },
                 };
               if (!fastify.sqsClient) {
