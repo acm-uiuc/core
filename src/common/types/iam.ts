@@ -6,6 +6,13 @@ export enum EntraGroupActions {
   REMOVE,
 }
 
+export interface EntraGroupMetadata {
+  id: string;
+  displayName: string;
+  mail: string | null;
+  description: string | null;
+}
+
 export interface EntraInvitationResponse {
   status: number;
   data?: Record<string, string>;
