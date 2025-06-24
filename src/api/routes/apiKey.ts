@@ -103,6 +103,8 @@ This email confirms that an API key for the ACM @ UIUC API has been generated fr
 
 Key ID: acmuiuc_${keyId}
 
+Key Description: ${description}
+
 IP address: ${request.ip}.
 
 Roles: ${roles.join(", ")}.
