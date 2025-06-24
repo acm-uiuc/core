@@ -53,7 +53,7 @@ describe("Test Modify Group and List Group Routes", () => {
     vi.clearAllMocks();
   });
 
-  test.only("Modify group: Add and remove members", async () => {
+  test("Modify group: Add and remove members", async () => {
     const queueId = randomUUID();
     sqsMock
       .on(SendMessageBatchCommand)

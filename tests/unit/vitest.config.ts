@@ -13,9 +13,9 @@ export default defineConfig({
       include: ["src/api/**/*.ts", "src/common/**/*.ts"],
       exclude: ["src/api/lambda.ts", "src/api/sqs/handlers/templates/*.ts"],
       thresholds: {
-        statements: 54,
+        statements: 55,
         functions: 66,
-        lines: 54,
+        lines: 55,
       },
     },
   },
