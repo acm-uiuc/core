@@ -3,6 +3,7 @@ import { AppRoles } from "../../common/roles.js";
 import {
   addToTenant,
   getEntraIdToken,
+  getGroupMetadata,
   listGroupMembers,
   modifyGroup,
   patchUserProfile,
@@ -39,6 +40,9 @@ import { Modules } from "common/modules.js";
 import { groupId, withRoles, withTags } from "api/components/index.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { z } from "zod";
+import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import { SendMessageBatchCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { v4 as uuidv4 } from "uuid";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -305,6 +309,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         await getAuthorizedClients(),
         fastify.environmentConfig.AadValidClientId,
       );
+      const groupMetadataPromise = getGroupMetadata(entraIdToken, groupId);
       const addResults = await Promise.allSettled(
         request.body.add.map((email) =>
           modifyGroup(
@@ -327,15 +332,19 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ),
         ),
       );
+      const groupMetadata = await groupMetadataPromise;
       const response: Record<string, Record<string, string>[]> = {
         success: [],
         failure: [],
       };
       const logPromises = [];
+      const addedEmails = [];
+      const removedEmails = [];
       for (let i = 0; i < addResults.length; i++) {
         const result = addResults[i];
         if (result.status === "fulfilled") {
           response.success.push({ email: request.body.add[i] });
+          addedEmails.push(request.body.add[i]);
           logPromises.push(
             createAuditLogEntry({
               dynamoClient: fastify.dynamoClient,
@@ -378,6 +387,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const result = removeResults[i];
         if (result.status === "fulfilled") {
           response.success.push({ email: request.body.remove[i] });
+          removedEmails.push(request.body.remove[i]);
           logPromises.push(
             createAuditLogEntry({
               dynamoClient: fastify.dynamoClient,
@@ -415,6 +425,81 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
             });
           }
         }
+      }
+      const sqsAddedPayloads = addedEmails.map((x) => {
+        return {
+          function: AvailableSQSFunctions.EmailNotifications,
+          metadata: {
+            initiator: request.username!,
+            reqId: request.id,
+          },
+          payload: {
+            to: [x],
+            subject: "You have been added to an access group",
+            content: `
+Hello,
+
+We're letting you know that you have been added to the "${groupMetadata.displayName}" access group by ${request.username}. Changes may take up to 2 hours to reflect in all systems.
+
+No action is required from you at this time.
+          `,
+          },
+        };
+      });
+      const sqsRemovedPayloads = removedEmails.map((x) => {
+        return {
+          function: AvailableSQSFunctions.EmailNotifications,
+          metadata: {
+            initiator: request.username!,
+            reqId: request.id,
+          },
+          payload: {
+            to: [x],
+            subject: "You have been removed from an access group",
+            content: `
+Hello,
+
+We're letting you know that you have been removed from the "${groupMetadata.displayName}" access group by ${request.username}.
+
+No action is required from you at this time.
+          `,
+          },
+        };
+      });
+      if (!fastify.sqsClient) {
+        fastify.sqsClient = new SQSClient({
+          region: genericConfig.AwsRegion,
+        });
+      }
+      if (sqsAddedPayloads.length > 0) {
+        request.log.debug("Sending added emails");
+        const addedQueued = await fastify.sqsClient.send(
+          new SendMessageBatchCommand({
+            QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+            Entries: sqsAddedPayloads.map((x) => ({
+              Id: uuidv4(),
+              MessageBody: JSON.stringify(x),
+            })),
+          }),
+        );
+        request.log.info(
+          `Sent added emails, queue ID ${addedQueued.$metadata.requestId}`,
+        );
+      }
+      if (sqsRemovedPayloads.length > 0) {
+        request.log.debug("Sending removed emails");
+        const removedQueued = await fastify.sqsClient.send(
+          new SendMessageBatchCommand({
+            QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+            Entries: sqsRemovedPayloads.map((x) => ({
+              Id: uuidv4(),
+              MessageBody: JSON.stringify(x),
+            })),
+          }),
+        );
+        request.log.info(
+          `Sent removed emails, queue ID ${removedQueued.$metadata.requestId}`,
+        );
       }
       await Promise.allSettled(logPromises);
       reply.status(202).send(response);
