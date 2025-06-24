@@ -4,6 +4,11 @@ import { createJwt } from "./auth.test.js";
 import supertest from "supertest";
 import { describe } from "node:test";
 import { EntraGroupError } from "../../src/common/errors/index.js";
+import {
+  SendMessageBatchCommand,
+  SendMessageCommand,
+  SQSClient,
+} from "@aws-sdk/client-sqs";
 
 // Mock required dependencies - their real impl's are defined in the beforeEach section.
 vi.mock("../../src/api/functions/entraId.js", () => {
@@ -21,8 +26,13 @@ vi.mock("../../src/api/functions/entraId.js", () => {
     listGroupMembers: vi.fn().mockImplementation(async () => {
       return "";
     }),
+    getGroupMetadata: vi.fn().mockImplementation(async () => {
+      return { id: "abc123", displayName: "thing" };
+    }),
   };
 });
+
+const sqsMock = mockClient(SQSClient);
 
 import {
   modifyGroup,
@@ -31,15 +41,23 @@ import {
   resolveEmailToOid,
 } from "../../src/api/functions/entraId.js";
 import { EntraGroupActions } from "../../src/common/types/iam.js";
+import { randomUUID } from "crypto";
+import { mockClient } from "aws-sdk-client-mock";
+import { V } from "vitest/dist/chunks/reporters.d.79o4mouw.js";
 const app = await init();
 
 describe("Test Modify Group and List Group Routes", () => {
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
+    sqsMock.reset();
     vi.clearAllMocks();
   });
 
   test("Modify group: Add and remove members", async () => {
+    const queueId = randomUUID();
+    sqsMock
+      .on(SendMessageBatchCommand)
+      .resolves({ $metadata: { requestId: queueId } });
     const testJwt = createJwt();
     await app.ready();
 
@@ -50,7 +68,7 @@ describe("Test Modify Group and List Group Routes", () => {
         add: ["validuser1@illinois.edu"],
         remove: ["validuser2@illinois.edu"],
       });
-
+    sqsMock.on(SendMessageCommand).resolves({});
     expect(response.statusCode).toBe(202);
     expect(modifyGroup).toHaveBeenCalledTimes(2);
     expect(modifyGroup).toHaveBeenNthCalledWith(
@@ -75,12 +93,13 @@ describe("Test Modify Group and List Group Routes", () => {
       { email: "validuser2@illinois.edu" },
     ]);
     expect(response.body.failure).toEqual([]);
+    expect(sqsMock.calls()).toHaveLength(2);
   });
 
   test("Modify group: Fail for invalid email domain", async () => {
     const testJwt = createJwt();
     await app.ready();
-
+    sqsMock.on(SendMessageBatchCommand).rejects();
     const response = await supertest(app.server)
       .patch("/api/v1/iam/groups/test-group-id")
       .set("authorization", `Bearer ${testJwt}`)
@@ -99,6 +118,7 @@ describe("Test Modify Group and List Group Routes", () => {
           "User's domain must be illinois.edu to be added or removed from the group.",
       },
     ]);
+    expect(sqsMock.calls()).toHaveLength(0);
   });
 
   test("List group members: Happy path", async () => {
