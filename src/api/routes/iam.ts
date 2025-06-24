@@ -43,6 +43,7 @@ import { z } from "zod";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageBatchCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -426,46 +427,50 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
       }
-      const sqsAddedPayloads = addedEmails.map((x) => {
-        return {
-          function: AvailableSQSFunctions.EmailNotifications,
-          metadata: {
-            initiator: request.username!,
-            reqId: request.id,
-          },
-          payload: {
-            to: [x],
-            subject: "You have been added to an access group",
-            content: `
+      const sqsAddedPayloads = addedEmails
+        .filter((x) => !!x)
+        .map((x) => {
+          return {
+            function: AvailableSQSFunctions.EmailNotifications,
+            metadata: {
+              initiator: request.username!,
+              reqId: request.id,
+            },
+            payload: {
+              to: [x],
+              subject: "You have been added to an access group",
+              content: `
 Hello,
 
 We're letting you know that you have been added to the "${groupMetadata.displayName}" access group by ${request.username}. Changes may take up to 2 hours to reflect in all systems.
 
 No action is required from you at this time.
           `,
-          },
-        };
-      });
-      const sqsRemovedPayloads = removedEmails.map((x) => {
-        return {
-          function: AvailableSQSFunctions.EmailNotifications,
-          metadata: {
-            initiator: request.username!,
-            reqId: request.id,
-          },
-          payload: {
-            to: [x],
-            subject: "You have been removed from an access group",
-            content: `
+            },
+          };
+        });
+      const sqsRemovedPayloads = removedEmails
+        .filter((x) => !!x)
+        .map((x) => {
+          return {
+            function: AvailableSQSFunctions.EmailNotifications,
+            metadata: {
+              initiator: request.username!,
+              reqId: request.id,
+            },
+            payload: {
+              to: [x],
+              subject: "You have been removed from an access group",
+              content: `
 Hello,
 
 We're letting you know that you have been removed from the "${groupMetadata.displayName}" access group by ${request.username}.
 
 No action is required from you at this time.
           `,
-          },
-        };
-      });
+            },
+          };
+        });
       if (!fastify.sqsClient) {
         fastify.sqsClient = new SQSClient({
           region: genericConfig.AwsRegion,
@@ -473,33 +478,43 @@ No action is required from you at this time.
       }
       if (sqsAddedPayloads.length > 0) {
         request.log.debug("Sending added emails");
-        const addedQueued = await fastify.sqsClient.send(
-          new SendMessageBatchCommand({
-            QueueUrl: fastify.environmentConfig.SqsQueueUrl,
-            Entries: sqsAddedPayloads.map((x) => ({
-              Id: uuidv4(),
-              MessageBody: JSON.stringify(x),
-            })),
-          }),
-        );
-        request.log.info(
-          `Sent added emails, queue ID ${addedQueued.$metadata.requestId}`,
-        );
+        let chunkId = 0;
+        for (let i = 0; i < sqsAddedPayloads.length; i += 10) {
+          chunkId += 1;
+          const chunk = sqsAddedPayloads.slice(i, i + 10);
+          const removedQueued = await fastify.sqsClient.send(
+            new SendMessageBatchCommand({
+              QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+              Entries: chunk.map((x) => ({
+                Id: randomUUID(),
+                MessageBody: JSON.stringify(x),
+              })),
+            }),
+          );
+          request.log.info(
+            `Sent added emails chunk ${chunkId}, queue ID ${removedQueued.$metadata.requestId}`,
+          );
+        }
       }
       if (sqsRemovedPayloads.length > 0) {
         request.log.debug("Sending removed emails");
-        const removedQueued = await fastify.sqsClient.send(
-          new SendMessageBatchCommand({
-            QueueUrl: fastify.environmentConfig.SqsQueueUrl,
-            Entries: sqsRemovedPayloads.map((x) => ({
-              Id: uuidv4(),
-              MessageBody: JSON.stringify(x),
-            })),
-          }),
-        );
-        request.log.info(
-          `Sent removed emails, queue ID ${removedQueued.$metadata.requestId}`,
-        );
+        let chunkId = 0;
+        for (let i = 0; i < sqsRemovedPayloads.length; i += 10) {
+          chunkId += 1;
+          const chunk = sqsRemovedPayloads.slice(i, i + 10);
+          const removedQueued = await fastify.sqsClient.send(
+            new SendMessageBatchCommand({
+              QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+              Entries: chunk.map((x) => ({
+                Id: randomUUID(),
+                MessageBody: JSON.stringify(x),
+              })),
+            }),
+          );
+          request.log.info(
+            `Sent removed emails chunk ${chunkId}, queue ID ${removedQueued.$metadata.requestId}`,
+          );
+        }
       }
       await Promise.allSettled(logPromises);
       reply.status(202).send(response);
