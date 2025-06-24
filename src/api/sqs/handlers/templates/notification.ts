@@ -33,6 +33,24 @@ const template = /*html*/ `
           <tr>
             <td style="padding: 30px;"> {{nl2br content}} </td>
           </tr>
+
+          {{#if callToActionButton}}
+          <tr>
+            <td align="center" style="padding: 0 30px 30px 30px;">
+              <table border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center" style="border-radius: 5px;" bgcolor="#5386E4">
+                    <a href="{{callToActionButton.url}}" target="_blank"
+                      style="font-size: 16px; font-family: 'Helvetica Neue', 'Segoe UI', Helvetica, sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; border-radius: 5px; padding: 12px 25px; border: 1px solid #5386E4; display: inline-block;">
+                      {{callToActionButton.name}}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          {{/if}}
+
           <tr>
             <td align="center" style="padding-bottom: 30px;">
               <p style="font-size: 12px; color: #888; text-align: center;"> <a href="https://acm.illinois.edu"
