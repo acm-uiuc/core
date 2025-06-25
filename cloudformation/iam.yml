@@ -143,6 +143,15 @@ Resources:
                 - lambda.amazonaws.com
 
       Policies:
+        - PolicyName: lambda-self-invoke
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - lambda:invokeFunction
+                Effect: Allow
+                Resource:
+                  - Fn::Sub: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${LambdaFunctionName}:*"
         - PolicyName: lambda-generic
           PolicyDocument:
             Version: "2012-10-17"
