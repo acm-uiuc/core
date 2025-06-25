@@ -12,7 +12,13 @@ const realHandler = awsLambdaFastify(app, {
 });
 const handler = async (event: APIGatewayEvent, context: Context) => {
   // if a warming event
-  if (await warmer(event, { correlationId: context.awsRequestId }, context)) {
+  if (
+    await warmer(
+      event,
+      { correlationId: context.awsRequestId, delay: 50 },
+      context,
+    )
+  ) {
     return "warmed";
   }
   // else proceed with handler logic
