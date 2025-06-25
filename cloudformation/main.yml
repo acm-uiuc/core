@@ -192,6 +192,16 @@ Resources:
             RestApiId: !Ref AppApiGateway
             Path: /{proxy+}
             Method: ANY
+        WarmingSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: !If [
+              ShouldAttachVpc,
+              'rate(15 minutes)',
+              'rate(5 minutes)'
+              ]
+            Input: '{ "warmer":true,"concurrency":3 }'
+
 
   AppSqsLambdaFunction:
     Type: AWS::Serverless::Function
