@@ -43,6 +43,7 @@ Resources:
             Effect: Allow
             Resource:
               - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-config*
+              - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:427040638965:secret:infra-core-api-testing-credentials* # this secret only exists in awsdev account
 
           - Action:
               - dynamodb:DescribeLimits
@@ -199,7 +200,6 @@ Resources:
                 Resource:
                   - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-entra*
                   - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-ro-entra*
-                  - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:427040638965:secret:infra-core-api-testing-credentials* # this secret only exists in awsdev account
 
   # SQS Lambda IAM Role
   SqsLambdaIAMRole:
