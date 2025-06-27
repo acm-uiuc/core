@@ -2,7 +2,7 @@ import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
-import { secretObject } from "./secret.testdata.js";
+import { testSecretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 import {
   ConditionalCheckFailedException,
@@ -31,7 +31,7 @@ vi.mock("../../src/api/functions/apiKey.js", () => {
 // Mock DynamoDB client
 const dynamoMock = mockClient(DynamoDBClient);
 const sqsMock = mockClient(SQSClient);
-const jwt_secret = secretObject["jwt_key"];
+const jwt_secret = testSecretObject["jwt_key"];
 
 vi.stubEnv("JwtSigningKey", jwt_secret);
 

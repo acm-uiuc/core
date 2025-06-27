@@ -1,7 +1,6 @@
 import { SecretConfig } from "../../src/common/config.js";
 
 const secretObject = {
-  jwt_key: "somethingreallysecret",
   discord_guild_id: "12345",
   discord_bot_token: "12345",
   entra_id_private_key: "",
@@ -13,9 +12,15 @@ const secretObject = {
   acm_passkit_signerKey_base64: "",
   apple_signing_cert_base64: "",
   redis_url: "",
-} as SecretConfig & { jwt_key: string };
+} as SecretConfig;
+
+const testSecretObject = {
+  jwt_key: "somethingreallysecret",
+};
 
 const secretJson = JSON.stringify(secretObject);
+
+const testSecretJson = JSON.stringify(testSecretObject);
 
 const jwtPayload = {
   aud: "custom_jwt",
@@ -69,4 +74,11 @@ const jwtPayloadNoGroups = {
   ver: "1.0",
 };
 
-export { secretJson, secretObject, jwtPayload, jwtPayloadNoGroups };
+export {
+  secretJson,
+  secretObject,
+  testSecretJson,
+  testSecretObject,
+  jwtPayload,
+  jwtPayloadNoGroups,
+};

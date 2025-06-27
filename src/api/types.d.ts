@@ -2,7 +2,7 @@
 import { FastifyRequest, FastifyInstance, FastifyReply } from "fastify";
 import { AppRoles, RunEnvironment } from "../common/roles.js";
 import { AadToken } from "./plugins/auth.js";
-import { ConfigType, SecretConfig } from "../common/config.js";
+import { ConfigType, SecretConfig, SecretTesting } from "../common/config.js";
 import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
@@ -36,7 +36,7 @@ declare module "fastify" {
     redisClient: Redis;
     secretsManagerClient: SecretsManagerClient;
     cloudfrontKvClient: CloudFrontKeyValueStoreClient;
-    secretConfig: SecretConfig;
+    secretConfig: SecretConfig | (SecretConfig & SecretTesting);
     refreshSecretConfig: CallableFunction;
   }
   interface FastifyRequest {
