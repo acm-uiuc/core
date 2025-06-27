@@ -8,12 +8,12 @@ import {
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
-import { secretJson, secretObject } from "./secret.testdata.js";
+import { testSecretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 import { marshall } from "@aws-sdk/util-dynamodb";
 
 const ddbMock = mockClient(DynamoDBClient);
-const jwt_secret = secretObject["jwt_key"];
+const jwt_secret = testSecretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
 const app = await init();

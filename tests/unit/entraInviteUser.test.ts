@@ -1,7 +1,7 @@
 import { afterAll, expect, test, beforeEach, vi } from "vitest";
 import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
-import { secretObject } from "./secret.testdata.js";
+import { testSecretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 import { describe } from "node:test";
 
@@ -23,7 +23,7 @@ import {
 } from "../../src/api/functions/entraId.js";
 import { EntraInvitationError } from "../../src/common/errors/index.js";
 
-const jwt_secret = secretObject["jwt_key"];
+const jwt_secret = testSecretObject["jwt_key"];
 
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
