@@ -17,9 +17,7 @@ const handler = async (event: APIGatewayEvent, context: Context) => {
     return "warmed";
   }
   // else proceed with handler logic
-  try {
-    return realHandler(event, context);
-  } catch (e) {
+  return realHandler(event, context).catch((e) => {
     console.error(e);
     const newError = new InternalServerError({
       message: "Failed to initialize application.",
@@ -33,7 +31,7 @@ const handler = async (event: APIGatewayEvent, context: Context) => {
       },
       isBase64Encoded: false,
     };
-  }
+  });
 };
 
 await app.ready(); // needs to be placed after awsLambdaFastify call because of the decoration: https://github.com/fastify/aws-lambda-fastify/blob/master/index.js#L9
