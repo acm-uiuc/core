@@ -3,14 +3,14 @@ import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
-import { secretObject } from "./secret.testdata.js";
+import { testSecretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 import { describe } from "node:test";
 import { updateDiscord } from "../../src/api/functions/discord.js";
 
 const ddbMock = mockClient(DynamoDBClient);
 
-const jwt_secret = secretObject["jwt_key"];
+const jwt_secret = testSecretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
 vi.mock("../../src/api/functions/discord.js", () => {

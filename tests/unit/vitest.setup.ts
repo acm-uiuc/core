@@ -8,8 +8,8 @@ import {
 } from "@aws-sdk/client-secrets-manager";
 import { mockClient } from "aws-sdk-client-mock";
 import { marshall } from "@aws-sdk/util-dynamodb";
-import { genericConfig } from "../../src/common/config.js";
-import { secretJson } from "./secret.testdata.js";
+import { environmentConfig, genericConfig } from "../../src/common/config.js";
+import { secretJson, testSecretJson } from "./secret.testdata.js";
 
 const ddbMock = mockClient(DynamoDBClient);
 const smMock = mockClient(SecretsManagerClient);
@@ -113,6 +113,9 @@ ddbMock.on(QueryCommand).callsFake((command) => {
 smMock.on(GetSecretValueCommand).callsFake((command) => {
   if (command.SecretId == genericConfig.ConfigSecretName) {
     return Promise.resolve({ SecretString: secretJson });
+  }
+  if (command.SecretId == environmentConfig["dev"].TestingCredentialsSecret) {
+    return Promise.resolve({ SecretString: testSecretJson });
   }
   return Promise.reject(new Error("Secret ID not mocked"));
 });

@@ -20,7 +20,7 @@ export const getSecretValue = async (secretId) => {
   }
 };
 
-const secrets = await getSecretValue("infra-core-api-config");
+const secrets = await getSecretValue("infra-core-api-testing-credentials");
 const client = new STSClient({ region: "us-east-1" });
 const command = new GetCallerIdentityCommand({});
 let data;
