@@ -30,7 +30,7 @@ async function getSecrets() {
   const response = { JWTKEY: "" };
   let keyData;
   if (!process.env.JWT_KEY) {
-    keyData = await getSecretValue("infra-core-api-config");
+    keyData = await getSecretValue("infra-core-api-testing-credentials");
   }
   response["JWTKEY"] =
     process.env.JWT_KEY || ((keyData ? keyData["jwt_key"] : "") as string);

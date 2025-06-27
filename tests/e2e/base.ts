@@ -30,7 +30,7 @@ async function getSecrets() {
   let response = { PLAYWRIGHT_USERNAME: "", PLAYWRIGHT_PASSWORD: "" };
   let keyData;
   if (!process.env.PLAYWRIGHT_USERNAME || !process.env.PLAYWRIGHT_PASSWORD) {
-    keyData = await getSecretValue("infra-core-api-config");
+    keyData = await getSecretValue("infra-core-api-testing-credentials");
   }
   response["PLAYWRIGHT_USERNAME"] =
     process.env.PLAYWRIGHT_USERNAME ||

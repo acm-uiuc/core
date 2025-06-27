@@ -15,6 +15,7 @@ import {
   environmentConfig,
   genericConfig,
   SecretConfig,
+  SecretTesting,
 } from "../common/config.js";
 import organizationsPlugin from "./routes/organizations.js";
 import authorizeFromSchemaPlugin from "./plugins/authorizeFromSchema.js";
@@ -253,13 +254,20 @@ async function init(prettyPrint: boolean = false) {
   app.dynamoClient = dynamoClient;
   app.secretsManagerClient = secretsManagerClient;
   app.redisClient = redisClient;
-  app.secretConfig = secret;
   app.refreshSecretConfig = async () => {
     app.secretConfig = (await getSecretValue(
       app.secretsManagerClient,
       genericConfig.ConfigSecretName,
     )) as SecretConfig;
+    if (app.environmentConfig.TestingCredentialsSecret) {
+      const temp = (await getSecretValue(
+        app.secretsManagerClient,
+        app.environmentConfig.TestingCredentialsSecret,
+      )) as SecretTesting;
+      app.secretConfig = { ...app.secretConfig, ...temp };
+    }
   };
+  app.refreshSecretConfig();
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;

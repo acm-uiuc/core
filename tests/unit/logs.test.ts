@@ -3,7 +3,7 @@ import init from "../../src/api/index.js";
 import { describe } from "node:test";
 import { mockClient } from "aws-sdk-client-mock";
 import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
-import { secretObject } from "./secret.testdata.js";
+import { testSecretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 import { createJwt } from "./auth.test.js";
 import { genericConfig } from "../../src/common/config.js";
@@ -11,7 +11,7 @@ import { marshall } from "@aws-sdk/util-dynamodb";
 import { Modules } from "../../src/common/modules.js";
 
 const ddbMock = mockClient(DynamoDBClient);
-const jwt_secret = secretObject["jwt_key"];
+const jwt_secret = testSecretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
 const app = await init();
