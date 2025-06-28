@@ -8,8 +8,8 @@ import {
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { DatabaseInsertError } from "common/errors/index.js";
-import { OrganizationList, orgIds2Name } from "common/orgs.js";
+import { DatabaseInsertError } from "../../common/errors/index.js";
+import { OrganizationList, orgIds2Name } from "../../common/orgs.js";
 import {
   SigDetailRecord,
   SigMemberCount,

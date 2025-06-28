@@ -15,9 +15,7 @@ import {
   fetchMemberRecords,
   fetchSigCounts,
   fetchSigDetail,
-} from "api/functions/siglead.js";
-import { intersection } from "api/plugins/auth.js";
-import { request } from "http";
+} from "../../api/functions/siglead.js";
 
 const sigleadRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
