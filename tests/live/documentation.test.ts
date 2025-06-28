@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
+import { getBaseEndpoint } from "./utils.js";
 
-const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
+const baseEndpoint = getBaseEndpoint();
 
 test("Get OpenAPI JSON", async () => {
   const response = await fetch(`${baseEndpoint}/api/documentation/json`);

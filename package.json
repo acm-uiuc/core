@@ -11,15 +11,18 @@
   "scripts": {
     "postinstall": "npm run setup",
     "setup": "git config blame.ignoreRevsFile .git-blame-ignore-revs",
-    "build": "yarn workspaces run build && yarn lockfile-manage",
-    "dev": "concurrently --names 'api,ui' 'yarn workspace infra-core-api run dev' 'yarn workspace infra-core-ui run dev'",
-    "lockfile-manage": "synp --with-workspace --source-file yarn.lock && cp package-lock.json dist/lambda/ && cp package-lock.json dist/sqsConsumer/ && cp src/api/package.lambda.json dist/lambda/package.json && cp src/api/package.lambda.json dist/sqsConsumer/package.json && rm package-lock.json",
+    "build": "concurrently --names 'api,ui' 'yarn workspace infra-core-api run build' 'yarn workspace infra-core-ui run build'",
+    "postbuild": "yarn lockfile-manage",
+    "dev": "cross-env DISABLE_AUDIT_LOG=true concurrently --names 'api,ui' 'yarn workspace infra-core-api run dev' 'yarn workspace infra-core-ui run dev'",
+    "lockfile-manage": "synp --with-workspace --source-file yarn.lock",
+    "postlockfile-manage": "cp package-lock.json dist/lambda/ && cp package-lock.json dist/sqsConsumer/ && cp src/api/package.lambda.json dist/lambda/package.json && cp src/api/package.lambda.json dist/sqsConsumer/package.json && rm package-lock.json",
     "prettier": "yarn workspaces run prettier && prettier --check tests/**/*.ts",
     "prettier:write": "yarn workspaces run prettier:write && prettier --write tests/**/*.ts",
     "lint": "yarn workspaces run lint",
     "prepare": "node .husky/install.mjs || true",
     "typecheck": "yarn workspaces run typecheck",
-    "test:unit": "cross-env RunEnvironment='dev' vitest run --coverage --config tests/unit/vitest.config.ts tests/unit && yarn workspace infra-core-ui run test:unit",
+    "test:unit": "cross-env RunEnvironment='dev' concurrently --names 'api,ui' 'yarn run test:unit-api' 'yarn workspace infra-core-ui run test:unit'",
+    "test:unit-api": "cross-env RunEnvironment='dev' vitest run --coverage --config tests/unit/vitest.config.ts tests/unit",
     "test:unit-ui": "yarn test:unit --ui",
     "test:unit-watch": "vitest tests/unit",
     "test:live": "vitest tests/live",
@@ -27,7 +30,9 @@
     "test:e2e": "playwright test",
     "test:e2e-ui": "playwright test --ui"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@acm-uiuc/js-shared": "^2.1.0"
+  },
   "devDependencies": {
     "@eslint/compat": "^1.2.8",
     "@eslint/eslintrc": "^3.3.1",

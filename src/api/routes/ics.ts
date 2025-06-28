@@ -14,7 +14,7 @@ import ical, {
 } from "ical-generator";
 import moment from "moment";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
-import { OrganizationList } from "../../common/orgs.js";
+import { CoreOrganizationList } from "@acm-uiuc/js-shared";
 import { CLIENT_HTTP_CACHE_POLICY, EventRepeatOptions } from "./events.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { getCacheCounter } from "api/functions/cache.js";
@@ -43,7 +43,7 @@ function generateHostName(host: string) {
 
 const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {
-    limit: OrganizationList.length,
+    limit: CoreOrganizationList.length,
     duration: 30,
     rateLimitIdentifier: "ical",
   });
@@ -53,7 +53,7 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
       schema: withTags(["iCalendar Integration"], {
         params: z.object({
           host: z
-            .optional(z.enum(OrganizationList as [string, ...string[]]))
+            .optional(z.enum(CoreOrganizationList as [string, ...string[]]))
             .openapi({ description: "Host to get calendar for." }),
         }),
         summary:
@@ -87,7 +87,7 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
         reply.header("etag", etag);
       }
       if (host) {
-        if (!OrganizationList.includes(host)) {
+        if (!CoreOrganizationList.includes(host)) {
           throw new ValidationError({
             message: `Invalid host parameter "${host}" in path.`,
           });
@@ -155,15 +155,29 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
 
         if (rawEvent.repeats) {
+          const startTime = moment.tz(rawEvent.start, "America/Chicago");
+          const hours = startTime.hours();
+          const minutes = startTime.minutes();
+          const seconds = startTime.seconds();
+          const milliseconds = startTime.milliseconds();
+          const exclusions = ((rawEvent.repeatExcludes as string[]) || []).map(
+            (x) =>
+              moment
+                .tz(x, "America/Chicago")
+                .set({ hours, minutes, seconds, milliseconds }),
+          );
+
           if (rawEvent.repeatEnds) {
             event = event.repeating({
               ...repeatingIcalMap[rawEvent.repeats as EventRepeatOptions],
               until: moment.tz(rawEvent.repeatEnds, "America/Chicago"),
+              ...(exclusions.length > 0 && { exclude: exclusions }),
             });
           } else {
-            event.repeating(
-              repeatingIcalMap[rawEvent.repeats as EventRepeatOptions],
-            );
+            event.repeating({
+              ...repeatingIcalMap[rawEvent.repeats as EventRepeatOptions],
+              ...(exclusions.length > 0 && { exclude: exclusions }),
+            });
           }
         }
         if (rawEvent.location) {

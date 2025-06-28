@@ -10,8 +10,10 @@ import {
   Group,
   ActionIcon,
   Text,
+  Alert,
 } from "@mantine/core";
-import { DateTimePicker } from "@mantine/dates";
+import moment from "moment-timezone";
+import { DateFormatter, DatePickerInput, DateTimePicker } from "@mantine/dates";
 import { useForm, zodResolver } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import dayjs from "dayjs";
@@ -20,10 +22,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
-import { OrganizationList as orgList } from "@common/orgs";
+import { AllOrganizationList as orgList } from "@acm-uiuc/js-shared";
 import { AppRoles } from "@common/roles";
 import { EVENT_CACHED_DURATION } from "@common/config";
-import { IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconInfoCircle, IconPlus, IconTrash } from "@tabler/icons-react";
 import {
   MAX_METADATA_KEYS,
   MAX_KEY_LENGTH,
@@ -34,6 +36,23 @@ import {
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
+const valueFormatter: DateFormatter = ({ type, date, locale, format }) => {
+  if (type === "multiple" && Array.isArray(date)) {
+    if (date.length === 1) {
+      return dayjs(date[0]).locale(locale).format(format);
+    }
+
+    if (date.length > 1) {
+      return date
+        .map((d) => dayjs(d).locale(locale).format(format))
+        .join(" | ");
+    }
+
+    return "";
+  }
+
+  return "";
+};
 
 const repeatOptions = ["weekly", "biweekly"] as const;
 
@@ -50,7 +69,6 @@ const baseBodySchema = z.object({
     .string()
     .min(1, "Paid Event ID must be at least 1 character")
     .optional(),
-  // Add metadata field
   metadata: metadataSchema,
 });
 
@@ -58,6 +76,7 @@ const requestBodySchema = baseBodySchema
   .extend({
     repeats: z.optional(z.enum(repeatOptions)).nullable(),
     repeatEnds: z.date().optional(),
+    repeatExcludes: z.array(z.date()).max(100).optional(),
   })
   .refine((data) => (data.repeatEnds ? data.repeats !== undefined : true), {
     message: "Repeat frequency is required when Repeat End is specified.",
@@ -86,7 +105,6 @@ export const ManageEventPage: React.FC = () => {
     if (!isEditing) {
       return;
     }
-    // Fetch event data and populate form
     const getEvent = async () => {
       try {
         const response = await api.get(
@@ -108,6 +126,12 @@ export const ManageEventPage: React.FC = () => {
             ? new Date(eventData.repeatEnds)
             : undefined,
           paidEventId: eventData.paidEventId,
+          repeatExcludes:
+            eventData.repeatExcludes && eventData.repeatExcludes.length > 0
+              ? eventData.repeatExcludes.map((dateString: string) =>
+                  moment.tz(dateString, "America/Chicago").toDate(),
+                )
+              : [],
           metadata: eventData.metadata || {},
         };
         form.setValues(formValues);
@@ -128,7 +152,7 @@ export const ManageEventPage: React.FC = () => {
       title: "",
       description: "",
       start: new Date(startDate),
-      end: new Date(startDate + 3.6e6), // 1 hr later
+      end: new Date(startDate + 3.6e6),
       location: "ACM Room (Siebel CS 1104)",
       locationLink: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
       host: "ACM",
@@ -136,13 +160,14 @@ export const ManageEventPage: React.FC = () => {
       repeats: undefined,
       repeatEnds: undefined,
       paidEventId: undefined,
-      metadata: {}, // Initialize empty metadata object
+      metadata: {},
+      repeatExcludes: [],
     },
   });
 
   useEffect(() => {
     if (form.values.end && form.values.end <= form.values.start) {
-      form.setFieldValue("end", new Date(form.values.start.getTime() + 3.6e6)); // 1 hour after the start date
+      form.setFieldValue("end", new Date(form.values.start.getTime() + 3.6e6));
     }
   }, [form.values.start]);
 
@@ -150,7 +175,10 @@ export const ManageEventPage: React.FC = () => {
     if (form.values.locationLink === "") {
       form.setFieldValue("locationLink", undefined);
     }
-  }, [form.values.locationLink]);
+    if (form.values.repeatExcludes?.length === 0) {
+      form.setFieldValue("repeatExcludes", undefined);
+    }
+  }, [form.values.locationLink, form.values.repeatExcludes]);
 
   const handleSubmit = async (values: EventPostRequest) => {
     try {
@@ -166,6 +194,9 @@ export const ManageEventPage: React.FC = () => {
           values.repeatEnds && values.repeats
             ? dayjs(values.repeatEnds).format("YYYY-MM-DD[T]HH:mm:00")
             : undefined,
+        repeatExcludes: values.repeatExcludes
+          ? values.repeatExcludes.map((x) => dayjs(x).format("YYYY-MM-DD"))
+          : undefined,
         repeats: values.repeats ? values.repeats : undefined,
         metadata:
           Object.keys(values.metadata || {}).length > 0
@@ -191,7 +222,6 @@ export const ManageEventPage: React.FC = () => {
     }
   };
 
-  // Function to add a new metadata field
   const addMetadataField = () => {
     const currentMetadata = { ...form.values.metadata };
     if (Object.keys(currentMetadata).length >= MAX_METADATA_KEYS) {
@@ -201,14 +231,11 @@ export const ManageEventPage: React.FC = () => {
       return;
     }
 
-    // Generate a temporary key name that doesn't exist yet
     let tempKey = `key${Object.keys(currentMetadata).length + 1}`;
-    // Make sure it's unique
     while (currentMetadata[tempKey] !== undefined) {
       tempKey = `key${parseInt(tempKey.replace("key", ""), 10) + 1}`;
     }
 
-    // Update the form
     form.setValues({
       ...form.values,
       metadata: {
@@ -218,7 +245,6 @@ export const ManageEventPage: React.FC = () => {
     });
   };
 
-  // Function to update a metadata value
   const updateMetadataValue = (key: string, value: string) => {
     form.setValues({
       ...form.values,
@@ -245,7 +271,6 @@ export const ManageEventPage: React.FC = () => {
     });
   };
 
-  // Function to remove a metadata field
   const removeMetadataField = (key: string) => {
     const currentMetadata = { ...form.values.metadata };
     delete currentMetadata[key];
@@ -258,11 +283,9 @@ export const ManageEventPage: React.FC = () => {
 
   const [metadataKeys, setMetadataKeys] = useState<Record<string, string>>({});
 
-  // Initialize metadata keys with unique IDs when form loads or changes
   useEffect(() => {
     const newMetadataKeys: Record<string, string> = {};
 
-    // For existing metadata, create stable IDs
     Object.keys(form.values.metadata || {}).forEach((key) => {
       if (!metadataKeys[key]) {
         newMetadataKeys[key] =
@@ -283,6 +306,19 @@ export const ManageEventPage: React.FC = () => {
         <Title mb="sm" order={2}>
           {isEditing ? `Edit` : `Create`} Event
         </Title>
+        {Intl.DateTimeFormat().resolvedOptions().timeZone !==
+          "America/Chicago" && (
+          <Alert
+            variant="light"
+            color="red"
+            title="Timezone Alert"
+            icon={<IconInfoCircle />}
+          >
+            All dates and times are shown in the America/Chicago timezone.
+            Please ensure you enter them in the America/Chicago timezone.
+          </Alert>
+        )}
+
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <TextInput
             label="Event Title"
@@ -299,14 +335,14 @@ export const ManageEventPage: React.FC = () => {
           <DateTimePicker
             label="Start Date"
             withAsterisk
-            valueFormat="MM-DD-YYYY h:mm A [Urbana Time]"
+            valueFormat="MM-DD-YYYY h:mm A"
             placeholder="Pick start date"
             {...form.getInputProps("start")}
           />
           <DateTimePicker
             label="End Date"
             withAsterisk
-            valueFormat="MM-DD-YYYY h:mm A [Urbana Time]"
+            valueFormat="MM-DD-YYYY h:mm A"
             placeholder="Pick end date (optional)"
             {...form.getInputProps("end")}
           />
@@ -344,16 +380,29 @@ export const ManageEventPage: React.FC = () => {
             {...form.getInputProps("repeats")}
           />
           {form.values.repeats && (
-            <DateTimePicker
-              valueFormat="MM-DD-YYYY h:mm A [Urbana Time]"
-              label="Repeat Ends"
-              placeholder="Pick repeat end date"
-              {...form.getInputProps("repeatEnds")}
-            />
+            <>
+              <DateTimePicker
+                valueFormat="MM-DD-YYYY h:mm A"
+                label="Repeat Ends"
+                placeholder="Pick repeat end date"
+                {...form.getInputProps("repeatEnds")}
+              />
+              <DatePickerInput
+                label="Repeat Excludes"
+                description="Dates selected here will be skipped in the recurring schedule."
+                valueFormat="MMM D, YYYY"
+                type="multiple"
+                placeholder="Click to select dates to exclude"
+                clearable
+                valueFormatter={valueFormatter}
+                {...form.getInputProps("repeatExcludes")}
+              />
+            </>
           )}
           <TextInput
             label="Paid Event ID"
-            placeholder="Enter Ticketing ID or Merch ID prefixed with merch:"
+            description="For integration with ACM ticketing only."
+            placeholder="Enter Ticketing or Merch ID"
             {...form.getInputProps("paidEventId")}
           />
 
@@ -406,14 +455,13 @@ export const ManageEventPage: React.FC = () => {
                         }
                         error={valueError}
                       />
-                      {/* Empty space to maintain consistent height */}
                       {valueError && <div style={{ height: "0.75rem" }} />}
                     </Box>
                     <ActionIcon
                       color="red"
                       variant="light"
                       onClick={() => removeMetadataField(key)}
-                      mt={30} // align with inputs when label is present
+                      mt={30}
                     >
                       <IconTrash size={16} />
                     </ActionIcon>

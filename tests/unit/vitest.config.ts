@@ -11,6 +11,12 @@ export default defineConfig({
     coverage: {
       provider: "istanbul",
       include: ["src/api/**/*.ts", "src/common/**/*.ts"],
+      exclude: ["src/api/lambda.ts", "src/api/sqs/handlers/templates/*.ts"],
+      thresholds: {
+        statements: 55,
+        functions: 66,
+        lines: 55,
+      },
     },
   },
   resolve: {

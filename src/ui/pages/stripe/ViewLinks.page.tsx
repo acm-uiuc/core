@@ -33,6 +33,10 @@ export const ManageStripeLinksPage: React.FC = () => {
     return response.data;
   };
 
+  const deactivateLink = async (linkId: string): Promise<void> => {
+    await api.delete(`/api/v1/stripe/paymentLinks/${linkId}`);
+  };
+
   return (
     <AuthGuard
       resourceDef={{
@@ -47,7 +51,10 @@ export const ManageStripeLinksPage: React.FC = () => {
           Create a Stripe Payment Link to accept credit card payments.
         </Text>
         <StripeCreateLinkPanel createLink={createLink} />
-        <StripeCurrentLinksPanel getLinks={getLinks} />
+        <StripeCurrentLinksPanel
+          getLinks={getLinks}
+          deactivateLink={deactivateLink}
+        />
       </Container>
     </AuthGuard>
   );

@@ -16,12 +16,12 @@ import {
   emailMembershipPassHandler,
   pingHandler,
   provisionNewMemberHandler,
-} from "./handlers.js";
+  sendSaleEmailHandler,
+  emailNotificationsHandler,
+} from "./handlers/index.js";
 import { ValidationError } from "../../common/errors/index.js";
 import { RunEnvironment } from "../../common/roles.js";
 import { environmentConfig } from "../../common/config.js";
-import { sendSaleEmailhandler } from "./sales.js";
-import { emailNotificationsHandler } from "./emailNotifications.js";
 
 export type SQSFunctionPayloadTypes = {
   [K in keyof typeof sqsPayloadSchemas]: SQSHandlerFunction<K>;
@@ -37,7 +37,7 @@ const handlers: SQSFunctionPayloadTypes = {
   [AvailableSQSFunctions.EmailMembershipPass]: emailMembershipPassHandler,
   [AvailableSQSFunctions.Ping]: pingHandler,
   [AvailableSQSFunctions.ProvisionNewMember]: provisionNewMemberHandler,
-  [AvailableSQSFunctions.SendSaleEmail]: sendSaleEmailhandler,
+  [AvailableSQSFunctions.SendSaleEmail]: sendSaleEmailHandler,
   [AvailableSQSFunctions.EmailNotifications]: emailNotificationsHandler,
 };
 export const runEnvironment = process.env.RunEnvironment as RunEnvironment;
@@ -59,6 +59,10 @@ export const handler = middy()
           logger.error(
             { sqsMessageId: record.messageId },
             parsedBody.toString(),
+          );
+          logger.error(
+            { sqsMessageId: record.messageId },
+            parsedBody.errors.toString(),
           );
           throw new ValidationError({
             message: "Could not parse SQS payload",

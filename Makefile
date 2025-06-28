@@ -52,8 +52,9 @@ clean:
 	rm -rf dist/
 	rm -rf dist_ui/
 	rm -rf dist_devel/
+	rm -rf coverage/
 
-build: src/ cloudformation/ docs/
+build: src/ cloudformation/
 	yarn -D
 	VITE_BUILD_HASH=$(GIT_HASH) yarn build
 	cp -r src/api/resources/ dist/api/resources
@@ -65,14 +66,14 @@ build: src/ cloudformation/ docs/
 local:
 	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
 
-deploy_prod: check_account_prod build
+deploy_prod: check_account_prod
 	@echo "Deploying CloudFormation stack..."
 	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
 	@echo "Syncing S3 bucket..."
 	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
 	make invalidate_cloudfront
 
-deploy_dev: check_account_dev build
+deploy_dev: check_account_dev
 	@echo "Deploying CloudFormation stack..."
 	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
 	@echo "Syncing S3 bucket..."
@@ -85,6 +86,7 @@ invalidate_cloudfront:
 	$(eval DISTRIBUTION_ID_2 := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontIcalDistributionId'].OutputValue" --output text))
 	$(eval INVALIDATION_ID := $(shell aws cloudfront create-invalidation --distribution-id $(DISTRIBUTION_ID) --paths "/*" --query 'Invalidation.Id' --output text --no-cli-page))
 	$(eval INVALIDATION_ID_2 := $(shell aws cloudfront create-invalidation --distribution-id $(DISTRIBUTION_ID_2) --paths "/*" --query 'Invalidation.Id' --output text --no-cli-page))
+	@echo "Triggered invalidation jobs $(INVALIDATION_ID) and $(INVALIDATION_ID_2)..."
 	@echo "Waiting on job $(INVALIDATION_ID)..."
 	aws cloudfront wait invalidation-completed --distribution-id $(DISTRIBUTION_ID) --id $(INVALIDATION_ID)
 	@echo "Waiting on job $(INVALIDATION_ID_2)..."
@@ -108,6 +110,8 @@ test_unit: install
 test_e2e: install
 	yarn playwright install
 	yarn test:e2e
+
+test_post_deploy: test_live_integration test_e2e
 
 dev_health_check:
 	curl -f https://core.aws.qa.acmuiuc.org/api/v1/healthz && curl -f https://core.aws.qa.acmuiuc.org/

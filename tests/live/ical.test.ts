@@ -1,14 +1,13 @@
-import { expect, test } from "vitest";
-import { describe } from "node:test";
-import { OrganizationList } from "../../src/common/orgs.js";
+import { describe, expect, test } from "vitest";
+import { CoreOrganizationList } from "@acm-uiuc/js-shared";
 import ical from "node-ical";
-const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
+import { getBaseEndpoint } from "./utils.js";
+const baseEndpoint = getBaseEndpoint();
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const fetchWithRateLimit = async (url: string) => {
   const response = await fetch(url);
-  expect(response.status).toBe(200);
 
   // Check rate limit headers
   const remaining = parseInt(
@@ -27,19 +26,26 @@ const fetchWithRateLimit = async (url: string) => {
   return response;
 };
 
-test("Get calendars with rate limit handling", { timeout: 45000 }, async () => {
-  for (const org of OrganizationList) {
-    const response = await fetchWithRateLimit(
-      `${baseEndpoint}/api/v1/ical/${org}`,
-    );
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Disposition")).toEqual(
-      'attachment; filename="calendar.ics"',
-    );
-    const calendar = ical.sync.parseICS(await response.text());
-    expect(calendar["vcalendar"]["type"]).toEqual("VCALENDAR");
-  }
-});
+describe(
+  "Get calendars per organization with rate limit handling",
+  { timeout: 450000 },
+  async () => {
+    for (const org of CoreOrganizationList) {
+      test(`Get ${org} calendar`, async () => {
+        await delay(Math.random() * 200);
+        const response = await fetchWithRateLimit(
+          `${baseEndpoint}/api/v1/ical/${org}`,
+        );
+        expect(response.status).toBe(200);
+        expect(response.headers.get("Content-Disposition")).toEqual(
+          'attachment; filename="calendar.ics"',
+        );
+        const calendar = ical.sync.parseICS(await response.text());
+        expect(calendar["vcalendar"]["type"]).toEqual("VCALENDAR");
+      });
+    }
+  },
+);
 
 test("Check that the ical base works", { timeout: 45000 }, async () => {
   const response = await fetchWithRateLimit(

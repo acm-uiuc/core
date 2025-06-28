@@ -1,7 +1,8 @@
 import { expect, test, describe } from "vitest";
-import { createJwt } from "./utils";
+import { createJwt } from "./utils.js";
+import { getBaseEndpoint } from "./utils.js";
 
-const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
+const baseEndpoint = getBaseEndpoint();
 
 describe("Tickets live API tests", async () => {
   const token = await createJwt();

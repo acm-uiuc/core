@@ -21,6 +21,7 @@ import { ConfidentialClientApplication } from "@azure/msal-node";
 import { getItemFromCache, insertItemIntoCache } from "./cache.js";
 import {
   EntraGroupActions,
+  EntraGroupMetadata,
   EntraInvitationResponse,
   ProfilePatchRequest,
 } from "../../common/types/iam.js";
@@ -550,6 +551,57 @@ export async function listGroupIDsByEmail(
     throw new EntraGroupsFromEmailError({
       message: error instanceof Error ? error.message : String(error),
       email,
+    });
+  }
+}
+
+/**
+ * Retrieves metadata for a specific Entra ID group.
+ * @param token - Entra ID token authorized to take this action.
+ * @param groupId - The group ID to fetch metadata for.
+ * @throws {EntraGroupError} If fetching the group metadata fails.
+ * @returns {Promise<EntraGroupMetadata>} The group's metadata.
+ */
+export async function getGroupMetadata(
+  token: string,
+  groupId: string,
+): Promise<EntraGroupMetadata> {
+  if (!validateGroupId(groupId)) {
+    throw new EntraGroupError({
+      message: "Invalid group ID format",
+      group: groupId,
+    });
+  }
+  try {
+    const url = `https://graph.microsoft.com/v1.0/groups/${groupId}?$select=id,displayName,mail,description`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as {
+        error?: { message?: string };
+      };
+      throw new EntraGroupError({
+        message: errorData?.error?.message ?? response.statusText,
+        group: groupId,
+      });
+    }
+
+    const data = (await response.json()) as EntraGroupMetadata;
+    return data;
+  } catch (error) {
+    if (error instanceof EntraGroupError) {
+      throw error;
+    }
+
+    throw new EntraGroupError({
+      message: error instanceof Error ? error.message : String(error),
+      group: groupId,
     });
   }
 }

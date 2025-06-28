@@ -30,10 +30,10 @@ async function getSecrets() {
   const response = { JWTKEY: "" };
   let keyData;
   if (!process.env.JWT_KEY) {
-    keyData = await getSecretValue("infra-core-api-config");
+    keyData = await getSecretValue("infra-core-api-testing-credentials");
   }
   response["JWTKEY"] =
-    process.env.JWT_KEY || (keyData ? keyData["jwt_key"] : "");
+    process.env.JWT_KEY || ((keyData ? keyData["jwt_key"] : "") as string);
   return response;
 }
 
@@ -69,4 +69,30 @@ export async function createJwt(
   };
   const token = jwt.sign(payload, secretData.JWTKEY, { algorithm: "HS256" });
   return token;
+}
+
+type Service = "core" | "go" | "ical";
+
+export function getBaseEndpoint(service?: Service) {
+  const base = process.env.CORE_BASE_URL ?? "https://core.aws.qa.acmuiuc.org";
+  if (
+    base.includes("localhost") ||
+    base.includes("127.0.0.1") ||
+    base.includes("::1") ||
+    !service
+  ) {
+    return base;
+  }
+  return base.replace("core", service);
+}
+
+export function makeRandomString(length: number) {
+  var result = "";
+  var characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  var charactersLength = characters.length;
+  for (var i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
 }

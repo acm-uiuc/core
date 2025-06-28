@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
-import { InternalServerError } from "../../src/common/errors/index.js";
+import { getBaseEndpoint } from "./utils.js";
 
-const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
+const baseEndpoint = getBaseEndpoint();
 
 test("healthz", async () => {
   const response = await fetch(`${baseEndpoint}/api/v1/healthz`);

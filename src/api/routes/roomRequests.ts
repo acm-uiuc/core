@@ -103,7 +103,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ...request.body,
         }),
       };
-      const logPut = buildAuditLogTransactPut({
+      const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ROOM_RESERVATIONS,
           actor: request.username!,
@@ -115,7 +115,10 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       try {
         await fastify.dynamoClient.send(
           new TransactWriteItemsCommand({
-            TransactItems: [{ Put: itemPut }, logPut],
+            TransactItems: [
+              { Put: itemPut },
+              ...(logStatement ? [logStatement] : []),
+            ],
           }),
         );
       } catch (e) {
@@ -136,7 +139,11 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         payload: {
           to: [originalRequestor],
           subject: "Room Reservation Request Status Change",
-          content: `Your Room Reservation Request has been been moved to status "${formatStatus(request.body.status)}". Please visit ${fastify.environmentConfig.UserFacingUrl}/roomRequests/${semesterId}/${requestId} to view details.`,
+          content: `Your Room Reservation Request has been been moved to status "${formatStatus(request.body.status)}". Please visit the management portal for more details.`,
+          callToActionButton: {
+            name: "View Room Request",
+            url: `${fastify.environmentConfig.UserFacingUrl}/roomRequests/${semesterId}/${requestId}`,
+          },
         },
       };
       if (!fastify.sqsClient) {
@@ -292,7 +299,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         "userId#requestId": `${request.username}#${requestId}`,
         semesterId: request.body.semester,
       };
-      const logPut = buildAuditLogTransactPut({
+      const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ROOM_RESERVATIONS,
           actor: request.username!,
@@ -324,7 +331,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 }),
               },
             },
-            logPut,
+            ...(logStatement ? [logStatement] : []),
           ],
         });
         await fastify.dynamoClient.send(transactionCommand);
@@ -350,7 +357,11 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         payload: {
           to: [notificationRecipients[fastify.runEnvironment].OfficerBoard],
           subject: "New Room Reservation Request",
-          content: `A new room reservation request has been created (${request.body.host} | ${request.body.title}). Please visit ${fastify.environmentConfig.UserFacingUrl}/roomRequests/${request.body.semester}/${requestId} to view details.`,
+          content: `A new room reservation request has been created (${request.body.host} | ${request.body.title}). Please visit the management portal for more details.`,
+          callToActionButton: {
+            name: "View Room Request",
+            url: `${fastify.environmentConfig.UserFacingUrl}/roomRequests/${request.body.semester}/${requestId}`,
+          },
         },
       };
       if (!fastify.sqsClient) {

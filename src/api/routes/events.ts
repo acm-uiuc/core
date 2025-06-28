@@ -2,7 +2,7 @@ import "zod-openapi/extend";
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { AppRoles } from "../../common/roles.js";
 import { z } from "zod";
-import { OrganizationList } from "../../common/orgs.js";
+import { CoreOrganizationList } from "@acm-uiuc/js-shared";
 import {
   DeleteItemCommand,
   GetItemCommand,
@@ -57,6 +57,7 @@ const createProjectionParams = (includeMetadata: boolean = false) => {
     id: "#id",
     repeats: "#repeats",
     repeatEnds: "#repeatEnds",
+    repeatExcludes: "#repeatExcludes",
     ...(includeMetadata ? { metadata: "#metadata" } : {}),
   };
 
@@ -111,7 +112,7 @@ const baseSchema = z.object({
     description: "Google Maps link for easy navigation to the event location.",
     example: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
   }),
-  host: z.enum(OrganizationList as [string, ...string[]]),
+  host: z.enum(CoreOrganizationList as [string, ...string[]]),
   featured: z.boolean().default(false).openapi({
     description:
       "Whether or not the event should be shown on the ACM @ UIUC website home page (and added to Discord, as available).",
@@ -123,14 +124,24 @@ const baseSchema = z.object({
 const requestSchema = baseSchema.extend({
   repeats: z.optional(z.enum(repeatOptions)),
   repeatEnds: z.string().optional(),
+  repeatExcludes: z
+    .array(z.string().date())
+    .min(1)
+    .max(100)
+    .optional()
+    .openapi({
+      description:
+        "Dates to exclude from recurrence rules (in the America/Chicago timezone).",
+    }),
 });
 
-const postRequestSchema = requestSchema.refine(
-  (data) => (data.repeatEnds ? data.repeats !== undefined : true),
-  {
+const postRequestSchema = requestSchema
+  .refine((data) => (data.repeatEnds ? data.repeats !== undefined : true), {
     message: "repeats is required when repeatEnds is defined",
-  },
-);
+  })
+  .refine((data) => (data.repeatExcludes ? data.repeats !== undefined : true), {
+    message: "repeats is required when repeatExcludes is defined",
+  });
 export type EventPostRequest = z.infer<typeof postRequestSchema>;
 
 const getEventSchema = requestSchema.extend({
@@ -165,7 +176,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
                 "If true, only get events which are marked as featured.",
             }),
             host: z
-              .enum(OrganizationList as [string, ...string[]])
+              .enum(CoreOrganizationList as [string, ...string[]])
               .optional()
               .openapi({
                 description: "Retrieve events only for a specific host.",

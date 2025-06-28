@@ -5,8 +5,9 @@ import {
   GroupMemberGetResponse,
 } from "../../src/common/types/iam.js";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
+import { getBaseEndpoint } from "./utils.js";
 
-const baseEndpoint = `https://core.aws.qa.acmuiuc.org`;
+const baseEndpoint = getBaseEndpoint();
 test("getting members of a group", async () => {
   const token = await createJwt();
   const response = await fetch(

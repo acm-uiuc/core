@@ -43,6 +43,7 @@ Resources:
             Effect: Allow
             Resource:
               - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:infra-core-api-config*
+              - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:427040638965:secret:infra-core-api-testing-credentials* # this secret only exists in awsdev account
 
           - Action:
               - dynamodb:DescribeLimits
@@ -153,6 +154,15 @@ Resources:
                 - lambda.amazonaws.com
 
       Policies:
+        - PolicyName: lambda-self-invoke
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - lambda:invokeFunction
+                Effect: Allow
+                Resource:
+                  - Fn::Sub: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${LambdaFunctionName}:*"
         - PolicyName: lambda-generic
           PolicyDocument:
             Version: "2012-10-17"

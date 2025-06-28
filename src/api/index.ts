@@ -15,6 +15,7 @@ import {
   environmentConfig,
   genericConfig,
   SecretConfig,
+  SecretTesting,
 } from "../common/config.js";
 import organizationsPlugin from "./routes/organizations.js";
 import authorizeFromSchemaPlugin from "./plugins/authorizeFromSchema.js";
@@ -225,10 +226,26 @@ async function init(prettyPrint: boolean = false) {
   if (!process.env.RunEnvironment) {
     process.env.RunEnvironment = "dev";
   }
+
   if (!runEnvironments.includes(process.env.RunEnvironment as RunEnvironment)) {
     throw new InternalServerError({
       message: `Invalid run environment ${app.runEnvironment}.`,
     });
+  }
+  if (process.env.DISABLE_AUDIT_LOG) {
+    if (process.env.RunEnvironment !== "dev") {
+      throw new InternalServerError({
+        message: `Audit log can only be disabled if the run environment is "dev"!`,
+      });
+    }
+    if (process.env.LAMBDA_TASK_ROOT || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      throw new InternalServerError({
+        message: `Audit log cannot be disabled when running in AWS Lambda environment!`,
+      });
+    }
+    app.log.warn(
+      "Audit logging to Dynamo is disabled! Audit log statements will be logged to the console.",
+    );
   }
   app.runEnvironment = process.env.RunEnvironment as RunEnvironment;
   app.environmentConfig =
@@ -237,13 +254,20 @@ async function init(prettyPrint: boolean = false) {
   app.dynamoClient = dynamoClient;
   app.secretsManagerClient = secretsManagerClient;
   app.redisClient = redisClient;
-  app.secretConfig = secret;
   app.refreshSecretConfig = async () => {
     app.secretConfig = (await getSecretValue(
       app.secretsManagerClient,
       genericConfig.ConfigSecretName,
     )) as SecretConfig;
+    if (app.environmentConfig.TestingCredentialsSecret) {
+      const temp = (await getSecretValue(
+        app.secretsManagerClient,
+        app.environmentConfig.TestingCredentialsSecret,
+      )) as SecretTesting;
+      app.secretConfig = { ...app.secretConfig, ...temp };
+    }
   };
+  app.refreshSecretConfig();
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;

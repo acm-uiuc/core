@@ -23,6 +23,7 @@ export type ConfigType = {
   PaidMemberPriceId: string;
   AadValidReadOnlyClientId: string;
   LinkryCloudfrontKvArn?: string;
+  TestingCredentialsSecret?: string;
 };
 
 export type GenericConfigType = {
@@ -108,6 +109,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
       /http:\/\/localhost:\d+$/,
     ],
+    TestingCredentialsSecret: "infra-core-api-testing-credentials",
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
@@ -147,7 +149,6 @@ const environmentConfig: EnvironmentConfigType = {
 };
 
 export type SecretConfig = {
-  jwt_key?: string;
   discord_guild_id: string;
   discord_bot_token: string;
   entra_id_private_key?: string;
@@ -157,8 +158,13 @@ export type SecretConfig = {
   apple_signing_cert_base64: string;
   stripe_secret_key: string;
   stripe_endpoint_secret: string;
+  stripe_links_endpoint_secret: string;
   redis_url: string;
 };
+
+export type SecretTesting = {
+  jwt_key: string;
+}
 
 const roleArns = {
   Entra: process.env.EntraRoleArn,

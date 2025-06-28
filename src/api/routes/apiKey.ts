@@ -22,6 +22,8 @@ import {
   ValidationError,
 } from "common/errors/index.js";
 import { z } from "zod";
+import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
 const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -65,7 +67,7 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
       };
       const command = new TransactWriteItemsCommand({
         TransactItems: [
-          logStatement,
+          ...(logStatement ? [logStatement] : []),
           {
             Put: {
               TableName: genericConfig.ApiKeyTable,
@@ -85,6 +87,49 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
         throw new DatabaseInsertError({
           message: "Could not create API key.",
         });
+      }
+      request.log.debug("Constructing SQS payload to send email notification.");
+      const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> = {
+        function: AvailableSQSFunctions.EmailNotifications,
+        metadata: {
+          initiator: request.username!,
+          reqId: request.id,
+        },
+        payload: {
+          to: [request.username!],
+          subject: "Important: API Key Created",
+          content: `
+This email confirms that an API key for the Core API has been generated from your account.
+
+Key ID: acmuiuc_${keyId}
+
+Key Description: ${description}
+
+IP address: ${request.ip}.
+
+Roles: ${roles.join(", ")}.
+
+If you did not create this API key, please secure your account and notify the ACM Infrastructure team.
+          `,
+          callToActionButton: {
+            name: "View API Keys",
+            url: `${fastify.environmentConfig.UserFacingUrl}/apiKeys`,
+          },
+        },
+      };
+      if (!fastify.sqsClient) {
+        fastify.sqsClient = new SQSClient({
+          region: genericConfig.AwsRegion,
+        });
+      }
+      const result = await fastify.sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+          MessageBody: JSON.stringify(sqsPayload),
+        }),
+      );
+      if (result.MessageId) {
+        request.log.info(`Queued notification with ID ${result.MessageId}.`);
       }
       return reply.status(201).send({
         apiKey,
@@ -123,7 +168,7 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
       });
       const command = new TransactWriteItemsCommand({
         TransactItems: [
-          logStatement,
+          ...(logStatement ? [logStatement] : []),
           {
             Delete: {
               TableName: genericConfig.ApiKeyTable,
@@ -148,6 +193,45 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
         throw new DatabaseDeleteError({
           message: "Could not delete API key.",
         });
+      }
+      request.log.debug("Constructing SQS payload to send email notification.");
+      const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> = {
+        function: AvailableSQSFunctions.EmailNotifications,
+        metadata: {
+          initiator: request.username!,
+          reqId: request.id,
+        },
+        payload: {
+          to: [request.username!],
+          subject: "Important: API Key Deleted",
+          content: `
+This email confirms that an API key for the Core API has been deleted from your account.
+
+Key ID: acmuiuc_${keyId}
+
+IP address: ${request.ip}.
+
+If you did not delete this API key, please secure your account and notify the ACM Infrastructure team.
+          `,
+          callToActionButton: {
+            name: "View API Keys",
+            url: `${fastify.environmentConfig.UserFacingUrl}/apiKeys`,
+          },
+        },
+      };
+      if (!fastify.sqsClient) {
+        fastify.sqsClient = new SQSClient({
+          region: genericConfig.AwsRegion,
+        });
+      }
+      const result = await fastify.sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+          MessageBody: JSON.stringify(sqsPayload),
+        }),
+      );
+      if (result.MessageId) {
+        request.log.info(`Queued notification with ID ${result.MessageId}.`);
       }
       return reply.status(204).send();
     },
