@@ -49,6 +49,7 @@ export type GenericConfigType = {
   EntraReadOnlySecretName: string;
   AuditLogTable: string;
   ApiKeyTable: string;
+  ConfigSecretName: string;
 };
 
 type EnvironmentConfigType = {
@@ -86,6 +87,7 @@ const genericConfig: GenericConfigType = {
   RoomRequestsStatusTableName: "infra-core-api-room-requests-status",
   AuditLogTable: "infra-core-api-audit-log",
   ApiKeyTable: "infra-core-api-keys",
+  ConfigSecretName: "infra-core-api-config"
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
@@ -98,7 +100,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
       /http:\/\/localhost:\d+$/,
     ],
-    ConfigurationSecretIds: ["infra-core-api-testing-credentials", "infra-core-api-config"],
+    ConfigurationSecretIds: ["infra-core-api-testing-credentials", genericConfig.ConfigSecretName],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
@@ -117,7 +119,7 @@ const environmentConfig: EnvironmentConfigType = {
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
-    ConfigurationSecretIds: ["infra-core-api-config"],
+    ConfigurationSecretIds: [genericConfig.ConfigSecretName],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
