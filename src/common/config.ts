@@ -50,6 +50,7 @@ export type GenericConfigType = {
   AuditLogTable: string;
   ApiKeyTable: string;
   ConfigSecretName: string;
+  TestingCredentialsSecret: string;
 };
 
 type EnvironmentConfigType = {
@@ -87,7 +88,8 @@ const genericConfig: GenericConfigType = {
   RoomRequestsStatusTableName: "infra-core-api-room-requests-status",
   AuditLogTable: "infra-core-api-audit-log",
   ApiKeyTable: "infra-core-api-keys",
-  ConfigSecretName: "infra-core-api-config"
+  ConfigSecretName: "infra-core-api-config",
+  TestingCredentialsSecret: "infra-core-api-testing-credentials",
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
@@ -100,7 +102,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
       /http:\/\/localhost:\d+$/,
     ],
-    ConfigurationSecretIds: ["infra-core-api-testing-credentials", genericConfig.ConfigSecretName],
+    ConfigurationSecretIds: [genericConfig.TestingCredentialsSecret, genericConfig.ConfigSecretName],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
