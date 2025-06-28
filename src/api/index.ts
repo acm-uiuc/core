@@ -248,10 +248,10 @@ async function init(prettyPrint: boolean = false) {
   app.secretsManagerClient = secretsManagerClient;
   app.refreshSecretConfig = async () => {
     app.log.debug(
-      `Getting secrets: ${JSON.stringify(app.environmentConfig.ConfigurationSecrets)}.`,
+      `Getting secrets: ${JSON.stringify(app.environmentConfig.ConfigurationSecretIds)}.`,
     );
     const allSecrets = await Promise.all(
-      app.environmentConfig.ConfigurationSecrets.map((secretName) =>
+      app.environmentConfig.ConfigurationSecretIds.map((secretName) =>
         getSecretValue(app.secretsManagerClient, secretName),
       ),
     );

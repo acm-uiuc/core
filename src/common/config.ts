@@ -23,7 +23,7 @@ export type ConfigType = {
   PaidMemberPriceId: string;
   AadValidReadOnlyClientId: string;
   LinkryCloudfrontKvArn?: string;
-  ConfigurationSecrets: string[];
+  ConfigurationSecretIds: string[];
   DiscordGuildId: string;
 };
 
@@ -98,7 +98,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
       /http:\/\/localhost:\d+$/,
     ],
-    ConfigurationSecrets: ["infra-core-api-testing-credentials", "infra-core-api-config"],
+    ConfigurationSecretIds: ["infra-core-api-testing-credentials", "infra-core-api-config"],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
@@ -117,7 +117,7 @@ const environmentConfig: EnvironmentConfigType = {
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
-    ConfigurationSecrets: ["infra-core-api-config"],
+    ConfigurationSecretIds: ["infra-core-api-config"],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
