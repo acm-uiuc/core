@@ -3,7 +3,6 @@ import {
   commChairsTestingGroupId,
   execCouncilGroupId,
   execCouncilTestingGroupId,
-  miscTestingGroupId,
 } from "@common/config";
 
 export const runEnvironments = ["dev", "prod", "local-dev"] as const;
@@ -14,19 +13,10 @@ export type RunEnvironment = (typeof runEnvironments)[number];
 export type ValidServices = (typeof services)[number];
 export type ValidService = ValidServices;
 
-export type KnownGroups = {
-  Exec: string;
-  CommChairs: string;
-  StripeLinkCreators: string;
-  InfraTeam: string;
-  InfraLeads: string;
-};
-
 export type ConfigType = {
   AadValidClientId: string;
   LinkryPublicUrl: string;
   ServiceConfiguration: Record<ValidServices, ServiceConfiguration>;
-  KnownGroupMappings: KnownGroups;
 };
 
 export type ServiceConfiguration = {
@@ -71,13 +61,6 @@ const environmentConfig: EnvironmentConfigType = {
         apiId: "https://graph.microsoft.com",
       },
     },
-    KnownGroupMappings: {
-      Exec: execCouncilTestingGroupId,
-      CommChairs: commChairsTestingGroupId,
-      StripeLinkCreators: miscTestingGroupId,
-      InfraTeam: miscTestingGroupId,
-      InfraLeads: miscTestingGroupId,
-    },
   },
   dev: {
     AadValidClientId: "d1978c23-6455-426a-be4d-528b2d2e4026",
@@ -106,13 +89,6 @@ const environmentConfig: EnvironmentConfigType = {
         apiId: "https://graph.microsoft.com",
       },
     },
-    KnownGroupMappings: {
-      Exec: execCouncilTestingGroupId,
-      CommChairs: commChairsTestingGroupId,
-      StripeLinkCreators: miscTestingGroupId,
-      InfraTeam: miscTestingGroupId,
-      InfraLeads: miscTestingGroupId,
-    },
   },
   prod: {
     AadValidClientId: "43fee67e-e383-4071-9233-ef33110e9386",
@@ -140,13 +116,6 @@ const environmentConfig: EnvironmentConfigType = {
         loginScope: "https://graph.microsoft.com/.default",
         apiId: "https://graph.microsoft.com",
       },
-    },
-    KnownGroupMappings: {
-      Exec: execCouncilGroupId,
-      CommChairs: commChairsGroupId,
-      StripeLinkCreators: "675203eb-fbb9-4789-af2f-e87a3243f8e6",
-      InfraTeam: "940e4f9e-6891-4e28-9e29-148798495cdb",
-      InfraLeads: "f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6",
     },
   },
 } as const;
