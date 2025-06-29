@@ -114,10 +114,10 @@ smMock.on(GetSecretValueCommand).callsFake((command) => {
   if (command.SecretId == genericConfig.ConfigSecretName) {
     return Promise.resolve({ SecretString: secretJson });
   }
-  if (command.SecretId == environmentConfig["dev"].TestingCredentialsSecret) {
+  if (command.SecretId == genericConfig.TestingCredentialsSecret) {
     return Promise.resolve({ SecretString: testSecretJson });
   }
-  return Promise.reject(new Error("Secret ID not mocked"));
+  return Promise.reject(new Error(`Secret ID ${command.SecretID} not mocked`));
 });
 
 vi.mock("ioredis", () => import("ioredis-mock"));
