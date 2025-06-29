@@ -18,6 +18,8 @@ export type KnownGroups = {
   Exec: string;
   CommChairs: string;
   StripeLinkCreators: string;
+  InfraTeam: string;
+  InfraLeads: string;
 };
 
 export type ConfigType = {
@@ -73,6 +75,8 @@ const environmentConfig: EnvironmentConfigType = {
       Exec: execCouncilTestingGroupId,
       CommChairs: commChairsTestingGroupId,
       StripeLinkCreators: miscTestingGroupId,
+      InfraTeam: miscTestingGroupId,
+      InfraLeads: miscTestingGroupId,
     },
   },
   dev: {
@@ -106,6 +110,8 @@ const environmentConfig: EnvironmentConfigType = {
       Exec: execCouncilTestingGroupId,
       CommChairs: commChairsTestingGroupId,
       StripeLinkCreators: miscTestingGroupId,
+      InfraTeam: miscTestingGroupId,
+      InfraLeads: miscTestingGroupId,
     },
   },
   prod: {
@@ -139,6 +145,8 @@ const environmentConfig: EnvironmentConfigType = {
       Exec: execCouncilGroupId,
       CommChairs: commChairsGroupId,
       StripeLinkCreators: "675203eb-fbb9-4789-af2f-e87a3243f8e6",
+      InfraTeam: "940e4f9e-6891-4e28-9e29-148798495cdb",
+      InfraLeads: "f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6",
     },
   },
 } as const;
