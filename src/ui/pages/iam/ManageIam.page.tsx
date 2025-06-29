@@ -1,13 +1,5 @@
-import React, { useState } from "react";
-import {
-  Title,
-  SimpleGrid,
-  Container,
-  Select,
-  Group,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { useState } from "react";
+import { Title, SimpleGrid, Select, Stack, Text } from "@mantine/core";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
@@ -21,6 +13,8 @@ const userGroupMappings: KnownGroups = {
   Exec: "Executive Council",
   CommChairs: "Committee Chairs",
   StripeLinkCreators: "Stripe Link Creators",
+  InfraTeam: "Infrastructure Team",
+  InfraLeads: "Infrastructure Leads",
 };
 
 export const ManageIamPage = () => {
