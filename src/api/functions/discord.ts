@@ -13,9 +13,7 @@ import moment from "moment-timezone";
 
 import { FastifyBaseLogger } from "fastify";
 import { DiscordEventError } from "../../common/errors/index.js";
-import { getSecretValue } from "../plugins/auth.js";
-import { genericConfig, SecretConfig } from "../../common/config.js";
-import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { type SecretConfig } from "../../common/config.js";
 
 // https://stackoverflow.com/a/3809435/5684541
 // https://calendar-buff.acmuiuc.pages.dev/calendar?id=dd7af73a-3df6-4e12-b228-0d2dac34fda7&date=2024-08-30
@@ -26,7 +24,7 @@ export type IUpdateDiscord = EventPostRequest & { id: string };
 const urlRegex = /https:\/\/[a-z0-9.-]+\/calendar\?id=([a-f0-9-]+)/;
 
 export const updateDiscord = async (
-  secretApiConfig: SecretConfig,
+  config: { botToken: string; guildId: string },
   event: IUpdateDiscord,
   actor: string,
   isDelete: boolean = false,
@@ -36,7 +34,7 @@ export const updateDiscord = async (
   let payload: GuildScheduledEventCreateOptions | null = null;
   client.once(Events.ClientReady, async (readyClient: Client<true>) => {
     logger.debug(`Logged in as ${readyClient.user.tag}`);
-    const guildID = secretApiConfig.discord_guild_id;
+    const guildID = config.guildId;
     const guild = await client.guilds.fetch(guildID?.toString() || "");
     const discordEvents = await guild.scheduledEvents.fetch();
     const snowflakeMeetingLookup = discordEvents.reduce(
@@ -110,7 +108,7 @@ export const updateDiscord = async (
     return payload;
   });
 
-  const token = secretApiConfig.discord_bot_token;
+  const token = config.botToken;
 
   if (!token) {
     logger.error("No Discord bot token found in secrets!");
