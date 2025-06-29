@@ -134,7 +134,3 @@ jobs:
 
       - name: Run post-deploy testing (Live and E2E)
         run: make test_post_deploy -j 2
-        env:
-          PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME }}
-          PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD }}
-          JWT_KEY: ${{ secrets.JWT_KEY }}
