@@ -399,7 +399,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
               entry: {
                 module: Modules.IAM,
                 actor: request.username!,
-                target: request.body.add[i],
+                target: request.body.remove[i],
                 message: `remove target from group ID ${groupId}`,
                 requestId: request.id,
               },
@@ -412,7 +412,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
               entry: {
                 module: Modules.IAM,
                 actor: request.username!,
-                target: request.body.add[i],
+                target: request.body.remove[i],
                 message: `failed to remove target from group ID ${groupId}`,
                 requestId: request.id,
               },
@@ -420,12 +420,12 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           );
           if (result.reason instanceof EntraGroupError) {
             response.failure.push({
-              email: request.body.add[i],
+              email: request.body.remove[i],
               message: result.reason.message,
             });
           } else {
             response.failure.push({
-              email: request.body.add[i],
+              email: request.body.remove[i],
               message: "An unknown error occurred.",
             });
           }
@@ -597,7 +597,11 @@ No action is required from you at this time.
           entraIdToken,
           fastify.environmentConfig.EntraServicePrincipalId,
         )
-      ).filter((x) => !genericConfig.ProtectedEntraIDGroups.includes(x.id));
+      ).filter(
+        (x) =>
+          !genericConfig.ProtectedEntraIDGroups.includes(x.id) &&
+          x.id !== fastify.environmentConfig.PaidMemberGroupId,
+      );
       request.log.debug(
         "Got manageable groups from Entra ID, setting to cache.",
       );
