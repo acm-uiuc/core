@@ -1,33 +1,51 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Title, SimpleGrid, Select, Stack, Text } from "@mantine/core";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
 import UserInvitePanel from "./UserInvitePanel";
 import GroupMemberManagement from "./GroupMemberManagement";
-import { EntraActionResponse, GroupMemberGetResponse } from "@common/types/iam";
+import {
+  EntraActionResponse,
+  GroupMemberGetResponse,
+  GroupGetResponse,
+} from "@common/types/iam";
 import { transformCommaSeperatedName } from "@common/utils";
-import { getRunEnvironmentConfig, KnownGroups } from "@ui/config";
-
-const userGroupMappings: KnownGroups = {
-  Exec: "Executive Council",
-  CommChairs: "Committee Chairs",
-  StripeLinkCreators: "Stripe Link Creators",
-  InfraTeam: "Infrastructure Team",
-  InfraLeads: "Infrastructure Leads",
-};
+import { notifications } from "@mantine/notifications";
+import { IconAlertCircle } from "@tabler/icons-react";
 
 export const ManageIamPage = () => {
   const api = useApi("core");
-  const groupMappings = getRunEnvironmentConfig().KnownGroupMappings;
-  const groupOptions = Object.entries(groupMappings).map(([key, value]) => ({
-    label: userGroupMappings[key as keyof KnownGroups] || key,
-    value: `${key}_${value}`, // to ensure that the same group for multiple roles still renders
-  }));
+  const [groupOptions, setGroupOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
-  const [selectedGroup, setSelectedGroup] = useState(
-    groupOptions[0]?.value || "",
-  );
+  // Fetch groups from the API on component mount
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const response = await api.get<GroupGetResponse>("/api/v1/iam/groups");
+        const options = response.data
+          .map(({ id, displayName }) => ({
+            label: displayName,
+            value: id,
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label)); // Sort alphabetically
+        setGroupOptions(options);
+      } catch (error) {
+        console.error("Failed to fetch groups:", error);
+        notifications.show({
+          title: "Failed to get groups.",
+          message: "Please try again or contact support.",
+          color: "red",
+          icon: <IconAlertCircle size={16} />,
+        });
+      }
+    };
+
+    fetchGroups();
+  }, [api]); // Dependency array ensures this runs once
 
   const handleInviteSubmit = async (emailList: string[]) => {
     try {
@@ -47,19 +65,19 @@ export const ManageIamPage = () => {
     }
   };
 
-  const getGroupMembers = async (selectedGroup: string) => {
+  const getGroupMembers = async (groupId: string | null) => {
+    if (!groupId) {
+      return [];
+    } // Do not fetch if no group is selected
     try {
-      const response = await api.get(
-        `/api/v1/iam/groups/${selectedGroup.split("_")[1]}`,
-      );
+      const response = await api.get(`/api/v1/iam/groups/${groupId}`);
       const data = response.data as GroupMemberGetResponse;
-      const responseMapped = data
+      return data
         .map((x) => ({
           ...x,
           name: transformCommaSeperatedName(x.name),
         }))
         .sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0));
-      return responseMapped;
     } catch (error) {
       console.error("Failed to get users:", error);
       return [];
@@ -67,24 +85,29 @@ export const ManageIamPage = () => {
   };
 
   const updateGroupMembers = async (toAdd: string[], toRemove: string[]) => {
-    const allMembers = [...toAdd, ...toRemove];
+    if (!selectedGroup) {
+      const errorMessage = "No group selected for update.";
+      console.error(errorMessage);
+      return {
+        success: [],
+        failure: [...toAdd, ...toRemove].map((email) => ({
+          email,
+          message: errorMessage,
+        })),
+      };
+    }
+
     try {
-      const response = await api.patch(
-        `/api/v1/iam/groups/${selectedGroup.split("_")[1]}`,
-        {
-          remove: toRemove,
-          add: toAdd,
-        },
-      );
+      const response = await api.patch(`/api/v1/iam/groups/${selectedGroup}`, {
+        remove: toRemove,
+        add: toAdd,
+      });
       return response.data;
-    } catch (error) {
-      if (!(error instanceof Error)) {
-        throw error;
-      }
+    } catch (error: any) {
       console.error("Failed to modify group members:", error);
       return {
         success: [],
-        failure: allMembers.map((email) => ({
+        failure: [...toAdd, ...toRemove].map((email) => ({
           email,
           message: error.message || "Failed to modify group member",
         })),
@@ -115,15 +138,21 @@ export const ManageIamPage = () => {
               data={groupOptions}
               value={selectedGroup}
               clearable={false}
-              onChange={(value) => value && setSelectedGroup(value)}
-              placeholder="Choose a group to manage"
+              onChange={(value) => setSelectedGroup(value)}
+              placeholder={
+                groupOptions.length > 0
+                  ? "Choose a group to manage"
+                  : "Loading groups..."
+              }
+              disabled={groupOptions.length === 0}
             />
-            <GroupMemberManagement
-              fetchMembers={() => {
-                return getGroupMembers(selectedGroup);
-              }}
-              updateMembers={updateGroupMembers}
-            />
+            {selectedGroup && (
+              <GroupMemberManagement
+                key={selectedGroup} // Re-mounts component on group change to trigger fetch
+                fetchMembers={() => getGroupMembers(selectedGroup)}
+                updateMembers={updateGroupMembers}
+              />
+            )}
           </Stack>
         </AuthGuard>
       </SimpleGrid>

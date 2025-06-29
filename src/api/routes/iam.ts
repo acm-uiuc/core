@@ -4,6 +4,7 @@ import {
   addToTenant,
   getEntraIdToken,
   getGroupMetadata,
+  getServicePrincipalOwnedGroups,
   listGroupMembers,
   modifyGroup,
   patchUserProfile,
@@ -558,6 +559,34 @@ No action is required from you at this time.
       );
       const response = await listGroupMembers(entraIdToken, groupId);
       reply.status(200).send(response);
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "/groups",
+    {
+      schema: withRoles(
+        [AppRoles.IAM_ADMIN],
+        withTags(["IAM"], {
+          summary: "Get all manageable groups.", // This is all groups where the Core API service principal is an owner.
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (_request, reply) => {
+      const entraIdToken = await getEntraIdToken(
+        await getAuthorizedClients(),
+        fastify.environmentConfig.AadValidClientId,
+        undefined,
+        genericConfig.EntraSecretName,
+      );
+      return reply
+        .status(200)
+        .send(
+          await getServicePrincipalOwnedGroups(
+            entraIdToken,
+            fastify.environmentConfig.EntraServicePrincipalId,
+          ),
+        );
     },
   );
 };

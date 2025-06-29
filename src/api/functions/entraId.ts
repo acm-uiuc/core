@@ -58,7 +58,7 @@ export async function getEntraIdToken(
   ).toString("utf8");
   const cachedToken = await getItemFromCache(
     clients.dynamoClient,
-    `entra_id_access_token_${localSecretName}`,
+    `entra_id_access_token_${localSecretName}_${clientId}`,
   );
   if (cachedToken) {
     return cachedToken.token as string;
@@ -504,6 +504,52 @@ export async function isUserInGroup(
     throw new EntraGroupError({
       message,
       group,
+    });
+  }
+}
+
+/**
+ * Fetches the ID and display name of groups owned by a specific service principal.
+ * @param token - An Entra ID token authorized to read service principal information.
+ */
+export async function getServicePrincipalOwnedGroups(
+  token: string,
+  servicePrincipal: string,
+): Promise<{ id: string; displayName: string }[]> {
+  try {
+    // Selects only group objects and retrieves just their id and displayName
+    const url = `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipal}/ownedObjects/microsoft.graph.group?$select=id,displayName`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.ok) {
+      const data = (await response.json()) as {
+        value: { id: string; displayName: string }[];
+      };
+      return data.value;
+    }
+
+    const errorData = (await response.json()) as {
+      error?: { message?: string };
+    };
+    throw new EntraFetchError({
+      message: errorData?.error?.message ?? response.statusText,
+      email: `sp:${servicePrincipal}`,
+    });
+  } catch (error) {
+    if (error instanceof BaseError) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    throw new EntraFetchError({
+      message,
+      email: `sp:${servicePrincipal}`,
     });
   }
 }

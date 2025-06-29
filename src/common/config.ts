@@ -13,6 +13,7 @@ export type ConfigType = {
   AzureRoleMapping: AzureRoleMapping;
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
+  EntraServicePrincipalId: string;
   LinkryBaseUrl: string
   PasskitIdentifier: string;
   PasskitSerialNumber: string;
@@ -64,7 +65,6 @@ export const execCouncilGroupId = "ad81254b-4eeb-4c96-8191-3acdce9194b1";
 export const execCouncilTestingGroupId = "dbe18eb2-9675-46c4-b1ef-749a6db4fedd";
 export const commChairsTestingGroupId = "d714adb7-07bb-4d4d-a40a-b035bc2a35a3";
 export const commChairsGroupId = "105e7d32-7289-435e-a67a-552c7f215507";
-export const miscTestingGroupId = "ff25ec56-6a33-420d-bdb0-51d8a3920e46";
 
 const genericConfig: GenericConfigType = {
   EventsDynamoTableName: "infra-core-api-events",
@@ -116,7 +116,8 @@ const environmentConfig: EnvironmentConfigType = {
     PaidMemberPriceId: "price_1R4TcTDGHrJxx3mKI6XF9cNG",
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
     LinkryCloudfrontKvArn: "arn:aws:cloudfront::427040638965:key-value-store/0c2c02fd-7c47-4029-975d-bc5d0376bba1",
-    DiscordGuildId: "1278798685706391664"
+    DiscordGuildId: "1278798685706391664",
+    EntraServicePrincipalId: "8c26ff11-fb86-42f2-858b-9011c9f0708d"
   },
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
@@ -140,7 +141,8 @@ const environmentConfig: EnvironmentConfigType = {
     PaidMemberGroupId: "172fd9ee-69f0-4384-9786-41ff1a43cf8e",
     PaidMemberPriceId: "price_1MUGIRDiGOXU9RuSChPYK6wZ",
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
-    DiscordGuildId: "718945436332720229"
+    DiscordGuildId: "718945436332720229",
+    EntraServicePrincipalId: "88c76504-9856-4325-bb0a-99f977e3607f"
   },
 };
 
