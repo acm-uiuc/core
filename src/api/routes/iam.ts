@@ -591,10 +591,13 @@ No action is required from you at this time.
         request.log.debug("Got manageable groups from Redis cache.");
         return reply.status(200).send(redisResponse);
       }
-      const freshData = await getServicePrincipalOwnedGroups(
-        entraIdToken,
-        fastify.environmentConfig.EntraServicePrincipalId,
-      );
+      // get groups, but don't show protected groups as manageable
+      const freshData = (
+        await getServicePrincipalOwnedGroups(
+          entraIdToken,
+          fastify.environmentConfig.EntraServicePrincipalId,
+        )
+      ).filter((x) => !genericConfig.ProtectedEntraIDGroups.includes(x.id));
       request.log.debug(
         "Got manageable groups from Entra ID, setting to cache.",
       );
