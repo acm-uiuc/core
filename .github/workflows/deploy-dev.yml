@@ -76,6 +76,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      deployments: read
     concurrency:
       group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
@@ -123,7 +124,36 @@ jobs:
           role-session-name: Core_Dev_Deployment_${{ github.run_id }}
           aws-region: us-east-1
 
+      - name: Get latest deployment SHA
+        id: get_last_deploy
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployments = await github.rest.repos.listDeployments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              environment: 'AWS DEV',
+              per_page: 1
+            });
+            if (deployments.data.length > 0) {
+              return deployments.data[0].sha;
+            }
+            return null;
+
+      - name: Determine deployment status
+        id: check_commits
+        run: |
+          echo "Last deployed SHA: ${{ steps.get_last_deploy.outputs.result }}"
+          echo "Current SHA: ${{ github.sha }}"
+          if [ "${{ steps.get_last_deploy.outputs.result }}" == "${{ github.sha }}" ]; then
+            echo "This commit is already deployed to AWS DEV. Skipping deployment."
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+          else
+            echo "New commit detected. Proceeding with deployment."
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          fi
       - name: Publish to AWS
+        if: steps.check_commits.outputs.should_deploy == 'true'
         run: make deploy_dev
         env:
           HUSKY: "0"
