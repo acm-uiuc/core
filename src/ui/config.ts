@@ -3,6 +3,7 @@ import {
   commChairsTestingGroupId,
   execCouncilGroupId,
   execCouncilTestingGroupId,
+  infraTeamGroupId,
   miscTestingGroupId,
 } from "@common/config";
 
