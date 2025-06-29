@@ -19,15 +19,17 @@ import {
   NotFoundError,
 } from "../../common/errors/index.js";
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
-import { genericConfig, roleArns } from "../../common/config.js";
+import {
+  GENERIC_CACHE_SECONDS,
+  genericConfig,
+  roleArns,
+} from "../../common/config.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import {
   invitePostRequestSchema,
   groupMappingCreatePostSchema,
-  entraActionResponseSchema,
   groupModificationPatchSchema,
   EntraGroupActions,
-  entraGroupMembershipListResponse,
   entraProfilePatchRequest,
 } from "../../common/types/iam.js";
 import {
@@ -45,6 +47,7 @@ import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageBatchCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { v4 as uuidv4 } from "uuid";
 import { randomUUID } from "crypto";
+import { getRedisKey, setRedisKey } from "api/functions/redisCache.js";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -572,21 +575,36 @@ No action is required from you at this time.
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (_request, reply) => {
+    async (request, reply) => {
       const entraIdToken = await getEntraIdToken(
         await getAuthorizedClients(),
         fastify.environmentConfig.AadValidClientId,
         undefined,
         genericConfig.EntraSecretName,
       );
-      return reply
-        .status(200)
-        .send(
-          await getServicePrincipalOwnedGroups(
-            entraIdToken,
-            fastify.environmentConfig.EntraServicePrincipalId,
-          ),
-        );
+      const { redisClient } = fastify;
+      const key = `entra_manageable_groups_${fastify.environmentConfig.EntraServicePrincipalId}`;
+      const redisResponse = await getRedisKey<
+        { displayName: string; id: string }[]
+      >({ redisClient, key, parseJson: true });
+      if (redisResponse) {
+        request.log.debug("Got manageable groups from Redis cache.");
+        return reply.status(200).send(redisResponse);
+      }
+      const freshData = await getServicePrincipalOwnedGroups(
+        entraIdToken,
+        fastify.environmentConfig.EntraServicePrincipalId,
+      );
+      request.log.debug(
+        "Got manageable groups from Entra ID, setting to cache.",
+      );
+      await setRedisKey({
+        redisClient,
+        key,
+        value: JSON.stringify(freshData),
+        expiresSec: GENERIC_CACHE_SECONDS,
+      });
+      return reply.status(200).send(freshData);
     },
   );
 };

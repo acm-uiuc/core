@@ -8,6 +8,8 @@ type ValueOrArray<T> = T | ArrayOfValueOrArray<T>;
 
 type AzureRoleMapping = Record<string, readonly AppRoles[]>;
 
+export const GENERIC_CACHE_SECONDS = 120;
+
 export type ConfigType = {
   UserFacingUrl: string;
   AzureRoleMapping: AzureRoleMapping;
