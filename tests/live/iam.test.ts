@@ -7,6 +7,7 @@ import {
 } from "../../src/common/types/iam.js";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 import { getBaseEndpoint } from "./utils.js";
+import { genericConfig } from "../../src/common/config.js";
 
 const baseEndpoint = getBaseEndpoint();
 test("getting groups", async () => {
@@ -26,9 +27,7 @@ test("getting groups", async () => {
     expect(item).toHaveProperty("id");
     expect(item["displayName"].length).greaterThan(0);
     expect(item["id"].length).greaterThan(0);
-    expect(item["id"].length).toMatch(
-      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/,
-    );
+    expect(genericConfig.ProtectedEntraIDGroups).not.toContain(item["id"]);
   }
 });
 
