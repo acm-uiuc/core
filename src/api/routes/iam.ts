@@ -597,7 +597,11 @@ No action is required from you at this time.
           entraIdToken,
           fastify.environmentConfig.EntraServicePrincipalId,
         )
-      ).filter((x) => !genericConfig.ProtectedEntraIDGroups.includes(x.id));
+      ).filter(
+        (x) =>
+          !genericConfig.ProtectedEntraIDGroups.includes(x.id) &&
+          x.id !== fastify.environmentConfig.PaidMemberGroupId,
+      );
       request.log.debug(
         "Got manageable groups from Entra ID, setting to cache.",
       );
