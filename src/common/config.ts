@@ -8,7 +8,7 @@ type ValueOrArray<T> = T | ArrayOfValueOrArray<T>;
 
 type AzureRoleMapping = Record<string, readonly AppRoles[]>;
 
-export const GENERIC_CACHE_SECONDS = 120;
+export const GENERIC_CACHE_SECONDS = 300;
 
 export type ConfigType = {
   UserFacingUrl: string;
@@ -159,6 +159,7 @@ export type SecretConfig = {
   stripe_endpoint_secret: string;
   stripe_links_endpoint_secret: string;
   redis_url: string;
+  encryption_key: string;
 };
 
 export type SecretTesting = {
