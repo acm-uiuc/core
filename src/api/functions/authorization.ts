@@ -78,14 +78,16 @@ export async function clearAuthCache({
   username,
   logger,
 }: ClearAuthCacheInput) {
-  logger.info(`Clearing auth cache for: ${JSON.stringify(username)}.`);
+  logger.debug(`Clearing auth cache for: ${JSON.stringify(username)}.`);
   const keys = (
     await Promise.all(
-      username.map((x) => redisClient.keys(`${AUTH_CACHE_PREFIX}${x}`)),
+      username.map((x) => redisClient.keys(`${AUTH_CACHE_PREFIX}${x}*`)),
     )
   ).flat();
-  console.log("FUCK");
+  if (keys.length === 0) {
+    return 0;
+  }
   const result = await redisClient.del(keys);
-  logger.info(`Cleared ${result} keys.`);
+  logger.debug(`Cleared ${result} auth cache keys.`);
   return result;
 }
