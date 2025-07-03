@@ -232,6 +232,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           const cachedJwksSigningKey = await getKey<{ key: string }>({
             redisClient,
             key: `jwksKey:${header.kid}`,
+            logger: request.log,
           });
           if (cachedJwksSigningKey) {
             signingKey = cachedJwksSigningKey.key;
@@ -271,6 +272,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         const cachedRoles = await getKey<string[]>({
           key: `authCache:${request.username}:roles`,
           redisClient,
+          logger: request.log,
         });
         if (cachedRoles) {
           request.userRoles = new Set(cachedRoles as AppRoles[]);

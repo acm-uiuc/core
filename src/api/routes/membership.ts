@@ -51,6 +51,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           region: genericConfig.AwsRegion,
           credentials,
         }),
+        redisClient: fastify.redisClient,
       };
       fastify.log.info(
         `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
@@ -63,6 +64,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
     return {
       smClient: fastify.secretsManagerClient,
       dynamoClient: fastify.dynamoClient,
+      redisClient: fastify.redisClient,
     };
   };
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
@@ -106,10 +108,13 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             message: `${netId} is already a paid member!`,
           });
         }
-        const entraIdToken = await getEntraIdToken(
-          await getAuthorizedClients(),
-          fastify.environmentConfig.AadValidClientId,
-        );
+        const entraIdToken = await getEntraIdToken({
+          clients: await getAuthorizedClients(),
+          clientId: fastify.environmentConfig.AadValidClientId,
+          secretName: genericConfig.EntraSecretName,
+          encryptionSecret: fastify.secretConfig.encryption_key,
+          logger: request.log,
+        });
         const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
         const isAadMember = await checkPaidMembershipFromEntra(
           netId,
@@ -224,10 +229,13 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             .header("X-ACM-Data-Source", "dynamo")
             .send({ netId, isPaidMember: true });
         }
-        const entraIdToken = await getEntraIdToken(
-          await getAuthorizedClients(),
-          fastify.environmentConfig.AadValidClientId,
-        );
+        const entraIdToken = await getEntraIdToken({
+          clients: await getAuthorizedClients(),
+          clientId: fastify.environmentConfig.AadValidClientId,
+          secretName: genericConfig.EntraSecretName,
+          encryptionSecret: fastify.secretConfig.encryption_key,
+          logger: request.log,
+        });
         const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
         const isAadMember = await checkPaidMembershipFromEntra(
           netId,

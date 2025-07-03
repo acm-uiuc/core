@@ -7,6 +7,9 @@ const KEY_LEN = 32;
 const ALGORITHM = "aes-256-gcm";
 const HASH_FUNCTION = "sha512";
 
+export const INVALID_DECRYPTION_MESSAGE =
+  "Could not decrypt data (check that the encryption secret is correct).";
+
 export function encrypt({
   plaintext,
   encryptionSecret,
@@ -62,8 +65,7 @@ export function decrypt({
     ]);
   } catch (e) {
     throw new DecryptionError({
-      message:
-        "Could not decrypt data (check that the encryption secret is correct).",
+      message: INVALID_DECRYPTION_MESSAGE,
     });
   }
 

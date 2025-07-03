@@ -1,12 +1,15 @@
 import { DecryptionError } from "common/errors/index.js";
 import type RedisModule from "ioredis";
 import { z } from "zod";
-import { decrypt, encrypt } from "./encryption.js";
+import { decrypt, encrypt, INVALID_DECRYPTION_MESSAGE } from "./encryption.js";
+import type pino from "pino";
+import { type FastifyBaseLogger } from "fastify";
 
 export type GetFromCacheInput = {
   redisClient: RedisModule.default;
   key: string;
   encryptionSecret?: string;
+  logger: pino.Logger | FastifyBaseLogger;
 };
 
 export type SetInCacheInput = {
@@ -26,6 +29,7 @@ export async function getKey<T extends object>({
   redisClient,
   key,
   encryptionSecret,
+  logger,
 }: GetFromCacheInput): Promise<T | null> {
   const data = await redisClient.get(key);
   if (!data) {
@@ -40,8 +44,25 @@ export async function getKey<T extends object>({
       message: "Encrypted data found but no decryption key provided.",
     });
   }
-  const decryptedData = decrypt({ cipherText: decoded.data, encryptionSecret });
-  return JSON.parse(decryptedData) as T;
+  try {
+    const decryptedData = decrypt({
+      cipherText: decoded.data,
+      encryptionSecret,
+    });
+    return JSON.parse(decryptedData) as T;
+  } catch (e) {
+    if (
+      e instanceof DecryptionError &&
+      e.message === INVALID_DECRYPTION_MESSAGE
+    ) {
+      logger.info(
+        `Invalid decryption, deleting old Redis key and continuing...`,
+      );
+      await redisClient.del(key);
+      return null;
+    }
+    throw e;
+  }
 }
 
 export async function setKey({
