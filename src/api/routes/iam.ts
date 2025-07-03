@@ -32,7 +32,7 @@ import {
   EntraGroupActions,
   entraProfilePatchRequest,
 } from "../../common/types/iam.js";
-import { getGroupRoles } from "../functions/authorization.js";
+import { clearAuthCache, getGroupRoles } from "../functions/authorization.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
@@ -162,6 +162,14 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const groupId = (request.params as Record<string, string>).groupId;
       try {
         const timestamp = new Date().toISOString();
+        const entraIdToken = await getEntraIdToken({
+          clients: await getAuthorizedClients(),
+          clientId: fastify.environmentConfig.AadValidClientId,
+          secretName: genericConfig.EntraSecretName,
+          encryptionSecret: fastify.secretConfig.encryption_key,
+          logger: request.log,
+        });
+        const groupMembers = listGroupMembers(entraIdToken, groupId);
         const command = new PutItemCommand({
           TableName: `${genericConfig.IAMTablePrefix}-grouproles`,
           Item: marshall({
@@ -187,6 +195,13 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           request.body.roles,
           GENERIC_CACHE_SECONDS,
         );
+        const groupMemberEmails = (await groupMembers).map((x) => x.email);
+        await clearAuthCache({
+          redisClient: fastify.redisClient,
+          username: groupMemberEmails,
+          logger: request.log,
+        });
+        reply.send({ message: "OK" });
       } catch (e: unknown) {
         fastify.nodeCache.del(`grouproles-${groupId}`);
         if (e instanceof BaseError) {
@@ -198,7 +213,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not create group role mapping.",
         });
       }
-      reply.send({ message: "OK" });
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
@@ -525,6 +539,14 @@ No action is required from you at this time.
           );
         }
       }
+      const allEmailsModified = response.success.map((x) => x.email);
+      const { redisClient } = fastify;
+      const { log: logger } = request;
+      await clearAuthCache({
+        redisClient,
+        username: allEmailsModified,
+        logger,
+      });
       await Promise.allSettled(logPromises);
       reply.status(202).send(response);
     },

@@ -19,6 +19,7 @@ import { useState } from "react";
 import { AuthContextData, useAuth } from "../AuthContext/index.js";
 import classes from "../Navbar/index.module.css";
 import { useNavigate } from "react-router-dom";
+import { useApi } from "@ui/util/api.js";
 
 interface ProfileDropdownProps {
   userData?: AuthContextData;
@@ -31,6 +32,7 @@ const AuthenticatedProfileDropdown: React.FC<ProfileDropdownProps> = ({
   const theme = useMantineTheme();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const api = useApi("core");
   if (!userData) {
     return null;
   }
@@ -129,6 +131,7 @@ const AuthenticatedProfileDropdown: React.FC<ProfileDropdownProps> = ({
             variant="outline"
             fullWidth
             onClick={async () => {
+              await api.post("/api/v1/clearSession");
               await logout();
             }}
           >

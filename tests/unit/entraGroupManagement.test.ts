@@ -43,7 +43,6 @@ import {
 import { EntraGroupActions } from "../../src/common/types/iam.js";
 import { randomUUID } from "crypto";
 import { mockClient } from "aws-sdk-client-mock";
-import { V } from "vitest/dist/chunks/reporters.d.79o4mouw.js";
 const app = await init();
 
 describe("Test Modify Group and List Group Routes", () => {
@@ -128,7 +127,6 @@ describe("Test Modify Group and List Group Routes", () => {
     const response = await supertest(app.server)
       .get("/api/v1/iam/groups/test-group-id")
       .set("authorization", `Bearer ${testJwt}`);
-
     expect(response.statusCode).toBe(200);
     expect(listGroupMembers).toHaveBeenCalledWith(
       "ey.test.token",

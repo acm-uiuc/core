@@ -17,7 +17,7 @@ const handler = async (event: APIGatewayEvent, context: Context) => {
     return "warmed";
   }
   // else proceed with handler logic
-  return realHandler(event, context).catch((e) => {
+  return await realHandler(event, context).catch((e) => {
     console.error(e);
     const newError = new InternalServerError({
       message: "Failed to initialize application.",

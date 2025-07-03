@@ -1,5 +1,4 @@
 import { expect, test, vi } from "vitest";
-import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import {
   secretObject,
