@@ -108,7 +108,8 @@ export async function getEntraIdToken({
         redisClient: clients.redisClient,
         key: cacheKey,
         data: JSON.stringify({ token: result.accessToken }),
-        expiresIn: result.expiresOn.getTime() - new Date().getTime() - 3600,
+        expiresIn:
+          (result.expiresOn.getTime() - new Date().getTime()) / 1000 - 120, // get new token 2 min before expiry
         encryptionSecret,
       });
     }
