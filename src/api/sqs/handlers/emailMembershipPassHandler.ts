@@ -4,19 +4,12 @@ import {
   runEnvironment,
   SQSHandlerFunction,
 } from "../index.js";
-import {
-  environmentConfig,
-  genericConfig,
-  SecretConfig,
-} from "common/config.js";
-import { getAuthorizedClients, getSecretConfig } from "../utils.js";
+import { environmentConfig, genericConfig } from "common/config.js";
+import { getAuthorizedClients } from "../utils.js";
 import { getEntraIdToken, getUserProfile } from "api/functions/entraId.js";
 import { issueAppleWalletMembershipCard } from "api/functions/mobileWallet.js";
 import { generateMembershipEmailCommand } from "api/functions/ses.js";
 import { SESClient } from "@aws-sdk/client-ses";
-import RedisModule from "ioredis";
-
-let secretConfig: SecretConfig;
 
 export const emailMembershipPassHandler: SQSHandlerFunction<
   AvailableSQSFunctions.EmailMembershipPass
@@ -24,15 +17,10 @@ export const emailMembershipPassHandler: SQSHandlerFunction<
   const email = payload.email;
   const commonConfig = { region: genericConfig.AwsRegion };
   const clients = await getAuthorizedClients(logger, commonConfig);
-  if (!secretConfig) {
-    secretConfig = await getSecretConfig({ logger, commonConfig });
-  }
-  const redisClient = new RedisModule.default(secretConfig.redis_url);
   const entraIdToken = await getEntraIdToken({
-    clients: { ...clients, redisClient },
+    clients: { ...clients },
     clientId: currentEnvironmentConfig.AadValidClientId,
     secretName: genericConfig.EntraSecretName,
-    encryptionSecret: secretConfig.encryption_key,
     logger,
   });
   const userProfile = await getUserProfile(entraIdToken, email);
