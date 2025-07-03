@@ -23,7 +23,7 @@ const countOccurrencesOfChar = (s: string, char: string): number => {
   return count;
 }
 
-describe("Audit Log tests", () => {
+describe("API key tests", () => {
   test("API key is successfully created and validated", async () => {
     const { apiKey, hashedKey, keyId } = await createApiKey();
     expect(apiKey.slice(0, 8)).toEqual("acmuiuc_");

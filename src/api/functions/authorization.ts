@@ -3,9 +3,6 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import { DatabaseFetchError } from "../../common/errors/index.js";
 import { allAppRoles, AppRoles } from "../../common/roles.js";
-import { FastifyInstance } from "fastify";
-
-export const AUTH_DECISION_CACHE_SECONDS = 180;
 
 export async function getUserRoles(
   dynamoClient: DynamoDBClient,

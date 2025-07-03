@@ -42,7 +42,6 @@ const handlers: SQSFunctionPayloadTypes = {
 };
 export const runEnvironment = process.env.RunEnvironment as RunEnvironment;
 export const currentEnvironmentConfig = environmentConfig[runEnvironment];
-
 const restrictedQueues: Record<string, AvailableSQSFunctions[]> = {
   "infra-core-api-sqs-sales": [AvailableSQSFunctions.SendSaleEmail],
 };

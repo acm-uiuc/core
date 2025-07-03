@@ -32,10 +32,7 @@ import {
   EntraGroupActions,
   entraProfilePatchRequest,
 } from "../../common/types/iam.js";
-import {
-  AUTH_DECISION_CACHE_SECONDS,
-  getGroupRoles,
-} from "../functions/authorization.js";
+import { getGroupRoles } from "../functions/authorization.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
@@ -43,11 +40,10 @@ import { Modules } from "common/modules.js";
 import { groupId, withRoles, withTags } from "api/components/index.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { z } from "zod";
-import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import { AvailableSQSFunctions } from "common/types/sqsMessage.js";
 import { SendMessageBatchCommand, SQSClient } from "@aws-sdk/client-sqs";
-import { v4 as uuidv4 } from "uuid";
 import { randomUUID } from "crypto";
-import { getRedisKey, setRedisKey } from "api/functions/redisCache.js";
+import { getKey, setKey } from "api/functions/redisCache.js";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -65,6 +61,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           region: genericConfig.AwsRegion,
           credentials,
         }),
+        redisClient: fastify.redisClient,
       };
       fastify.log.info(
         `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
@@ -77,6 +74,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     return {
       smClient: fastify.secretsManagerClient,
       dynamoClient: fastify.dynamoClient,
+      redisClient: fastify.redisClient,
     };
   };
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
@@ -98,12 +96,13 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const userOid = request.tokenPayload.oid;
-      const entraIdToken = await getEntraIdToken(
-        await getAuthorizedClients(),
-        fastify.environmentConfig.AadValidClientId,
-        undefined,
-        genericConfig.EntraSecretName,
-      );
+      const entraIdToken = await getEntraIdToken({
+        clients: await getAuthorizedClients(),
+        clientId: fastify.environmentConfig.AadValidClientId,
+        secretName: genericConfig.EntraSecretName,
+        encryptionSecret: fastify.secretConfig.encryption_key,
+        logger: request.log,
+      });
       await patchUserProfile(
         entraIdToken,
         request.username,
@@ -186,7 +185,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         fastify.nodeCache.set(
           `grouproles-${groupId}`,
           request.body.roles,
-          AUTH_DECISION_CACHE_SECONDS,
+          GENERIC_CACHE_SECONDS,
         );
       } catch (e: unknown) {
         fastify.nodeCache.del(`grouproles-${groupId}`);
@@ -217,10 +216,13 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const emails = request.body.emails;
-      const entraIdToken = await getEntraIdToken(
-        await getAuthorizedClients(),
-        fastify.environmentConfig.AadValidClientId,
-      );
+      const entraIdToken = await getEntraIdToken({
+        clients: await getAuthorizedClients(),
+        clientId: fastify.environmentConfig.AadValidClientId,
+        secretName: genericConfig.EntraSecretName,
+        encryptionSecret: fastify.secretConfig.encryption_key,
+        logger: request.log,
+      });
       if (!entraIdToken) {
         throw new InternalServerError({
           message: "Could not get Entra ID token to perform task.",
@@ -310,10 +312,13 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           group: groupId,
         });
       }
-      const entraIdToken = await getEntraIdToken(
-        await getAuthorizedClients(),
-        fastify.environmentConfig.AadValidClientId,
-      );
+      const entraIdToken = await getEntraIdToken({
+        clients: await getAuthorizedClients(),
+        clientId: fastify.environmentConfig.AadValidClientId,
+        secretName: genericConfig.EntraSecretName,
+        encryptionSecret: fastify.secretConfig.encryption_key,
+        logger: request.log,
+      });
       const groupMetadataPromise = getGroupMetadata(entraIdToken, groupId);
       const addResults = await Promise.allSettled(
         request.body.add.map((email) =>
@@ -554,12 +559,13 @@ No action is required from you at this time.
           group: groupId,
         });
       }
-      const entraIdToken = await getEntraIdToken(
-        await getAuthorizedClients(),
-        fastify.environmentConfig.AadValidReadOnlyClientId,
-        undefined,
-        genericConfig.EntraReadOnlySecretName,
-      );
+      const entraIdToken = await getEntraIdToken({
+        clients: await getAuthorizedClients(),
+        clientId: fastify.environmentConfig.AadValidClientId,
+        secretName: genericConfig.EntraSecretName,
+        encryptionSecret: fastify.secretConfig.encryption_key,
+        logger: request.log,
+      });
       const response = await listGroupMembers(entraIdToken, groupId);
       reply.status(200).send(response);
     },
@@ -576,17 +582,18 @@ No action is required from you at this time.
       onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
-      const entraIdToken = await getEntraIdToken(
-        await getAuthorizedClients(),
-        fastify.environmentConfig.AadValidClientId,
-        undefined,
-        genericConfig.EntraSecretName,
-      );
+      const entraIdToken = await getEntraIdToken({
+        clients: await getAuthorizedClients(),
+        clientId: fastify.environmentConfig.AadValidClientId,
+        secretName: genericConfig.EntraSecretName,
+        encryptionSecret: fastify.secretConfig.encryption_key,
+        logger: request.log,
+      });
       const { redisClient } = fastify;
       const key = `entra_manageable_groups_${fastify.environmentConfig.EntraServicePrincipalId}`;
-      const redisResponse = await getRedisKey<
-        { displayName: string; id: string }[]
-      >({ redisClient, key, parseJson: true });
+      const redisResponse = await getKey<{ displayName: string; id: string }[]>(
+        { redisClient, key, logger: request.log },
+      );
       if (redisResponse) {
         request.log.debug("Got manageable groups from Redis cache.");
         return reply.status(200).send(redisResponse);
@@ -605,11 +612,11 @@ No action is required from you at this time.
       request.log.debug(
         "Got manageable groups from Entra ID, setting to cache.",
       );
-      await setRedisKey({
+      await setKey({
         redisClient,
         key,
-        value: JSON.stringify(freshData),
-        expiresSec: GENERIC_CACHE_SECONDS,
+        data: JSON.stringify(freshData),
+        expiresIn: GENERIC_CACHE_SECONDS,
       });
       return reply.status(200).send(freshData);
     },

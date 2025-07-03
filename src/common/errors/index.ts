@@ -214,25 +214,25 @@ export class EntraGroupError extends BaseError<"EntraGroupError"> {
 }
 
 export class EntraGroupsFromEmailError extends BaseError<"EntraGroupsFromEmailError"> {
-    email: string;
-    constructor({
-      code,
-      message,
-      email
-    }: {
-        code?: number;
-        message?: string;
-        email: string
-    }) {
-      super({
-        name: "EntraGroupsFromEmailError",
-        id: 309, //TODO: What should this be?
-        message: message || `Could not fetch the groups for user ${email}.`,
-        httpStatusCode: code || 500
-      });
-      this.email = email;
-    }
-  };
+  email: string;
+  constructor({
+    code,
+    message,
+    email
+  }: {
+    code?: number;
+    message?: string;
+    email: string
+  }) {
+    super({
+      name: "EntraGroupsFromEmailError",
+      id: 309, //TODO: What should this be?
+      message: message || `Could not fetch the groups for user ${email}.`,
+      httpStatusCode: code || 500
+    });
+    this.email = email;
+  }
+};
 
 export class EntraFetchError extends BaseError<"EntraFetchError"> {
   email: string;
@@ -257,5 +257,48 @@ export class EntraPatchError extends BaseError<"EntraPatchError"> {
       httpStatusCode: 500,
     });
     this.email = email;
+  }
+}
+
+export abstract class InternalError<T extends string> extends Error {
+  public name: T;
+
+  public id: number;
+
+  public message: string;
+
+
+  constructor({ name, id, message }: Omit<BaseErrorParams<T>, "httpStatusCode">) {
+    super(message || name || "Error");
+    this.name = name;
+    this.id = id;
+    this.message = message;
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
+  }
+
+  toString() {
+    return `Error ${this.id} (${this.name}): ${this.message}\n\n${this.stack}`;
+  }
+}
+
+export class EncryptionError extends InternalError<"EncryptionError"> {
+  constructor({ message }: { message?: string; }) {
+    super({
+      name: "EncryptionError",
+      id: 601,
+      message: message || "Could not encrypt data.",
+    });
+  }
+}
+
+export class DecryptionError extends InternalError<"DecryptionError"> {
+  constructor({ message }: { message?: string; }) {
+    super({
+      name: "DecryptionError",
+      id: 602,
+      message: message || "Could not decrypt data.",
+    });
   }
 }
