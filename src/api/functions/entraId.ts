@@ -9,6 +9,7 @@ import {
 } from "../../common/config.js";
 import {
   BaseError,
+  DecryptionError,
   EntraFetchError,
   EntraGroupError,
   EntraGroupsFromEmailError,
@@ -29,18 +30,32 @@ import { UserProfileData } from "common/types/msGraphApi.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { checkPaidMembershipFromTable } from "./membership.js";
+import { getKey, setKey } from "./redisCache.js";
+import RedisClient from "ioredis";
+import type pino from "pino";
+import { type FastifyBaseLogger } from "fastify";
 
 function validateGroupId(groupId: string): boolean {
   const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
   return groupIdPattern.test(groupId);
 }
 
-export async function getEntraIdToken(
-  clients: { smClient: SecretsManagerClient; dynamoClient: DynamoDBClient },
-  clientId: string,
-  scopes: string[] = ["https://graph.microsoft.com/.default"],
-  secretName?: string,
-) {
+type GetEntraIdTokenInput = {
+  clients: { smClient: SecretsManagerClient; redisClient: RedisClient.default };
+  encryptionSecret: string;
+  clientId: string;
+  scopes?: string[];
+  secretName?: string;
+  logger: pino.Logger | FastifyBaseLogger;
+};
+export async function getEntraIdToken({
+  clients,
+  encryptionSecret,
+  clientId,
+  scopes = ["https://graph.microsoft.com/.default"],
+  secretName,
+  logger,
+}: GetEntraIdTokenInput) {
   const localSecretName = secretName || genericConfig.EntraSecretName;
   const secretApiConfig =
     (await getSecretValue(clients.smClient, localSecretName)) || {};
@@ -56,12 +71,15 @@ export async function getEntraIdToken(
     secretApiConfig.entra_id_private_key as string,
     "base64",
   ).toString("utf8");
-  const cachedToken = await getItemFromCache(
-    clients.dynamoClient,
-    `entra_id_access_token_${localSecretName}_${clientId}`,
-  );
-  if (cachedToken) {
-    return cachedToken.token as string;
+  const cacheKey = `entra_id_access_token_${localSecretName}_${clientId}`;
+  const cachedTokenObject = await getKey<{ token: string }>({
+    redisClient: clients.redisClient,
+    key: cacheKey,
+    encryptionSecret,
+    logger,
+  });
+  if (cachedTokenObject) {
+    return cachedTokenObject.token;
   }
   const config = {
     auth: {
@@ -85,13 +103,14 @@ export async function getEntraIdToken(
       });
     }
     date.setTime(date.getTime() - 30000);
-    if (result?.accessToken) {
-      await insertItemIntoCache(
-        clients.dynamoClient,
-        `entra_id_access_token_${localSecretName}`,
-        { token: result?.accessToken },
-        date,
-      );
+    if (result?.accessToken && result?.expiresOn) {
+      await setKey({
+        redisClient: clients.redisClient,
+        key: cacheKey,
+        data: JSON.stringify({ token: result.accessToken }),
+        expiresIn: result.expiresOn.getTime() - new Date().getTime() - 3600,
+        encryptionSecret,
+      });
     }
     return result?.accessToken ?? null;
   } catch (error) {

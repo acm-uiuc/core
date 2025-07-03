@@ -13,13 +13,14 @@ import {
   UnauthenticatedError,
   UnauthorizedError,
 } from "../../common/errors/index.js";
-import { SecretConfig, SecretTesting } from "../../common/config.js";
 import {
-  AUTH_DECISION_CACHE_SECONDS,
-  getGroupRoles,
-  getUserRoles,
-} from "../functions/authorization.js";
+  SecretConfig,
+  SecretTesting,
+  GENERIC_CACHE_SECONDS,
+} from "../../common/config.js";
+import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
 import { getApiKeyData, getApiKeyParts } from "api/functions/apiKey.js";
+import { getKey, setKey } from "api/functions/redisCache.js";
 
 export function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();
@@ -155,6 +156,8 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
       validRoles: AppRoles[],
       disableApiKeyAuth: boolean,
     ): Promise<Set<AppRoles>> => {
+      const { redisClient } = fastify;
+      const encryptionSecret = fastify.secretConfig.encryption_key;
       const startTime = new Date().getTime();
       try {
         if (!disableApiKeyAuth) {
@@ -225,11 +228,14 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
             header: decoded?.header,
             audience: `api://${AadClientId}`,
           };
-          const cachedJwksSigningKey = await fastify.redisClient.get(
-            `jwksKey:${header.kid}`,
-          );
+          const { redisClient } = fastify;
+          const cachedJwksSigningKey = await getKey<{ key: string }>({
+            redisClient,
+            key: `jwksKey:${header.kid}`,
+            logger: request.log,
+          });
           if (cachedJwksSigningKey) {
-            signingKey = cachedJwksSigningKey;
+            signingKey = cachedJwksSigningKey.key;
             request.log.debug("Got JWKS signing key from cache.");
           } else {
             const client = jwksClient({
@@ -239,12 +245,12 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
             signingKey = (
               await client.getSigningKey(header.kid)
             ).getPublicKey();
-            await fastify.redisClient.set(
-              `jwksKey:${header.kid}`,
-              signingKey,
-              "EX",
-              JWKS_CACHE_SECONDS,
-            );
+            await setKey({
+              redisClient,
+              key: `jwksKey:${header.kid}`,
+              data: JSON.stringify({ key: signingKey }),
+              expiresIn: JWKS_CACHE_SECONDS,
+            });
             request.log.debug("Got JWKS signing key from server.");
           }
         }
@@ -263,11 +269,13 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           verifiedTokenData.upn?.replace("acm.illinois.edu", "illinois.edu") ||
           verifiedTokenData.sub;
         const expectedRoles = new Set(validRoles);
-        const cachedRoles = await fastify.redisClient.get(
-          `authCache:${request.username}:roles`,
-        );
+        const cachedRoles = await getKey<string[]>({
+          key: `authCache:${request.username}:roles`,
+          redisClient,
+          logger: request.log,
+        });
         if (cachedRoles) {
-          request.userRoles = new Set(JSON.parse(cachedRoles));
+          request.userRoles = new Set(cachedRoles as AppRoles[]);
           request.log.debug("Retrieved user roles from cache.");
         } else {
           const userRoles = new Set([] as AppRoles[]);
@@ -317,12 +325,12 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
             }
           }
           request.userRoles = userRoles;
-          fastify.redisClient.set(
-            `authCache:${request.username}:roles`,
-            JSON.stringify([...userRoles]),
-            "EX",
-            AUTH_DECISION_CACHE_SECONDS,
-          );
+          setKey({
+            key: `authCache:${request.username}:roles`,
+            data: JSON.stringify([...userRoles]),
+            redisClient,
+            expiresIn: GENERIC_CACHE_SECONDS,
+          });
           request.log.debug("Retrieved user roles from database.");
         }
         if (

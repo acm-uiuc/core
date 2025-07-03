@@ -7,8 +7,7 @@ import {
   DynamoDBClient,
   GetItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "common/config.js";
-import { AUTH_DECISION_CACHE_SECONDS as API_KEY_DATA_CACHE_SECONDS } from "./authorization.js";
+import { genericConfig, GENERIC_CACHE_SECONDS } from "common/config.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { ApiKeyMaskedEntry, DecomposedApiKey } from "common/types/apiKey.js";
 import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
@@ -105,7 +104,7 @@ export const getApiKeyData = async ({
   });
   const result = await dynamoClient.send(getCommand);
   if (!result || !result.Item) {
-    nodeCache.set(cacheKey, null, API_KEY_DATA_CACHE_SECONDS);
+    nodeCache.set(cacheKey, null, GENERIC_CACHE_SECONDS);
     return undefined;
   }
   const unmarshalled = unmarshall(result.Item) as ApiKeyDynamoEntry;
@@ -124,7 +123,7 @@ export const getApiKeyData = async ({
   if (!("keyHash" in unmarshalled)) {
     return undefined; // bad data, don't cache it
   }
-  let cacheTime = API_KEY_DATA_CACHE_SECONDS;
+  let cacheTime = GENERIC_CACHE_SECONDS;
   if (unmarshalled.expiresAt) {
     const currentEpoch = Date.now();
     cacheTime = min(cacheTime, unmarshalled.expiresAt - currentEpoch);

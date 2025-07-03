@@ -1,8 +1,10 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { getRoleCredentials } from "api/functions/sts.js";
-import { genericConfig, roleArns } from "common/config.js";
+import { genericConfig, roleArns, SecretConfig } from "common/config.js";
 import pino from "pino";
+import { currentEnvironmentConfig } from "./index.js";
+import { getSecretValue } from "api/plugins/auth.js";
 
 export const getAuthorizedClients = async (
   logger: pino.Logger,
@@ -31,4 +33,27 @@ export const getAuthorizedClients = async (
     smClient: new SecretsManagerClient(commonConfig),
     dynamoClient: new DynamoDBClient(commonConfig),
   };
+};
+
+export const getSecretConfig = async ({
+  logger,
+  commonConfig: { region },
+}: {
+  logger: pino.Logger;
+  commonConfig: { region: string };
+}) => {
+  const smClient = new SecretsManagerClient({ region });
+  logger.debug(
+    `Getting secrets: ${JSON.stringify(currentEnvironmentConfig.ConfigurationSecretIds)}.`,
+  );
+  const allSecrets = await Promise.all(
+    currentEnvironmentConfig.ConfigurationSecretIds.map((secretName) =>
+      getSecretValue(smClient, secretName),
+    ),
+  );
+  const secretConfig = allSecrets.reduce(
+    (acc, currentSecret) => ({ ...acc, ...currentSecret }),
+    {},
+  ) as SecretConfig;
+  return secretConfig;
 };
