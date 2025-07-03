@@ -639,6 +639,7 @@ No action is required from you at this time.
         key,
         data: JSON.stringify(freshData),
         expiresIn: GENERIC_CACHE_SECONDS,
+        logger: request.log,
       });
       return reply.status(200).send(freshData);
     },

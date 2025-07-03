@@ -23,6 +23,7 @@ export type SetInCacheInput = {
   data: string;
   expiresIn?: number;
   encryptionSecret?: string;
+  logger: pino.Logger | FastifyBaseLogger;
 };
 
 const redisEntrySchema = z.object({
@@ -50,10 +51,15 @@ export async function getKey<T extends object>({
     });
   }
   try {
+    const decryptStartTime = Date.now();
     const decryptedData = decrypt({
       cipherText: decoded.data,
       encryptionSecret,
     });
+    const decryptEndTime = Date.now();
+    logger.debug(
+      `Took ${decryptEndTime - decryptStartTime} ms to decrypt Redis key.`,
+    );
     return JSON.parse(decryptedData) as T;
   } catch (e) {
     if (
@@ -77,10 +83,18 @@ export async function setKey({
   encryptionSecret,
   data,
   expiresIn,
+  logger,
 }: SetInCacheInput) {
+  const encryptStartTime = Date.now();
   const realData = encryptionSecret
     ? encrypt({ plaintext: data, encryptionSecret })
     : data;
+  const encryptEndTime = Date.now();
+  if (encryptionSecret) {
+    logger.debug(
+      `Took ${encryptEndTime - encryptStartTime} ms to encrypt Redis key.`,
+    );
+  }
   const redisPayload: z.infer<typeof redisEntrySchema> = {
     isEncrypted: !!encryptionSecret,
     data: realData,
