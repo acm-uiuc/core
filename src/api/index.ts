@@ -48,6 +48,7 @@ import {
 import { ZodOpenApiVersion } from "zod-openapi";
 import { withTags } from "./components/index.js";
 import apiKeyRoute from "./routes/apiKey.js";
+import clearSessionRoute from "./routes/clearSession.js";
 import RedisModule from "ioredis";
 
 dotenv.config();
@@ -311,6 +312,7 @@ async function init(prettyPrint: boolean = false) {
       api.register(roomRequestRoutes, { prefix: "/roomRequests" });
       api.register(logsPlugin, { prefix: "/logs" });
       api.register(apiKeyRoute, { prefix: "/apiKey" });
+      api.register(clearSessionRoute, { prefix: "/clearSession" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }

@@ -22,6 +22,8 @@ import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
 import { getApiKeyData, getApiKeyParts } from "api/functions/apiKey.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
 
+export const AUTH_CACHE_PREFIX = `authCache:`;
+
 export function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();
   for (const elem of setB) {
@@ -270,7 +272,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           verifiedTokenData.sub;
         const expectedRoles = new Set(validRoles);
         const cachedRoles = await getKey<string[]>({
-          key: `authCache:${request.username}:roles`,
+          key: `${AUTH_CACHE_PREFIX}${request.username}:roles`,
           redisClient,
           logger: request.log,
         });
@@ -326,7 +328,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
           request.userRoles = userRoles;
           setKey({
-            key: `authCache:${request.username}:roles`,
+            key: `${AUTH_CACHE_PREFIX}${request.username}:roles`,
             data: JSON.stringify([...userRoles]),
             redisClient,
             expiresIn: GENERIC_CACHE_SECONDS,
