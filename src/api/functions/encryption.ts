@@ -10,6 +10,8 @@ const HASH_FUNCTION = "sha512";
 export const INVALID_DECRYPTION_MESSAGE =
   "Could not decrypt data (check that the encryption secret is correct).";
 
+export const CORRUPTED_DATA_MESSAGE = "Encrypted data is corrupted.";
+
 export function encrypt({
   plaintext,
   encryptionSecret,
@@ -72,7 +74,7 @@ export function decrypt({
   const candidate = decryptedBuffer.toString("utf8");
   if (candidate.substring(0, VALID_PREFIX.length) !== VALID_PREFIX) {
     throw new DecryptionError({
-      message: "Encrypted data is corrupted.",
+      message: CORRUPTED_DATA_MESSAGE,
     });
   }
   return candidate.substring(VALID_PREFIX.length, candidate.length);

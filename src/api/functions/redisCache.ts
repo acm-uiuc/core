@@ -1,7 +1,12 @@
 import { DecryptionError } from "common/errors/index.js";
 import type RedisModule from "ioredis";
 import { z } from "zod";
-import { decrypt, encrypt, INVALID_DECRYPTION_MESSAGE } from "./encryption.js";
+import {
+  CORRUPTED_DATA_MESSAGE,
+  decrypt,
+  encrypt,
+  INVALID_DECRYPTION_MESSAGE,
+} from "./encryption.js";
 import type pino from "pino";
 import { type FastifyBaseLogger } from "fastify";
 
@@ -53,7 +58,8 @@ export async function getKey<T extends object>({
   } catch (e) {
     if (
       e instanceof DecryptionError &&
-      e.message === INVALID_DECRYPTION_MESSAGE
+      (e.message === INVALID_DECRYPTION_MESSAGE ||
+        e.message === CORRUPTED_DATA_MESSAGE)
     ) {
       logger.info(
         `Invalid decryption, deleting old Redis key and continuing...`,
