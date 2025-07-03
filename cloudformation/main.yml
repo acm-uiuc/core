@@ -146,6 +146,17 @@ Resources:
           !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
         CloudfrontDomain: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
 
+  AppLambdaUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      Cors:
+        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date'"
+        AllowOrigin: "'*'"
+        MaxAge: "'300'"
+      InvokeMode: BUFFERED
+      TargetFunctionArn: !GetAtt AppApiLambdaFunction.Arn
+
   AppApiLambdaFunction:
     Type: AWS::Serverless::Function
     DependsOn:
@@ -695,8 +706,8 @@ Resources:
             S3OriginConfig:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
           - Id: ApiGatewayOrigin
-            DomainName: !Sub "${AppApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
-            OriginPath: "/default"
+            DomainName: !GetAtt AppLambdaUrl.FunctionUrl
+            OriginPath: "/"
             CustomOriginConfig:
               HTTPPort: 80
               HTTPSPort: 443
