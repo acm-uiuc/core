@@ -159,7 +159,6 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
       disableApiKeyAuth: boolean,
     ): Promise<Set<AppRoles>> => {
       const { redisClient } = fastify;
-      const encryptionSecret = fastify.secretConfig.encryption_key;
       const startTime = new Date().getTime();
       try {
         if (!disableApiKeyAuth) {
