@@ -100,7 +100,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
         secretName: genericConfig.EntraSecretName,
-        encryptionSecret: fastify.secretConfig.encryption_key,
         logger: request.log,
       });
       await patchUserProfile(
@@ -166,7 +165,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           clients: await getAuthorizedClients(),
           clientId: fastify.environmentConfig.AadValidClientId,
           secretName: genericConfig.EntraSecretName,
-          encryptionSecret: fastify.secretConfig.encryption_key,
           logger: request.log,
         });
         const groupMembers = listGroupMembers(entraIdToken, groupId);
@@ -234,7 +232,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
         secretName: genericConfig.EntraSecretName,
-        encryptionSecret: fastify.secretConfig.encryption_key,
         logger: request.log,
       });
       if (!entraIdToken) {
@@ -330,7 +327,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
         secretName: genericConfig.EntraSecretName,
-        encryptionSecret: fastify.secretConfig.encryption_key,
         logger: request.log,
       });
       const groupMetadataPromise = getGroupMetadata(entraIdToken, groupId);
@@ -585,7 +581,6 @@ No action is required from you at this time.
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
         secretName: genericConfig.EntraSecretName,
-        encryptionSecret: fastify.secretConfig.encryption_key,
         logger: request.log,
       });
       const response = await listGroupMembers(entraIdToken, groupId);
@@ -608,7 +603,6 @@ No action is required from you at this time.
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
         secretName: genericConfig.EntraSecretName,
-        encryptionSecret: fastify.secretConfig.encryption_key,
         logger: request.log,
       });
       const { redisClient } = fastify;
