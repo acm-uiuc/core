@@ -56,6 +56,7 @@ vi.mock(
 
         return mockGroupRoles[groupId as any] || [];
       }),
+      clearAuthCache: vi.fn(),
     };
   },
 );

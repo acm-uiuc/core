@@ -109,7 +109,9 @@ export async function getEntraIdToken({
         key: cacheKey,
         data: JSON.stringify({ token: result.accessToken }),
         expiresIn:
-          (result.expiresOn.getTime() - new Date().getTime()) / 1000 - 120, // get new token 2 min before expiry
+          Math.floor(
+            (result.expiresOn.getTime() - new Date().getTime()) / 1000,
+          ) - 120, // get new token 2 min before expiry
         encryptionSecret,
       });
     }
@@ -118,8 +120,9 @@ export async function getEntraIdToken({
     if (error instanceof BaseError) {
       throw error;
     }
+    logger.error(error);
     throw new InternalServerError({
-      message: `Failed to acquire token: ${error}`,
+      message: "Failed to acquire Entra ID token.",
     });
   }
 }
