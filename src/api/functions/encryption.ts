@@ -1,5 +1,6 @@
 import { DecryptionError } from "common/errors/index.js";
-import crypto, { createDecipheriv, pbkdf2Sync } from "node:crypto";
+import crypto, { createDecipheriv, pbkdf2, pbkdf2Sync } from "node:crypto";
+import { promisify } from "node:util";
 
 const VALID_PREFIX = "VALID:";
 const ITERATIONS = 100000;
@@ -12,7 +13,12 @@ export const INVALID_DECRYPTION_MESSAGE =
 
 export const CORRUPTED_DATA_MESSAGE = "Encrypted data is corrupted.";
 
-export function encrypt({
+type AsyncPbkdf2 = (
+  ...args: Parameters<typeof pbkdf2Sync>
+) => Promise<ReturnType<typeof pbkdf2Sync>>;
+const promisePbkdf2 = promisify(pbkdf2) as AsyncPbkdf2;
+
+export async function encrypt({
   plaintext,
   encryptionSecret,
 }: {
@@ -21,7 +27,7 @@ export function encrypt({
 }) {
   const salt = crypto.randomBytes(16);
   const iv = crypto.randomBytes(12);
-  const key = crypto.pbkdf2Sync(
+  const key = await promisePbkdf2(
     encryptionSecret,
     salt,
     ITERATIONS,
@@ -37,20 +43,20 @@ export function encrypt({
   return Buffer.concat([salt, iv, tag, encrypted]).toString("hex");
 }
 
-export function decrypt({
+export async function decrypt({
   cipherText,
   encryptionSecret,
 }: {
   cipherText: string;
   encryptionSecret: string;
-}): string {
+}): Promise<string> {
   const data = Buffer.from(cipherText, "hex");
   const salt = data.subarray(0, 16);
   const iv = data.subarray(16, 28);
   const tag = data.subarray(28, 44);
   const encryptedText = data.subarray(44);
 
-  const key = pbkdf2Sync(
+  const key = await promisePbkdf2(
     encryptionSecret,
     salt,
     ITERATIONS,

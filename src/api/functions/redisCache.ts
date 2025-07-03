@@ -52,7 +52,7 @@ export async function getKey<T extends object>({
   }
   try {
     const decryptStartTime = Date.now();
-    const decryptedData = decrypt({
+    const decryptedData = await decrypt({
       cipherText: decoded.data,
       encryptionSecret,
     });
@@ -97,7 +97,7 @@ export async function setKey({
   }
   const redisPayload: z.infer<typeof redisEntrySchema> = {
     isEncrypted: !!encryptionSecret,
-    data: realData,
+    data: await realData,
   };
   const strRedisPayload = JSON.stringify(redisPayload);
   return expiresIn
