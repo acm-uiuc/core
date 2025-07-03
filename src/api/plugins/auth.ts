@@ -159,7 +159,6 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
       disableApiKeyAuth: boolean,
     ): Promise<Set<AppRoles>> => {
       const { redisClient } = fastify;
-      const encryptionSecret = fastify.secretConfig.encryption_key;
       const startTime = new Date().getTime();
       try {
         if (!disableApiKeyAuth) {
@@ -252,6 +251,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
               key: `jwksKey:${header.kid}`,
               data: JSON.stringify({ key: signingKey }),
               expiresIn: JWKS_CACHE_SECONDS,
+              logger: request.log,
             });
             request.log.debug("Got JWKS signing key from server.");
           }
@@ -332,6 +332,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
             data: JSON.stringify([...userRoles]),
             redisClient,
             expiresIn: GENERIC_CACHE_SECONDS,
+            logger: request.log,
           });
           request.log.debug("Retrieved user roles from database.");
         }

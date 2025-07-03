@@ -112,7 +112,6 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           clients: await getAuthorizedClients(),
           clientId: fastify.environmentConfig.AadValidClientId,
           secretName: genericConfig.EntraSecretName,
-          encryptionSecret: fastify.secretConfig.encryption_key,
           logger: request.log,
         });
         const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
@@ -233,7 +232,6 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           clients: await getAuthorizedClients(),
           clientId: fastify.environmentConfig.AadValidClientId,
           secretName: genericConfig.EntraSecretName,
-          encryptionSecret: fastify.secretConfig.encryption_key,
           logger: request.log,
         });
         const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;

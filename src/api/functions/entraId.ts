@@ -30,8 +30,6 @@ import { UserProfileData } from "common/types/msGraphApi.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { checkPaidMembershipFromTable } from "./membership.js";
-import { getKey, setKey } from "./redisCache.js";
-import RedisClient from "ioredis";
 import type pino from "pino";
 import { type FastifyBaseLogger } from "fastify";
 
@@ -41,8 +39,7 @@ export function validateGroupId(groupId: string): boolean {
 }
 
 type GetEntraIdTokenInput = {
-  clients: { smClient: SecretsManagerClient; redisClient: RedisClient.default };
-  encryptionSecret: string;
+  clients: { smClient: SecretsManagerClient; dynamoClient: DynamoDBClient };
   clientId: string;
   scopes?: string[];
   secretName?: string;
@@ -50,7 +47,6 @@ type GetEntraIdTokenInput = {
 };
 export async function getEntraIdToken({
   clients,
-  encryptionSecret,
   clientId,
   scopes = ["https://graph.microsoft.com/.default"],
   secretName,
@@ -72,14 +68,13 @@ export async function getEntraIdToken({
     "base64",
   ).toString("utf8");
   const cacheKey = `entra_id_access_token_${localSecretName}_${clientId}`;
-  const cachedTokenObject = await getKey<{ token: string }>({
-    redisClient: clients.redisClient,
-    key: cacheKey,
-    encryptionSecret,
-    logger,
-  });
-  if (cachedTokenObject) {
-    return cachedTokenObject.token;
+  const startTime = Date.now();
+  const cachedToken = await getItemFromCache(clients.dynamoClient, cacheKey);
+  logger.debug(
+    `Took ${Date.now() - startTime} ms to get cached entra ID token.`,
+  );
+  if (cachedToken) {
+    return cachedToken.token as string;
   }
   const config = {
     auth: {
@@ -103,17 +98,13 @@ export async function getEntraIdToken({
       });
     }
     date.setTime(date.getTime() - 30000);
-    if (result?.accessToken && result?.expiresOn) {
-      await setKey({
-        redisClient: clients.redisClient,
-        key: cacheKey,
-        data: JSON.stringify({ token: result.accessToken }),
-        expiresIn:
-          Math.floor(
-            (result.expiresOn.getTime() - new Date().getTime()) / 1000,
-          ) - 120, // get new token 2 min before expiry
-        encryptionSecret,
-      });
+    if (result?.accessToken) {
+      await insertItemIntoCache(
+        clients.dynamoClient,
+        cacheKey,
+        { token: result?.accessToken },
+        date,
+      );
     }
     return result?.accessToken ?? null;
   } catch (error) {
