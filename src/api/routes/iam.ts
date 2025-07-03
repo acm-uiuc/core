@@ -599,12 +599,6 @@ No action is required from you at this time.
       onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
-      const entraIdToken = await getEntraIdToken({
-        clients: await getAuthorizedClients(),
-        clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
-        logger: request.log,
-      });
       const { redisClient } = fastify;
       const key = `entra_manageable_groups_${fastify.environmentConfig.EntraServicePrincipalId}`;
       const redisResponse = await getKey<{ displayName: string; id: string }[]>(
@@ -612,8 +606,17 @@ No action is required from you at this time.
       );
       if (redisResponse) {
         request.log.debug("Got manageable groups from Redis cache.");
-        return reply.status(200).send(redisResponse);
+        return reply
+          .header("X-ACM-Data-Source", "redis")
+          .status(200)
+          .send(redisResponse);
       }
+      const entraIdToken = await getEntraIdToken({
+        clients: await getAuthorizedClients(),
+        clientId: fastify.environmentConfig.AadValidClientId,
+        secretName: genericConfig.EntraSecretName,
+        logger: request.log,
+      });
       // get groups, but don't show protected groups as manageable
       const freshData = (
         await getServicePrincipalOwnedGroups(
