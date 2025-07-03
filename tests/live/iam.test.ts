@@ -2,12 +2,38 @@ import { expect, test } from "vitest";
 import { createJwt } from "./utils.js";
 import {
   EntraActionResponse,
+  GroupGetResponse,
   GroupMemberGetResponse,
 } from "../../src/common/types/iam.js";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 import { getBaseEndpoint } from "./utils.js";
+import { environmentConfig, genericConfig } from "../../src/common/config.js";
 
 const baseEndpoint = getBaseEndpoint();
+test("getting groups", async () => {
+  const token = await createJwt();
+  const response = await fetch(`${baseEndpoint}/api/v1/iam/groups`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  expect(response.status).toBe(200);
+  const responseJson = (await response.json()) as GroupGetResponse;
+  expect(responseJson.length).greaterThan(0);
+  for (const item of responseJson) {
+    expect(item).toHaveProperty("displayName");
+    expect(item).toHaveProperty("id");
+    expect(item["displayName"].length).greaterThan(0);
+    expect(item["id"].length).greaterThan(0);
+    expect(genericConfig.ProtectedEntraIDGroups).not.toContain(item["id"]);
+    expect(genericConfig.ProtectedEntraIDGroups).not.toStrictEqual(
+      environmentConfig["dev"].PaidMemberGroupId,
+    );
+  }
+});
+
 test("getting members of a group", async () => {
   const token = await createJwt();
   const response = await fetch(

@@ -369,7 +369,10 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         try {
           if (request.body.featured && !request.body.repeats) {
             await updateDiscord(
-              fastify.secretConfig,
+              {
+                botToken: fastify.secretConfig.discord_bot_token,
+                guildId: fastify.environmentConfig.DiscordGuildId,
+              },
               entry,
               request.username,
               false,
@@ -507,7 +510,10 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           }),
         );
         await updateDiscord(
-          fastify.secretConfig,
+          {
+            botToken: fastify.secretConfig.discord_bot_token,
+            guildId: fastify.environmentConfig.DiscordGuildId,
+          },
           { id } as IUpdateDiscord,
           request.username,
           true,

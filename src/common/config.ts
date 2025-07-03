@@ -8,11 +8,14 @@ type ValueOrArray<T> = T | ArrayOfValueOrArray<T>;
 
 type AzureRoleMapping = Record<string, readonly AppRoles[]>;
 
+export const GENERIC_CACHE_SECONDS = 300;
+
 export type ConfigType = {
   UserFacingUrl: string;
   AzureRoleMapping: AzureRoleMapping;
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
+  EntraServicePrincipalId: string;
   LinkryBaseUrl: string
   PasskitIdentifier: string;
   PasskitSerialNumber: string;
@@ -23,7 +26,8 @@ export type ConfigType = {
   PaidMemberPriceId: string;
   AadValidReadOnlyClientId: string;
   LinkryCloudfrontKvArn?: string;
-  TestingCredentialsSecret?: string;
+  ConfigurationSecretIds: string[];
+  DiscordGuildId: string;
 };
 
 export type GenericConfigType = {
@@ -31,7 +35,6 @@ export type GenericConfigType = {
   CacheDynamoTableName: string;
   LinkryDynamoTableName: string;
   StripeLinksDynamoTableName: string;
-  ConfigSecretName: string;
   EntraSecretName: string;
   UpcomingEventThresholdSeconds: number;
   AwsRegion: string;
@@ -49,10 +52,10 @@ export type GenericConfigType = {
   EntraReadOnlySecretName: string;
   AuditLogTable: string;
   ApiKeyTable: string;
-
-  RateLimiterDynamoTableName: string;
   SigleadDynamoSigDetailTableName: string;
   SigleadDynamoSigMemberTableName: string;
+  ConfigSecretName: string;
+  TestingCredentialsSecret: string;
 };
 
 type EnvironmentConfigType = {
@@ -66,7 +69,6 @@ export const execCouncilGroupId = "ad81254b-4eeb-4c96-8191-3acdce9194b1";
 export const execCouncilTestingGroupId = "dbe18eb2-9675-46c4-b1ef-749a6db4fedd";
 export const commChairsTestingGroupId = "d714adb7-07bb-4d4d-a40a-b035bc2a35a3";
 export const commChairsGroupId = "105e7d32-7289-435e-a67a-552c7f215507";
-export const miscTestingGroupId = "ff25ec56-6a33-420d-bdb0-51d8a3920e46";
 
 export const orgsGroupId = "0b3be7c2-748e-46ce-97e7-cf86f9ca7337";
 
@@ -75,7 +77,6 @@ const genericConfig: GenericConfigType = {
   StripeLinksDynamoTableName: "infra-core-api-stripe-links",
   CacheDynamoTableName: "infra-core-api-cache",
   LinkryDynamoTableName: "infra-core-api-linkry",
-  ConfigSecretName: "infra-core-api-config",
   EntraSecretName: "infra-core-api-entra",
   EntraReadOnlySecretName: "infra-core-api-ro-entra",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
@@ -93,10 +94,10 @@ const genericConfig: GenericConfigType = {
   RoomRequestsStatusTableName: "infra-core-api-room-requests-status",
   AuditLogTable: "infra-core-api-audit-log",
   ApiKeyTable: "infra-core-api-keys",
-
-  RateLimiterDynamoTableName: "infra-core-api-rate-limiter",
   SigleadDynamoSigDetailTableName: "infra-core-api-sig-details",
   SigleadDynamoSigMemberTableName: "infra-core-api-sig-member-details",
+  ConfigSecretName: "infra-core-api-config",
+  TestingCredentialsSecret: "infra-core-api-testing-credentials",
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
@@ -109,7 +110,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
       /http:\/\/localhost:\d+$/,
     ],
-    TestingCredentialsSecret: "infra-core-api-testing-credentials",
+    ConfigurationSecretIds: [genericConfig.TestingCredentialsSecret, genericConfig.ConfigSecretName],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
@@ -122,11 +123,14 @@ const environmentConfig: EnvironmentConfigType = {
     PaidMemberGroupId: "9222451f-b354-4e64-ba28-c0f367a277c2",
     PaidMemberPriceId: "price_1R4TcTDGHrJxx3mKI6XF9cNG",
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
-    LinkryCloudfrontKvArn: "arn:aws:cloudfront::427040638965:key-value-store/0c2c02fd-7c47-4029-975d-bc5d0376bba1"
+    LinkryCloudfrontKvArn: "arn:aws:cloudfront::427040638965:key-value-store/0c2c02fd-7c47-4029-975d-bc5d0376bba1",
+    DiscordGuildId: "1278798685706391664",
+    EntraServicePrincipalId: "8c26ff11-fb86-42f2-858b-9011c9f0708d"
   },
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
+    ConfigurationSecretIds: [genericConfig.ConfigSecretName],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
@@ -144,12 +148,13 @@ const environmentConfig: EnvironmentConfigType = {
       "https://sqs.us-east-1.amazonaws.com/298118738376/infra-core-api-sqs",
     PaidMemberGroupId: "172fd9ee-69f0-4384-9786-41ff1a43cf8e",
     PaidMemberPriceId: "price_1MUGIRDiGOXU9RuSChPYK6wZ",
-    AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba"
+    AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
+    DiscordGuildId: "718945436332720229",
+    EntraServicePrincipalId: "88c76504-9856-4325-bb0a-99f977e3607f"
   },
 };
 
 export type SecretConfig = {
-  discord_guild_id: string;
   discord_bot_token: string;
   entra_id_private_key?: string;
   entra_id_thumbprint?: string;
@@ -160,6 +165,7 @@ export type SecretConfig = {
   stripe_endpoint_secret: string;
   stripe_links_endpoint_secret: string;
   redis_url: string;
+  encryption_key: string;
 };
 
 export type SecretTesting = {

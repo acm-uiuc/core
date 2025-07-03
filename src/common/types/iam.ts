@@ -53,6 +53,8 @@ export const entraActionResponseSchema = z.object({
 
 export type EntraActionResponse = z.infer<typeof entraActionResponseSchema>;
 
+export type GroupGetResponse = { id: string, displayName: string }[]
+
 export const groupModificationPatchSchema = z.object({
   add: z.array(z.string()),
   remove: z.array(z.string()),

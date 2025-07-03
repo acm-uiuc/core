@@ -63,12 +63,6 @@ async function init(prettyPrint: boolean = false) {
   const secretsManagerClient = new SecretsManagerClient({
     region: genericConfig.AwsRegion,
   });
-  const secret = (await getSecretValue(
-    secretsManagerClient,
-    genericConfig.ConfigSecretName,
-  )) as SecretConfig;
-  const redisClient = new RedisModule.default(secret.redis_url);
-
   const transport = prettyPrint
     ? {
         target: "pino-pretty",
@@ -253,21 +247,22 @@ async function init(prettyPrint: boolean = false) {
   app.nodeCache = new NodeCache({ checkperiod: 30 });
   app.dynamoClient = dynamoClient;
   app.secretsManagerClient = secretsManagerClient;
-  app.redisClient = redisClient;
   app.refreshSecretConfig = async () => {
-    app.secretConfig = (await getSecretValue(
-      app.secretsManagerClient,
-      genericConfig.ConfigSecretName,
-    )) as SecretConfig;
-    if (app.environmentConfig.TestingCredentialsSecret) {
-      const temp = (await getSecretValue(
-        app.secretsManagerClient,
-        app.environmentConfig.TestingCredentialsSecret,
-      )) as SecretTesting;
-      app.secretConfig = { ...app.secretConfig, ...temp };
-    }
+    app.log.debug(
+      `Getting secrets: ${JSON.stringify(app.environmentConfig.ConfigurationSecretIds)}.`,
+    );
+    const allSecrets = await Promise.all(
+      app.environmentConfig.ConfigurationSecretIds.map((secretName) =>
+        getSecretValue(app.secretsManagerClient, secretName),
+      ),
+    );
+    app.secretConfig = allSecrets.reduce(
+      (acc, currentSecret) => ({ ...acc, ...currentSecret }),
+      {},
+    ) as SecretConfig;
   };
-  app.refreshSecretConfig();
+  await app.refreshSecretConfig();
+  app.redisClient = new RedisModule.default(app.secretConfig.redis_url);
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;
