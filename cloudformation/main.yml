@@ -709,8 +709,8 @@ Resources:
             S3OriginConfig:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
           - Id: ApiGatewayOrigin
-            DomainName: !Sub "${AppApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
-            OriginPath: "/default"
+            DomainName: !Select [1, !Split ["https://", !GetAtt AppLambdaUrl.FunctionUrl]]
+            OriginPath: "/"
             CustomOriginConfig:
               HTTPPort: 80
               HTTPSPort: 443
