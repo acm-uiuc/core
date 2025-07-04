@@ -835,7 +835,7 @@ Resources:
             Cookies:
               Forward: none
           CachePolicyId: !Ref CloudfrontCachePolicy
-          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
         ViewerCertificate:
           AcmCertificateArn: !FindInMap
             - ApiGwConfig
