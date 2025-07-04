@@ -160,6 +160,14 @@ Resources:
       InvokeMode: BUFFERED
       TargetFunctionArn: !GetAtt AppApiLambdaFunction.Arn
 
+  AppLambdaUrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt AppApiLambdaFunction.Arn
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
   AppApiLambdaFunction:
     Type: AWS::Serverless::Function
     DependsOn:
