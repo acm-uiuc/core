@@ -160,6 +160,7 @@ Resources:
       InvokeMode: BUFFERED
       TargetFunctionArn: !GetAtt AppApiLambdaFunction.Arn
 
+
   AppLambdaUrlInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
