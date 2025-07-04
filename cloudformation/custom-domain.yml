@@ -9,6 +9,9 @@ Parameters:
     Type: String
   CloudfrontDomain:
     Type: String
+  GWHostedZoneId:
+    Description: Hosted Zone ID
+    Type: String
 
 Conditions:
   IsDev: !Equals [!Ref RunEnvironment, 'dev']
