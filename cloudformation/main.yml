@@ -769,7 +769,7 @@ Resources:
               - GET
               - HEAD
             CachePolicyId: !Ref CloudfrontCachePolicy
-            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
           - PathPattern: "/api/v1/organizations"
             TargetOriginId: ApiGatewayOrigin
@@ -786,7 +786,7 @@ Resources:
               - GET
               - HEAD
             CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
-            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
           - PathPattern: "/api/documentation*"
             TargetOriginId: ApiGatewayOrigin
@@ -803,7 +803,7 @@ Resources:
               - GET
               - HEAD
             CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
-            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
           - PathPattern: "/api/*"
             TargetOriginId: ApiGatewayOrigin
@@ -819,8 +819,9 @@ Resources:
             CachedMethods:
               - GET
               - HEAD
+              - OPTIONS
             CachePolicyId: !Ref CloudfrontNoCachePolicy # caching disabled
-            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
         ViewerCertificate:
           AcmCertificateArn: !FindInMap
