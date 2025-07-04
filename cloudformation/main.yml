@@ -151,9 +151,12 @@ Resources:
     Properties:
       AuthType: NONE
       Cors:
-        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date'"
-        AllowOrigin: "'*'"
-        MaxAge: "'300'"
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Amz-Date
+        AllowOrigins: ["*"]
+        MaxAge: 300
       InvokeMode: BUFFERED
       TargetFunctionArn: !GetAtt AppApiLambdaFunction.Arn
 
