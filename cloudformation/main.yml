@@ -40,6 +40,7 @@ Parameters:
 
 Conditions:
   IsProd: !Equals [!Ref RunEnvironment, "prod"]
+  IsDev: !Equals [!Ref RunEnvironment, "dev"]
   ShouldAttachVpc: !Equals [true, !Ref VpcRequired]
 
 Mappings:
@@ -106,35 +107,56 @@ Resources:
         QueueName: !Sub ${ApplicationPrefix}-sqs
         MessageTimeout: !Ref SqsMessageTimeout
 
-  IcalDomainProxy:
-    Type: AWS::Serverless::Application
+  LinkryRecordSet:
+    Condition: IsDev
+    Type: AWS::Route53::RecordSet
     Properties:
-      Location: ./custom-domain.yml
-      Parameters:
-        RunEnvironment: !Ref RunEnvironment
-        RecordName: ical
-        GWBaseDomainName: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvDomainName
-        GWHostedZoneId:
-          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-        CloudfrontDomain: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "go"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: CNAME
+      TTL: '300'
+      ResourceRecords:
+        - !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
 
-  CoreUrlProd:
-    Type: AWS::Serverless::Application
+  IcalRecordSet:
+    Condition: IsDev
+    Type: AWS::Route53::RecordSet
     Properties:
-      Location: ./custom-domain.yml
-      Parameters:
-        RunEnvironment: !Ref RunEnvironment
-        RecordName: core
-        GWBaseDomainName: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvDomainName
-        GWHostedZoneId:
-          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-        CloudfrontDomain: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "ical"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: CNAME
+      TTL: '300'
+      ResourceRecords:
+        - !GetAtt [AppIcalCloudfrontDistribution, DomainName]
+
+  CoreRecordSet:
+    Condition: IsDev
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "core"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: CNAME
+      TTL: '300'
+      ResourceRecords:
+        - !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
 
   AppLambdaUrl:
     Type: AWS::Lambda::Url
@@ -911,21 +933,6 @@ Resources:
           MinimumProtocolVersion: TLSv1.2_2021
           SslSupportMethod: sni-only
         PriceClass: PriceClass_100
-
-  LinkryDomainProxy:
-    Type: AWS::Serverless::Application
-    Properties:
-      Location: ./custom-domain.yml
-      Parameters:
-        RunEnvironment: !Ref RunEnvironment
-        RecordName: go
-        GWBaseDomainName: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvDomainName
-        GWHostedZoneId:
-          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-        CloudfrontDomain: !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
 
 Outputs:
   DomainName:
