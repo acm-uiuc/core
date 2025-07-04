@@ -20,7 +20,7 @@ const handler = async (event: APIGatewayEvent, context: Context) => {
     // check that the request has the right header (coming from cloudfront)
     if (
       !event.headers ||
-      !(event.headers["X-Origin-Verify"] === process.env.ORIGIN_VERIFY_KEY)
+      !(event.headers["x-origin-verify"] === process.env.ORIGIN_VERIFY_KEY)
     ) {
       const newError = new ValidationError({
         message: "Request is not valid.",
