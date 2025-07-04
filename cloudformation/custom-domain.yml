@@ -1,15 +1,6 @@
 Parameters:
-  GWCertArn:
-    Description: Certificate ARN
-    Type: String
   GWBaseDomainName:
     Description: Base domain name
-    Type: String
-  GWApiId:
-    Description: API ID
-    Type: String
-  GWHostedZoneId:
-    Description: Hosted Zone ID
     Type: String
   RunEnvironment:
     Type: String
@@ -23,22 +14,6 @@ Conditions:
   IsDev: !Equals [!Ref RunEnvironment, 'dev']
 
 Resources:
-  CustomDomainName:
-    Type: AWS::ApiGateway::DomainName
-    Properties:
-      RegionalCertificateArn: !Ref GWCertArn
-      EndpointConfiguration:
-        Types:
-          - REGIONAL
-      DomainName: !Sub "${RecordName}.${GWBaseDomainName}"
-      SecurityPolicy: TLS_1_2
-
-  CDApiMapping:
-    Type: 'AWS::ApiGatewayV2::ApiMapping'
-    Properties:
-      DomainName: !Ref CustomDomainName
-      ApiId: !Ref GWApiId
-      Stage: default
 
   CDRoute53RecordSetDev:
     Condition: IsDev
