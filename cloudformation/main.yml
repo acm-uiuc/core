@@ -108,7 +108,6 @@ Resources:
         MessageTimeout: !Ref SqsMessageTimeout
 
   LinkryRecordSet:
-    Condition: IsDev
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
@@ -125,7 +124,6 @@ Resources:
         - !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
 
   IcalRecordSet:
-    Condition: IsDev
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
@@ -142,7 +140,6 @@ Resources:
         - !GetAtt [AppIcalCloudfrontDistribution, DomainName]
 
   CoreRecordSet:
-    Condition: IsDev
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
