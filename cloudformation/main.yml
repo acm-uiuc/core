@@ -711,7 +711,6 @@ Resources:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
           - Id: ApiGatewayOrigin
             DomainName: !Select [0, !Split ['/', !Select [1, !Split ['https://', !GetAtt AppLambdaUrl.FunctionUrl]]]]
-            OriginPath: "/"
             CustomOriginConfig:
               HTTPPort: 80
               HTTPSPort: 443
