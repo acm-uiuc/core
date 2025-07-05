@@ -7,11 +7,11 @@ import {
   Container,
   MultiSelect,
 } from "@mantine/core";
-import { useForm, zodResolver } from "@mantine/form";
+import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { z } from "zod";
+import * as z from "zod/v4";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
@@ -20,6 +20,7 @@ import { LinkryGroupUUIDToGroupNameMap } from "@common/config";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { LINKRY_MAX_SLUG_LENGTH } from "@common/types/linkry";
 import { getRunEnvironmentConfig } from "@ui/config";
+import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);

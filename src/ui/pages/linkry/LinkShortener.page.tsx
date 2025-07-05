@@ -19,7 +19,7 @@ import { notifications } from "@mantine/notifications";
 import { IconCancel, IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { z } from "zod";
+import * as z from "zod/v4";
 
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
@@ -91,7 +91,7 @@ export const LinkShortener: React.FC = () => {
             >
               <ButtonGroup>
                 {/* <Button component="a" href={`/linkry/edit/${link.id}`}>
-                  Edit
+                 Edit
                 </Button> */}
                 <Button
                   component="a"
@@ -180,7 +180,7 @@ export const LinkShortener: React.FC = () => {
             >
               <ButtonGroup>
                 {/* <Button component="a" href={`/linkry/edit/${link.id}`}>
-                  Edit
+                 Edit
                 </Button> */}
                 <Button
                   component="a"

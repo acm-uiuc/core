@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/v4";
 
 export function validateEmail(email: string): boolean {
   const emailSchema = z.string().email();

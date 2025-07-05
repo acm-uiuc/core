@@ -35,7 +35,6 @@ const buildOptions = {
       const require = topLevelCreateRequire(import.meta.url);
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
-      import "zod-openapi/extend";
     `.trim(),
   }, // Banner for compatibility with CommonJS
   plugins: [

@@ -29,9 +29,10 @@ import {
 import { useParams } from "react-router-dom";
 import { getStatusColor, getStatusIcon } from "./roomRequestUtils";
 import moment from "moment-timezone";
-import { useForm, zodResolver } from "@mantine/form";
+import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 
 export const ViewRoomRequest: React.FC = () => {
   const { semesterId, requestId } = useParams();

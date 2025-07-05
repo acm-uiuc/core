@@ -1,6 +1,6 @@
 import { expect, test, describe } from "vitest";
 import { parseSQSPayload } from "../../../src/common/types/sqsMessage.js";
-import { ZodError } from "zod";
+import { ZodError } from "zod/v4";
 
 describe("SQS Message Parsing Tests", () => {
   test("Ping message parses correctly", () => {
