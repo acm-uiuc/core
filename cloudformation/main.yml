@@ -40,7 +40,7 @@ Parameters:
 
 Conditions:
   IsProd: !Equals [!Ref RunEnvironment, "prod"]
-  # IsDev: !Equals [!Ref RunEnvironment, "dev"]
+  IsDev: !Equals [!Ref RunEnvironment, "dev"]
   ShouldAttachVpc: !Equals [true, !Ref VpcRequired]
 
 Mappings:
@@ -108,6 +108,7 @@ Resources:
         MessageTimeout: !Ref SqsMessageTimeout
 
   LinkryRecordSetv4:
+    Condition: IsDev
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
@@ -125,6 +126,7 @@ Resources:
         EvaluateTargetHealth: false
 
   LinkryRecordSetv6:
+    Condition: IsDev
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
@@ -142,6 +144,7 @@ Resources:
         EvaluateTargetHealth: false
 
   IcalRecordSetv4:
+    Condition: IsDev
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
@@ -160,6 +163,7 @@ Resources:
 
 
   IcalRecordSetv6:
+    Condition: IsDev
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
@@ -178,6 +182,7 @@ Resources:
 
 
   CoreRecordSetv4:
+    Condition: IsDev
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
@@ -195,6 +200,7 @@ Resources:
         EvaluateTargetHealth: false
 
   CoreRecordSetv6:
+    Condition: IsDev
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
