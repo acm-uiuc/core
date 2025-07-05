@@ -107,56 +107,109 @@ Resources:
         QueueName: !Sub ${ApplicationPrefix}-sqs
         MessageTimeout: !Ref SqsMessageTimeout
 
-  # LinkryRecordSet:
-  #   Type: AWS::Route53::RecordSet
-  #   Properties:
-  #     HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-  #     Name: !Join
-  #       - "."
-  #       - - "go"
-  #         - !FindInMap
-  #           - ApiGwConfig
-  #           - !Ref RunEnvironment
-  #           - EnvDomainName
-  #     Type: A
-  #     AliasTarget:
-  #       HostedZoneId: Z2FDTNDATAQYW2
-  #       DNSName: !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
-  #       EvaluateTargetHealth: false
+  LinkryRecordSetv4:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "go"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
 
-  # IcalRecordSet:
-  #   Type: AWS::Route53::RecordSet
-  #   Properties:
-  #     HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-  #     Name: !Join
-  #       - "."
-  #       - - "ical"
-  #         - !FindInMap
-  #           - ApiGwConfig
-  #           - !Ref RunEnvironment
-  #           - EnvDomainName
-  #     Type: A
-  #     AliasTarget:
-  #       HostedZoneId: Z2FDTNDATAQYW2
-  #       DNSName: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
-  #       EvaluateTargetHealth: false
+  LinkryRecordSetv6:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "go"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: AAAA
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
 
-  # CoreRecordSet:
-  #   Type: AWS::Route53::RecordSet
-  #   Properties:
-  #     HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-  #     Name: !Join
-  #       - "."
-  #       - - "core"
-  #         - !FindInMap
-  #           - ApiGwConfig
-  #           - !Ref RunEnvironment
-  #           - EnvDomainName
-  #     Type: A
-  #     AliasTarget:
-  #       HostedZoneId: Z2FDTNDATAQYW2
-  #       DNSName: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
-  #       EvaluateTargetHealth: false
+  IcalRecordSetv4:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "ical"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
+
+
+  IcalRecordSetv6:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "ical"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: AAAA
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
+
+
+  CoreRecordSetv4:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "core"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
+
+  CoreRecordSetv6:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "core"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: AAAA
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
 
   AppLambdaUrl:
     Type: AWS::Lambda::Url
