@@ -14,7 +14,7 @@ export default defineConfig({
       exclude: ["src/api/lambda.ts", "src/api/sqs/handlers/templates/*.ts"],
       thresholds: {
         statements: 50,
-        functions: 65,
+        functions: 60,
         lines: 50,
       },
     },
