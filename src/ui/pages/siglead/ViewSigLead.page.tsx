@@ -21,8 +21,7 @@ import {
   SigMemberRecord,
   SigMemberUpdateRecord,
 } from "@common/types/siglead.js";
-import { getTimeInFormat } from "@common/utils";
-import { orgIds2Name } from "@common/orgs";
+import AddMemberOverlayButton from "./AddMemberOverlay";
 
 export const ViewSigLeadPage: React.FC = () => {
   const navigate = useNavigate();
@@ -158,9 +157,7 @@ export const ViewSigLeadPage: React.FC = () => {
             <Stack>
               <Button variant="white">Member Count: {sigMembers.length}</Button>
 
-              <Button onClick={() => navigate("./addMember")}>
-                Add Member
-              </Button>
+              <AddMemberOverlayButton sigid={sigDetails.sigid} />
               <Button
                 onClick={() => navigate("../siglead-management")}
                 variant="outline"
@@ -186,81 +183,6 @@ export const ViewSigLeadPage: React.FC = () => {
           </Table>
         </div>
       </Container>
-    </AuthGuard>
-  );
-};
-
-export const AddMemberToSigPage: FC = () => {
-  // const { sigId } = useParams();
-  const api = useApi("core");
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    // console.log(formData)
-    const data = Object.fromEntries(formData.entries()) as {
-      groupid: string;
-      aid: string;
-      rid: string;
-    };
-
-    try {
-      const response = await api.patch(`/api/v1/iam/groups/${data.groupid}`, {
-        add: data.aid !== "" ? [data.aid] : [],
-        remove: data.rid !== "" ? [data.rid] : [],
-      });
-
-      console.warn(`GRAPH API RESPONSE: ${response}`);
-      notifications.show({
-        message: JSON.stringify(response),
-      });
-    } catch (error) {
-      notifications.show({
-        message: JSON.stringify(error),
-      });
-    }
-
-    // console.log(response);
-  }
-
-  // async function testAddGroup() {
-  //   await api.patch(
-  //     `/api/v1/iam/groups/:e37a2420-1030-48da-9d17-f7e201b446e1`,
-  //     { add: ["d115c8cb-2520-4ba4-bc36-dd55af69c590"], remove: [] },
-  //   );
-  // }
-
-  return (
-    <AuthGuard
-      resourceDef={{ service: "core", validRoles: [AppRoles.SIGLEAD_MANAGER] }}
-    >
-      <form id="form" onSubmit={handleSubmit}>
-        <label htmlFor="groupid">group id: </label>
-        <input
-          type="text"
-          name="groupid"
-          id="groupid"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        />
-        <br />
-        <label htmlFor="id">add uuid: </label>
-        <input
-          type="text"
-          name="aid"
-          id="aid"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        />
-        <br />
-        <label htmlFor="id">remove uuid: </label>
-        <input
-          type="text"
-          name="rid"
-          id="rid"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        />
-        <br />
-        <button type="submit">Submit</button>
-      </form>
     </AuthGuard>
   );
 };

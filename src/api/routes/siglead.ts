@@ -122,8 +122,9 @@ const sigleadRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
     // add member
     fastify.post<{ Body: SigMemberUpdateRecord }>(
-      "/addMember",
+      "/addMemberDynamo",
       async (request, reply) => {
+        // permission first, then add to dynamo (less severe side effects)
         try {
           await addMemberToSigDynamo(
             genericConfig.SigleadDynamoSigMemberTableName,
@@ -132,7 +133,7 @@ const sigleadRoutes: FastifyPluginAsync = async (fastify, _options) => {
           );
         } catch (error) {
           request.log.error(
-            `Failed to add member: ${error instanceof Error ? error.toString() : "Unknown error"}`,
+            `Failed to add member to AWS: ${error instanceof Error ? error.toString() : "Unknown error"}`,
           );
           throw new DatabaseFetchError({
             message: "Failed to add sig member record to Dynamo table.",

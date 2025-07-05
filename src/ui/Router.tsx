@@ -28,7 +28,7 @@ import { ManageRoomRequestsPage } from "./pages/roomRequest/RoomRequestLanding.p
 import { EditSigLeadsPage } from "./pages/siglead/EditSigLeads.page";
 import { ManageSigLeadsPage } from "./pages/siglead/ManageSigLeads.page";
 import {
-  AddMemberToSigPage,
+  // AddMemberToSigPage,
   ViewSigLeadPage,
 } from "./pages/siglead/ViewSigLead.page";
 import { ViewRoomRequest } from "./pages/roomRequest/ViewRoomRequest.page";
@@ -205,10 +205,6 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: "/siglead-management/:sigId",
     element: <ViewSigLeadPage />,
-  },
-  {
-    path: "/siglead-management/:sigId/addMember",
-    element: <AddMemberToSigPage />,
   },
   {
     path: "/roomRequests",

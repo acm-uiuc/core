@@ -26,7 +26,6 @@ export type SigMemberCount = {
 export type SigMemberUpdateRecord = {
   sigGroupId: string;
   email: string;
-  id: string;
   memberName: string;
   designation: string;
   createdAt: string;

@@ -58,7 +58,7 @@ export function transformSigLeadToURI(org: string) {
   return org === "-" ? "" : org;
 }
 
-export function getTimeInFormat() {
+export function getFormattedTimeNow() {
   const date = new Date();
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');

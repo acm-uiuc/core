@@ -176,7 +176,7 @@ describe("SIGLead Routes", () => {
   });
 
   // --- Tests for POST /addMember ---
-  describe("POST /siglead/addMember", () => {
+  describe("POST /siglead/addMemberDynamo", () => {
     test("should return 200 on successful member addition", async () => {
       const newMember = {
         sigGroupId: "sig-new",
@@ -190,7 +190,7 @@ describe("SIGLead Routes", () => {
 
       const response = await app.inject({
         method: "POST",
-        url: "/siglead/addMember",
+        url: "/siglead/addMemberDynamo",
         payload: newMember, // Send the data in the request body
       });
 
@@ -211,7 +211,7 @@ describe("SIGLead Routes", () => {
 
       const response = await app.inject({
         method: "POST",
-        url: "/siglead/addMember",
+        url: "/siglead/addMemberDynamo",
         payload: {
           sigGroupId: "sig-fail",
           email: "fail@example.com",

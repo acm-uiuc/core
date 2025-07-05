@@ -167,6 +167,4 @@ export async function addMemberToSigDynamo(
   }
 }
 
-export async function addMemberToSigEntra() {
-  // uuid validation not implemented yet
-}
+export async function addMemberToSigEntra() {}
