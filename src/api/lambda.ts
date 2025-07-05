@@ -4,12 +4,16 @@ import init from "./index.js";
 import warmer from "lambda-warmer";
 import { type APIGatewayEvent, type Context } from "aws-lambda";
 import { InternalServerError, ValidationError } from "common/errors/index.js";
+import { promisify } from "node:util";
+import stream from "node:stream";
 
+const pipeline = promisify(stream.pipeline);
 const app = await init();
 const realHandler = awsLambdaFastify(app, {
   decorateRequest: false,
   serializeLambdaArguments: true,
   callbackWaitsForEmptyEventLoop: false,
+  payloadAsStream: true,
 });
 const handler = async (event: APIGatewayEvent, context: Context) => {
   // if a warming event
@@ -36,21 +40,13 @@ const handler = async (event: APIGatewayEvent, context: Context) => {
       };
     }
   }
-  // else proceed with handler logic
-  return await realHandler(event, context).catch((e) => {
-    console.error(e);
-    const newError = new InternalServerError({
-      message: "Failed to initialize application.",
-    });
-    const json = JSON.stringify(newError.toJson());
-    return {
-      statusCode: newError.httpStatusCode,
-      body: json,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      isBase64Encoded: false,
-    };
+  awslambda.streamifyResponse(async (event, responseStream, context) => {
+    const { meta, stream } = await realHandler(event, context);
+    responseStream = awslambda.HttpResponseStream.from(
+      responseStream,
+      meta as unknown as Record<string, unknown>,
+    ); // weird typing bug
+    await pipeline(stream, responseStream);
   });
 };
 
