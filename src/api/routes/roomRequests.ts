@@ -198,6 +198,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         command = new QueryCommand({
           TableName: genericConfig.RoomRequestsTableName,
           KeyConditionExpression: "semesterId = :semesterValue",
+          ProjectionExpression: "requestId, host, title, semester",
           ExpressionAttributeValues: {
             ":semesterValue": { S: semesterId },
           },
