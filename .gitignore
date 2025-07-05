@@ -143,3 +143,4 @@ __pycache__
 /playwright/.cache/
 dist_devel/
 !src/ui/pages/logs
+src/api/package.lambda.json

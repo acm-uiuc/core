@@ -14,12 +14,12 @@ import {
 } from "@mantine/core";
 import moment from "moment-timezone";
 import { DateFormatter, DatePickerInput, DateTimePicker } from "@mantine/dates";
-import { useForm, zodResolver } from "@mantine/form";
+import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { z } from "zod";
+import * as z from "zod/v4";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AllOrganizationList as orgList } from "@acm-uiuc/js-shared";
@@ -32,6 +32,7 @@ import {
   MAX_VALUE_LENGTH,
   metadataSchema,
 } from "@common/types/events";
+import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -326,12 +327,14 @@ export const ManageEventPage: React.FC = () => {
             placeholder="Event title"
             {...form.getInputProps("title")}
           />
+
           <Textarea
             label="Event Description"
             withAsterisk
             placeholder="Event description"
             {...form.getInputProps("description")}
           />
+
           <DateTimePicker
             label="Start Date"
             withAsterisk
@@ -339,6 +342,7 @@ export const ManageEventPage: React.FC = () => {
             placeholder="Pick start date"
             {...form.getInputProps("start")}
           />
+
           <DateTimePicker
             label="End Date"
             withAsterisk
@@ -346,17 +350,20 @@ export const ManageEventPage: React.FC = () => {
             placeholder="Pick end date (optional)"
             {...form.getInputProps("end")}
           />
+
           <TextInput
             label="Event Location"
             withAsterisk
             placeholder="ACM Room"
             {...form.getInputProps("location")}
           />
+
           <TextInput
             label="Location Link"
             placeholder="Google Maps link for location"
             {...form.getInputProps("locationLink")}
           />
+
           <Select
             label="Host"
             placeholder="Select host organization"
@@ -364,11 +371,13 @@ export const ManageEventPage: React.FC = () => {
             data={orgList.map((org) => ({ value: org, label: org }))}
             {...form.getInputProps("host")}
           />
+
           <Switch
             label={`Show on home page carousel${!form.values.repeats ? " and Discord" : ""}?`}
             style={{ paddingTop: "0.5em" }}
             {...form.getInputProps("featured", { type: "checkbox" })}
           />
+
           <Select
             label="Repeats"
             placeholder="Select repeat frequency"
@@ -379,6 +388,7 @@ export const ManageEventPage: React.FC = () => {
             clearable
             {...form.getInputProps("repeats")}
           />
+
           {form.values.repeats && (
             <>
               <DateTimePicker
@@ -387,6 +397,7 @@ export const ManageEventPage: React.FC = () => {
                 placeholder="Pick repeat end date"
                 {...form.getInputProps("repeatEnds")}
               />
+
               <DatePickerInput
                 label="Repeat Excludes"
                 description="Dates selected here will be skipped in the recurring schedule."
@@ -446,6 +457,7 @@ export const ManageEventPage: React.FC = () => {
                       error={keyError}
                       style={{ flex: 1 }}
                     />
+
                     <Box style={{ flex: 1 }}>
                       <TextInput
                         label="Value"
@@ -455,6 +467,7 @@ export const ManageEventPage: React.FC = () => {
                         }
                         error={valueError}
                       />
+
                       {valueError && <div style={{ height: "0.75rem" }} />}
                     </Box>
                     <ActionIcon

@@ -21,7 +21,7 @@ import {
   DatabaseInsertError,
   ValidationError,
 } from "common/errors/index.js";
-import { z } from "zod";
+import * as z from "zod/v4";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
@@ -71,7 +71,7 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
           {
             Put: {
               TableName: genericConfig.ApiKeyTable,
-              Item: marshall(apiKeyPayload),
+              Item: marshall(apiKeyPayload, { removeUndefinedValues: true }),
               ConditionExpression: "attribute_not_exists(keyId)",
             },
           },
@@ -145,7 +145,7 @@ If you did not create this API key, please secure your account and notify the AC
         withTags(["API Keys"], {
           summary: "Delete an organization API key.",
           params: z.object({
-            keyId: z.string().min(1).openapi({
+            keyId: z.string().min(1).meta({
               description:
                 "Key ID to delete. The key ID is the second segment of the API key.",
             }),

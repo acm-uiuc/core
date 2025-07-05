@@ -1,7 +1,6 @@
-import "zod-openapi/extend";
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { AppRoles } from "../../common/roles.js";
-import { z } from "zod";
+import * as z from "zod/v4";
 import { CoreOrganizationList } from "@acm-uiuc/js-shared";
 import {
   DeleteItemCommand,
@@ -83,37 +82,33 @@ const createProjectionParams = (includeMetadata: boolean = false) => {
 };
 
 const repeatOptions = ["weekly", "biweekly"] as const;
-const zodIncludeMetadata = z.coerce
-  .boolean()
-  .default(false)
-  .optional()
-  .openapi({
-    description: "If true, include metadata for each event entry.",
-  });
+const zodIncludeMetadata = z.coerce.boolean().default(false).optional().meta({
+  description: "If true, include metadata for each event entry.",
+});
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
 export type EventRepeatOptions = (typeof repeatOptions)[number];
 
 const baseSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
-  start: z.string().openapi({
+  start: z.string().meta({
     description: "Timestamp in the America/Chicago timezone.",
     example: "2024-08-27T19:00:00",
   }),
-  end: z.optional(z.string()).openapi({
+  end: z.optional(z.string()).meta({
     description: "Timestamp in the America/Chicago timezone.",
     example: "2024-08-27T20:00:00",
   }),
-  location: z.string().openapi({
+  location: z.string().meta({
     description: "Human-friendly location name.",
     example: "Siebel Center for Computer Science",
   }),
-  locationLink: z.optional(z.string().url()).openapi({
+  locationLink: z.optional(z.string().url()).meta({
     description: "Google Maps link for easy navigation to the event location.",
     example: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
   }),
   host: z.enum(CoreOrganizationList as [string, ...string[]]),
-  featured: z.boolean().default(false).openapi({
+  featured: z.boolean().default(false).meta({
     description:
       "Whether or not the event should be shown on the ACM @ UIUC website home page (and added to Discord, as available).",
   }),
@@ -124,15 +119,10 @@ const baseSchema = z.object({
 const requestSchema = baseSchema.extend({
   repeats: z.optional(z.enum(repeatOptions)),
   repeatEnds: z.string().optional(),
-  repeatExcludes: z
-    .array(z.string().date())
-    .min(1)
-    .max(100)
-    .optional()
-    .openapi({
-      description:
-        "Dates to exclude from recurrence rules (in the America/Chicago timezone).",
-    }),
+  repeatExcludes: z.array(z.string().date()).min(1).max(100).optional().meta({
+    description:
+      "Dates to exclude from recurrence rules (in the America/Chicago timezone).",
+  }),
 });
 
 const postRequestSchema = requestSchema
@@ -167,18 +157,18 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       {
         schema: withTags(["Events"], {
           querystring: z.object({
-            upcomingOnly: z.coerce.boolean().default(false).optional().openapi({
+            upcomingOnly: z.coerce.boolean().default(false).optional().meta({
               description:
                 "If true, only get events which have at least one occurance starting after the current time.",
             }),
-            featuredOnly: z.coerce.boolean().default(false).optional().openapi({
+            featuredOnly: z.coerce.boolean().default(false).optional().meta({
               description:
                 "If true, only get events which are marked as featured.",
             }),
             host: z
               .enum(CoreOrganizationList as [string, ...string[]])
               .optional()
-              .openapi({
+              .meta({
                 description: "Retrieve events only for a specific host.",
               }),
             ts,
@@ -313,7 +303,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           // },
           body: postRequestSchema,
           params: z.object({
-            id: z.string().min(1).optional().openapi({
+            id: z.string().min(1).optional().meta({
               description:
                 "Event ID to modify (leave empty to create a new event).",
               example: "6667e095-8b04-4877-b361-f636f459ba42",
@@ -363,7 +353,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         await fastify.dynamoClient.send(
           new PutItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
-            Item: marshall(entry),
+            Item: marshall(entry, { removeUndefinedValues: true }),
           }),
         );
         try {
@@ -450,7 +440,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         [AppRoles.EVENTS_MANAGER],
         withTags(["Events"], {
           params: z.object({
-            id: z.string().min(1).openapi({
+            id: z.string().min(1).meta({
               description: "Event ID to delete.",
               example: "6667e095-8b04-4877-b361-f636f459ba42",
             }),
@@ -552,7 +542,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
     {
       schema: withTags(["Events"], {
         params: z.object({
-          id: z.string().min(1).openapi({
+          id: z.string().min(1).meta({
             description: "Event ID to delete.",
             example: "6667e095-8b04-4877-b361-f636f459ba42",
           }),

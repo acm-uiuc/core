@@ -12,7 +12,7 @@ import { notifications } from "@mantine/notifications";
 import pluralize from "pluralize";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { z } from "zod";
+import * as z from "zod/v4";
 
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";
@@ -263,6 +263,7 @@ const ViewTicketsPage: React.FC = () => {
               data={pageSizeOptions}
               style={{ width: 80 }}
             />
+
             <Text size="sm">
               Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of{" "}
               {pluralize("entry", totalItems, true)}

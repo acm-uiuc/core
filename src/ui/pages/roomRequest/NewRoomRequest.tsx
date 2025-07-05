@@ -16,7 +16,7 @@ import {
   Loader,
   Checkbox,
 } from "@mantine/core";
-import { useForm, zodResolver } from "@mantine/form";
+import { useForm } from "@mantine/form";
 import { DateInput, DateTimePicker } from "@mantine/dates";
 import { AllOrganizationList } from "@acm-uiuc/js-shared";
 import {
@@ -31,7 +31,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
 import { fromError } from "zod-validation-error";
-import { ZodError } from "zod";
+import { ZodError } from "zod/v4";
+import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 
 // Component for yes/no questions with conditional content
 interface ConditionalFieldProps {

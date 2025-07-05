@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
-import { z } from "zod";
+import * as z from "zod/v4";
 import {
   ConditionalCheckFailedException,
   QueryCommand,
