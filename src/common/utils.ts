@@ -1,3 +1,4 @@
+import { z } from "zod";
 export function transformCommaSeperatedName(name: string) {
   if (name.includes(",")) {
     try {
@@ -11,4 +12,43 @@ export function transformCommaSeperatedName(name: string) {
     }
   }
   return name;
+}
+
+type GenerateProjectionParamsInput = {
+  userFields?: string[];
+}
+/**
+ * Generates DynamoDB projection parameters for select filters, while safely handle reserved keywords.
+ */
+export const generateProjectionParams = ({ userFields }: GenerateProjectionParamsInput) => {
+  const attributes = userFields || [];
+  const expressionAttributeNames: Record<string, string> = {};
+  const projectionExpression = attributes
+    .map((attr, index) => {
+      const placeholder = `#proj${index}`;
+      expressionAttributeNames[placeholder] = attr;
+      return placeholder;
+    })
+    .join(',');
+  return {
+    ProjectionExpression: projectionExpression,
+    ExpressionAttributeNames: expressionAttributeNames,
+  };
+};
+
+
+export const nonEmptyCommaSeparatedStringSchema = z.preprocess(
+  (val) => String(val).split(',').map(item => item.trim()),
+  z.array(z.string()).nonempty()
+);
+
+type GettDefaultFilteringQuerystringInput = {
+  defaultSelect: string[];
+}
+export const getDefaultFilteringQuerystring = ({ defaultSelect }: GettDefaultFilteringQuerystringInput) => {
+  return {
+    select: z.optional(nonEmptyCommaSeparatedStringSchema).default(defaultSelect.join(',')).openapi({
+      description: "Comma-seperated list of attributes to return",
+    })
+  }
 }

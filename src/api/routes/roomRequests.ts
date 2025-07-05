@@ -30,6 +30,11 @@ import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { z } from "zod";
 import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
+import {
+  generateProjectionParams,
+  getDefaultFilteringQuerystring,
+  nonEmptyCommaSeparatedStringSchema,
+} from "common/utils.js";
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -182,12 +187,19 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
               example: "sp25",
             }),
           }),
+          querystring: z.object(
+            getDefaultFilteringQuerystring({
+              defaultSelect: ["requestId", "title"],
+            }),
+          ),
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const semesterId = request.params.semesterId;
+      const { ProjectionExpression, ExpressionAttributeNames } =
+        generateProjectionParams({ userFields: request.query.select });
       if (!request.username) {
         throw new InternalServerError({
           message: "Could not retrieve username.",
@@ -198,7 +210,8 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         command = new QueryCommand({
           TableName: genericConfig.RoomRequestsTableName,
           KeyConditionExpression: "semesterId = :semesterValue",
-          ProjectionExpression: "requestId, host, title, semester",
+          ProjectionExpression,
+          ExpressionAttributeNames,
           ExpressionAttributeValues: {
             ":semesterValue": { S: semesterId },
           },
@@ -210,8 +223,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             "semesterId = :semesterValue AND begins_with(#sortKey, :username)",
           ExpressionAttributeNames: {
             "#sortKey": "userId#requestId",
+            ...ExpressionAttributeNames,
           },
-          ProjectionExpression: "requestId, host, title, semester",
+          ProjectionExpression,
           ExpressionAttributeValues: {
             ":semesterValue": { S: semesterId },
             ":username": { S: request.username },
