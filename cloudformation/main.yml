@@ -221,7 +221,7 @@ Resources:
     Type: AWS::Lambda::Url
     Properties:
       AuthType: NONE
-      InvokeMode: BUFFERED
+      InvokeMode: RESPONSE_STREAM
       TargetFunctionArn: !GetAtt AppApiLambdaFunction.Arn
 
 
