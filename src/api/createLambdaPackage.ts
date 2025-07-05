@@ -22,8 +22,8 @@ const filePath = `${getPath("package.json").dirname}/package.json`;
 const writeFilePath = `${getPath("package.json").dirname}/package.lambda.json`;
 const packageJson = JSON.parse((await readFile(filePath)).toString());
 const basePackageJson = {
-  name: "",
-  version: "",
+  name: "infra-core-api",
+  version: "1.0.0",
   description: "",
   main: "index.js",
   author: "ACM@UIUC",
