@@ -12,7 +12,7 @@
     "postinstall": "npm run setup",
     "setup": "git config blame.ignoreRevsFile .git-blame-ignore-revs",
     "build": "concurrently --names 'api,ui' 'yarn workspace infra-core-api run build' 'yarn workspace infra-core-ui run build'",
-    "postbuild": "tsx src/api/createLambdaPackage.ts && yarn lockfile-manage",
+    "postbuild": "node src/api/createLambdaPackage.js && yarn lockfile-manage",
     "dev": "cross-env DISABLE_AUDIT_LOG=true concurrently --names 'api,ui' 'yarn workspace infra-core-api run dev' 'yarn workspace infra-core-ui run dev'",
     "lockfile-manage": "synp --with-workspace --source-file yarn.lock",
     "postlockfile-manage": "cp package-lock.json dist/lambda/ && cp package-lock.json dist/sqsConsumer/ && cp src/api/package.lambda.json dist/lambda/package.json && cp src/api/package.lambda.json dist/sqsConsumer/package.json && rm package-lock.json",

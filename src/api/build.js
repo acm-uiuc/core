@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import { resolve } from "path";
 import { copy } from "esbuild-plugin-copy";
+import { packagesToTransfer } from "./createLambdaPackage.js";
 
 const commonParams = {
   bundle: true,
@@ -15,17 +16,7 @@ const commonParams = {
   target: "es2022", // Target ES2022
   sourcemap: false,
   platform: "node",
-  external: [
-    "aws-sdk",
-    "moment-timezone",
-    "passkit-generator",
-    "fastify",
-    "zod",
-    "@fastify/swagger",
-    "@fastify/swagger-ui",
-    "argon2",
-    "ioredis",
-  ],
+  external: ["aws-sdk", ...packagesToTransfer],
   alias: {
     "moment-timezone": resolve(
       process.cwd(),

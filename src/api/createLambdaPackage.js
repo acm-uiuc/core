@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-function getPath(url: string) {
+function getPath() {
   const result = new URL(import.meta.url);
   const pathname = result.pathname;
   const pathArray = pathname.split("/");
@@ -8,7 +8,8 @@ function getPath(url: string) {
 
   return { pathname, dirname, basename };
 }
-const packagesToTransfer = [
+// These are packages not bundled into the JS file by esbuild
+export const packagesToTransfer = [
   "moment-timezone",
   "passkit-generator",
   "fastify",
@@ -18,8 +19,8 @@ const packagesToTransfer = [
   "argon2",
   "ioredis",
 ];
-const filePath = `${getPath("package.json").dirname}/package.json`;
-const writeFilePath = `${getPath("package.json").dirname}/package.lambda.json`;
+const filePath = `${getPath().dirname}/package.json`;
+const writeFilePath = `${getPath().dirname}/package.lambda.json`;
 const packageJson = JSON.parse((await readFile(filePath)).toString());
 const basePackageJson = {
   name: "infra-core-api",
@@ -29,7 +30,7 @@ const basePackageJson = {
   author: "ACM@UIUC",
   license: "BSD-3-Clause",
   type: "module",
-  dependencies: {} as Record<string, string>,
+  dependencies: {},
   devDependencies: {},
 };
 for (const key in packageJson.dependencies) {
