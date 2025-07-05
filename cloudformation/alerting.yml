@@ -24,7 +24,6 @@ Parameters:
 Resources:
   AppDLQMessagesAlarm:
     Type: "AWS::CloudWatch::Alarm"
-    Condition: IsProd
     Properties:
       AlarmName: !Sub ${ApplicationPrefix}-sqs-dlq
       AlarmDescription: "Items are present in the application DLQ, meaning some messages failed to process."
