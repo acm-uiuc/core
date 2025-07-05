@@ -107,6 +107,17 @@ Resources:
         QueueName: !Sub ${ApplicationPrefix}-sqs
         MessageTimeout: !Ref SqsMessageTimeout
 
+  AppAlarms:
+    Condition: IsProd
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./alerting.yml
+      Parameters:
+        AlertSNSArn: !Ref AlertSNSArn
+        PriorityAlertSNSArn: !Ref PriorityAlertSNSArn
+        ApplicationPrefix: !Ref ApplicationPrefix
+        ApplicationFriendlyName: !Ref ApplicationFriendlyName
+
   LinkryRecordSetv4:
     Condition: IsDev
     Type: AWS::Route53::RecordSet
@@ -601,26 +612,6 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: "expireAt"
         Enabled: true
-
-
-  AppDLQMessagesAlarm:
-    Type: "AWS::CloudWatch::Alarm"
-    Condition: IsProd
-    Properties:
-      AlarmName: !Sub ${ApplicationPrefix}-sqs-dlq
-      AlarmDescription: "Items are present in the application DLQ, meaning some messages failed to process."
-      Namespace: "AWS/SQS"
-      MetricName: "ApproximateNumberOfMessagesVisible"
-      Statistic: "Maximum"
-      Period: 60
-      EvaluationPeriods: 1
-      ComparisonOperator: "GreaterThanThreshold"
-      Threshold: 0
-      Dimensions:
-        - Name: QueueName
-          Value: !Sub ${ApplicationPrefix}-sqs-dlq
-      AlarmActions:
-        - !Ref PriorityAlertSNSArn
 
   AppFrontendS3Bucket:
     Type: AWS::S3::Bucket
