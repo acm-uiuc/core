@@ -33,7 +33,7 @@ import { checkPaidMembershipFromTable } from "./membership.js";
 import type pino from "pino";
 import { type FastifyBaseLogger } from "fastify";
 
-function validateGroupId(groupId: string): boolean {
+export function validateGroupId(groupId: string): boolean {
   const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
   return groupIdPattern.test(groupId);
 }

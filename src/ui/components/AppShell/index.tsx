@@ -21,6 +21,7 @@ import {
   IconDoor,
   IconHistory,
   IconKey,
+  IconUsers,
 } from "@tabler/icons-react";
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
@@ -75,6 +76,13 @@ export const navItems = [
     icon: IconDoor,
     description: null,
     validRoles: [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_UPDATE],
+  },
+  {
+    link: "/siglead-management",
+    name: "SigLead",
+    icon: IconUsers,
+    description: null,
+    validRoles: [AppRoles.SIGLEAD_MANAGER],
   },
   {
     link: "/linkry",

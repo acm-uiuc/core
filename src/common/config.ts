@@ -52,6 +52,8 @@ export type GenericConfigType = {
   EntraReadOnlySecretName: string;
   AuditLogTable: string;
   ApiKeyTable: string;
+  SigleadDynamoSigDetailTableName: string;
+  SigleadDynamoSigMemberTableName: string;
   ConfigSecretName: string;
   TestingCredentialsSecret: string;
 };
@@ -67,6 +69,8 @@ export const execCouncilGroupId = "ad81254b-4eeb-4c96-8191-3acdce9194b1";
 export const execCouncilTestingGroupId = "dbe18eb2-9675-46c4-b1ef-749a6db4fedd";
 export const commChairsTestingGroupId = "d714adb7-07bb-4d4d-a40a-b035bc2a35a3";
 export const commChairsGroupId = "105e7d32-7289-435e-a67a-552c7f215507";
+
+export const orgsGroupId = "0b3be7c2-748e-46ce-97e7-cf86f9ca7337";
 
 const genericConfig: GenericConfigType = {
   EventsDynamoTableName: "infra-core-api-events",
@@ -90,6 +94,8 @@ const genericConfig: GenericConfigType = {
   RoomRequestsStatusTableName: "infra-core-api-room-requests-status",
   AuditLogTable: "infra-core-api-audit-log",
   ApiKeyTable: "infra-core-api-keys",
+  SigleadDynamoSigDetailTableName: "infra-core-api-sig-details",
+  SigleadDynamoSigMemberTableName: "infra-core-api-sig-member-details",
   ConfigSecretName: "infra-core-api-config",
   TestingCredentialsSecret: "infra-core-api-testing-credentials",
 } as const;
