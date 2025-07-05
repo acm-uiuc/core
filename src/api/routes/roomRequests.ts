@@ -239,6 +239,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const items = response.Items.map((x) => {
+        if (!request.query.select.includes("status")) {
+          return unmarshall(x);
+        }
         const item = unmarshall(x) as {
           host: string;
           title: string;
@@ -418,6 +421,11 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
               example: "sp25",
             }),
           }),
+          querystring: z.object(
+            getDefaultFilteringQuerystring({
+              defaultSelect: ["requestId", "title"],
+            }),
+          ),
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -425,6 +433,8 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
+      const { ProjectionExpression, ExpressionAttributeNames } =
+        generateProjectionParams({ userFields: request.query.select });
       let command;
       if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
         command = new QueryCommand({
@@ -432,6 +442,8 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           IndexName: "RequestIdIndex",
           KeyConditionExpression: "requestId = :requestId",
           FilterExpression: "semesterId = :semesterId",
+          ProjectionExpression,
+          ExpressionAttributeNames,
           ExpressionAttributeValues: {
             ":requestId": { S: requestId },
             ":semesterId": { S: semesterId },
@@ -441,6 +453,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       } else {
         command = new QueryCommand({
           TableName: genericConfig.RoomRequestsTableName,
+          ProjectionExpression,
           KeyConditionExpression:
             "semesterId = :semesterId AND #userIdRequestId = :userRequestId",
           ExpressionAttributeValues: {
@@ -449,6 +462,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           },
           ExpressionAttributeNames: {
             "#userIdRequestId": "userId#requestId",
+            ...ExpressionAttributeNames,
           },
           Limit: 1,
         });

@@ -37,18 +37,20 @@ export const generateProjectionParams = ({ userFields }: GenerateProjectionParam
 };
 
 
-export const nonEmptyCommaSeparatedStringSchema = z.preprocess(
-  (val) => String(val).split(',').map(item => item.trim()),
-  z.array(z.string()).nonempty()
-);
+export const nonEmptyCommaSeparatedStringSchema = z
+  .string({ invalid_type_error: "Filter expression must be a string." })
+  .min(1, { message: "Filter expression must be at least 1 character long." })
+  .transform((val) => val.split(',').map(item => item.trim()))
+  .pipe(z.array(z.string()).nonempty());
 
-type GettDefaultFilteringQuerystringInput = {
+type GetDefaultFilteringQuerystringInput = {
   defaultSelect: string[];
 }
-export const getDefaultFilteringQuerystring = ({ defaultSelect }: GettDefaultFilteringQuerystringInput) => {
+export const getDefaultFilteringQuerystring = ({ defaultSelect }: GetDefaultFilteringQuerystringInput) => {
   return {
     select: z.optional(nonEmptyCommaSeparatedStringSchema).default(defaultSelect.join(',')).openapi({
       description: "Comma-seperated list of attributes to return",
+      ...(defaultSelect.length === 0 ? { default: "<ALL ATTRIBUTES>" } : {}),
     })
   }
 }
