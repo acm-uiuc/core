@@ -11,6 +11,7 @@ import {
   RoomRequestFormValues,
   RoomRequestGetAllResponse,
   RoomRequestPostResponse,
+  type RoomRequestStatus,
 } from "@common/types/roomRequest";
 
 export const ManageRoomRequestsPage: React.FC = () => {
@@ -29,8 +30,15 @@ export const ManageRoomRequestsPage: React.FC = () => {
   const getRoomRequests = async (
     semester: string,
   ): Promise<RoomRequestGetAllResponse> => {
-    const response = await api.get(`/api/v1/roomRequests/${semester}`);
-    return response.data;
+    const response = await api.get<
+      {
+        requestId: string;
+        title: string;
+        host: string;
+        status: RoomRequestStatus;
+      }[]
+    >(`/api/v1/roomRequests/${semester}?select=requestId,title,host,status`);
+    return response.data.map((x) => ({ ...x, semester }));
   };
 
   useEffect(() => {

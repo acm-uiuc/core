@@ -1,3 +1,4 @@
+import { z } from "zod";
 export function transformCommaSeperatedName(name: string) {
   if (name.includes(",")) {
     try {
@@ -68,4 +69,44 @@ export function getTimeInFormat() {
   const seconds = String(date.getUTCSeconds()).padStart(2, '0');
 
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}Z`;
+
+type GenerateProjectionParamsInput = {
+  userFields?: string[];
+}
+/**
+ * Generates DynamoDB projection parameters for select filters, while safely handle reserved keywords.
+ */
+export const generateProjectionParams = ({ userFields }: GenerateProjectionParamsInput) => {
+  const attributes = userFields || [];
+  const expressionAttributeNames: Record<string, string> = {};
+  const projectionExpression = attributes
+    .map((attr, index) => {
+      const placeholder = `#proj${index}`;
+      expressionAttributeNames[placeholder] = attr;
+      return placeholder;
+    })
+    .join(',');
+  return {
+    ProjectionExpression: projectionExpression,
+    ExpressionAttributeNames: expressionAttributeNames,
+  };
+};
+
+
+export const nonEmptyCommaSeparatedStringSchema = z
+  .string({ invalid_type_error: "Filter expression must be a string." })
+  .min(1, { message: "Filter expression must be at least 1 character long." })
+  .transform((val) => val.split(',').map(item => item.trim()))
+  .pipe(z.array(z.string()).nonempty());
+
+type GetDefaultFilteringQuerystringInput = {
+  defaultSelect: string[];
+}
+export const getDefaultFilteringQuerystring = ({ defaultSelect }: GetDefaultFilteringQuerystringInput) => {
+  return {
+    select: z.optional(nonEmptyCommaSeparatedStringSchema).default(defaultSelect.join(',')).openapi({
+      description: "Comma-seperated list of attributes to return",
+      ...(defaultSelect.length === 0 ? { default: "<ALL ATTRIBUTES>" } : {}),
+    })
+  }
 }
