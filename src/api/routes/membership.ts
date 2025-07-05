@@ -88,7 +88,13 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       },
       async (request, reply) => {
         const netId = request.params.netId.toLowerCase();
-        if (fastify.nodeCache.get(`isMember_${netId}`) === true) {
+        const cacheKey = `membership:${netId}:acmpaid`;
+        const result = await getKey<{ isMember: boolean }>({
+          redisClient: fastify.redisClient,
+          key: cacheKey,
+          logger: request.log,
+        });
+        if (result && result.isMember) {
           throw new ValidationError({
             message: `${netId} is already a paid member!`,
           });
@@ -98,11 +104,13 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           fastify.dynamoClient,
         );
         if (isDynamoMember) {
-          fastify.nodeCache.set(
-            `isMember_${netId}`,
-            true,
-            MEMBER_CACHE_SECONDS,
-          );
+          await setKey({
+            redisClient: fastify.redisClient,
+            key: cacheKey,
+            data: JSON.stringify({ isMember: true }),
+            expiresIn: MEMBER_CACHE_SECONDS,
+            logger: request.log,
+          });
           throw new ValidationError({
             message: `${netId} is already a paid member!`,
           });
@@ -120,11 +128,13 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           paidMemberGroup,
         );
         if (isAadMember) {
-          fastify.nodeCache.set(
-            `isMember_${netId}`,
-            true,
-            MEMBER_CACHE_SECONDS,
-          );
+          await setKey({
+            redisClient: fastify.redisClient,
+            key: cacheKey,
+            data: JSON.stringify({ isMember: true }),
+            expiresIn: MEMBER_CACHE_SECONDS,
+            logger: request.log,
+          });
           reply
             .header("X-ACM-Data-Source", "aad")
             .send({ netId, isPaidMember: true });
@@ -133,7 +143,14 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             message: `${netId} is already a paid member!`,
           });
         }
-        fastify.nodeCache.set(`isMember_${netId}`, false, MEMBER_CACHE_SECONDS);
+        // Once the caller becomes a member, the stripe webhook will handle changing this to true
+        await setKey({
+          redisClient: fastify.redisClient,
+          key: cacheKey,
+          data: JSON.stringify({ isMember: false }),
+          expiresIn: MEMBER_CACHE_SECONDS,
+          logger: request.log,
+        });
         const secretApiConfig =
           (await getSecretValue(
             fastify.secretsManagerClient,
@@ -185,6 +202,8 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       async (request, reply) => {
         const netId = request.params.netId.toLowerCase();
         const list = request.query.list || "acmpaid";
+        // we don't control external list as its direct upload in Dynamo, cache only for 60 seconds.
+        const ourCacheSeconds = list === "acmpaid" ? MEMBER_CACHE_SECONDS : 60;
         const cacheKey = `membership:${netId}:${list}`;
         const result = await getKey<{ isMember: boolean }>({
           redisClient: fastify.redisClient,
@@ -208,7 +227,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             redisClient: fastify.redisClient,
             key: cacheKey,
             data: JSON.stringify({ isMember }),
-            expiresIn: MEMBER_CACHE_SECONDS,
+            expiresIn: ourCacheSeconds,
             logger: request.log,
           });
           return reply.header("X-ACM-Data-Source", "dynamo").send({
@@ -226,7 +245,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             redisClient: fastify.redisClient,
             key: cacheKey,
             data: JSON.stringify({ isMember: true }),
-            expiresIn: MEMBER_CACHE_SECONDS,
+            expiresIn: ourCacheSeconds,
             logger: request.log,
           });
           return reply
@@ -250,7 +269,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             redisClient: fastify.redisClient,
             key: cacheKey,
             data: JSON.stringify({ isMember: true }),
-            expiresIn: MEMBER_CACHE_SECONDS,
+            expiresIn: ourCacheSeconds,
             logger: request.log,
           });
           reply
@@ -263,7 +282,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           redisClient: fastify.redisClient,
           key: cacheKey,
           data: JSON.stringify({ isMember: false }),
-          expiresIn: MEMBER_CACHE_SECONDS,
+          expiresIn: ourCacheSeconds,
           logger: request.log,
         });
         return reply
