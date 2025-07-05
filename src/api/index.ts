@@ -313,6 +313,9 @@ async function init(prettyPrint: boolean = false) {
     origin: app.environmentConfig.ValidCorsOrigins,
     methods: ["GET", "HEAD", "POST", "PATCH", "DELETE"],
   });
+  app.addHook("onSend", async (request, reply) => {
+    reply.header("X-Request-Id", request.id);
+  });
   app.log.info("Initialized new Fastify instance...");
   return app;
 }
