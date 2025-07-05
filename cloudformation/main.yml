@@ -221,13 +221,6 @@ Resources:
     Type: AWS::Lambda::Url
     Properties:
       AuthType: NONE
-      Cors:
-        AllowHeaders:
-          - Content-Type
-          - Authorization
-          - X-Amz-Date
-        AllowOrigins: ["*"]
-        MaxAge: 300
       InvokeMode: BUFFERED
       TargetFunctionArn: !GetAtt AppApiLambdaFunction.Arn
 
