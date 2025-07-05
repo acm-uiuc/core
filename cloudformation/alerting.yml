@@ -16,6 +16,9 @@ Parameters:
   ApplicationFriendlyName:
     Type: String
     Description: Application friendly name that will be used in resource descriptions
+  MainCloudfrontDistributionId:
+    Type: String
+    Description: Cloudfront Distribution ID that serves main API endpoints.
 
 
 Resources:
@@ -37,3 +40,75 @@ Resources:
           Value: !Sub ${ApplicationPrefix}-sqs-dlq
       AlarmActions:
         - !Ref PriorityAlertSNSArn
+
+  AppLatencyAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmName: !Sub ${ApplicationPrefix}-latency-high
+      AlarmDescription: "Trailing Mean - 95% API gateway latency is > 1.25s for 2 times in 4 minutes."
+      Namespace: "AWS/Lambda"
+      MetricName: "UrlRequestLatency"
+      ExtendedStatistic: "tm95"
+      Period: "120"
+      EvaluationPeriods: "2"
+      ComparisonOperator: "GreaterThanThreshold"
+      Threshold: "1250"
+      AlarmActions:
+        - !Ref AlertSNSArn
+      Dimensions:
+        - Name: "FunctionName"
+          Value: !Sub ${ApplicationPrefix}-lambda
+
+  AppNoRequestsAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmName: !Sub ${ApplicationPrefix}-no-requests
+      AlarmDescription: "No requests have been received in the past 5 minutes."
+      Namespace: "AWS/Lambda"
+      MetricName: "UrlRequestCount"
+      Statistic: "sum"
+      Period: "300"
+      EvaluationPeriods: "1"
+      ComparisonOperator: "LessThanThreshold"
+      Threshold: "1"
+      AlarmActions:
+        - !Ref PriorityAlertSNSArn
+      Dimensions:
+        - Name: "FunctionName"
+          Value: !Sub ${ApplicationPrefix}-lambda
+
+  AppInvocationErrorAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmName: !Sub ${ApplicationPrefix}-error-invocation
+      AlarmDescription: "Lambda threw an error, meaning the Fastify application itself has encountered an error"
+      Namespace: "AWS/Lambda"
+      MetricName: "Errors"
+      Statistic: "sum"
+      Period: "300"
+      EvaluationPeriods: "1"
+      ComparisonOperator: "GreaterThanThreshold"
+      Threshold: "1"
+      AlarmActions:
+        - !Ref PriorityAlertSNSArn
+      Dimensions:
+        - Name: "FunctionName"
+          Value: !Sub ${ApplicationPrefix}-lambda
+
+  App5xxErrorAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmName: !Sub ${ApplicationPrefix}-cloudfront-5xx-error
+      AlarmDescription: "Cloudfront reports more than 1% 5xx error rate"
+      Namespace: "AWS/CloudFront"
+      MetricName: "5xxErrorRate"
+      Statistic: "sum"
+      Period: "300"
+      EvaluationPeriods: "1"
+      ComparisonOperator: "GreaterThanThreshold"
+      Threshold: "0.01"
+      AlarmActions:
+        - !Ref PriorityAlertSNSArn
+      Dimensions:
+        - Name: "DistributionId"
+          Value: !Ref MainCloudfrontDistributionId

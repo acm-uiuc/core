@@ -117,6 +117,7 @@ Resources:
         PriorityAlertSNSArn: !Ref PriorityAlertSNSArn
         ApplicationPrefix: !Ref ApplicationPrefix
         ApplicationFriendlyName: !Ref ApplicationFriendlyName
+        MainCloudfrontDistributionId: !GetAtt AppFrontendCloudfrontDistribution.Id
 
   LinkryRecordSetv4:
     Condition: IsDev
