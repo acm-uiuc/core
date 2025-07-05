@@ -102,7 +102,7 @@ Resources:
       AlarmDescription: "Main application responses are more than 1% 5xx errors (from Cloudfront)"
       Namespace: "AWS/CloudFront"
       MetricName: "5xxErrorRate"
-      Statistic: "Sum"
+      Statistic: "Average"
       Period: "300"
       EvaluationPeriods: "1"
       ComparisonOperator: "GreaterThanThreshold"
