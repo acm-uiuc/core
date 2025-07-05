@@ -4,17 +4,11 @@
     "module": "Node16",
     "rootDir": "../",
     "outDir": "../../dist",
-    "baseUrl": "../",
+    "baseUrl": "../"
   },
   "ts-node": {
     "esm": true
   },
-  "include": [
-    "../api/**/*.ts",
-    "../common/**/*.ts"
-  ],
-  "exclude": [
-    "../../node_modules",
-    "../../dist"
-  ]
+  "include": ["../api/**/*.ts", "../common/**/*.ts"],
+  "exclude": ["../../node_modules", "../../dist"]
 }

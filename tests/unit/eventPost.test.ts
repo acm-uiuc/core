@@ -71,7 +71,7 @@ test("Sad path: Prevent empty body request", async () => {
     error: true,
     name: "ValidationError",
     id: 104,
-    message: "body/ Expected object, received null",
+    message: "body/ Invalid input: expected object, received null",
   });
 });
 test("Sad path: Prevent specifying repeatEnds on non-repeating events", async () => {
@@ -126,8 +126,7 @@ test("Sad path: Prevent specifying unknown repeat frequencies", async () => {
     error: true,
     name: "ValidationError",
     id: 104,
-    message:
-      "body/repeats Invalid enum value. Expected 'weekly' | 'biweekly', received 'forever_and_ever'",
+    message: `body/repeats Invalid option: expected one of "weekly"|"biweekly"`,
   });
 });
 

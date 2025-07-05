@@ -36,7 +36,7 @@ export const emailMembershipPassHandler: SQSHandlerFunction<
   const emailCommand = generateMembershipEmailCommand(
     email,
     `membership@${environmentConfig[runEnvironment].EmailDomain}`,
-    pkpass as any,
+    pkpass.buffer,
   );
   if (runEnvironment === "dev" && email === "testinguser@illinois.edu") {
     return;

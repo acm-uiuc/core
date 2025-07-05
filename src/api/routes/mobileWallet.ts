@@ -4,7 +4,7 @@ import {
   UnauthenticatedError,
   ValidationError,
 } from "../../common/errors/index.js";
-import { z } from "zod";
+import * as z from "zod/v4";
 import { checkPaidMembershipFromTable } from "../functions/membership.js";
 import {
   AvailableSQSFunctions,

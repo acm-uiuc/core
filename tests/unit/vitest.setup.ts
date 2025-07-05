@@ -1,4 +1,3 @@
-import "zod-openapi/extend";
 import { vi, afterEach } from "vitest";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";

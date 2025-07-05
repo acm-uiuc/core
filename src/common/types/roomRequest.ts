@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/v4";
 import { AllOrganizationList } from "@acm-uiuc/js-shared";
 
 export const eventThemeOptions = [
@@ -10,15 +10,14 @@ export const eventThemeOptions = [
   "Learning",
   "Service",
   "Social",
-  "Spirituality",
-] as [string, ...string[]];
+  "Spirituality"]
 
 export function getPreviousSemesters() {
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1;
 
-  let semesters: { value: string, label: string }[] = [];
+  let semesters: { value: string; label: string; }[] = [];
   let currentSemester = "";
 
   if (currentMonth >= 1 && currentMonth <= 5) {
@@ -30,28 +29,28 @@ export function getPreviousSemesters() {
   if (currentSemester === "Spring") {
     semesters.push({
       value: `fa${(currentYear - 1).toString().slice(-2)}`,
-      label: `Fall ${currentYear - 1}`,
+      label: `Fall ${currentYear - 1}`
     });
     semesters.push({
       value: `sp${(currentYear - 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear - 1}`,
+      label: `Spring ${currentYear - 1}`
     });
     semesters.push({
       value: `fa${(currentYear - 2).toString().slice(-2)}`,
-      label: `Fall ${currentYear - 2}`,
+      label: `Fall ${currentYear - 2}`
     });
   } else if (currentSemester === "Fall") {
     semesters.push({
       value: `sp${currentYear.toString().slice(-2)}`,
-      label: `Spring ${currentYear}`,
+      label: `Spring ${currentYear}`
     });
     semesters.push({
       value: `fa${(currentYear - 1).toString().slice(-2)}`,
-      label: `Fall ${currentYear - 1}`,
+      label: `Fall ${currentYear - 1}`
     });
     semesters.push({
       value: `sp${(currentYear - 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear - 1}`,
+      label: `Spring ${currentYear - 1}`
     });
   }
 
@@ -63,7 +62,7 @@ export function getSemesters() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1;
 
-  let semesters: { value: string, label: string }[] = [];
+  let semesters: { value: string; label: string; }[] = [];
   let currentSemester = "";
 
   if (currentMonth >= 1 && currentMonth <= 5) {
@@ -75,28 +74,28 @@ export function getSemesters() {
   if (currentSemester === "Spring") {
     semesters.push({
       value: `sp${currentYear.toString().slice(-2)}`,
-      label: `Spring ${currentYear}`,
+      label: `Spring ${currentYear}`
     });
     semesters.push({
       value: `fa${currentYear.toString().slice(-2)}`,
-      label: `Fall ${currentYear}`,
+      label: `Fall ${currentYear}`
     });
     semesters.push({
       value: `sp${(currentYear + 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear + 1}`,
+      label: `Spring ${currentYear + 1}`
     });
   } else if (currentSemester === "Fall") {
     semesters.push({
       value: `fa${currentYear.toString().slice(-2)}`,
-      label: `Fall ${currentYear}`,
+      label: `Fall ${currentYear}`
     });
     semesters.push({
       value: `sp${(currentYear + 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear + 1}`,
+      label: `Spring ${currentYear + 1}`
     });
     semesters.push({
       value: `fa${(currentYear + 1).toString().slice(-2)}`,
-      label: `Fall ${currentYear + 1}`,
+      label: `Fall ${currentYear + 1}`
     });
   }
 
@@ -109,17 +108,17 @@ export const spaceTypeOptions = [
   { value: "bif", label: "Business Instructional Facility (BIF)" },
   {
     value: "campus_rec",
-    label: "Campus Rec (ARC, CRCE, Ice Arena, Illini Grove) *",
+    label: "Campus Rec (ARC, CRCE, Ice Arena, Illini Grove) *"
   },
   { value: "illini_union", label: "Illini Union *" },
-  { value: "stock_pavilion", label: "Stock Pavilion" },
-];
+  { value: "stock_pavilion", label: "Stock Pavilion" }];
+
 
 export const specificRoomSetupRooms = [
   "illini_union",
   "campus_performance",
-  "campus_rec",
-];
+  "campus_rec"];
+
 
 export enum RoomRequestStatus {
   CREATED = "created",
@@ -132,53 +131,50 @@ export enum RoomRequestStatus {
 
 export const roomRequestStatusUpdateRequest = z.object({
   status: z.nativeEnum(RoomRequestStatus),
-  notes: z.string().min(1).max(1000),
+  notes: z.string().min(1).max(1000)
 });
 
 export const roomRequestStatusUpdate = roomRequestStatusUpdateRequest.extend({
   createdAt: z.string().datetime(),
-  createdBy: z.string().email(),
+  createdBy: z.string().email()
 });
 
 export const roomRequestPostResponse = z.object({
   id: z.string().uuid(),
-  status: z.literal(RoomRequestStatus.CREATED),
+  status: z.literal(RoomRequestStatus.CREATED)
 });
 
 export const roomRequestBaseSchema = z.object({
   host: z.enum(AllOrganizationList),
   title: z.string().min(2, "Title must have at least 2 characters"),
-  semester: z
-    .string()
-    .regex(/^(fa|sp|su|wi)\d{2}$/, "Invalid semester provided"),
+  semester: z.
+    string().
+    regex(/^(fa|sp|su|wi)\d{2}$/, "Invalid semester provided")
 });
 export const roomRequestDataSchema = roomRequestBaseSchema.extend({
   eventStart: z.coerce.date({
-    required_error: "Event start date and time is required",
-    invalid_type_error: "Event start must be a valid date and time",
+    error: (issue) => issue.input === undefined ? "Event start date and time is required" : "Event start must be a valid date and time"
   }).transform((date) => {
     const d = new Date(date);
     d.setSeconds(0, 0);
     return d;
   }),
   eventEnd: z.coerce.date({
-    required_error: "Event end date and time is required",
-    invalid_type_error: "Event end must be a valid date and time",
+    error: (issue) => issue.input === undefined ? "Event end date and time is required" : "Event end must be a valid date and time"
   }).transform((date) => {
     const d = new Date(date);
     d.setSeconds(0, 0);
     return d;
   }),
   theme: z.enum(eventThemeOptions, {
-    required_error: "Event theme must be provided",
-    invalid_type_error: "Event theme must be provided",
+    error: (issue) => issue.input === undefined ? "Event theme must be provided" : "Event theme is invalid"
   }),
-  description: z
-    .string()
-    .min(10, "Description must have at least 10 words")
-    .max(1000, "Description cannot exceed 1000 characters")
-    .refine((val) => val.split(/\s+/).filter(Boolean).length >= 10, {
-      message: "Description must have at least 10 words",
+  description: z.
+    string().
+    min(10, "Description must have at least 10 words").
+    max(1000, "Description cannot exceed 1000 characters").
+    refine((val) => val.split(/\s+/).filter(Boolean).length >= 10, {
+      message: "Description must have at least 10 words"
     }),
   // Recurring event fields
   isRecurring: z.boolean().default(false),
@@ -206,29 +202,29 @@ export const roomRequestDataSchema = roomRequestBaseSchema.extend({
   nonIllinoisAttendees: z.number().min(1).nullable(),
   foodOrDrink: z.boolean(),
   crafting: z.boolean(),
-  comments: z.string().optional(),
-})
+  comments: z.string().optional()
+});
 
-export const roomRequestSchema = roomRequestDataSchema
-  .refine(
+export const roomRequestSchema = roomRequestDataSchema.
+  refine(
     (data) => {
       return data.eventEnd > data.eventStart;
     },
     {
       message: "End date/time must be after start date/time",
-      path: ["eventEnd"],
-    },
-  )
-  .refine(
+      path: ["eventEnd"]
+    }
+  ).
+  refine(
     (data) => {
-      return (data.eventEnd.getTime() - data.eventStart.getTime()) >= (30 * 60 * 1000);
+      return data.eventEnd.getTime() - data.eventStart.getTime() >= 30 * 60 * 1000;
     },
     {
       message: "Event must be at least 30 minutes long",
-      path: ["eventEnd"],
-    },
-  )
-  .refine(
+      path: ["eventEnd"]
+    }
+  ).
+  refine(
     (data) => {
       // If recurrence is enabled, recurrence pattern must be provided
       if (data.isRecurring) {
@@ -238,10 +234,10 @@ export const roomRequestSchema = roomRequestDataSchema
     },
     {
       message: "Please select a recurrence pattern",
-      path: ["recurrencePattern"],
-    },
-  )
-  .refine(
+      path: ["recurrencePattern"]
+    }
+  ).
+  refine(
     (data) => {
       // If recurrence is enabled, end date must be provided
       if (data.isRecurring) {
@@ -251,10 +247,10 @@ export const roomRequestSchema = roomRequestDataSchema
     },
     {
       message: "Please select an end date for the recurring event",
-      path: ["recurrenceEndDate"],
-    },
-  )
-  .refine(
+      path: ["recurrenceEndDate"]
+    }
+  ).
+  refine(
     (data) => {
       if (data.isRecurring && data.recurrenceEndDate && data.eventStart) {
         const endDateWithTime = new Date(data.recurrenceEndDate);
@@ -265,10 +261,10 @@ export const roomRequestSchema = roomRequestDataSchema
     },
     {
       message: "End date must be on or after the event start date",
-      path: ["recurrenceEndDate"],
-    },
-  )
-  .refine(
+      path: ["recurrenceEndDate"]
+    }
+  ).
+  refine(
     (data) => {
       // If setup is needed, setupMinutesBefore must be provided
       if (data.setupNeeded) {
@@ -279,10 +275,10 @@ export const roomRequestSchema = roomRequestDataSchema
     {
       message:
         "Please specify how many minutes before the event you need for setup",
-      path: ["setupMinutesBefore"],
-    },
-  )
-  .refine(
+      path: ["setupMinutesBefore"]
+    }
+  ).
+  refine(
     (data) => {
       if (data.setupDetails === undefined && specificRoomSetupRooms.includes(data.spaceType || "")) {
         return false;
@@ -294,10 +290,10 @@ export const roomRequestSchema = roomRequestDataSchema
     },
     {
       message: "Invalid setup details response.",
-      path: ["setupDetails"],
-    },
-  )
-  .superRefine((data, ctx) => {
+      path: ["setupDetails"]
+    }
+  ).
+  superRefine((data, ctx) => {
     const isPhysicalLocation = data.locationType === "in-person" || data.locationType === "both";
 
     // Conditional physical location fields
@@ -306,7 +302,7 @@ export const roomRequestSchema = roomRequestDataSchema
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please select a space type",
-          path: ["spaceType"],
+          path: ["spaceType"]
         });
       }
 
@@ -314,7 +310,7 @@ export const roomRequestSchema = roomRequestDataSchema
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please provide details about the room location",
-          path: ["specificRoom"],
+          path: ["specificRoom"]
         });
       }
 
@@ -322,7 +318,7 @@ export const roomRequestSchema = roomRequestDataSchema
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please provide an estimated number of attendees",
-          path: ["estimatedAttendees"],
+          path: ["estimatedAttendees"]
         });
       }
 
@@ -330,17 +326,16 @@ export const roomRequestSchema = roomRequestDataSchema
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please specify how many seats you need",
-          path: ["seatsNeeded"],
+          path: ["seatsNeeded"]
         });
       } else if (
         data.estimatedAttendees &&
-        data.seatsNeeded < data.estimatedAttendees
-      ) {
+        data.seatsNeeded < data.estimatedAttendees) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message:
             "Number of seats must be greater than or equal to number of attendees",
-          path: ["seatsNeeded"],
+          path: ["seatsNeeded"]
         });
       }
     }
@@ -350,7 +345,7 @@ export const roomRequestSchema = roomRequestDataSchema
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Please provide details about on-campus partners",
-        path: ["onCampusPartners"],
+        path: ["onCampusPartners"]
       });
     }
 
@@ -358,7 +353,7 @@ export const roomRequestSchema = roomRequestDataSchema
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Please provide details about off-campus partners",
-        path: ["offCampusPartners"],
+        path: ["offCampusPartners"]
       });
     }
 
@@ -366,7 +361,7 @@ export const roomRequestSchema = roomRequestDataSchema
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Please provide details about non-UIUC speakers",
-        path: ["nonIllinoisSpeaker"],
+        path: ["nonIllinoisSpeaker"]
       });
     }
 
@@ -374,7 +369,7 @@ export const roomRequestSchema = roomRequestDataSchema
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Percentage must be greater than 0",
-        path: ["nonIllinoisAttendees"],
+        path: ["nonIllinoisAttendees"]
       });
     }
 
@@ -383,7 +378,7 @@ export const roomRequestSchema = roomRequestDataSchema
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Invalid setup details response.",
-        path: ["setupDetails"],
+        path: ["setupDetails"]
       });
     }
 
@@ -391,7 +386,7 @@ export const roomRequestSchema = roomRequestDataSchema
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Invalid setup details response.",
-        path: ["setupDetails"],
+        path: ["setupDetails"]
       });
     }
   });
@@ -401,7 +396,7 @@ export type RoomRequestFormValues = z.infer<typeof roomRequestSchema>;
 
 export const roomRequestGetResponse = z.object({
   data: roomRequestSchema,
-  updates: z.array(roomRequestStatusUpdate),
+  updates: z.array(roomRequestStatusUpdate)
 });
 
 export type RoomRequestPostResponse = z.infer<typeof roomRequestPostResponse>;
@@ -411,14 +406,14 @@ export type RoomRequestStatusUpdate = z.infer<typeof roomRequestStatusUpdate>;
 export type RoomRequestGetResponse = z.infer<typeof roomRequestGetResponse>;
 
 export type RoomRequestStatusUpdatePostBody = z.infer<
-  typeof roomRequestStatusUpdateRequest
->;
+  typeof roomRequestStatusUpdateRequest>;
+
 
 export const roomGetResponse = z.array(
   roomRequestBaseSchema.extend({
     requestId: z.string().uuid(),
-    status: z.nativeEnum(RoomRequestStatus),
-  }),
+    status: z.nativeEnum(RoomRequestStatus)
+  })
 );
 
 export type RoomRequestGetAllResponse = z.infer<typeof roomGetResponse>;
@@ -431,8 +426,8 @@ export const formatStatus = (status: RoomRequestStatus) => {
   if (status === RoomRequestStatus.SUBMITTED) {
     return 'Submitted to UIUC';
   }
-  return capitalizeFirstLetter(status)
-    .replaceAll('_', ' ')
-    .replaceAll('uiuc', 'UIUC')
-    .replaceAll('acm', 'ACM');
+  return capitalizeFirstLetter(status).
+    replaceAll('_', ' ').
+    replaceAll('uiuc', 'UIUC').
+    replaceAll('acm', 'ACM');
 };

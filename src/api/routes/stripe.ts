@@ -41,7 +41,7 @@ import stripe, { Stripe } from "stripe";
 import rawbody from "fastify-raw-body";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
-import { z } from "zod";
+import * as z from "zod/v4";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -144,17 +144,20 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           {
             Put: {
               TableName: genericConfig.StripeLinksDynamoTableName,
-              Item: marshall({
-                userId: request.username,
-                linkId,
-                priceId,
-                productId,
-                invoiceId,
-                url,
-                amount: request.body.invoiceAmountUsd,
-                active: true,
-                createdAt: new Date().toISOString(),
-              }),
+              Item: marshall(
+                {
+                  userId: request.username,
+                  linkId,
+                  priceId,
+                  productId,
+                  invoiceId,
+                  url,
+                  amount: request.body.invoiceAmountUsd,
+                  active: true,
+                  createdAt: new Date().toISOString(),
+                },
+                { removeUndefinedValues: true },
+              ),
             },
           },
         ],
@@ -188,7 +191,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Stripe"], {
           summary: "Deactivate a Stripe payment link.",
           params: z.object({
-            linkId: z.string().min(1).openapi({
+            linkId: z.string().min(1).meta({
               description: "Payment Link ID",
               example: "plink_abc123",
             }),

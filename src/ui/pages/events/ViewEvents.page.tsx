@@ -17,7 +17,7 @@ import { IconPlus, IconTrash } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { z } from "zod";
+import * as z from "zod/v4";
 
 import { capitalizeFirstLetter } from "./ManageEvent.page.js";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";

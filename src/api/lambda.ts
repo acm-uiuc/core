@@ -1,4 +1,3 @@
-import "zod-openapi/extend";
 import awsLambdaFastify, { LambdaResponse } from "@fastify/aws-lambda";
 import init from "./index.js";
 import warmer from "lambda-warmer";

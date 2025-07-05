@@ -37,7 +37,7 @@ import pluralize from "pluralize";
 import dayjs from "dayjs";
 import { AppRoles } from "@common/roles";
 import { BlurredTextDisplay } from "../../components/BlurredTextDisplay";
-import { z } from "zod";
+import * as z from "zod/v4";
 
 const HumanFriendlyDate = ({ date }: { date: number }) => {
   return (
@@ -299,6 +299,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
           }}
           required
         />
+
         <TextInput
           label="Description"
           value={description}
@@ -306,6 +307,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
           required
           mt="md"
         />
+
         <DateTimePicker
           label="Expires At (optional)"
           value={expiresAt}
@@ -315,6 +317,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
           clearable
           mt="md"
         />
+
         <JsonInput
           label="Policy Document (optional)"
           description={
@@ -344,6 +347,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
           autosize
           minRows={6}
         />
+
         <Group justify="flex-end" mt="lg">
           <Button
             onClick={() => {

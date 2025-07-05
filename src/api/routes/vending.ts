@@ -1,7 +1,7 @@
 import { withTags } from "api/components/index.js";
 import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
-import { z } from "zod";
+import * as z from "zod/v4";
 
 const postSchema = z.object({
   name: z.string().min(1),

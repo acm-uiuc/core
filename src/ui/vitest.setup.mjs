@@ -1,4 +1,3 @@
-import "zod-openapi/extend";
 import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 
