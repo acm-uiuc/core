@@ -21,7 +21,6 @@ const commonParams = {
     "passkit-generator",
     "fastify",
     "zod",
-    "zod-openapi",
     "@fastify/swagger",
     "@fastify/swagger-ui",
     "argon2",
