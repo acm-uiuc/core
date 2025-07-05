@@ -1,4 +1,3 @@
-import "zod-openapi/extend";
 import {
   BrowserCacheLocation,
   Configuration,

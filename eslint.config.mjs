@@ -71,6 +71,10 @@ export default defineConfig([
     rules: { "@typescript-eslint/no-explicit-any": "off" },
   },
   {
+    files: ["src/api/build.js"],
+    rules: { "import/extensions": "off" },
+  },
+  {
     files: ["src/ui/*", "src/ui/**/*"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",

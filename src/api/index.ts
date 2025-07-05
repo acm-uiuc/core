@@ -1,5 +1,5 @@
 /* eslint import/no-nodejs-modules: ["error", {"allow": ["crypto"]}] */
-import "zod-openapi/extend";
+
 import { randomUUID } from "crypto";
 import fastify, { FastifyInstance } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
@@ -126,6 +126,7 @@ async function init(prettyPrint: boolean = false) {
           description: "QA API server",
         },
       ],
+
       tags: [
         {
           name: "Events",
@@ -177,6 +178,7 @@ async function init(prettyPrint: boolean = false) {
           description: "Manage the lifecycle of API keys.",
         },
       ],
+
       openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
       components: {
         securitySchemes: {

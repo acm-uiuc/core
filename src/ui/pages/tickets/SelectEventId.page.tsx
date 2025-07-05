@@ -17,7 +17,7 @@ import {
 } from "@tabler/icons-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { z } from "zod";
+import * as z from "zod/v4";
 
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";

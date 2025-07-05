@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
-import { z } from "zod";
+import * as z from "zod/v4";
 import { AppRoles } from "../../common/roles.js";
 import {
   BaseError,
@@ -246,10 +246,13 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             TableName: genericConfig.LinkryDynamoTableName,
             KeyConditionExpression:
               "slug = :slug AND begins_with(access, :accessPrefix)",
-            ExpressionAttributeValues: marshall({
-              ":slug": request.body.slug,
-              ":accessPrefix": "GROUP#",
-            }),
+            ExpressionAttributeValues: marshall(
+              {
+                ":slug": request.body.slug,
+                ":accessPrefix": "GROUP#",
+              },
+              { removeUndefinedValues: true },
+            ),
           });
 
           const existingGroups = await fastify.dynamoClient.send(queryCommand);
@@ -293,7 +296,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           const ownerPutItem: TransactWriteItem = {
             Put: {
               TableName: genericConfig.LinkryDynamoTableName,
-              Item: marshall(ownerRecord),
+              Item: marshall(ownerRecord, { removeUndefinedValues: true }),
               ...(mode === "modify"
                 ? {
                     ConditionExpression: "updatedAt = :updatedAt",
@@ -355,7 +358,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               const groupPutItem: TransactWriteItem = {
                 Put: {
                   TableName: genericConfig.LinkryDynamoTableName,
-                  Item: marshall(groupRecord),
+                  Item: marshall(groupRecord, { removeUndefinedValues: true }),
                 },
               };
 
@@ -579,6 +582,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             },
           },
         ];
+
         try {
           await fastify.dynamoClient.send(
             new TransactWriteItemsCommand({ TransactItems }),

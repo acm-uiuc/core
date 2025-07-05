@@ -25,7 +25,7 @@ import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import rawbody from "fastify-raw-body";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
-import { z } from "zod";
+import * as z from "zod/v4";
 import { withTags } from "api/components/index.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
 
@@ -173,6 +173,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 quantity: 1,
               },
             ],
+
             initiator: "purchase-membership",
             allowPromotionCodes: true,
           }),
@@ -190,7 +191,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
               path: ["netId"],
             }),
           querystring: z.object({
-            list: z.string().min(1).optional().openapi({
+            list: z.string().min(1).optional().meta({
               description:
                 "Membership list to check from (defaults to ACM Paid Member list).",
             }),

@@ -12,7 +12,7 @@
     "postinstall": "npm run setup",
     "setup": "git config blame.ignoreRevsFile .git-blame-ignore-revs",
     "build": "concurrently --names 'api,ui' 'yarn workspace infra-core-api run build' 'yarn workspace infra-core-ui run build'",
-    "postbuild": "yarn lockfile-manage",
+    "postbuild": "node src/api/createLambdaPackage.js && yarn lockfile-manage",
     "dev": "cross-env DISABLE_AUDIT_LOG=true concurrently --names 'api,ui' 'yarn workspace infra-core-api run dev' 'yarn workspace infra-core-ui run dev'",
     "lockfile-manage": "synp --with-workspace --source-file yarn.lock",
     "postlockfile-manage": "cp package-lock.json dist/lambda/ && cp package-lock.json dist/sqsConsumer/ && cp src/api/package.lambda.json dist/lambda/package.json && cp src/api/package.lambda.json dist/sqsConsumer/package.json && rm package-lock.json",
@@ -48,7 +48,7 @@
     "@typescript-eslint/eslint-plugin": "^8.0.1",
     "@typescript-eslint/parser": "^8.0.1",
     "@vitejs/plugin-react": "^4.3.1",
-    "@vitest/coverage-istanbul": "3.1.2",
+    "@vitest/coverage-istanbul": "^3.1.2",
     "@vitest/ui": "^3.1.2",
     "aws-sdk-client-mock": "^4.1.0",
     "concurrently": "^9.1.2",
@@ -86,7 +86,7 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.31.0",
     "vite-tsconfig-paths": "^5.0.1",
-    "vitest": "^3.1.2",
+    "vitest": "^3.2.4",
     "yarn-upgrade-all": "^0.7.5"
   },
   "resolutions": {

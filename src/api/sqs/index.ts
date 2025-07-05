@@ -10,7 +10,7 @@ import {
   AnySQSPayload,
 } from "../../common/types/sqsMessage.js";
 import { logger } from "./logger.js";
-import { z, ZodError } from "zod";
+import * as z from "zod/v4";
 import pino from "pino";
 import {
   emailMembershipPassHandler,
@@ -49,59 +49,59 @@ const restrictedQueues: Record<string, AvailableSQSFunctions[]> = {
 export const handler = middy()
   .use(eventNormalizerMiddleware())
   .use(sqsPartialBatchFailure())
-  .handler((event: SQSEvent, _context: Context, { signal: _signal }) => {
-    const recordsPromises = event.Records.map(async (record, _index) => {
-      const sourceQueue = record.eventSourceARN.split(":").slice(-1)[0];
-      try {
-        let parsedBody = parseSQSPayload(record.body);
-        if (parsedBody instanceof ZodError) {
-          logger.error(
-            { sqsMessageId: record.messageId },
-            parsedBody.toString(),
-          );
-          logger.error(
-            { sqsMessageId: record.messageId },
-            parsedBody.errors.toString(),
-          );
-          throw new ValidationError({
-            message: "Could not parse SQS payload",
+  .handler((event: unknown, _context: Context, { signal: _signal }) => {
+    const recordsPromises = (event as SQSEvent).Records.map(
+      async (record, _index) => {
+        const sourceQueue = record.eventSourceARN.split(":").slice(-1)[0];
+        try {
+          let parsedBody = parseSQSPayload(record.body);
+          if (parsedBody instanceof z.ZodError) {
+            logger.error(
+              { sqsMessageId: record.messageId },
+              parsedBody.toString(),
+            );
+            throw new ValidationError({
+              message: "Could not parse SQS payload",
+            });
+          }
+          parsedBody = parsedBody as AnySQSPayload;
+          if (
+            restrictedQueues[sourceQueue]?.includes(parsedBody.function) ===
+            false
+          ) {
+            throw new ValidationError({
+              message: `Queue ${sourceQueue} is not permitted to call the function ${parsedBody.function}!`,
+            });
+          }
+          const childLogger = logger.child({
+            sqsMessageId: record.messageId,
+            metadata: parsedBody.metadata,
+            function: parsedBody.function,
           });
-        }
-        parsedBody = parsedBody as AnySQSPayload;
-        if (
-          restrictedQueues[sourceQueue]?.includes(parsedBody.function) === false
-        ) {
-          throw new ValidationError({
-            message: `Queue ${sourceQueue} is not permitted to call the function ${parsedBody.function}!`,
-          });
-        }
-        const childLogger = logger.child({
-          sqsMessageId: record.messageId,
-          metadata: parsedBody.metadata,
-          function: parsedBody.function,
-        });
-        const func = handlers[parsedBody.function] as SQSHandlerFunction<
-          typeof parsedBody.function
-        >;
-        childLogger.info(`Starting handler for ${parsedBody.function}...`);
-        const result = func(
-          parsedBody.payload,
-          parsedBody.metadata,
-          childLogger,
-        );
-        childLogger.info(`Finished handler for ${parsedBody.function}.`);
-        return result;
-      } catch (e: unknown) {
-        if (!(e instanceof Error)) {
-          logger.error(
-            { sqsMessageId: record.messageId },
-            "An unknown-type error occurred.",
+          const func = handlers[parsedBody.function] as SQSHandlerFunction<
+            typeof parsedBody.function
+          >;
+
+          childLogger.info(`Starting handler for ${parsedBody.function}...`);
+          const result = func(
+            parsedBody.payload,
+            parsedBody.metadata,
+            childLogger,
           );
+          childLogger.info(`Finished handler for ${parsedBody.function}.`);
+          return result;
+        } catch (e: unknown) {
+          if (!(e instanceof Error)) {
+            logger.error(
+              { sqsMessageId: record.messageId },
+              "An unknown-type error occurred.",
+            );
+            throw e;
+          }
+          logger.error({ sqsMessageId: record.messageId }, e.toString());
           throw e;
         }
-        logger.error({ sqsMessageId: record.messageId }, e.toString());
-        throw e;
-      }
-    });
+      },
+    );
     return Promise.allSettled(recordsPromises);
   });

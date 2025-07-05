@@ -10,7 +10,7 @@ import { AppRoles } from "common/roles.js";
 import { loggingEntryFromDatabase } from "common/types/logs.js";
 import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
-import { z } from "zod";
+import * as z from "zod/v4";
 
 const responseSchema = z.array(loggingEntryFromDatabase);
 type ResponseType = z.infer<typeof responseSchema>;
@@ -29,12 +29,12 @@ const logsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Logging"], {
           querystring: z
             .object({
-              start: z.coerce.number().openapi({
+              start: z.coerce.number().meta({
                 description:
                   "Epoch timestamp for the start of the search range",
                 example: 1745114772,
               }),
-              end: z.coerce.number().openapi({
+              end: z.coerce.number().meta({
                 description: "Epoch timestamp for the end of the search range",
                 example: 1745201172,
               }),
@@ -46,7 +46,7 @@ const logsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           params: z.object({
             module: z
               .nativeEnum(Modules)
-              .openapi({ description: "Module to get audit logs for." }),
+              .meta({ description: "Module to get audit logs for." }),
           }),
           summary: "Retrieve audit logs for a module.",
           // response: { 200: responseSchema },
