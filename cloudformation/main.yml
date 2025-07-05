@@ -40,6 +40,7 @@ Parameters:
 
 Conditions:
   IsProd: !Equals [!Ref RunEnvironment, "prod"]
+  # IsDev: !Equals [!Ref RunEnvironment, "dev"]
   ShouldAttachVpc: !Equals [true, !Ref VpcRequired]
 
 Mappings:
@@ -106,45 +107,132 @@ Resources:
         QueueName: !Sub ${ApplicationPrefix}-sqs
         MessageTimeout: !Ref SqsMessageTimeout
 
-  IcalDomainProxy:
-    Type: AWS::Serverless::Application
+  LinkryRecordSetv4:
+    Type: AWS::Route53::RecordSet
     Properties:
-      Location: ./custom-domain.yml
-      Parameters:
-        RunEnvironment: !Ref RunEnvironment
-        RecordName: ical
-        GWBaseDomainName: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvDomainName
-        GWCertArn: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvCertificateArn
-        GWApiId: !Ref AppApiGateway
-        GWHostedZoneId:
-          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-        CloudfrontDomain: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "go"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
 
-  CoreUrlProd:
-    Type: AWS::Serverless::Application
+  LinkryRecordSetv6:
+    Type: AWS::Route53::RecordSet
     Properties:
-      Location: ./custom-domain.yml
-      Parameters:
-        RunEnvironment: !Ref RunEnvironment
-        RecordName: core
-        GWBaseDomainName: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvDomainName
-        GWCertArn: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvCertificateArn
-        GWApiId: !Ref AppApiGateway
-        GWHostedZoneId:
-          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-        CloudfrontDomain: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "go"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: AAAA
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
+
+  IcalRecordSetv4:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "ical"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
+
+
+  IcalRecordSetv6:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "ical"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: AAAA
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppIcalCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
+
+
+  CoreRecordSetv4:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "core"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
+
+  CoreRecordSetv6:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
+      Name: !Join
+        - "."
+        - - "core"
+          - !FindInMap
+            - ApiGwConfig
+            - !Ref RunEnvironment
+            - EnvDomainName
+      Type: AAAA
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt [AppFrontendCloudfrontDistribution, DomainName]
+        EvaluateTargetHealth: false
+
+  AppLambdaUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      Cors:
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Amz-Date
+        AllowOrigins: ["*"]
+        MaxAge: 300
+      InvokeMode: BUFFERED
+      TargetFunctionArn: !GetAtt AppApiLambdaFunction.Arn
+
+
+  AppLambdaUrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt AppApiLambdaFunction.Arn
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
 
   AppApiLambdaFunction:
     Type: AWS::Serverless::Function
@@ -167,6 +255,7 @@ Resources:
           EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
           LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
           AWS_CRT_NODEJS_BINARY_RELATIVE_PATH: node_modules/aws-crt/dist/bin/linux-x64-glibc/aws-crt-nodejs.node
+          ORIGIN_VERIFY_KEY: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds:
@@ -186,12 +275,6 @@ Resources:
             !Ref AWS::NoValue,
           ]
       Events:
-        ApiEvent:
-          Type: Api
-          Properties:
-            RestApiId: !Ref AppApiGateway
-            Path: /{proxy+}
-            Method: ANY
         WarmingSchedule:
           Type: Schedule
           Properties:
@@ -520,120 +603,6 @@ Resources:
         AttributeName: "expireAt"
         Enabled: true
 
-  AppApiGateway:
-    Type: AWS::Serverless::Api
-    DependsOn:
-      - AppApiLambdaFunction
-    Properties:
-      Name: !Sub ${ApplicationPrefix}-gateway
-      Description: !Sub "${ApplicationFriendlyName} API Gateway"
-      MinimumCompressionSize: 2048 # 2kb to compress
-      AlwaysDeploy: True
-      DefinitionBody:
-        Fn::Transform:
-          Name: AWS::Include
-          Parameters:
-            Location: ./phony-swagger.yml
-        Route53:
-          HostedZoneId:
-            !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-      StageName: default
-      EndpointConfiguration:
-        Type: REGIONAL
-      Cors:
-        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date'"
-        AllowOrigin: "'*'"
-        MaxAge: "'300'"
-
-  APIDefault4XXResponse:
-    Type: AWS::ApiGateway::GatewayResponse
-    Properties:
-      RestApiId: !Ref AppApiGateway
-      ResponseType: DEFAULT_4XX
-      StatusCode: "404"
-      ResponseParameters:
-        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-      ResponseTemplates:
-        application/json: '{"error": true, "message": "Resource not found. Check your URL or contact support."}'
-
-  APIAccessDeniedResponse:
-    Type: AWS::ApiGateway::GatewayResponse
-    Properties:
-      RestApiId: !Ref AppApiGateway
-      ResponseType: ACCESS_DENIED
-      StatusCode: "403"
-      ResponseParameters:
-        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-      ResponseTemplates:
-        application/json: '{"error": true, "message": "Access denied. Perhaps reauthenticate and try again?"}'
-
-  APIUnauthorizedResponse:
-    Type: AWS::ApiGateway::GatewayResponse
-    Properties:
-      RestApiId: !Ref AppApiGateway
-      ResponseType: UNAUTHORIZED
-      StatusCode: "401"
-      ResponseParameters:
-        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-      ResponseTemplates:
-        application/json: '{"error": true, "message": "Request could not be authenticated. Perhaps reauthenticate and try again?"}'
-
-  AppApiGatewayLatencyAlarm:
-    Type: "AWS::CloudWatch::Alarm"
-    Condition: IsProd
-    Properties:
-      AlarmName: !Sub ${ApplicationPrefix}-gateway-latency-high
-      AlarmDescription: "Trailing Mean - 95% API gateway latency is > 1.25s for 2 times in 4 minutes."
-      Namespace: "AWS/ApiGateway"
-      MetricName: "Latency"
-      ExtendedStatistic: "tm95"
-      Period: "120"
-      EvaluationPeriods: "2"
-      ComparisonOperator: "GreaterThanThreshold"
-      Threshold: "1250"
-      AlarmActions:
-        - !Ref AlertSNSArn
-      Dimensions:
-        - Name: "ApiName"
-          Value: !Sub ${ApplicationPrefix}-gateway
-
-  AppApiGatewayNoRequestsAlarm:
-    Type: "AWS::CloudWatch::Alarm"
-    Condition: IsProd
-    Properties:
-      AlarmName: !Sub ${ApplicationPrefix}-gateway-no-requests
-      AlarmDescription: "No requests have been received in the past 5 minutes."
-      Namespace: "AWS/ApiGateway"
-      MetricName: "Count"
-      Statistic: "Sum"
-      Period: "300"
-      EvaluationPeriods: "1"
-      ComparisonOperator: "LessThanThreshold"
-      Threshold: "1"
-      AlarmActions:
-        - !Ref PriorityAlertSNSArn
-      Dimensions:
-        - Name: "ApiName"
-          Value: !Sub ${ApplicationPrefix}-gateway
-
-  AppApiGateway5XXErrorAlarm:
-    Type: "AWS::CloudWatch::Alarm"
-    Condition: IsProd
-    Properties:
-      AlarmName: !Sub ${ApplicationPrefix}-gateway-5xx
-      AlarmDescription: "More than 2 API gateway 5XX errors were detected."
-      Namespace: "AWS/ApiGateway"
-      MetricName: "5XXError"
-      Statistic: "Average"
-      Period: "60"
-      EvaluationPeriods: "1"
-      ComparisonOperator: "GreaterThanThreshold"
-      Threshold: "2"
-      AlarmActions:
-        - !Ref PriorityAlertSNSArn
-      Dimensions:
-        - Name: "ApiName"
-          Value: !Sub ${ApplicationPrefix}-gateway
 
   AppDLQMessagesAlarm:
     Type: "AWS::CloudWatch::Alarm"
@@ -653,23 +622,6 @@ Resources:
           Value: !Sub ${ApplicationPrefix}-sqs-dlq
       AlarmActions:
         - !Ref PriorityAlertSNSArn
-
-  APILambdaPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt AppApiLambdaFunction.Arn
-      Action: lambda:InvokeFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn:
-        Fn::Join:
-          - ""
-          - - "arn:aws:execute-api:"
-            - !Ref AWS::Region
-            - ":"
-            - !Ref AWS::AccountId
-            - ":"
-            - !Ref AppApiGateway
-            - "/*/*/*"
 
   AppFrontendS3Bucket:
     Type: AWS::S3::Bucket
@@ -694,13 +646,15 @@ Resources:
             DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
             S3OriginConfig:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
-          - Id: ApiGatewayOrigin
-            DomainName: !Sub "${AppApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
-            OriginPath: "/default"
+          - Id: LambdaOrigin
+            DomainName: !Select [0, !Split ['/', !Select [1, !Split ['https://', !GetAtt AppLambdaUrl.FunctionUrl]]]]
             CustomOriginConfig:
               HTTPPort: 80
               HTTPSPort: 443
               OriginProtocolPolicy: https-only
+            OriginCustomHeaders:
+              - HeaderName: X-Origin-Verify
+                HeaderValue: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
         Enabled: true
         DefaultRootObject: index.html
         Aliases:
@@ -729,7 +683,7 @@ Resources:
               LambdaFunctionARN: !Ref AppFrontendEdgeLambdaVersion
         CacheBehaviors:
           - PathPattern: "/api/v1/events*"
-            TargetOriginId: ApiGatewayOrigin
+            TargetOriginId: LambdaOrigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:
               - GET
@@ -743,10 +697,10 @@ Resources:
               - GET
               - HEAD
             CachePolicyId: !Ref CloudfrontCachePolicy
-            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
           - PathPattern: "/api/v1/organizations"
-            TargetOriginId: ApiGatewayOrigin
+            TargetOriginId: LambdaOrigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:
               - GET
@@ -760,10 +714,10 @@ Resources:
               - GET
               - HEAD
             CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
-            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
           - PathPattern: "/api/documentation*"
-            TargetOriginId: ApiGatewayOrigin
+            TargetOriginId: LambdaOrigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:
               - GET
@@ -777,10 +731,10 @@ Resources:
               - GET
               - HEAD
             CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
-            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
           - PathPattern: "/api/*"
-            TargetOriginId: ApiGatewayOrigin
+            TargetOriginId: LambdaOrigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:
               - GET
@@ -793,8 +747,9 @@ Resources:
             CachedMethods:
               - GET
               - HEAD
+              - OPTIONS
             CachePolicyId: !Ref CloudfrontNoCachePolicy # caching disabled
-            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
         ViewerCertificate:
           AcmCertificateArn: !FindInMap
@@ -854,7 +809,6 @@ Resources:
             Headers:
               - x-method-override
               - origin
-              - host
               - x-http-method
               - x-http-method-override
           QueryStringsConfig:
@@ -896,13 +850,16 @@ Resources:
       DistributionConfig:
         HttpVersion: 'http2and3'
         Origins:
-          - Id: ApiGatewayOrigin
-            DomainName: !Sub "${AppApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
-            OriginPath: "/default"
+          - Id: LambdaOrigin
+            DomainName: !Select [0, !Split ['/', !Select [1, !Split ['https://', !GetAtt AppLambdaUrl.FunctionUrl]]]]
+            OriginPath: "/api/v1/ical"
             CustomOriginConfig:
               HTTPPort: 80
               HTTPSPort: 443
               OriginProtocolPolicy: https-only
+            OriginCustomHeaders:
+              - HeaderName: X-Origin-Verify
+                HeaderValue: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
         Enabled: true
         Aliases:
           - !Join
@@ -914,7 +871,7 @@ Resources:
                 - EnvDomainName
         DefaultCacheBehavior:
           Compress: true
-          TargetOriginId: ApiGatewayOrigin
+          TargetOriginId: LambdaOrigin
           ViewerProtocolPolicy: redirect-to-https
           AllowedMethods:
             - GET
@@ -932,7 +889,7 @@ Resources:
             Cookies:
               Forward: none
           CachePolicyId: !Ref CloudfrontCachePolicy
-          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
         ViewerCertificate:
           AcmCertificateArn: !FindInMap
             - ApiGwConfig
@@ -1030,26 +987,6 @@ Resources:
           MinimumProtocolVersion: TLSv1.2_2021
           SslSupportMethod: sni-only
         PriceClass: PriceClass_100
-
-  LinkryDomainProxy:
-    Type: AWS::Serverless::Application
-    Properties:
-      Location: ./custom-domain.yml
-      Parameters:
-        RunEnvironment: !Ref RunEnvironment
-        RecordName: go
-        GWBaseDomainName: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvDomainName
-        GWCertArn: !FindInMap
-          - ApiGwConfig
-          - !Ref RunEnvironment
-          - EnvCertificateArn
-        GWApiId: !Ref AppApiGateway
-        GWHostedZoneId:
-          !FindInMap [ApiGwConfig, !Ref RunEnvironment, HostedZoneId]
-        CloudfrontDomain: !GetAtt [AppLinkryCloudfrontDistribution, DomainName]
 
 Outputs:
   DomainName:

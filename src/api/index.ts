@@ -79,18 +79,6 @@ async function init(prettyPrint: boolean = false) {
       level: process.env.LOG_LEVEL || "info",
       transport,
     },
-    rewriteUrl: (req) => {
-      const url = req.url;
-      const hostname = req.headers.host || "";
-      const customDomainBaseMappers: Record<string, string> = {
-        "ical.acm.illinois.edu": `/api/v1/ical${url}`,
-        "ical.aws.qa.acmuiuc.org": `/api/v1/ical${url}`,
-      };
-      if (hostname in customDomainBaseMappers) {
-        return customDomainBaseMappers[hostname];
-      }
-      return url || "/";
-    },
     disableRequestLogging: true,
     genReqId: (request) => {
       const header = request.headers["x-apigateway-event"];

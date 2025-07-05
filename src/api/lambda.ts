@@ -3,7 +3,7 @@ import awsLambdaFastify, { LambdaResponse } from "@fastify/aws-lambda";
 import init from "./index.js";
 import warmer from "lambda-warmer";
 import { type APIGatewayEvent, type Context } from "aws-lambda";
-import { InternalServerError } from "common/errors/index.js";
+import { InternalServerError, ValidationError } from "common/errors/index.js";
 
 const app = await init();
 const realHandler = awsLambdaFastify(app, {
@@ -15,6 +15,26 @@ const handler = async (event: APIGatewayEvent, context: Context) => {
   // if a warming event
   if (await warmer(event, { correlationId: context.awsRequestId }, context)) {
     return "warmed";
+  }
+  if (process.env.ORIGIN_VERIFY_KEY) {
+    // check that the request has the right header (coming from cloudfront)
+    if (
+      !event.headers ||
+      !(event.headers["x-origin-verify"] === process.env.ORIGIN_VERIFY_KEY)
+    ) {
+      const newError = new ValidationError({
+        message: "Request is not valid.",
+      });
+      const json = JSON.stringify(newError.toJson());
+      return {
+        statusCode: newError.httpStatusCode,
+        body: json,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        isBase64Encoded: false,
+      };
+    }
   }
   // else proceed with handler logic
   return await realHandler(event, context).catch((e) => {
