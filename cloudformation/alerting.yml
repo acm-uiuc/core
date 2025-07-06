@@ -25,7 +25,7 @@ Resources:
   AppDLQMessagesAlarm:
     Type: "AWS::CloudWatch::Alarm"
     Properties:
-      AlarmName: !Sub ${ApplicationPrefix}-sqs-dlq
+      AlarmName: !Sub ${ApplicationPrefix}-sqs-dlq-present
       AlarmDescription: "Items are present in the application DLQ, meaning some messages failed to process."
       Namespace: "AWS/SQS"
       MetricName: "ApproximateNumberOfMessagesVisible"
