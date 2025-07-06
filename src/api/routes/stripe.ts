@@ -333,6 +333,120 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       switch (event.type) {
+        case "checkout.session.async_payment_failed":
+          if (event.data.object.payment_link) {
+            const eventId = event.id;
+            const paymentAmount = event.data.object.amount_total;
+            const paymentCurrency = event.data.object.currency;
+            const { email, name } = event.data.object.customer_details || {
+              email: null,
+              name: null,
+            };
+            const paymentLinkId = event.data.object.payment_link.toString();
+            if (!paymentLinkId || !paymentCurrency || !paymentAmount) {
+              request.log.info("Missing required fields.");
+              return reply
+                .code(200)
+                .send({ handled: false, requestId: request.id });
+            }
+            const response = await fastify.dynamoClient.send(
+              new QueryCommand({
+                TableName: genericConfig.StripeLinksDynamoTableName,
+                IndexName: "LinkIdIndex",
+                KeyConditionExpression: "linkId = :linkId",
+                ExpressionAttributeValues: {
+                  ":linkId": { S: paymentLinkId },
+                },
+              }),
+            );
+            if (!response) {
+              throw new DatabaseFetchError({
+                message: "Could not check for payment link in table.",
+              });
+            }
+            if (!response.Items || response.Items?.length !== 1) {
+              return reply.status(200).send({
+                handled: false,
+                requestId: request.id,
+              });
+            }
+            const unmarshalledEntry = unmarshall(response.Items[0]) as {
+              userId: string;
+              invoiceId: string;
+              amount?: number;
+              priceId?: string;
+              productId?: string;
+            };
+            if (!unmarshalledEntry.userId || !unmarshalledEntry.invoiceId) {
+              return reply.status(200).send({
+                handled: false,
+                requestId: request.id,
+              });
+            }
+            const paidInFull = paymentAmount === unmarshalledEntry.amount;
+            const withCurrency = new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: paymentCurrency.toUpperCase(),
+            })
+              .formatToParts(paymentAmount / 100)
+              .map((val) => val.value)
+              .join("");
+
+            // Notify link owner of failed payment
+            let queueId;
+            if (event.data.object.payment_status === "unpaid") {
+              request.log.info(
+                `Failed payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}).`,
+              );
+              if (unmarshalledEntry.userId.includes("@")) {
+                request.log.info(
+                  `Sending email to ${unmarshalledEntry.userId}...`,
+                );
+                const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
+                  {
+                    function: AvailableSQSFunctions.EmailNotifications,
+                    metadata: {
+                      initiator: eventId,
+                      reqId: request.id,
+                    },
+                    payload: {
+                      to: [unmarshalledEntry.userId],
+                      subject: `Payment Failed for Invoice ${unmarshalledEntry.invoiceId}`,
+                      content: `
+A ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}) <b>has failed.</b>
+
+Please ask the payee to try again, perhaps with a different payment method, or contact Officer Board.
+                    `,
+                      callToActionButton: {
+                        name: "View Your Stripe Links",
+                        url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
+                      },
+                    },
+                  };
+                if (!fastify.sqsClient) {
+                  fastify.sqsClient = new SQSClient({
+                    region: genericConfig.AwsRegion,
+                  });
+                }
+                const result = await fastify.sqsClient.send(
+                  new SendMessageCommand({
+                    QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+                    MessageBody: JSON.stringify(sqsPayload),
+                  }),
+                );
+                queueId = result.MessageId || "";
+              }
+            }
+
+            return reply.status(200).send({
+              handled: true,
+              requestId: request.id,
+              queueId: queueId || "",
+            });
+          }
+          return reply
+            .code(200)
+            .send({ handled: false, requestId: request.id });
         case "checkout.session.async_payment_succeeded":
         case "checkout.session.completed":
           if (event.data.object.payment_link) {
@@ -416,7 +530,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                       content: `
 ACM @ UIUC has received intent of ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
 
-The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and no services should be performed until the funds settle.
+The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
 
 Please contact Officer Board with any questions.
                     `,
@@ -459,9 +573,7 @@ Please contact Officer Board with any questions.
                       subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
                       content: `
 ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
-
-This invoice should now be considered settled.
-
+${paidInFull ? "\nThis invoice should now be considered settled.\n" : ""}
 Please contact Officer Board with any questions.`,
                       callToActionButton: {
                         name: "View Your Stripe Links",
