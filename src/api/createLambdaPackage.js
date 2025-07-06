@@ -13,8 +13,6 @@ export const packagesToTransfer = [
   "moment-timezone",
   "passkit-generator",
   "fastify",
-  "@fastify/swagger",
-  "@fastify/swagger-ui",
   "zod",
   "argon2",
   "ioredis",

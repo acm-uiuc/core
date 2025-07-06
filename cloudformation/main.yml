@@ -608,14 +608,15 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub ${S3BucketPrefix}-ui
-      WebsiteConfiguration:
-        IndexDocument: index.html
 
-  CloudFrontOriginAccessIdentity:
-    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+  AppCloudfrontS3OAC:
+    Type: AWS::CloudFront::OriginAccessControl
     Properties:
-      CloudFrontOriginAccessIdentityConfig:
-        Comment: !Sub "Access identity for ${AppFrontendS3Bucket}"
+      OriginAccessControlConfig:
+          Name: InfraCoreApi OAC
+          OriginAccessControlOriginType: s3
+          SigningBehavior: always
+          SigningProtocol: sigv4
 
   AppFrontendCloudfrontDistribution:
     Type: AWS::CloudFront::Distribution
@@ -626,7 +627,8 @@ Resources:
           - Id: S3WebsiteOrigin
             DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
             S3OriginConfig:
-              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt AppCloudfrontS3OAC.Id
           - Id: LambdaOrigin
             DomainName: !Select [0, !Split ['/', !Select [1, !Split ['https://', !GetAtt AppLambdaUrl.FunctionUrl]]]]
             CustomOriginConfig:
@@ -697,23 +699,6 @@ Resources:
             CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
             OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
-          - PathPattern: "/api/documentation*"
-            TargetOriginId: LambdaOrigin
-            ViewerProtocolPolicy: redirect-to-https
-            AllowedMethods:
-              - GET
-              - HEAD
-              - OPTIONS
-              - PUT
-              - POST
-              - DELETE
-              - PATCH
-            CachedMethods:
-              - GET
-              - HEAD
-            CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
-            Compress: true
           - PathPattern: "/api/*"
             TargetOriginId: LambdaOrigin
             ViewerProtocolPolicy: redirect-to-https
@@ -750,9 +735,12 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
+              Service: cloudfront.amazonaws.com
             Action: s3:GetObject
             Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AppFrontendCloudfrontDistribution}"
 
   CloudfrontNoCachePolicy:
     Type: AWS::CloudFront::CachePolicy
@@ -812,6 +800,9 @@ Resources:
           exports.handler = async (event) => {
               const request = event.Records[0].cf.request;
               const uri = request.uri;
+              if (uri === '/docs') {
+                  request.uri = "/docs/index.html";
+              }
               if (!uri.startsWith('/api') && !uri.match(/\.\w+$/)) {
                   request.uri = "/index.html";
               }
