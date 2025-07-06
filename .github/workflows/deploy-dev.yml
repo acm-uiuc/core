@@ -60,7 +60,6 @@ jobs:
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
-          GENERATE_SOURCEMAP: "true"
 
       - name: Upload Build files
         uses: actions/upload-artifact@v4
