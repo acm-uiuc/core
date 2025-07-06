@@ -53,7 +53,7 @@ Resources:
                   - lambda:InvokeFunction
                 Effect: Allow
                 Resource:
-                  - Fn::Sub: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionToWarm}:*"
+                  - Fn::Sub: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionToWarm}"
 
   WarmerLambdaFunction:
     Type: AWS::Serverless::Function

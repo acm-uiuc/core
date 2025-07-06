@@ -25,9 +25,7 @@ async function invokeBatch(
   const invocationPromises = Array.from({ length: count }, () => {
     const command = new InvokeCommand({
       FunctionName: lambdaName,
-      InvocationType: "RequestResponse",
-      LogType: LogType.Tail,
-      Payload: JSON.stringify({ action: "warmup" }),
+      Payload: JSON.stringify({ action: "warmer" }),
     });
     return lambdaClient.send(command);
   });
@@ -36,16 +34,18 @@ async function invokeBatch(
   const foundInstanceIds = new Set<string>();
 
   results.forEach((result) => {
-    if (result.status === "fulfilled") {
+    if (result.status === "fulfilled" && result.value.Payload) {
       try {
         const payloadString = textDecoder.decode(result.value.Payload);
-        const payload = JSON.parse(payloadString);
-        if (payload.instanceId) {
-          foundInstanceIds.add(payload.instanceId);
+        const body = JSON.parse(payloadString);
+        if (body.instanceId) {
+          foundInstanceIds.add(body.instanceId);
         }
       } catch (e) {
-        // Suppress errors for failed payload parsing
+        console.error("Error parsing payload from target function:", e);
       }
+    } else if (result.status === "rejected") {
+      console.error("Invocation failed:", result.reason.message);
     }
   });
 
@@ -53,41 +53,47 @@ async function invokeBatch(
 }
 
 export const handler = async (event: {}) => {
-  const { lambdaName, numInstancesStr } = {
+  const { lambdaName, numInstancesStr, maxWavesStr } = {
     lambdaName: process.env.LAMBDA_NAME,
     numInstancesStr: process.env.NUM_INSTANCES,
+    maxWavesStr: process.env.MAX_WAVES,
   };
+
   if (!lambdaName || !numInstancesStr) {
-    throw new Error("Parameters 'lambdaName' and 'numInstances' are required.");
+    throw new Error("Env vars 'LAMBDA_NAME' and 'NUM_INSTANCES' are required.");
   }
+
   const numInstances = parseInt(numInstancesStr, 10);
+  // Default to 2 waves if MAX_WAVES is not set
+  const maxWaves = parseInt(maxWavesStr || "2", 10);
 
   let totalInvocations = 0;
+  let wavesCompleted = 0;
+  const uniqueInstanceIds = new Set<string>();
 
-  const uniqueInstanceIds = await invokeBatch(lambdaName, numInstances);
-  totalInvocations += numInstances;
+  for (let i = 1; i <= maxWaves; i++) {
+    wavesCompleted = i;
 
-  console.log(
-    `Wave 1 complete. Found ${uniqueInstanceIds.size} of ${numInstances} unique instances.`,
-  );
+    // Calculate how many more instances are needed
+    const neededCount = numInstances - uniqueInstanceIds.size;
+    if (neededCount <= 0) {
+      console.log("Target met. No more waves needed.");
+      break;
+    }
 
-  if (uniqueInstanceIds.size < numInstances) {
-    console.log(
-      `Target not met. Firing another full batch of ${numInstances} invocations.`,
-    );
-
-    const secondWaveIds = await invokeBatch(lambdaName, numInstances);
+    console.log(`--- Wave ${i} of ${maxWaves} ---`);
+    const newIds = await invokeBatch(lambdaName, numInstances);
     totalInvocations += numInstances;
 
-    secondWaveIds.forEach((id) => uniqueInstanceIds.add(id));
+    newIds.forEach((id) => uniqueInstanceIds.add(id));
 
     console.log(
-      `Wave 2 complete. Total unique instances is now ${uniqueInstanceIds.size}.`,
+      `Wave ${i} complete. Found ${uniqueInstanceIds.size} of ${numInstances} unique instances.`,
     );
   }
 
   console.log(
-    `Warming complete. Found ${uniqueInstanceIds.size} unique instances from ${totalInvocations} total invocations.`,
+    `Warming complete. Found ${uniqueInstanceIds.size} unique instances from ${totalInvocations} total invocations over ${wavesCompleted} waves.`,
   );
 
   return {
@@ -96,6 +102,7 @@ export const handler = async (event: {}) => {
       targetInstances: numInstances,
       warmedInstances: uniqueInstanceIds.size,
       totalInvocations,
+      wavesCompleted,
       instanceIds: [...uniqueInstanceIds],
     }),
   };
@@ -103,6 +110,7 @@ export const handler = async (event: {}) => {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   process.env.LAMBDA_NAME = "infra-core-api-lambda";
-  process.env.NUM_INSTANCES = "2";
+  process.env.NUM_INSTANCES = "3";
+  process.env.MAX_WAVES = "3"; // Configurable number of waves
   console.log(await handler({}));
 }
