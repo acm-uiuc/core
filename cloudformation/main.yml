@@ -250,14 +250,14 @@ Resources:
     DependsOn:
       - AppLogGroups
     Properties:
-      Architectures: [x86_64]
+      Architectures: [arm64]
       CodeUri: ../dist/lambda
       AutoPublishAlias: live
       Runtime: nodejs22.x
       Description: !Sub "${ApplicationFriendlyName} API Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-lambda
       Handler: lambda.handler
-      MemorySize: 768
+      MemorySize: 2048
       Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
       Timeout: 60
       Environment:
@@ -265,8 +265,9 @@ Resources:
           RunEnvironment: !Ref RunEnvironment
           EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
           LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
-          AWS_CRT_NODEJS_BINARY_RELATIVE_PATH: node_modules/aws-crt/dist/bin/linux-x64-glibc/aws-crt-nodejs.node
+          AWS_CRT_NODEJS_BINARY_RELATIVE_PATH: node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node
           ORIGIN_VERIFY_KEY: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+          NODE_OPTIONS: --enable-source-maps
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds:
@@ -292,14 +293,14 @@ Resources:
     DependsOn:
       - AppLogGroups
     Properties:
-      Architectures: [x86_64]
+      Architectures: [arm64]
       CodeUri: ../dist/sqsConsumer
       AutoPublishAlias: live
       Runtime: nodejs22.x
       Description: !Sub "${ApplicationFriendlyName} SQS Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
       Handler: index.handler
-      MemorySize: 512
+      MemorySize: 2048
       Role:
         Fn::GetAtt: AppSecurityRoles.Outputs.SqsFunctionRoleArn
       Timeout: !Ref SqsLambdaTimeout
@@ -309,6 +310,7 @@ Resources:
         Variables:
           RunEnvironment: !Ref RunEnvironment
           EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
+          NODE_OPTIONS: --enable-source-maps
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds:
