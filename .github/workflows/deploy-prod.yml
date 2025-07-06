@@ -1,5 +1,5 @@
-name: Deploy all resources to DEV/PROD
-run-name: DEV/PROD deploy - @${{ github.actor }}
+name: Deploy all resources to PROD
+run-name: PROD deploy - @${{ github.actor }}
 
 on:
   workflow_dispatch:
@@ -25,9 +25,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
-            yarn-modules-${{ runner.os }}-
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Run unit testing
         run: make test_unit
@@ -50,9 +50,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-prod
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-prod
           restore-keys: |
-            yarn-modules-${{ runner.os }}-
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Run build
         run: make build
