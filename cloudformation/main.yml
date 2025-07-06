@@ -285,16 +285,6 @@ Resources:
             !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds],
             !Ref AWS::NoValue,
           ]
-      Events:
-        WarmingSchedule:
-          Type: Schedule
-          Properties:
-            Schedule: !If [
-              ShouldAttachVpc,
-              'rate(15 minutes)',
-              'rate(5 minutes)'
-              ]
-            Input: '{ "warmer":true,"concurrency":3 }'
 
 
   AppSqsLambdaFunction:
