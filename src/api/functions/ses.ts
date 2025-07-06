@@ -82,7 +82,7 @@ export function generateMembershipEmailCommand(
     <img src="https://static.acm.illinois.edu/banner-blue.png" style="height: 100px; width: 210px; align-self: center;"/>
     <br />
     <div class="wrap">
-        <h2 style="text-align: center;">Welcome${firstName && `, ${firstName}`}!</h2>
+        <h2 style="text-align: center;">Welcome${firstName ? `, ${firstName}` : ""}!</h2>
         <p>
             Thank you for becoming a member of ACM @ UIUC! Attached is your membership pass.
             You can add it to your Apple or Google Wallet for easy access.
