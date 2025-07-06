@@ -12,8 +12,6 @@ function getPath() {
 export const packagesToTransfer = [
   "moment-timezone",
   "passkit-generator",
-  "fastify",
-  "zod",
   "argon2",
   "ioredis",
 ];
