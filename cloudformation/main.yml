@@ -629,12 +629,6 @@ Resources:
             S3OriginConfig:
               OriginAccessIdentity: ''
             OriginAccessControlId: !GetAtt AppCloudfrontS3OAC.Id
-          - Id: S3DocsOrigin
-            DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
-            S3OriginConfig:
-              OriginAccessIdentity: ''
-            OriginAccessControlId: !GetAtt AppCloudfrontS3OAC.Id
-            OriginPath: "/swagger"
           - Id: LambdaOrigin
             DomainName: !Select [0, !Split ['/', !Select [1, !Split ['https://', !GetAtt AppLambdaUrl.FunctionUrl]]]]
             CustomOriginConfig:
@@ -705,24 +699,6 @@ Resources:
             CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
             OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
-          - PathPattern: "/api/documentation*"
-            Compress: true
-            TargetOriginId: S3DocsOrigin
-            ViewerProtocolPolicy: redirect-to-https
-            AllowedMethods:
-              - GET
-              - HEAD
-            CachedMethods:
-              - GET
-              - HEAD
-            ForwardedValues:
-              QueryString: true
-              Cookies:
-                Forward: none
-            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # caching-optimized
-            # LambdaFunctionAssociations:
-            #   - EventType: origin-request
-            #     LambdaFunctionARN: !Ref AppFrontendEdgeLambdaVersion
           - PathPattern: "/api/*"
             TargetOriginId: LambdaOrigin
             ViewerProtocolPolicy: redirect-to-https

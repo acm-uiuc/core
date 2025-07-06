@@ -19,7 +19,7 @@ const html = `
 <script>
   window.onload = () => {
     window.ui = SwaggerUIBundle({
-      url: '/api/documentation/openapi.json',
+      url: '/swagger/openapi.json',
       dom_id: '#swagger-ui',
     });
   };

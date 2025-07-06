@@ -59,6 +59,7 @@ const now = () => Date.now();
 async function init(prettyPrint: boolean = false, initClients: boolean = true) {
   const isRunningInLambda =
     process.env.LAMBDA_TASK_ROOT || process.env.AWS_LAMBDA_FUNCTION_NAME;
+  let isSwaggerServer = true;
   const transport = prettyPrint
     ? {
         target: "pino-pretty",
@@ -205,6 +206,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
     });
   } catch (e) {
     app.log.warn("Fastify Swagger not created!");
+    isSwaggerServer = false;
   }
   await app.register(fastifyStatic, {
     root: path.join(__dirname, "public"),
@@ -213,7 +215,18 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
   if (!process.env.RunEnvironment) {
     process.env.RunEnvironment = "dev";
   }
-
+  if (isRunningInLambda && !isSwaggerServer) {
+    // Serve docs from S3
+    app.get("/api/documentation", (_request, response) => {
+      response.redirect("/swagger/index.html", 308);
+    });
+    app.get("/api/documentation/json", (_request, response) => {
+      response.redirect("/swagger/openapi.json", 308);
+    });
+    app.get("/api/documentation/yaml", (_request, response) => {
+      response.redirect("/swagger/openapi.yaml", 308);
+    });
+  }
   if (!runEnvironments.includes(process.env.RunEnvironment as RunEnvironment)) {
     throw new InternalServerError({
       message: `Invalid run environment ${app.runEnvironment}.`,
