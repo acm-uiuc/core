@@ -73,8 +73,6 @@ local:
 postdeploy:
 	@echo "Syncing S3 UI bucket..."
 	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
-	@echo "Syncing S3 Docs bucket..."
-	aws s3 sync $(dist_docs_directory_root) s3://$(docs_s3_bucket)/ --delete
 	make invalidate_cloudfront
 
 deploy_prod: check_account_prod

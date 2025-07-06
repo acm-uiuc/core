@@ -609,11 +609,6 @@ Resources:
     Properties:
       BucketName: !Sub ${S3BucketPrefix}-ui
 
-  AppDocsS3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub ${S3BucketPrefix}-docs
-
   AppCloudfrontS3OAC:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
@@ -631,11 +626,6 @@ Resources:
         Origins:
           - Id: S3WebsiteOrigin
             DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
-            S3OriginConfig:
-              OriginAccessIdentity: ''
-            OriginAccessControlId: !GetAtt AppCloudfrontS3OAC.Id
-          - Id: S3DocsOrigin
-            DomainName: !GetAtt AppDocsS3Bucket.RegionalDomainName
             S3OriginConfig:
               OriginAccessIdentity: ''
             OriginAccessControlId: !GetAtt AppCloudfrontS3OAC.Id
@@ -711,7 +701,8 @@ Resources:
             Compress: true
           - PathPattern: "/api/documentation*"
             Compress: true
-            TargetOriginId: S3DocsOrigin
+            OriginPath: "/swagger"
+            TargetOriginId: S3WebsiteOrigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:
               - GET
@@ -769,23 +760,6 @@ Resources:
             Condition:
               StringEquals:
                 AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AppFrontendCloudfrontDistribution}"
-
-  AppDocsS3BucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref AppDocsS3Bucket
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: cloudfront.amazonaws.com
-            Action: s3:GetObject
-            Resource: !Sub "${AppDocsS3Bucket.Arn}/*"
-            Condition:
-              StringEquals:
-                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AppFrontendCloudfrontDistribution}"
-
 
   CloudfrontNoCachePolicy:
     Type: AWS::CloudFront::CachePolicy
