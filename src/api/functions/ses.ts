@@ -15,7 +15,7 @@ export function generateMembershipEmailCommand(
   senderEmail: string,
   attachmentBuffer: ArrayBufferLike,
 ): SendRawEmailCommand {
-  const encodedAttachment = encode(attachmentBuffer);
+  const encodedAttachment = encode(attachmentBuffer as ArrayBuffer);
   const boundary = "----BoundaryForEmail";
 
   const emailTemplate = `
@@ -147,7 +147,7 @@ export function generateSalesEmail(
   senderEmail: string,
   imageBuffer: ArrayBufferLike,
 ): SendRawEmailCommand {
-  const encodedImage = encode(imageBuffer);
+  const encodedImage = encode(imageBuffer as ArrayBuffer);
   const boundary = "----BoundaryForEmail";
 
   const subject = `Your ${payload.type === "merch" ? "order" : "ticket"} has been confirmed!`;

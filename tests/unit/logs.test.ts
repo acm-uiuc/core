@@ -45,7 +45,7 @@ describe("Audit Log tests", async () => {
       name: "ValidationError",
       id: 104,
       message:
-        "querystring/start Expected number, received nan, querystring/end Expected number, received nan",
+        "querystring/start Invalid input: expected number, received NaN, querystring/end Invalid input: expected number, received NaN",
     });
   });
   test("Sad path: Items is undefined", async () => {

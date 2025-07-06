@@ -15,7 +15,7 @@ export const sendSaleEmailHandler: SQSHandlerFunction<
     errorCorrectionLevel: "H",
   });
   logger.info("Constructing email...");
-  const emailCommand = generateSalesEmail(payload, senderEmail, qrCode as any);
+  const emailCommand = generateSalesEmail(payload, senderEmail, qrCode.buffer);
   logger.info("Constructing email...");
   const sesClient = new SESClient({ region: genericConfig.AwsRegion });
   const response = await sesClient.send(emailCommand);

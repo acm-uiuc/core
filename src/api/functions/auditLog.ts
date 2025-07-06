@@ -20,11 +20,14 @@ function buildMarshalledAuditLogItem(entry: AuditLogEntry) {
   const expireAt =
     timestamp + Math.floor((RETENTION_DAYS * 24 * 60 * 60 * 1000) / 1000);
 
-  return marshall({
-    ...entry,
-    createdAt: timestamp,
-    expireAt,
-  });
+  return marshall(
+    {
+      ...entry,
+      createdAt: timestamp,
+      expireAt,
+    },
+    { removeUndefinedValues: true },
+  );
 }
 
 export async function createAuditLogEntry({

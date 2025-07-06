@@ -39,7 +39,7 @@ import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { groupId, withRoles, withTags } from "api/components/index.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
-import { z } from "zod";
+import * as z from "zod/v4";
 import { AvailableSQSFunctions } from "common/types/sqsMessage.js";
 import { SendMessageBatchCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { randomUUID } from "crypto";

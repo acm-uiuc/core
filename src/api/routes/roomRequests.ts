@@ -27,9 +27,14 @@ import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { withRoles, withTags } from "api/components/index.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
-import { z } from "zod";
+import * as z from "zod/v4";
 import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
+import {
+  generateProjectionParams,
+  getDefaultFilteringQuerystring,
+  nonEmptyCommaSeparatedStringSchema,
+} from "common/utils.js";
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -45,11 +50,11 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Room Requests"], {
           summary: "Create status update for a room request.",
           params: z.object({
-            requestId: z.string().min(1).openapi({
+            requestId: z.string().min(1).meta({
               description: "Room request ID.",
               example: "6667e095-8b04-4877-b361-f636f459ba42",
             }),
-            semesterId: z.string().min(1).openapi({
+            semesterId: z.string().min(1).meta({
               description: "Short semester slug for a given semester.",
               example: "sp25",
             }),
@@ -95,13 +100,16 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const createdAt = new Date().toISOString();
       const itemPut = {
         TableName: genericConfig.RoomRequestsStatusTableName,
-        Item: marshall({
-          requestId,
-          semesterId,
-          "createdAt#status": `${createdAt}#${request.body.status}`,
-          createdBy: request.username,
-          ...request.body,
-        }),
+        Item: marshall(
+          {
+            requestId,
+            semesterId,
+            "createdAt#status": `${createdAt}#${request.body.status}`,
+            createdBy: request.username,
+            ...request.body,
+          },
+          { removeUndefinedValues: true },
+        ),
       };
       const logStatement = buildAuditLogTransactPut({
         entry: {
@@ -177,17 +185,24 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Room Requests"], {
           summary: "Get room requests for a specific semester.",
           params: z.object({
-            semesterId: z.string().min(1).openapi({
+            semesterId: z.string().min(1).meta({
               description: "Short semester slug for a given semester.",
               example: "sp25",
             }),
           }),
+          querystring: z.object(
+            getDefaultFilteringQuerystring({
+              defaultSelect: ["requestId", "title"],
+            }),
+          ),
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const semesterId = request.params.semesterId;
+      const { ProjectionExpression, ExpressionAttributeNames } =
+        generateProjectionParams({ userFields: request.query.select });
       if (!request.username) {
         throw new InternalServerError({
           message: "Could not retrieve username.",
@@ -198,6 +213,8 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         command = new QueryCommand({
           TableName: genericConfig.RoomRequestsTableName,
           KeyConditionExpression: "semesterId = :semesterValue",
+          ProjectionExpression,
+          ExpressionAttributeNames,
           ExpressionAttributeValues: {
             ":semesterValue": { S: semesterId },
           },
@@ -209,8 +226,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             "semesterId = :semesterValue AND begins_with(#sortKey, :username)",
           ExpressionAttributeNames: {
             "#sortKey": "userId#requestId",
+            ...ExpressionAttributeNames,
           },
-          ProjectionExpression: "requestId, host, title, semester",
+          ProjectionExpression,
           ExpressionAttributeValues: {
             ":semesterValue": { S: semesterId },
             ":username": { S: request.username },
@@ -224,6 +242,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       const items = response.Items.map((x) => {
+        if (!request.query.select.includes("status")) {
+          return unmarshall(x);
+        }
         const item = unmarshall(x) as {
           host: string;
           title: string;
@@ -299,6 +320,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         "userId#requestId": `${request.username}#${requestId}`,
         semesterId: request.body.semester,
       };
+      console.log("FUCK", body);
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ROOM_RESERVATIONS,
@@ -315,7 +337,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             {
               Put: {
                 TableName: genericConfig.RoomRequestsTableName,
-                Item: marshall(body),
+                Item: marshall(body, { removeUndefinedValues: true }),
               },
             },
             {
@@ -394,15 +416,20 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Room Requests"], {
           summary: "Get specific room request data.",
           params: z.object({
-            requestId: z.string().min(1).openapi({
+            requestId: z.string().min(1).meta({
               description: "Room request ID.",
               example: "6667e095-8b04-4877-b361-f636f459ba42",
             }),
-            semesterId: z.string().min(1).openapi({
+            semesterId: z.string().min(1).meta({
               description: "Short semester slug for a given semester.",
               example: "sp25",
             }),
           }),
+          querystring: z.object(
+            getDefaultFilteringQuerystring({
+              defaultSelect: ["requestId", "title"],
+            }),
+          ),
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -410,6 +437,8 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
+      const { ProjectionExpression, ExpressionAttributeNames } =
+        generateProjectionParams({ userFields: request.query.select });
       let command;
       if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
         command = new QueryCommand({
@@ -417,6 +446,8 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           IndexName: "RequestIdIndex",
           KeyConditionExpression: "requestId = :requestId",
           FilterExpression: "semesterId = :semesterId",
+          ProjectionExpression,
+          ExpressionAttributeNames,
           ExpressionAttributeValues: {
             ":requestId": { S: requestId },
             ":semesterId": { S: semesterId },
@@ -426,6 +457,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       } else {
         command = new QueryCommand({
           TableName: genericConfig.RoomRequestsTableName,
+          ProjectionExpression,
           KeyConditionExpression:
             "semesterId = :semesterId AND #userIdRequestId = :userRequestId",
           ExpressionAttributeValues: {
@@ -434,6 +466,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           },
           ExpressionAttributeNames: {
             "#userIdRequestId": "userId#requestId",
+            ...ExpressionAttributeNames,
           },
           Limit: 1,
         });

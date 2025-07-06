@@ -1,5 +1,5 @@
 /* eslint import/no-nodejs-modules: ["error", {"allow": ["crypto"]}] */
-import "zod-openapi/extend";
+
 import { randomUUID } from "crypto";
 import fastify, { FastifyInstance } from "fastify";
 import FastifyAuthProvider from "@fastify/auth";
@@ -80,18 +80,6 @@ async function init(prettyPrint: boolean = false) {
       level: process.env.LOG_LEVEL || "info",
       transport,
     },
-    rewriteUrl: (req) => {
-      const url = req.url;
-      const hostname = req.headers.host || "";
-      const customDomainBaseMappers: Record<string, string> = {
-        "ical.acm.illinois.edu": `/api/v1/ical${url}`,
-        "ical.aws.qa.acmuiuc.org": `/api/v1/ical${url}`,
-      };
-      if (hostname in customDomainBaseMappers) {
-        return customDomainBaseMappers[hostname];
-      }
-      return url || "/";
-    },
     disableRequestLogging: true,
     genReqId: (request) => {
       const header = request.headers["x-apigateway-event"];
@@ -139,6 +127,7 @@ async function init(prettyPrint: boolean = false) {
           description: "QA API server",
         },
       ],
+
       tags: [
         {
           name: "Events",
@@ -190,6 +179,7 @@ async function init(prettyPrint: boolean = false) {
           description: "Manage the lifecycle of API keys.",
         },
       ],
+
       openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
       components: {
         securitySchemes: {
@@ -324,6 +314,9 @@ async function init(prettyPrint: boolean = false) {
   await app.register(cors, {
     origin: app.environmentConfig.ValidCorsOrigins,
     methods: ["GET", "HEAD", "POST", "PATCH", "DELETE"],
+  });
+  app.addHook("onSend", async (request, reply) => {
+    reply.header("X-Request-Id", request.id);
   });
   app.log.info("Initialized new Fastify instance...");
   return app;

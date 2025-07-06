@@ -411,7 +411,7 @@ describe("Test Room Request Creation", async () => {
       .post("/api/v1/roomRequests")
       .set("authorization", `Bearer ${testJwt}`)
       .send(roomRequest);
-
+    console.error(response.headers["x-request-id"]);
     expect(response.statusCode).toBe(201);
     expect(sqsMock.commandCalls(SendMessageCommand).length).toBe(1);
 

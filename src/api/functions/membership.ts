@@ -16,6 +16,8 @@ import { EntraGroupError } from "common/errors/index.js";
 import { EntraGroupActions } from "common/types/iam.js";
 import { pollUntilNoError } from "./general.js";
 
+export const MEMBER_CACHE_SECONDS = 43200; // 12 hours
+
 export async function checkExternalMembership(
   netId: string,
   list: string,
