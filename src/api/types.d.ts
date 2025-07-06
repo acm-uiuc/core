@@ -12,6 +12,15 @@ import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
 import type RedisModule from "ioredis";
 type Redis = RedisModule.default;
 
+interface CloudfrontLocation {
+  country: string | undefined;
+  city: string | undefined;
+  region: string | undefined;
+  latitude: string | undefined;
+  longitude: string | undefined;
+  postalCode: string | undefined;
+}
+
 declare module "fastify" {
   interface FastifyInstance {
     authenticate: (
@@ -45,6 +54,7 @@ declare module "fastify" {
     userRoles?: Set<AppRoles>;
     tokenPayload?: AadToken;
     policyRestrictions?: AvailableAuthorizationPolicy[];
+    location: CloudfrontLocation;
   }
 }
 

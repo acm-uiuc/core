@@ -29,6 +29,7 @@ const handler = async (event: APIGatewayEvent, context: Context) => {
         isBase64Encoded: false,
       };
     }
+    delete event.headers["x-origin-verify"];
   }
   // else proceed with handler logic
   return await realHandler(event, context).catch((e) => {
