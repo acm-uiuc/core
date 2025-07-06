@@ -47,7 +47,9 @@ const errorHandlerPlugin = fp(async (fastify) => {
     },
   );
   fastify.setNotFoundHandler((request: FastifyRequest) => {
-    throw new NotFoundError({ endpointName: request.url });
+    throw new NotFoundError({
+      endpointName: `${request.method} ${request.url}`,
+    });
   });
 });
 
