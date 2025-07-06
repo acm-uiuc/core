@@ -173,7 +173,24 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 quantity: 1,
               },
             ],
-
+            customFields: [
+              {
+                key: "firstName",
+                label: {
+                  type: "custom",
+                  custom: "Student First Name",
+                },
+                type: "text",
+              },
+              {
+                key: "lastName",
+                label: {
+                  type: "custom",
+                  custom: "Student Last Name",
+                },
+                type: "text",
+              },
+            ],
             initiator: "purchase-membership",
             allowPromotionCodes: true,
           }),
@@ -343,8 +360,26 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             event.data.object.metadata.initiator === "purchase-membership"
           ) {
             const customerEmail = event.data.object.customer_email;
+            const firstName = event.data.object.custom_fields.filter(
+              (x) => x.key === "firstName",
+            )[0].text?.value;
+            const lastName = event.data.object.custom_fields.filter(
+              (x) => x.key === "lastName",
+            )[0].text?.value;
             if (!customerEmail) {
               request.log.info("No customer email found.");
+              return reply
+                .code(200)
+                .send({ handled: false, requestId: request.id });
+            }
+            if (!firstName) {
+              request.log.info("First name not found.");
+              return reply
+                .code(200)
+                .send({ handled: false, requestId: request.id });
+            }
+            if (!lastName) {
+              request.log.info("Last name not found.");
               return reply
                 .code(200)
                 .send({ handled: false, requestId: request.id });
@@ -358,6 +393,8 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 },
                 payload: {
                   email: customerEmail,
+                  firstName,
+                  lastName,
                 },
               };
             if (!fastify.sqsClient) {

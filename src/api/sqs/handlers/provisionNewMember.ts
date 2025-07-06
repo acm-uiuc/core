@@ -17,7 +17,7 @@ import { setKey } from "api/functions/redisCache.js";
 export const provisionNewMemberHandler: SQSHandlerFunction<
   AvailableSQSFunctions.ProvisionNewMember
 > = async (payload, metadata, logger) => {
-  const { email } = payload;
+  const { email, firstName, lastName } = payload;
   const commonConfig = { region: genericConfig.AwsRegion };
   const clients = await getAuthorizedClients(logger, commonConfig);
   const entraToken = await getEntraIdToken({
@@ -39,6 +39,8 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
     dynamoClient: clients.dynamoClient,
     entraToken,
     paidMemberGroup: currentEnvironmentConfig.PaidMemberGroupId,
+    firstName,
+    lastName,
   });
   if (updated) {
     const logPromise = createAuditLogEntry({

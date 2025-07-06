@@ -10,6 +10,7 @@ import {
   addToTenant,
   isUserInGroup,
   modifyGroup,
+  patchUserProfile,
   resolveEmailToOid,
 } from "./entraId.js";
 import { EntraGroupError } from "common/errors/index.js";
@@ -112,6 +113,8 @@ export async function setPaidMembershipInTable(
 
 type SetPaidMembershipInput = {
   netId: string;
+  firstName: string;
+  lastName: string;
   dynamoClient: DynamoDBClient;
   entraToken: string;
   paidMemberGroup: string;
@@ -126,6 +129,8 @@ export async function setPaidMembership({
   dynamoClient,
   entraToken,
   paidMemberGroup,
+  firstName,
+  lastName,
 }: SetPaidMembershipInput): Promise<SetPaidMembershipOutput> {
   const dynamoResult = await setPaidMembershipInTable(
     netId,
@@ -151,6 +156,7 @@ export async function setPaidMembership({
     30000,
     4000,
   );
+  const oid = await resolveEmailToOid(entraToken, email);
   await modifyGroup(
     entraToken,
     email,
@@ -158,6 +164,11 @@ export async function setPaidMembership({
     EntraGroupActions.ADD,
     dynamoClient,
   );
+  await patchUserProfile(entraToken, email, oid, {
+    displayName: `${firstName} ${lastName}`,
+    givenName: firstName,
+    surname: lastName,
+  });
 
   return { updated: true };
 }

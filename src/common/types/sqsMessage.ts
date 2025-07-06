@@ -38,16 +38,16 @@ export const sqsPayloadSchemas = {
   ),
   [AvailableSQSFunctions.EmailMembershipPass]: createSQSSchema(
     AvailableSQSFunctions.EmailMembershipPass,
-    z.object({ email: z.string().email() })
+    z.object({ email: z.email(), firstName: z.optional(z.string().min(1)) })
   ),
   [AvailableSQSFunctions.ProvisionNewMember]: createSQSSchema(
     AvailableSQSFunctions.ProvisionNewMember,
-    z.object({ email: z.string().email() })
+    z.object({ email: z.email(), firstName: z.string().min(1), lastName: z.string().min(1) })
   ),
   [AvailableSQSFunctions.SendSaleEmail]: createSQSSchema(
     AvailableSQSFunctions.SendSaleEmail,
     z.object({
-      email: z.string().email(),
+      email: z.email(),
       qrCodeContent: z.string().min(1),
       itemName: z.string().min(1),
       quantity: z.number().min(1),
@@ -58,8 +58,8 @@ export const sqsPayloadSchemas = {
   ),
   [AvailableSQSFunctions.EmailNotifications]: createSQSSchema(
     AvailableSQSFunctions.EmailNotifications, z.object({
-      to: z.array(z.string().email()).min(1),
-      cc: z.optional(z.array(z.string().email()).min(1)),
+      to: z.array(z.email()).min(1),
+      cc: z.optional(z.array(z.email()).min(1)),
       bcc: z.optional(z.array(z.string().email()).min(1)),
       subject: z.string().min(1),
       content: z.string().min(1),

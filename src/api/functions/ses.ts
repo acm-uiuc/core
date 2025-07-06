@@ -14,6 +14,7 @@ export function generateMembershipEmailCommand(
   recipientEmail: string,
   senderEmail: string,
   attachmentBuffer: ArrayBufferLike,
+  firstName?: string,
 ): SendRawEmailCommand {
   const encodedAttachment = encode(attachmentBuffer as ArrayBuffer);
   const boundary = "----BoundaryForEmail";
@@ -81,14 +82,14 @@ export function generateMembershipEmailCommand(
     <img src="https://static.acm.illinois.edu/banner-blue.png" style="height: 100px; width: 210px; align-self: center;"/>
     <br />
     <div class="wrap">
-        <h2 style="text-align: center;">Welcome</h2>
+        <h2 style="text-align: center;">Welcome${firstName && `, ${firstName}`}!</h2>
         <p>
             Thank you for becoming a member of ACM @ UIUC! Attached is your membership pass.
             You can add it to your Apple or Google Wallet for easy access.
         </p>
         <p>
             If you have any questions, feel free to contact us at
-            <a href="mailto:infra@acm.illinois.edu">infra@acm.illinois.edu</a>.
+            <a href="mailto:officers@acm.illinois.edu">officers@acm.illinois.edu</a>.
         </p>
         <p>
             We also encourage you to check out our resources page, where you can find the benefits associated with your membership.
@@ -101,7 +102,7 @@ export function generateMembershipEmailCommand(
     <div class="footer">
         <p>
             <a href="https://acm.illinois.edu">ACM @ UIUC Homepage</a>
-            <a href="mailto:admin@acm.illinois.edu">Email ACM @ UIUC</a>
+            <a href="mailto:officers@acm.illinois.edu">Email ACM @ UIUC</a>
         </p>
     </div>
 </body>
