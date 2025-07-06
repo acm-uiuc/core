@@ -17,7 +17,11 @@ import {
   StripeLinkCreateParams,
 } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
-import { environmentConfig, genericConfig } from "common/config.js";
+import {
+  environmentConfig,
+  genericConfig,
+  notificationRecipients,
+} from "common/config.js";
 import {
   BaseError,
   DatabaseFetchError,
@@ -570,6 +574,10 @@ Please contact Officer Board with any questions.
                     },
                     payload: {
                       to: [unmarshalledEntry.userId],
+                      cc: [
+                        notificationRecipients[fastify.runEnvironment]
+                          .Treasurer,
+                      ],
                       subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
                       content: `
 ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
