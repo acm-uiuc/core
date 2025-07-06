@@ -257,7 +257,7 @@ Resources:
       Description: !Sub "${ApplicationFriendlyName} API Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-lambda
       Handler: lambda.handler
-      MemorySize: 768
+      MemorySize: 2048
       Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
       Timeout: 60
       Environment:
@@ -299,7 +299,7 @@ Resources:
       Description: !Sub "${ApplicationFriendlyName} SQS Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
       Handler: index.handler
-      MemorySize: 512
+      MemorySize: 2048
       Role:
         Fn::GetAtt: AppSecurityRoles.Outputs.SqsFunctionRoleArn
       Timeout: !Ref SqsLambdaTimeout
