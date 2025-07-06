@@ -173,7 +173,24 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 quantity: 1,
               },
             ],
-
+            customFields: [
+              {
+                key: "firstName",
+                label: {
+                  type: "custom",
+                  custom: "Student First Name",
+                },
+                type: "text",
+              },
+              {
+                key: "lastName",
+                label: {
+                  type: "custom",
+                  custom: "Student Last Name",
+                },
+                type: "text",
+              },
+            ],
             initiator: "purchase-membership",
             allowPromotionCodes: true,
           }),
