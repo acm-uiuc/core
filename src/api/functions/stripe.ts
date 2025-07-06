@@ -18,6 +18,7 @@ export type StripeCheckoutSessionCreateParams = {
   items: { price: string; quantity: number }[];
   initiator: string;
   allowPromotionCodes: boolean;
+  customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
 };
 
 /**
@@ -73,6 +74,7 @@ export const createCheckoutSession = async ({
   items,
   initiator,
   allowPromotionCodes,
+  customFields,
 }: StripeCheckoutSessionCreateParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
@@ -89,6 +91,7 @@ export const createCheckoutSession = async ({
       initiator,
     },
     allow_promotion_codes: allowPromotionCodes,
+    custom_fields: customFields,
   };
   const session = await stripe.checkout.sessions.create(payload);
   if (!session.url) {
