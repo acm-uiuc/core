@@ -89,7 +89,7 @@ export function generateMembershipEmailCommand(
         </p>
         <p>
             If you have any questions, feel free to contact us at
-            <a href="mailto:infra@acm.illinois.edu">infra@acm.illinois.edu</a>.
+            <a href="mailto:officers@acm.illinois.edu">officers@acm.illinois.edu</a>.
         </p>
         <p>
             We also encourage you to check out our resources page, where you can find the benefits associated with your membership.
@@ -102,7 +102,7 @@ export function generateMembershipEmailCommand(
     <div class="footer">
         <p>
             <a href="https://acm.illinois.edu">ACM @ UIUC Homepage</a>
-            <a href="mailto:admin@acm.illinois.edu">Email ACM @ UIUC</a>
+            <a href="mailto:officers@acm.illinois.edu">Email ACM @ UIUC</a>
         </p>
     </div>
 </body>
