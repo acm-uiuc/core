@@ -333,6 +333,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       switch (event.type) {
+        case "checkout.session.async_payment_succeeded":
         case "checkout.session.completed":
           if (event.data.object.payment_link) {
             const eventId = event.id;
@@ -391,93 +392,146 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               .formatToParts(paymentAmount / 100)
               .map((val) => val.value)
               .join("");
-            request.log.info(
-              `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}). Invoice was paid ${paidInFull ? "in full." : "partially."}`,
-            );
+
             // Notify link owner of payment
             let queueId;
-            if (unmarshalledEntry.userId.includes("@")) {
+            if (event.data.object.payment_status === "unpaid") {
               request.log.info(
-                `Sending email to ${unmarshalledEntry.userId}...`,
+                `Pending payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}). Invoice was tentatively paid ${paidInFull ? "in full." : "partially."}`,
               );
-              const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
-                {
-                  function: AvailableSQSFunctions.EmailNotifications,
-                  metadata: {
-                    initiator: eventId,
-                    reqId: request.id,
-                  },
-                  payload: {
-                    to: [unmarshalledEntry.userId],
-                    subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
-                    content: `ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).\n\nPlease contact Officer Board with any questions.`,
-                    callToActionButton: {
-                      name: "View Your Stripe Links",
-                      url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
-                    },
-                  },
-                };
-              if (!fastify.sqsClient) {
-                fastify.sqsClient = new SQSClient({
-                  region: genericConfig.AwsRegion,
-                });
-              }
-              const result = await fastify.sqsClient.send(
-                new SendMessageCommand({
-                  QueueUrl: fastify.environmentConfig.SqsQueueUrl,
-                  MessageBody: JSON.stringify(sqsPayload),
-                }),
-              );
-              queueId = result.MessageId || "";
-            }
-            // If full payment is done, disable the link
-            if (paidInFull) {
-              request.log.debug("Paid in full, disabling link.");
-              const logStatement = buildAuditLogTransactPut({
-                entry: {
-                  module: Modules.STRIPE,
-                  actor: eventId,
-                  target: `Link ${paymentLinkId} | Invoice ${unmarshalledEntry.invoiceId}`,
-                  message:
-                    "Disabled Stripe payment link as payment was made in full.",
-                },
-              });
-              const dynamoCommand = new TransactWriteItemsCommand({
-                TransactItems: [
-                  ...(logStatement ? [logStatement] : []),
-                  {
-                    Update: {
-                      TableName: genericConfig.StripeLinksDynamoTableName,
-                      Key: {
-                        userId: { S: unmarshalledEntry.userId },
-                        linkId: { S: paymentLinkId },
-                      },
-                      UpdateExpression: "SET active = :new_val",
-                      ConditionExpression: "active = :old_val",
-                      ExpressionAttributeValues: {
-                        ":new_val": { BOOL: false },
-                        ":old_val": { BOOL: true },
-                      },
-                    },
-                  },
-                ],
-              });
-              if (unmarshalledEntry.productId) {
-                request.log.debug(
-                  `Deactivating Stripe product ${unmarshalledEntry.productId}`,
+              if (unmarshalledEntry.userId.includes("@")) {
+                request.log.info(
+                  `Sending email to ${unmarshalledEntry.userId}...`,
                 );
-                await deactivateStripeProduct({
-                  stripeApiKey: secretApiConfig.stripe_secret_key as string,
-                  productId: unmarshalledEntry.productId,
-                });
+                const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
+                  {
+                    function: AvailableSQSFunctions.EmailNotifications,
+                    metadata: {
+                      initiator: eventId,
+                      reqId: request.id,
+                    },
+                    payload: {
+                      to: [unmarshalledEntry.userId],
+                      subject: `Payment Pending for Invoice ${unmarshalledEntry.invoiceId}`,
+                      content: `
+ACM @ UIUC has received intent of ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
+
+The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and no services should be performed until the funds settle.
+
+Please contact Officer Board with any questions.
+                    `,
+                      callToActionButton: {
+                        name: "View Your Stripe Links",
+                        url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
+                      },
+                    },
+                  };
+                if (!fastify.sqsClient) {
+                  fastify.sqsClient = new SQSClient({
+                    region: genericConfig.AwsRegion,
+                  });
+                }
+                const result = await fastify.sqsClient.send(
+                  new SendMessageCommand({
+                    QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+                    MessageBody: JSON.stringify(sqsPayload),
+                  }),
+                );
+                queueId = result.MessageId || "";
               }
-              request.log.debug(`Deactivating Stripe link ${paymentLinkId}`);
-              await deactivateStripeLink({
-                stripeApiKey: secretApiConfig.stripe_secret_key as string,
-                linkId: paymentLinkId,
-              });
-              await fastify.dynamoClient.send(dynamoCommand);
+            } else {
+              request.log.info(
+                `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}). Invoice was paid ${paidInFull ? "in full." : "partially."}`,
+              );
+              if (unmarshalledEntry.userId.includes("@")) {
+                request.log.info(
+                  `Sending email to ${unmarshalledEntry.userId}...`,
+                );
+                const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
+                  {
+                    function: AvailableSQSFunctions.EmailNotifications,
+                    metadata: {
+                      initiator: eventId,
+                      reqId: request.id,
+                    },
+                    payload: {
+                      to: [unmarshalledEntry.userId],
+                      subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
+                      content: `
+ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
+
+This invoice should now be considered settled.
+
+Please contact Officer Board with any questions.`,
+                      callToActionButton: {
+                        name: "View Your Stripe Links",
+                        url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
+                      },
+                    },
+                  };
+                if (!fastify.sqsClient) {
+                  fastify.sqsClient = new SQSClient({
+                    region: genericConfig.AwsRegion,
+                  });
+                }
+                const result = await fastify.sqsClient.send(
+                  new SendMessageCommand({
+                    QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+                    MessageBody: JSON.stringify(sqsPayload),
+                  }),
+                );
+                queueId = result.MessageId || "";
+              }
+              // If full payment is done, disable the link
+              if (paidInFull) {
+                request.log.debug("Paid in full, disabling link.");
+                const logStatement = buildAuditLogTransactPut({
+                  entry: {
+                    module: Modules.STRIPE,
+                    actor: eventId,
+                    target: `Link ${paymentLinkId} | Invoice ${unmarshalledEntry.invoiceId}`,
+                    message:
+                      "Disabled Stripe payment link as payment was made in full.",
+                  },
+                });
+                const dynamoCommand = new TransactWriteItemsCommand({
+                  TransactItems: [
+                    ...(logStatement ? [logStatement] : []),
+                    {
+                      Update: {
+                        TableName: genericConfig.StripeLinksDynamoTableName,
+                        Key: {
+                          userId: { S: unmarshalledEntry.userId },
+                          linkId: { S: paymentLinkId },
+                        },
+                        UpdateExpression: "SET active = :new_val",
+                        ConditionExpression: "active = :old_val",
+                        ExpressionAttributeValues: {
+                          ":new_val": { BOOL: false },
+                          ":old_val": { BOOL: true },
+                        },
+                      },
+                    },
+                  ],
+                });
+                if (unmarshalledEntry.productId) {
+                  request.log.debug(
+                    `Deactivating Stripe product ${unmarshalledEntry.productId}`,
+                  );
+                  await deactivateStripeProduct({
+                    stripeApiKey: secretApiConfig.stripe_secret_key as string,
+                    productId: unmarshalledEntry.productId,
+                  });
+                }
+                request.log.debug(`Deactivating Stripe link ${paymentLinkId}`);
+                await deactivateStripeLink({
+                  stripeApiKey: secretApiConfig.stripe_secret_key as string,
+                  linkId: paymentLinkId,
+                });
+                await fastify.dynamoClient.send(dynamoCommand);
+              }
             }
+
             return reply.status(200).send({
               handled: true,
               requestId: request.id,
