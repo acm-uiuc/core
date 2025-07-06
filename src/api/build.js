@@ -14,7 +14,7 @@ const commonParams = {
     ".json": "file",
   }, // File loaders
   target: "es2022", // Target ES2022
-  sourcemap: true,
+  sourcemap: Boolean(process.env.GENERATE_SOURCEMAP),
   platform: "node",
   external: ["@aws-sdk/*", ...packagesToTransfer],
   alias: {
