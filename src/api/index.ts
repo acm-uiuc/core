@@ -15,7 +15,6 @@ import {
   environmentConfig,
   genericConfig,
   SecretConfig,
-  SecretTesting,
 } from "../common/config.js";
 import organizationsPlugin from "./routes/organizations.js";
 import authorizeFromSchemaPlugin from "./plugins/authorizeFromSchema.js";
@@ -37,8 +36,7 @@ import membershipPlugin from "./routes/membership.js";
 import path from "path"; // eslint-disable-line import/no-nodejs-modules
 import roomRequestRoutes from "./routes/roomRequests.js";
 import logsPlugin from "./routes/logs.js";
-import fastifySwagger from "@fastify/swagger";
-import fastifySwaggerUI from "@fastify/swagger-ui";
+
 import {
   fastifyZodOpenApiPlugin,
   fastifyZodOpenApiTransform,
@@ -51,19 +49,18 @@ import { withTags } from "./components/index.js";
 import apiKeyRoute from "./routes/apiKey.js";
 import clearSessionRoute from "./routes/clearSession.js";
 import RedisModule from "ioredis";
+import { fileURLToPath } from "url"; // eslint-disable-line import/no-nodejs-modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
 const now = () => Date.now();
 
-async function init(prettyPrint: boolean = false) {
-  const dynamoClient = new DynamoDBClient({
-    region: genericConfig.AwsRegion,
-  });
-
-  const secretsManagerClient = new SecretsManagerClient({
-    region: genericConfig.AwsRegion,
-  });
+async function init(prettyPrint: boolean = false, initClients: boolean = true) {
+  const isRunningInLambda =
+    process.env.LAMBDA_TASK_ROOT || process.env.AWS_LAMBDA_FUNCTION_NAME;
+  let isSwaggerServer = false;
   const transport = prettyPrint
     ? {
         target: "pino-pretty",
@@ -99,111 +96,122 @@ async function init(prettyPrint: boolean = false) {
   await app.register(evaluatePoliciesPlugin);
   await app.register(errorHandlerPlugin);
   await app.register(fastifyZodOpenApiPlugin);
-  await app.register(fastifySwagger, {
-    openapi: {
-      info: {
-        title: "ACM @ UIUC Core API",
-        description: "ACM @ UIUC Core Management Platform",
-        version: "1.0.0",
-        contact: {
-          name: "ACM @ UIUC Infrastructure Team",
-          email: "infra@acm.illinois.edu",
-          url: "infra.acm.illinois.edu",
-        },
-        license: {
-          name: "BSD 3-Clause",
-          identifier: "BSD-3-Clause",
-          url: "https://github.com/acm-uiuc/core/blob/main/LICENSE",
-        },
-        termsOfService: "https://core.acm.illinois.edu/tos",
-      },
-      servers: [
-        {
-          url: "https://core.acm.illinois.edu",
-          description: "Production API server",
-        },
-        {
-          url: "https://core.aws.qa.acmuiuc.org",
-          description: "QA API server",
-        },
-      ],
-
-      tags: [
-        {
-          name: "Events",
-          description:
-            "Retrieve ACM @ UIUC-wide and organization-specific calendars and event metadata.",
-        },
-        {
-          name: "Generic",
-          description: "Retrieve metadata about a user or ACM @ UIUC .",
-        },
-        {
-          name: "iCalendar Integration",
-          description:
-            "Retrieve Events calendars in iCalendar format (for integration with external calendar clients).",
-        },
-        {
-          name: "IAM",
-          description: "Identity and Access Management for internal services.",
-        },
-        { name: "Linkry", description: "Link Shortener." },
-        {
-          name: "Logging",
-          description: "View audit logs for various services.",
-        },
-        {
-          name: "Membership",
-          description: "Purchasing or checking ACM @ UIUC membership.",
-        },
-        {
-          name: "Tickets/Merchandise",
-          description: "Handling the tickets and merchandise lifecycle.",
-        },
-        {
-          name: "Mobile Wallet",
-          description: "Issuing Apple/Google Wallet passes.",
-        },
-        {
-          name: "Stripe",
-          description:
-            "Collecting payments for ACM @ UIUC invoices and other services.",
-        },
-        {
-          name: "Room Requests",
-          description:
-            "Creating room reservation requests for ACM @ UIUC within University buildings.",
-        },
-        {
-          name: "API Keys",
-          description: "Manage the lifecycle of API keys.",
-        },
-      ],
-
-      openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
-      components: {
-        securitySchemes: {
-          bearerAuth: {
-            type: "http",
-            scheme: "bearer",
-            bearerFormat: "JWT",
-            description:
-              "Authorization: Bearer {token}\n\nThis API uses JWT tokens issued by Entra ID (Azure AD) with the Core API audience. Tokens must be included in the Authorization header as a Bearer token for all protected endpoints.",
+  if (!isRunningInLambda) {
+    try {
+      const fastifySwagger = import("@fastify/swagger");
+      const fastifySwaggerUI = import("@fastify/swagger-ui");
+      await app.register(fastifySwagger, {
+        openapi: {
+          info: {
+            title: "ACM @ UIUC Core API",
+            description: "ACM @ UIUC Core Management Platform",
+            version: "1.0.0",
+            contact: {
+              name: "ACM @ UIUC Infrastructure Team",
+              email: "infra@acm.illinois.edu",
+              url: "infra.acm.illinois.edu",
+            },
+            license: {
+              name: "BSD 3-Clause",
+              identifier: "BSD-3-Clause",
+              url: "https://github.com/acm-uiuc/core/blob/main/LICENSE",
+            },
+            termsOfService: "https://core.acm.illinois.edu/tos",
           },
-          apiKeyAuth: {
-            type: "apiKey",
-            in: "header",
-            name: "X-Api-Key",
+          servers: [
+            {
+              url: "https://core.acm.illinois.edu",
+              description: "Production API server",
+            },
+            {
+              url: "https://core.aws.qa.acmuiuc.org",
+              description: "QA API server",
+            },
+          ],
+
+          tags: [
+            {
+              name: "Events",
+              description:
+                "Retrieve ACM @ UIUC-wide and organization-specific calendars and event metadata.",
+            },
+            {
+              name: "Generic",
+              description: "Retrieve metadata about a user or ACM @ UIUC .",
+            },
+            {
+              name: "iCalendar Integration",
+              description:
+                "Retrieve Events calendars in iCalendar format (for integration with external calendar clients).",
+            },
+            {
+              name: "IAM",
+              description:
+                "Identity and Access Management for internal services.",
+            },
+            { name: "Linkry", description: "Link Shortener." },
+            {
+              name: "Logging",
+              description: "View audit logs for various services.",
+            },
+            {
+              name: "Membership",
+              description: "Purchasing or checking ACM @ UIUC membership.",
+            },
+            {
+              name: "Tickets/Merchandise",
+              description: "Handling the tickets and merchandise lifecycle.",
+            },
+            {
+              name: "Mobile Wallet",
+              description: "Issuing Apple/Google Wallet passes.",
+            },
+            {
+              name: "Stripe",
+              description:
+                "Collecting payments for ACM @ UIUC invoices and other services.",
+            },
+            {
+              name: "Room Requests",
+              description:
+                "Creating room reservation requests for ACM @ UIUC within University buildings.",
+            },
+            {
+              name: "API Keys",
+              description: "Manage the lifecycle of API keys.",
+            },
+          ],
+
+          openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
+          components: {
+            securitySchemes: {
+              bearerAuth: {
+                type: "http",
+                scheme: "bearer",
+                bearerFormat: "JWT",
+                description:
+                  "Authorization: Bearer {token}\n\nThis API uses JWT tokens issued by Entra ID (Azure AD) with the Core API audience. Tokens must be included in the Authorization header as a Bearer token for all protected endpoints.",
+              },
+              apiKeyAuth: {
+                type: "apiKey",
+                in: "header",
+                name: "X-Api-Key",
+              },
+            },
           },
         },
-      },
-    },
-    transform: fastifyZodOpenApiTransform,
-    transformObject: fastifyZodOpenApiTransformObject,
-  });
-  await app.register(fastifySwaggerUI, {
-    routePrefix: "/api/documentation",
-  });
+        transform: fastifyZodOpenApiTransform,
+        transformObject: fastifyZodOpenApiTransformObject,
+      });
+      await app.register(fastifySwaggerUI, {
+        routePrefix: "/api/documentation",
+      });
+      isSwaggerServer = true;
+    } catch (e) {
+      app.log.warn("Fastify Swagger not created!");
+    }
+  }
+
   await app.register(fastifyStatic, {
     root: path.join(__dirname, "public"),
     prefix: "/",
@@ -211,7 +219,18 @@ async function init(prettyPrint: boolean = false) {
   if (!process.env.RunEnvironment) {
     process.env.RunEnvironment = "dev";
   }
-
+  if (isRunningInLambda && !isSwaggerServer) {
+    // Serve docs from S3
+    app.get("/api/documentation", (_request, response) => {
+      response.redirect("/docs/index.html", 308);
+    });
+    app.get("/api/documentation/json", (_request, response) => {
+      response.redirect("/docs/openapi.json", 308);
+    });
+    app.get("/api/documentation/yaml", (_request, response) => {
+      response.redirect("/docs/openapi.yaml", 308);
+    });
+  }
   if (!runEnvironments.includes(process.env.RunEnvironment as RunEnvironment)) {
     throw new InternalServerError({
       message: `Invalid run environment ${app.runEnvironment}.`,
@@ -223,7 +242,7 @@ async function init(prettyPrint: boolean = false) {
         message: `Audit log can only be disabled if the run environment is "dev"!`,
       });
     }
-    if (process.env.LAMBDA_TASK_ROOT || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    if (isRunningInLambda) {
       throw new InternalServerError({
         message: `Audit log cannot be disabled when running in AWS Lambda environment!`,
       });
@@ -236,24 +255,30 @@ async function init(prettyPrint: boolean = false) {
   app.environmentConfig =
     environmentConfig[app.runEnvironment as RunEnvironment];
   app.nodeCache = new NodeCache({ checkperiod: 30 });
-  app.dynamoClient = dynamoClient;
-  app.secretsManagerClient = secretsManagerClient;
-  app.refreshSecretConfig = async () => {
-    app.log.debug(
-      `Getting secrets: ${JSON.stringify(app.environmentConfig.ConfigurationSecretIds)}.`,
-    );
-    const allSecrets = await Promise.all(
-      app.environmentConfig.ConfigurationSecretIds.map((secretName) =>
-        getSecretValue(app.secretsManagerClient, secretName),
-      ),
-    );
-    app.secretConfig = allSecrets.reduce(
-      (acc, currentSecret) => ({ ...acc, ...currentSecret }),
-      {},
-    ) as SecretConfig;
-  };
-  await app.refreshSecretConfig();
-  app.redisClient = new RedisModule.default(app.secretConfig.redis_url);
+  if (initClients) {
+    app.dynamoClient = new DynamoDBClient({
+      region: genericConfig.AwsRegion,
+    });
+    app.secretsManagerClient = new SecretsManagerClient({
+      region: genericConfig.AwsRegion,
+    });
+    app.refreshSecretConfig = async () => {
+      app.log.debug(
+        `Getting secrets: ${JSON.stringify(app.environmentConfig.ConfigurationSecretIds)}.`,
+      );
+      const allSecrets = await Promise.all(
+        app.environmentConfig.ConfigurationSecretIds.map((secretName) =>
+          getSecretValue(app.secretsManagerClient, secretName),
+        ),
+      );
+      app.secretConfig = allSecrets.reduce(
+        (acc, currentSecret) => ({ ...acc, ...currentSecret }),
+        {},
+      ) as SecretConfig;
+    };
+    await app.refreshSecretConfig();
+    app.redisClient = new RedisModule.default(app.secretConfig.redis_url);
+  }
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;
@@ -261,7 +286,6 @@ async function init(prettyPrint: boolean = false) {
     req.log.info({ hostname, url, method: req.method }, "received request");
     done();
   });
-
   app.addHook("onResponse", (req, reply, done) => {
     req.log.info(
       {
