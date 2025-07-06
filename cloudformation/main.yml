@@ -257,7 +257,7 @@ Resources:
       Description: !Sub "${ApplicationFriendlyName} API Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-lambda
       Handler: lambda.handler
-      MemorySize: 512
+      MemorySize: 768
       Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
       Timeout: 60
       Environment:
