@@ -28,7 +28,7 @@ import { withTags } from "./components/index.js";
 import RedisModule from "ioredis";
 
 /** BEGIN EXTERNAL PLUGINS */
-import { FastifyIP } from "fastify-ip";
+import fastifyIp from "fastify-ip";
 import cors from "@fastify/cors";
 import FastifyAuthProvider from "@fastify/auth";
 import fastifyStatic from "@fastify/static";
@@ -291,7 +291,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
     app.redisClient = new RedisModule.default(app.secretConfig.redis_url);
   }
   if (isRunningInLambda) {
-    app.register(FastifyIP, {
+    app.register(fastifyIp.FastifyIP, {
       order: ["x-forwarded-for"],
       strict: true,
       isAWS: false,
