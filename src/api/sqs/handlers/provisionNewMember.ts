@@ -39,6 +39,8 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
     dynamoClient: clients.dynamoClient,
     entraToken,
     paidMemberGroup: currentEnvironmentConfig.PaidMemberGroupId,
+    firstName,
+    lastName,
   });
   if (updated) {
     const logPromise = createAuditLogEntry({
