@@ -631,11 +631,11 @@ Resources:
         HttpVersion: 'http2and3'
         Origins:
           - Id: S3WebsiteOrigin
-            DomainName: !Select [0, !Split ['/', !Select [1, !Split ['http://', !GetAtt AppFrontendS3Bucket.WebsiteURL]]]]
+            DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
             S3OriginConfig:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
           - Id: S3DocsOrigin
-            DomainName: !Select [0, !Split ['/', !Select [1, !Split ['http://', !GetAtt AppDocsS3Bucket.WebsiteURL]]]]
+            DomainName: !GetAtt AppDocsS3Bucket.RegionalDomainName
             S3OriginConfig:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
           - Id: LambdaOrigin
