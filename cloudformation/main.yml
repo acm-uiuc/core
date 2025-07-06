@@ -629,6 +629,12 @@ Resources:
             S3OriginConfig:
               OriginAccessIdentity: ''
             OriginAccessControlId: !GetAtt AppCloudfrontS3OAC.Id
+          - Id: S3DocsOrigin
+            DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt AppCloudfrontS3OAC.Id
+            OriginPath: "/swagger"
           - Id: LambdaOrigin
             DomainName: !Select [0, !Split ['/', !Select [1, !Split ['https://', !GetAtt AppLambdaUrl.FunctionUrl]]]]
             CustomOriginConfig:
@@ -701,8 +707,7 @@ Resources:
             Compress: true
           - PathPattern: "/api/documentation*"
             Compress: true
-            OriginPath: "/swagger"
-            TargetOriginId: S3WebsiteOrigin
+            TargetOriginId: S3DocsOrigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:
               - GET
