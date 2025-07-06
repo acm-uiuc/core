@@ -618,11 +618,14 @@ Resources:
       WebsiteConfiguration:
         IndexDocument: index.html
 
-  CloudFrontOriginAccessIdentity:
-    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+  AppCloudfrontS3OAC:
+    Type: AWS::CloudFront::OriginAccessControl
     Properties:
-      CloudFrontOriginAccessIdentityConfig:
-        Comment: !Sub "Access identity for ${AppFrontendS3Bucket} and ${AppDocsS3Bucket}"
+      OriginAccessControlConfig:
+          Name: InfraCoreApi OAC
+          OriginAccessControlOriginType: s3
+          SigningBehavior: always
+          SigningProtocol: sigv4
 
   AppFrontendCloudfrontDistribution:
     Type: AWS::CloudFront::Distribution
@@ -633,11 +636,13 @@ Resources:
           - Id: S3WebsiteOrigin
             DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
             S3OriginConfig:
-              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
+              OriginAccessIdentity: ''
+              OriginAccessControlId: !GetAtt AppCloudfrontS3OAC.Id
           - Id: S3DocsOrigin
             DomainName: !GetAtt AppDocsS3Bucket.RegionalDomainName
             S3OriginConfig:
-              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
+              OriginAccessIdentity: ''
+              OriginAccessControlId: !GetAtt AppCloudfrontS3OAC.Id
           - Id: LambdaOrigin
             DomainName: !Select [0, !Split ['/', !Select [1, !Split ['https://', !GetAtt AppLambdaUrl.FunctionUrl]]]]
             CustomOriginConfig:
@@ -762,9 +767,12 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
+              Service: cloudfront.amazonaws.com
             Action: s3:GetObject
             Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AppFrontendCloudfrontDistribution}"
 
   AppDocsS3BucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -775,9 +783,13 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
+              Service: cloudfront.amazonaws.com
             Action: s3:GetObject
             Resource: !Sub "${AppDocsS3Bucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AppFrontendCloudfrontDistribution}"
+
 
   CloudfrontNoCachePolicy:
     Type: AWS::CloudFront::CachePolicy
