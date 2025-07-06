@@ -61,7 +61,7 @@ build: src/ cloudformation/
 	VITE_BUILD_HASH=$(GIT_HASH) yarn build
 	cp -r src/api/resources/ dist/api/resources
 	rm -rf dist/lambda/sqs
-	sam build --template-file cloudformation/main.yml --use-container
+	sam build --template-file cloudformation/main.yml --use-container --parallel
 	mkdir -p .aws-sam/build/AppApiLambdaFunction/node_modules/aws-crt/
 	cp -r node_modules/aws-crt/dist .aws-sam/build/AppApiLambdaFunction/node_modules/aws-crt
 
