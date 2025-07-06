@@ -67,3 +67,15 @@ esbuild
     console.error("SQS consumer build failed:", error);
     process.exit(1);
   });
+
+esbuild
+  .build({
+    ...commonParams,
+    entryPoints: ["api/warmer/lambda.js"],
+    outdir: "../../dist/warmer/",
+  })
+  .then(() => console.log("Lambda warmer build completed successfully!"))
+  .catch((error) => {
+    console.error("Lambda warmer build failed:", error);
+    process.exit(1);
+  });

@@ -79,6 +79,15 @@ Mappings:
         - subnet-0cbe89f6ab2665610
 
 Resources:
+  AppLambdaWarmer:
+    Type: AWS::Serverless::Application
+    DependsOn:
+      - AppApiLambdaFunction
+    Properties:
+      Location: ./warmer.yml
+      Parameters:
+        FunctionToWarm: !Ref ${ApplicationPrefix}-lambda
+
   AppSecurityRoles:
     Type: AWS::Serverless::Application
     Properties:
