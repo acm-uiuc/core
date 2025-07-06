@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "crypto";
-import * as argon2 from "argon2";
+import { hash, verify } from "argon2";
 import { UnauthenticatedError } from "common/errors/index.js";
 import NodeCache from "node-cache";
 import {
@@ -33,7 +33,7 @@ export const createApiKey = async () => {
   const rawKey = randomBytes(32).toString("hex");
   const checksum = createChecksum(rawKey);
   const apiKey = `${prefix}_${rawKey}_${checksum}`;
-  const hashedKey = await argon2.hash(rawKey);
+  const hashedKey = await hash(rawKey);
   return { apiKey, hashedKey, keyId };
 };
 
@@ -75,7 +75,7 @@ export const verifyApiKey = async ({
     if (!isChecksumValid) {
       return false;
     }
-    return await argon2.verify(hashedKey, rawKey);
+    return await verify(hashedKey, rawKey);
   } catch (e) {
     if (e instanceof UnauthenticatedError) {
       return false;
