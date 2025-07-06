@@ -182,6 +182,7 @@ type NotificationRecipientsType = {
   [env in RunEnvironment]: {
     OfficerBoard: string;
     InfraChairs: string;
+    Treasurer: string;
   };
 };
 
@@ -189,10 +190,12 @@ const notificationRecipients: NotificationRecipientsType = {
   dev: {
     OfficerBoard: 'infra@acm.illinois.edu',
     InfraChairs: 'infra@acm.illinois.edu',
+    Treasurer: 'infra@acm.illinois.edu'
   },
   prod: {
     OfficerBoard: 'officers@acm.illinois.edu',
     InfraChairs: 'infra@acm.illinois.edu',
+    Treasurer: 'treasurer@acm.illinois.edu'
   }
 }
 
