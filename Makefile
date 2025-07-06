@@ -8,6 +8,7 @@ current_aws_account := $(shell aws sts get-caller-identity --query Account --out
 
 src_directory_root = src/
 dist_ui_directory_root = dist_ui/
+dist_docs_directory_root = dist/swagger/
 integration_test_directory_root = tests/live_integration/
 
 # CHANGE ME (as needed)
@@ -28,6 +29,8 @@ common_params = --no-confirm-changeset \
 
 s3_bucket_prefix = "$(current_aws_account)-$(region)-$(application_key)"
 ui_s3_bucket = "$(s3_bucket_prefix)-ui"
+docs_s3_bucket = "$(s3_bucket_prefix)-docs"
+
 
 GIT_HASH := $(shell git rev-parse --short HEAD)
 
@@ -66,19 +69,23 @@ build: src/ cloudformation/
 local:
 	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
 
+
+postdeploy:
+	@echo "Syncing S3 UI bucket..."
+	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
+	@echo "Syncing S3 Docs bucket..."
+	aws s3 sync $(dist_docs_directory_root) s3://$(docs_s3_bucket)/ --delete
+	make invalidate_cloudfront
+
 deploy_prod: check_account_prod
 	@echo "Deploying CloudFormation stack..."
 	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
-	@echo "Syncing S3 bucket..."
-	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
-	make invalidate_cloudfront
+	make postdeploy
 
 deploy_dev: check_account_dev
 	@echo "Deploying CloudFormation stack..."
 	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
-	@echo "Syncing S3 bucket..."
-	aws s3 sync $(dist_ui_directory_root) s3://$(ui_s3_bucket)/ --delete
-	make invalidate_cloudfront
+	make postdeploy
 
 invalidate_cloudfront:
 	@echo "Creating CloudFront invalidation..."

@@ -611,11 +611,18 @@ Resources:
       WebsiteConfiguration:
         IndexDocument: index.html
 
+  AppDocsS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${S3BucketPrefix}-docs
+      WebsiteConfiguration:
+        IndexDocument: index.html
+
   CloudFrontOriginAccessIdentity:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
     Properties:
       CloudFrontOriginAccessIdentityConfig:
-        Comment: !Sub "Access identity for ${AppFrontendS3Bucket}"
+        Comment: !Sub "Access identity for ${AppFrontendS3Bucket} and ${AppDocsS3Bucket}"
 
   AppFrontendCloudfrontDistribution:
     Type: AWS::CloudFront::Distribution
@@ -625,6 +632,10 @@ Resources:
         Origins:
           - Id: S3WebsiteOrigin
             DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
+          - Id: S3DocsOrigin
+            DomainName: !GetAtt AppDocsS3Bucket.RegionalDomainName
             S3OriginConfig:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
           - Id: LambdaOrigin
@@ -698,22 +709,23 @@ Resources:
             OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
           - PathPattern: "/api/documentation*"
-            TargetOriginId: LambdaOrigin
+            Compress: true
+            TargetOriginId: S3DocsOrigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:
               - GET
               - HEAD
-              - OPTIONS
-              - PUT
-              - POST
-              - DELETE
-              - PATCH
             CachedMethods:
               - GET
               - HEAD
-            CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
-            Compress: true
+            ForwardedValues:
+              QueryString: true
+              Cookies:
+                Forward: none
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # caching-optimized
+            # LambdaFunctionAssociations:
+            #   - EventType: origin-request
+            #     LambdaFunctionARN: !Ref AppFrontendEdgeLambdaVersion
           - PathPattern: "/api/*"
             TargetOriginId: LambdaOrigin
             ViewerProtocolPolicy: redirect-to-https
@@ -753,6 +765,19 @@ Resources:
               CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
             Action: s3:GetObject
             Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
+
+  AppDocsS3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AppDocsS3Bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
+            Action: s3:GetObject
+            Resource: !Sub "${AppDocsS3Bucket.Arn}/*"
 
   CloudfrontNoCachePolicy:
     Type: AWS::CloudFront::CachePolicy
