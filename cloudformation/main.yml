@@ -608,15 +608,11 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub ${S3BucketPrefix}-ui
-      WebsiteConfiguration:
-        IndexDocument: index.html
 
   AppDocsS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub ${S3BucketPrefix}-docs
-      WebsiteConfiguration:
-        IndexDocument: index.html
 
   AppCloudfrontS3OAC:
     Type: AWS::CloudFront::OriginAccessControl
