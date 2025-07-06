@@ -7041,11 +7041,6 @@ known-css-properties@^0.37.0:
   resolved "https://registry.yarnpkg.com/known-css-properties/-/known-css-properties-0.37.0.tgz#10ebe49b9dbb6638860ff8a002fb65a053f4aec5"
   integrity sha512-JCDrsP4Z1Sb9JwG0aJ8Eo2r7k4Ou5MwmThS/6lcIe1ICyb7UBJKGRIUUdqc2ASdE/42lgz6zFUnzAIhtXnBVrQ==
 
-lambda-warmer@^2.3.0:
-  version "2.3.0"
-  resolved "https://registry.yarnpkg.com/lambda-warmer/-/lambda-warmer-2.3.0.tgz#c4dcb46c73cbdf732824d3c54a99b4752c6b8a04"
-  integrity sha512-k3E+5tXtzXdBX2JDaL+f59CREWTch+fsNk5tyrX69TpC6FgERoFS8xG/vQ4dHR9dUgpKxRf1+y+aH8EI4oF/MQ==
-
 language-subtag-registry@^0.3.20:
   version "0.3.23"
   resolved "https://registry.yarnpkg.com/language-subtag-registry/-/language-subtag-registry-0.3.23.tgz#23529e04d9e3b74679d70142df3fd2eb6ec572e7"

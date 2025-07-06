@@ -26,15 +26,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
-            yarn-modules-${{ runner.os }}-
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Run unit testing
         run: make test_unit
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     name: Build Application
     steps:
       - uses: actions/checkout@v4
@@ -51,9 +51,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
-            yarn-modules-${{ runner.os }}-
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Run build
         run: make build
@@ -99,9 +99,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
-            yarn-modules-${{ runner.os }}-
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Download Build files
         uses: actions/download-artifact@v4
