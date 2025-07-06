@@ -431,7 +431,7 @@ export async function patchUserProfile(
   token: string,
   email: string,
   userId: string,
-  data: ProfilePatchRequest,
+  data: Partial<ProfilePatchRequest>,
 ): Promise<void> {
   try {
     const url = `https://graph.microsoft.com/v1.0/users/${userId}`;
