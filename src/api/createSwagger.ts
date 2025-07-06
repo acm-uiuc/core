@@ -19,7 +19,7 @@ const html = `
 <script>
   window.onload = () => {
     window.ui = SwaggerUIBundle({
-      url: '/swagger/openapi.json',
+      url: '/docs/openapi.json',
       dom_id: '#swagger-ui',
     });
   };
@@ -37,7 +37,7 @@ async function createSwaggerFiles() {
     console.log("App is ready. Generating specs...");
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const outputDir = path.resolve(__dirname, "..", "..", "dist_ui", "swagger");
+    const outputDir = path.resolve(__dirname, "..", "..", "dist_ui", "docs");
     await mkdir(outputDir, { recursive: true });
     const jsonSpec = JSON.stringify(app.swagger(), null, 2);
     const yamlSpec = app.swagger({ yaml: true });

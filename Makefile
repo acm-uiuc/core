@@ -8,7 +8,6 @@ current_aws_account := $(shell aws sts get-caller-identity --query Account --out
 
 src_directory_root = src/
 dist_ui_directory_root = dist_ui/
-dist_docs_directory_root = dist/swagger/
 integration_test_directory_root = tests/live_integration/
 
 # CHANGE ME (as needed)

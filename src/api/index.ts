@@ -218,13 +218,13 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
   if (isRunningInLambda && !isSwaggerServer) {
     // Serve docs from S3
     app.get("/api/documentation", (_request, response) => {
-      response.redirect("/swagger/index.html", 308);
+      response.redirect("/docs/index.html", 308);
     });
     app.get("/api/documentation/json", (_request, response) => {
-      response.redirect("/swagger/openapi.json", 308);
+      response.redirect("/docs/openapi.json", 308);
     });
     app.get("/api/documentation/yaml", (_request, response) => {
-      response.redirect("/swagger/openapi.yaml", 308);
+      response.redirect("/docs/openapi.yaml", 308);
     });
   }
   if (!runEnvironments.includes(process.env.RunEnvironment as RunEnvironment)) {
