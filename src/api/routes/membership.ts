@@ -178,7 +178,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 key: "firstName",
                 label: {
                   type: "custom",
-                  custom: "Student First Name",
+                  custom: "Member First Name",
                 },
                 type: "text",
               },
@@ -186,7 +186,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 key: "lastName",
                 label: {
                   type: "custom",
-                  custom: "Student Last Name",
+                  custom: "Member Last Name",
                 },
                 type: "text",
               },
