@@ -1,5 +1,5 @@
 import awsLambdaFastify from "@fastify/aws-lambda";
-import init from "./index.js";
+import init, { instanceId } from "./index.js";
 import { type APIGatewayEvent, type Context } from "aws-lambda";
 import { InternalServerError, ValidationError } from "common/errors/index.js";
 
@@ -9,7 +9,17 @@ const realHandler = awsLambdaFastify(app, {
   serializeLambdaArguments: true,
   callbackWaitsForEmptyEventLoop: false,
 });
-const handler = async (event: APIGatewayEvent, context: Context) => {
+type WarmerEvent = { action: "warmer" };
+const handler = async (
+  event: APIGatewayEvent | WarmerEvent,
+  context: Context,
+) => {
+  if ("action" in event) {
+    console.log(`Got warmer event for instance ID ${instanceId}.`);
+    return {
+      instanceId,
+    };
+  }
   if (process.env.ORIGIN_VERIFY_KEY) {
     // check that the request has the right header (coming from cloudfront)
     if (
