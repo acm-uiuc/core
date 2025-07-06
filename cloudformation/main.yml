@@ -86,7 +86,7 @@ Resources:
     Properties:
       Location: ./warmer.yml
       Parameters:
-        FunctionToWarm: !Ref ${ApplicationPrefix}-lambda
+        FunctionToWarm: !Sub ${ApplicationPrefix}-lambda
 
   AppSecurityRoles:
     Type: AWS::Serverless::Application
