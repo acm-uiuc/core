@@ -37,7 +37,9 @@ export const ManageRoomRequestsPage: React.FC = () => {
         host: string;
         status: RoomRequestStatus;
       }[]
-    >(`/api/v1/roomRequests/${semester}?select=requestId,title,host,status`);
+    >(
+      `/api/v1/roomRequests/${semester}?select=requestId&select=title&select=host&select=status`,
+    );
     return response.data.map((x) => ({ ...x, semester }));
   };
 

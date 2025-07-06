@@ -94,10 +94,9 @@ export const generateProjectionParams = ({ userFields }: GenerateProjectionParam
 
 
 export const nonEmptyCommaSeparatedStringSchema = z.
-  string().
-  min(1, { message: "Filter expression must be at least 1 character long." }).
-  transform((val) => val.split(',').map((item) => item.trim())).
-  pipe(z.array(z.string()).nonempty());
+  array(z.string().min(1)).
+  min(1, { message: "Filter expression must select at least one item." }).
+  transform((val) => val.map((item) => item.trim()))
 
 type GetDefaultFilteringQuerystringInput = {
   defaultSelect: string[];
@@ -105,8 +104,8 @@ type GetDefaultFilteringQuerystringInput = {
 export const getDefaultFilteringQuerystring = ({ defaultSelect }: GetDefaultFilteringQuerystringInput) => {
   return {
     select: z.optional(nonEmptyCommaSeparatedStringSchema).default(defaultSelect).meta({
-      description: "Comma-seperated list of attributes to return",
-      ...(defaultSelect.length === 0 ? { default: "<ALL ATTRIBUTES>" } : {})
+      description: "A list of attributes to return.",
+      ...(defaultSelect.length === 0 ? { default: ["<ALL ATTRIBUTES>"] } : { example: defaultSelect })
     })
   };
 };
