@@ -250,7 +250,7 @@ Resources:
     DependsOn:
       - AppLogGroups
     Properties:
-      Architectures: [x86_64]
+      Architectures: [arm64]
       CodeUri: ../dist/lambda
       AutoPublishAlias: live
       Runtime: nodejs22.x
@@ -292,7 +292,7 @@ Resources:
     DependsOn:
       - AppLogGroups
     Properties:
-      Architectures: [x86_64]
+      Architectures: [arm64]
       CodeUri: ../dist/sqsConsumer
       AutoPublishAlias: live
       Runtime: nodejs22.x
