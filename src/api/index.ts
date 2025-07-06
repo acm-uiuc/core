@@ -61,6 +61,8 @@ import eventsPlugin from "./routes/events.js";
 import sigleadRoutes from "./routes/siglead.js";
 /** END ROUTES */
 
+export const instanceId = randomUUID();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
