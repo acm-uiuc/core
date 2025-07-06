@@ -57,6 +57,7 @@ export const createStripeLink = async ({
         quantity: 1,
       },
     ],
+    payment_method_types: ["card", "us_bank_account"],
   });
   return {
     url: paymentLink.url,
