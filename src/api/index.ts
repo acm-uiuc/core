@@ -291,7 +291,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
     app.redisClient = new RedisModule.default(app.secretConfig.redis_url);
   }
   if (isRunningInLambda) {
-    app.register(fastifyIp.FastifyIP, {
+    await app.register(fastifyIp.FastifyIP, {
       order: ["x-forwarded-for"],
       strict: true,
       isAWS: false,
