@@ -60,6 +60,8 @@ import protectedRoute from "./routes/protected.js";
 import eventsPlugin from "./routes/events.js";
 /** END ROUTES */
 
+export const instanceId = randomUUID();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
