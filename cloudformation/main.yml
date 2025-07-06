@@ -800,6 +800,9 @@ Resources:
           exports.handler = async (event) => {
               const request = event.Records[0].cf.request;
               const uri = request.uri;
+              if (uri === '/docs') {
+                  request.uri = "/docs/index.html";
+              }
               if (!uri.startsWith('/api') && !uri.match(/\.\w+$/)) {
                   request.uri = "/index.html";
               }
