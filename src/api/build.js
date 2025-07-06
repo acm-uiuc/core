@@ -37,13 +37,6 @@ const commonParams = {
     copy({
       resolveFrom: "cwd",
       assets: {
-        from: ["../../node_modules/@fastify/swagger-ui/static/*"],
-        to: ["../../dist/lambda/static"],
-      },
-    }),
-    copy({
-      resolveFrom: "cwd",
-      assets: {
         from: ["./public/*"],
         to: ["../../dist/lambda/public"],
       },

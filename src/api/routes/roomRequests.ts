@@ -320,7 +320,6 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         "userId#requestId": `${request.username}#${requestId}`,
         semesterId: request.body.semester,
       };
-      console.log("FUCK", body);
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ROOM_RESERVATIONS,
