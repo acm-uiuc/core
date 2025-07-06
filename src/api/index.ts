@@ -59,7 +59,7 @@ const now = () => Date.now();
 async function init(prettyPrint: boolean = false, initClients: boolean = true) {
   const isRunningInLambda =
     process.env.LAMBDA_TASK_ROOT || process.env.AWS_LAMBDA_FUNCTION_NAME;
-  let isSwaggerServer = true;
+  let isSwaggerServer = false;
   const transport = prettyPrint
     ? {
         target: "pino-pretty",
@@ -95,119 +95,122 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
   await app.register(evaluatePoliciesPlugin);
   await app.register(errorHandlerPlugin);
   await app.register(fastifyZodOpenApiPlugin);
-  try {
-    const fastifySwagger = import("@fastify/swagger");
-    const fastifySwaggerUI = import("@fastify/swagger-ui");
-    await app.register(fastifySwagger, {
-      openapi: {
-        info: {
-          title: "ACM @ UIUC Core API",
-          description: "ACM @ UIUC Core Management Platform",
-          version: "1.0.0",
-          contact: {
-            name: "ACM @ UIUC Infrastructure Team",
-            email: "infra@acm.illinois.edu",
-            url: "infra.acm.illinois.edu",
+  if (!isRunningInLambda) {
+    try {
+      const fastifySwagger = import("@fastify/swagger");
+      const fastifySwaggerUI = import("@fastify/swagger-ui");
+      await app.register(fastifySwagger, {
+        openapi: {
+          info: {
+            title: "ACM @ UIUC Core API",
+            description: "ACM @ UIUC Core Management Platform",
+            version: "1.0.0",
+            contact: {
+              name: "ACM @ UIUC Infrastructure Team",
+              email: "infra@acm.illinois.edu",
+              url: "infra.acm.illinois.edu",
+            },
+            license: {
+              name: "BSD 3-Clause",
+              identifier: "BSD-3-Clause",
+              url: "https://github.com/acm-uiuc/core/blob/main/LICENSE",
+            },
+            termsOfService: "https://core.acm.illinois.edu/tos",
           },
-          license: {
-            name: "BSD 3-Clause",
-            identifier: "BSD-3-Clause",
-            url: "https://github.com/acm-uiuc/core/blob/main/LICENSE",
-          },
-          termsOfService: "https://core.acm.illinois.edu/tos",
-        },
-        servers: [
-          {
-            url: "https://core.acm.illinois.edu",
-            description: "Production API server",
-          },
-          {
-            url: "https://core.aws.qa.acmuiuc.org",
-            description: "QA API server",
-          },
-        ],
+          servers: [
+            {
+              url: "https://core.acm.illinois.edu",
+              description: "Production API server",
+            },
+            {
+              url: "https://core.aws.qa.acmuiuc.org",
+              description: "QA API server",
+            },
+          ],
 
-        tags: [
-          {
-            name: "Events",
-            description:
-              "Retrieve ACM @ UIUC-wide and organization-specific calendars and event metadata.",
-          },
-          {
-            name: "Generic",
-            description: "Retrieve metadata about a user or ACM @ UIUC .",
-          },
-          {
-            name: "iCalendar Integration",
-            description:
-              "Retrieve Events calendars in iCalendar format (for integration with external calendar clients).",
-          },
-          {
-            name: "IAM",
-            description:
-              "Identity and Access Management for internal services.",
-          },
-          { name: "Linkry", description: "Link Shortener." },
-          {
-            name: "Logging",
-            description: "View audit logs for various services.",
-          },
-          {
-            name: "Membership",
-            description: "Purchasing or checking ACM @ UIUC membership.",
-          },
-          {
-            name: "Tickets/Merchandise",
-            description: "Handling the tickets and merchandise lifecycle.",
-          },
-          {
-            name: "Mobile Wallet",
-            description: "Issuing Apple/Google Wallet passes.",
-          },
-          {
-            name: "Stripe",
-            description:
-              "Collecting payments for ACM @ UIUC invoices and other services.",
-          },
-          {
-            name: "Room Requests",
-            description:
-              "Creating room reservation requests for ACM @ UIUC within University buildings.",
-          },
-          {
-            name: "API Keys",
-            description: "Manage the lifecycle of API keys.",
-          },
-        ],
-
-        openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
-        components: {
-          securitySchemes: {
-            bearerAuth: {
-              type: "http",
-              scheme: "bearer",
-              bearerFormat: "JWT",
+          tags: [
+            {
+              name: "Events",
               description:
-                "Authorization: Bearer {token}\n\nThis API uses JWT tokens issued by Entra ID (Azure AD) with the Core API audience. Tokens must be included in the Authorization header as a Bearer token for all protected endpoints.",
+                "Retrieve ACM @ UIUC-wide and organization-specific calendars and event metadata.",
             },
-            apiKeyAuth: {
-              type: "apiKey",
-              in: "header",
-              name: "X-Api-Key",
+            {
+              name: "Generic",
+              description: "Retrieve metadata about a user or ACM @ UIUC .",
+            },
+            {
+              name: "iCalendar Integration",
+              description:
+                "Retrieve Events calendars in iCalendar format (for integration with external calendar clients).",
+            },
+            {
+              name: "IAM",
+              description:
+                "Identity and Access Management for internal services.",
+            },
+            { name: "Linkry", description: "Link Shortener." },
+            {
+              name: "Logging",
+              description: "View audit logs for various services.",
+            },
+            {
+              name: "Membership",
+              description: "Purchasing or checking ACM @ UIUC membership.",
+            },
+            {
+              name: "Tickets/Merchandise",
+              description: "Handling the tickets and merchandise lifecycle.",
+            },
+            {
+              name: "Mobile Wallet",
+              description: "Issuing Apple/Google Wallet passes.",
+            },
+            {
+              name: "Stripe",
+              description:
+                "Collecting payments for ACM @ UIUC invoices and other services.",
+            },
+            {
+              name: "Room Requests",
+              description:
+                "Creating room reservation requests for ACM @ UIUC within University buildings.",
+            },
+            {
+              name: "API Keys",
+              description: "Manage the lifecycle of API keys.",
+            },
+          ],
+
+          openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
+          components: {
+            securitySchemes: {
+              bearerAuth: {
+                type: "http",
+                scheme: "bearer",
+                bearerFormat: "JWT",
+                description:
+                  "Authorization: Bearer {token}\n\nThis API uses JWT tokens issued by Entra ID (Azure AD) with the Core API audience. Tokens must be included in the Authorization header as a Bearer token for all protected endpoints.",
+              },
+              apiKeyAuth: {
+                type: "apiKey",
+                in: "header",
+                name: "X-Api-Key",
+              },
             },
           },
         },
-      },
-      transform: fastifyZodOpenApiTransform,
-      transformObject: fastifyZodOpenApiTransformObject,
-    });
-    await app.register(fastifySwaggerUI, {
-      routePrefix: "/api/documentation",
-    });
-  } catch (e) {
-    app.log.warn("Fastify Swagger not created!");
-    isSwaggerServer = false;
+        transform: fastifyZodOpenApiTransform,
+        transformObject: fastifyZodOpenApiTransformObject,
+      });
+      await app.register(fastifySwaggerUI, {
+        routePrefix: "/api/documentation",
+      });
+      isSwaggerServer = true;
+    } catch (e) {
+      app.log.warn("Fastify Swagger not created!");
+    }
   }
+
   await app.register(fastifyStatic, {
     root: path.join(__dirname, "public"),
     prefix: "/",
