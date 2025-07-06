@@ -1,41 +1,21 @@
-/* eslint import/no-nodejs-modules: ["error", {"allow": ["crypto"]}] */
+/* eslint import/no-nodejs-modules: ["error", {"allow": ["crypto", "path", "url"]}] */
 
 import { randomUUID } from "crypto";
+import { fileURLToPath } from "url";
+import path from "path";
 import fastify, { FastifyInstance } from "fastify";
-import FastifyAuthProvider from "@fastify/auth";
-import fastifyStatic from "@fastify/static";
-import fastifyAuthPlugin, { getSecretValue } from "./plugins/auth.js";
-import protectedRoute from "./routes/protected.js";
-import errorHandlerPlugin from "./plugins/errorHandler.js";
 import { RunEnvironment, runEnvironments } from "../common/roles.js";
 import { InternalServerError } from "../common/errors/index.js";
-import eventsPlugin from "./routes/events.js";
-import cors from "@fastify/cors";
 import {
   environmentConfig,
   genericConfig,
   SecretConfig,
 } from "../common/config.js";
-import organizationsPlugin from "./routes/organizations.js";
-import authorizeFromSchemaPlugin from "./plugins/authorizeFromSchema.js";
-import evaluatePoliciesPlugin from "./plugins/evaluatePolicies.js";
-import icalPlugin from "./routes/ics.js";
-import vendingPlugin from "./routes/vending.js";
 import * as dotenv from "dotenv";
-import iamRoutes from "./routes/iam.js";
-import ticketsPlugin from "./routes/tickets.js";
-import linkryRoutes from "./routes/linkry.js";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import mobileWalletRoute from "./routes/mobileWallet.js";
-import stripeRoutes from "./routes/stripe.js";
-import membershipPlugin from "./routes/membership.js";
-import path from "path"; // eslint-disable-line import/no-nodejs-modules
-import roomRequestRoutes from "./routes/roomRequests.js";
-import logsPlugin from "./routes/logs.js";
-
 import {
   fastifyZodOpenApiPlugin,
   fastifyZodOpenApiTransform,
@@ -43,22 +23,53 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from "fastify-zod-openapi";
-import { ZodOpenApiVersion } from "zod-openapi";
+import { type ZodOpenApiVersion } from "zod-openapi";
 import { withTags } from "./components/index.js";
+import RedisModule from "ioredis";
+
+/** BEGIN EXTERNAL PLUGINS */
+import { FastifyIP } from "fastify-ip";
+import cors from "@fastify/cors";
+import FastifyAuthProvider from "@fastify/auth";
+import fastifyStatic from "@fastify/static";
+/** END EXTERNAL PLUGINS */
+
+/** BEGIN INTERNAL PLUGINS */
+import locationPlugin from "./plugins/location.js";
+import fastifyAuthPlugin, { getSecretValue } from "./plugins/auth.js";
+import errorHandlerPlugin from "./plugins/errorHandler.js";
+import authorizeFromSchemaPlugin from "./plugins/authorizeFromSchema.js";
+import evaluatePoliciesPlugin from "./plugins/evaluatePolicies.js";
+/** END INTERNAL PLUGINS */
+
+/** BEGIN ROUTES */
+import organizationsPlugin from "./routes/organizations.js";
+import icalPlugin from "./routes/ics.js";
+import vendingPlugin from "./routes/vending.js";
+import iamRoutes from "./routes/iam.js";
+import ticketsPlugin from "./routes/tickets.js";
+import linkryRoutes from "./routes/linkry.js";
+import mobileWalletRoute from "./routes/mobileWallet.js";
+import stripeRoutes from "./routes/stripe.js";
+import membershipPlugin from "./routes/membership.js";
+import roomRequestRoutes from "./routes/roomRequests.js";
+import logsPlugin from "./routes/logs.js";
 import apiKeyRoute from "./routes/apiKey.js";
 import clearSessionRoute from "./routes/clearSession.js";
-import RedisModule from "ioredis";
-import { fileURLToPath } from "url"; // eslint-disable-line import/no-nodejs-modules
+import protectedRoute from "./routes/protected.js";
+import eventsPlugin from "./routes/events.js";
+/** END ROUTES */
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
 const now = () => Date.now();
+const isRunningInLambda =
+  process.env.LAMBDA_TASK_ROOT || process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 async function init(prettyPrint: boolean = false, initClients: boolean = true) {
-  const isRunningInLambda =
-    process.env.LAMBDA_TASK_ROOT || process.env.AWS_LAMBDA_FUNCTION_NAME;
   let isSwaggerServer = false;
   const transport = prettyPrint
     ? {
@@ -95,6 +106,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
   await app.register(evaluatePoliciesPlugin);
   await app.register(errorHandlerPlugin);
   await app.register(fastifyZodOpenApiPlugin);
+  await app.register(locationPlugin);
   if (!isRunningInLambda) {
     try {
       const fastifySwagger = import("@fastify/swagger");
@@ -278,6 +290,14 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
     await app.refreshSecretConfig();
     app.redisClient = new RedisModule.default(app.secretConfig.redis_url);
   }
+  if (isRunningInLambda) {
+    app.register(FastifyIP, {
+      order: ["x-forwarded-for"],
+      strict: true,
+      isAWS: false,
+    });
+  }
+
   app.addHook("onRequest", (req, _, done) => {
     req.startTime = now();
     const hostname = req.hostname;
@@ -337,6 +357,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
     origin: app.environmentConfig.ValidCorsOrigins,
     methods: ["GET", "HEAD", "POST", "PATCH", "DELETE"],
   });
+
   app.addHook("onSend", async (request, reply) => {
     reply.header("X-Request-Id", request.id);
   });

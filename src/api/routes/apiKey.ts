@@ -105,8 +105,8 @@ Key ID: acmuiuc_${keyId}
 
 Key Description: ${description}
 
-IP address: ${request.ip}.
-
+IP address: ${request.ip}
+${request.location.city && request.location.region && request.location.country ? `\nLocation: ${request.location.city}, ${request.location.region}, ${request.location.country}\n` : ""}
 Roles: ${roles.join(", ")}.
 
 If you did not create this API key, please secure your account and notify the ACM Infrastructure team.
@@ -210,7 +210,7 @@ This email confirms that an API key for the Core API has been deleted from your 
 Key ID: acmuiuc_${keyId}
 
 IP address: ${request.ip}.
-
+${request.location.city && request.location.region && request.location.country ? `\nLocation: ${request.location.city}, ${request.location.region}, ${request.location.country}\n` : ""}
 If you did not delete this API key, please secure your account and notify the ACM Infrastructure team.
           `,
           callToActionButton: {

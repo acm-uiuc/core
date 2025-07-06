@@ -5633,6 +5633,13 @@ fastest-levenshtein@^1.0.16:
   resolved "https://registry.yarnpkg.com/fastest-levenshtein/-/fastest-levenshtein-1.0.16.tgz#210e61b6ff181de91ea9b3d1b84fdedd47e034e5"
   integrity sha512-eRnCtTTtGZFpQCwhJiUOuxPQWRXVKYDn0b2PeHfXL6/Zi53SLAzAHfVhVWK2AryC/WH05kGfxhFIPvTF0SXQzg==
 
+fastify-ip@^1.2.0:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/fastify-ip/-/fastify-ip-1.2.0.tgz#bd65121e843f407870da11f1a721afe5083f44a1"
+  integrity sha512-n7BqGlEMZmaG/zEdrp7/fShBUNWfgT6EKXfC3FERTzuSPZSo8gxfq0kjD8PhAjD1I1o7oqo5Wc/m7jr+Fn+HRg==
+  dependencies:
+    fastify-plugin "^5.0.1"
+
 fastify-plugin@^5.0.0, fastify-plugin@^5.0.1:
   version "5.0.1"
   resolved "https://registry.yarnpkg.com/fastify-plugin/-/fastify-plugin-5.0.1.tgz#82d44e6fe34d1420bb5a4f7bee434d501e41939f"
