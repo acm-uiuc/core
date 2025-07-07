@@ -1,13 +1,8 @@
-import { LambdaClient, InvokeCommand, LogType } from "@aws-sdk/client-lambda";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { TextDecoder } from "util";
 
 const lambdaClient = new LambdaClient({});
 const textDecoder = new TextDecoder();
-
-interface WarmerEvent {
-  lambdaName: string;
-  numInstances: number;
-}
 
 /**
  * Invokes a batch of lambdas concurrently and returns the unique instance IDs found.
@@ -64,8 +59,8 @@ export const handler = async (event: {}) => {
   }
 
   const numInstances = parseInt(numInstancesStr, 10);
-  // Default to 2 waves if MAX_WAVES is not set
-  const maxWaves = parseInt(maxWavesStr || "2", 10);
+  // Default to 5 waves if MAX_WAVES is not set
+  const maxWaves = parseInt(maxWavesStr || "5", 10);
 
   let totalInvocations = 0;
   let wavesCompleted = 0;
