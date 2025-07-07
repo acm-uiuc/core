@@ -265,11 +265,27 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         request.log.debug(
           `Start to verifying JWT took ${new Date().getTime() - startTime} ms.`,
         );
-        request.tokenPayload = verifiedTokenData;
-        request.username =
+        // check revocation list for token
+        const proposedUsername =
           verifiedTokenData.email ||
           verifiedTokenData.upn?.replace("acm.illinois.edu", "illinois.edu") ||
           verifiedTokenData.sub;
+        const { redisClient, log: logger } = fastify;
+        const revokedResult = await getKey<{ isInvalid: boolean }>({
+          redisClient,
+          key: `tokenRevocationList:${verifiedTokenData.uti}`,
+          logger,
+        });
+        if (revokedResult) {
+          fastify.log.info(
+            `Revoked token ${verifiedTokenData.uti} for ${proposedUsername} was attempted.`,
+          );
+          throw new UnauthenticatedError({
+            message: "Invalid token.",
+          });
+        }
+        request.tokenPayload = verifiedTokenData;
+        request.username = proposedUsername;
         const expectedRoles = new Set(validRoles);
         const cachedRoles = await getKey<string[]>({
           key: `${AUTH_CACHE_PREFIX}${request.username}:roles`,
