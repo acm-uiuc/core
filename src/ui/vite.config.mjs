@@ -36,21 +36,29 @@ export default defineConfig({
         manualChunks(id) {
           const HugeLibraries = [
             "@mantine",
+            "moment-timezone",
+            "moment",
             "@azure",
             "@tabler",
             "axios",
-            "react-pdf",
+            "react-router",
           ]; // modify as required based on libraries in use
           if (
             HugeLibraries.some((libName) =>
               id.includes(`node_modules/${libName}`),
             )
           ) {
-            return id
+            return `vendor/${id
               .toString()
               .split("node_modules/")[1]
               .split("/")[0]
-              .toString();
+              .toString()}`;
+          }
+          if (id.includes("node_modules")) {
+            return `vendor/main`;
+          }
+          if (id.includes("src/common")) {
+            return "common";
           }
         },
       },
