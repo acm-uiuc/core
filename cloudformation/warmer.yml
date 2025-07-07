@@ -67,7 +67,7 @@ Resources:
       Description: !Sub "Lambda warmer for function ${FunctionToWarm}"
       FunctionName: !Sub "${LambdaFunctionNameBase}-${FunctionToWarm}"
       Handler: lambda.handler
-      MemorySize: 512
+      MemorySize: 256
       Role: !GetAtt WarmerLambdaIAMRole.Arn
       Timeout: 15
       Environment:
