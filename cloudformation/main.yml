@@ -619,6 +619,9 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub ${S3BucketPrefix}-ui
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
 
   AppCloudfrontS3OAC:
     Type: AWS::CloudFront::OriginAccessControl
