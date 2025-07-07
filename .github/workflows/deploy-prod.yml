@@ -59,6 +59,7 @@ jobs:
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: prod
+          RunEnvironment: prod
 
       - name: Upload Build files
         uses: actions/upload-artifact@v4
