@@ -14,12 +14,10 @@ const handler = async (
   event: APIGatewayEvent | WarmerEvent,
   context: Context,
 ) => {
-  if ("action" in event) {
-    console.log(`Got warmer event for instance ID ${instanceId}.`);
-    return {
-      instanceId,
-    };
+  if ("action" in event && event.action === "warmer") {
+    return { instanceId };
   }
+  event = event as APIGatewayEvent;
   if (process.env.ORIGIN_VERIFY_KEY) {
     // check that the request has the right header (coming from cloudfront)
     if (
