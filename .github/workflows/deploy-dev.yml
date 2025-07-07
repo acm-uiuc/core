@@ -125,7 +125,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Publish to AWS
-        run: make deploy_dev
+        run: aws cloudformation continue-update-rollback --stack-name infra-core-api && make deploy_dev
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
