@@ -917,7 +917,7 @@ Resources:
               redirectUrl = value;
             }
           } catch (err) {
-            console.log('KVS key lookup failed');
+            console.log(`KVS key lookup failed for ${path}: ${err}`);
           }
           var response = {
             statusCode: 302,
