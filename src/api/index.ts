@@ -58,6 +58,7 @@ import apiKeyRoute from "./routes/apiKey.js";
 import clearSessionRoute from "./routes/clearSession.js";
 import protectedRoute from "./routes/protected.js";
 import eventsPlugin from "./routes/events.js";
+import sigleadRoutes from "./routes/siglead.js";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
@@ -345,6 +346,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
       api.register(linkryRoutes, { prefix: "/linkry" });
       api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
       api.register(stripeRoutes, { prefix: "/stripe" });
+      api.register(sigleadRoutes, { prefix: "/siglead" });
       api.register(roomRequestRoutes, { prefix: "/roomRequests" });
       api.register(logsPlugin, { prefix: "/logs" });
       api.register(apiKeyRoute, { prefix: "/apiKey" });
