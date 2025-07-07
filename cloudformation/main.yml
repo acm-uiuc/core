@@ -672,9 +672,10 @@ Resources:
             Cookies:
               Forward: none
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # caching-optimized
-          LambdaFunctionAssociations:
-            - EventType: origin-request
-              LambdaFunctionARN: !Ref AppFrontendEdgeLambdaVersion
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt AppFrontendViewerRequestFunction.FunctionARN
+
         CacheBehaviors:
           - PathPattern: "/api/v1/events*"
             TargetOriginId: LambdaOrigin
@@ -796,36 +797,32 @@ Resources:
           CookiesConfig:
             CookieBehavior: none
 
-  AppFrontendEdgeLambda:
-    Type: AWS::Lambda::Function
-    DependsOn:
-      - AppLogGroups
+  AppFrontendViewerRequestFunction:
+    Type: AWS::CloudFront::Function
     Properties:
-      FunctionName: !Sub ${ApplicationPrefix}-lambda-edge
-      Handler: "index.handler"
-      Role: !GetAtt AppSecurityRoles.Outputs.EdgeFunctionRoleArn
-      Runtime: nodejs22.x
-      Code:
-        ZipFile: |
-          'use strict';
-          exports.handler = async (event) => {
-              const request = event.Records[0].cf.request;
-              const uri = request.uri;
-              if (uri === '/docs' || uri === '/docs/') {
-                  request.uri = "/docs/index.html";
-              }
-              if (!uri.startsWith('/api') && !uri.match(/\.\w+$/)) {
-                  request.uri = "/index.html";
-              }
-              return request;
-          };
-      MemorySize: 128
-      Timeout: 5
+      Name: !Sub ${ApplicationPrefix}-url-rewrite-function
+      AutoPublish: true
+      FunctionConfig:
+        Comment: "Handles SPA routing by rewriting URIs to index.html"
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+            var request = event.request;
+            var uri = request.uri;
 
-  AppFrontendEdgeLambdaVersion:
-    Type: AWS::Lambda::Version
-    Properties:
-      FunctionName: !Ref AppFrontendEdgeLambda
+            // Rewrite /docs or /docs/ to the documentation index file
+            if (uri === '/docs' || uri === '/docs/') {
+                request.uri = '/docs/index.html';
+                return request;
+            }
+
+            // Rewrite paths for the SPA, excluding /api and files with extensions
+            if (!uri.startsWith('/api') && !uri.includes('.')) {
+                request.uri = '/index.html';
+            }
+
+            return request;
+        }
 
   AppIcalCloudfrontDistribution:
     Type: AWS::CloudFront::Distribution
