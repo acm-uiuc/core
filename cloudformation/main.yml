@@ -619,6 +619,9 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub ${S3BucketPrefix}-ui
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
 
   AppCloudfrontS3OAC:
     Type: AWS::CloudFront::OriginAccessControl
@@ -672,9 +675,10 @@ Resources:
             Cookies:
               Forward: none
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # caching-optimized
-          LambdaFunctionAssociations:
-            - EventType: origin-request
-              LambdaFunctionARN: !Ref AppFrontendEdgeLambdaVersion
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt AppFrontendViewerRequestFunction.FunctionARN
+
         CacheBehaviors:
           - PathPattern: "/api/v1/events*"
             TargetOriginId: LambdaOrigin
@@ -747,8 +751,18 @@ Resources:
           - Effect: Allow
             Principal:
               Service: cloudfront.amazonaws.com
-            Action: s3:GetObject
+            Action:
+              - s3:GetObject
             Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AppFrontendCloudfrontDistribution}"
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action:
+              - s3:ListBucket
+            Resource: !Sub "${AppFrontendS3Bucket.Arn}"
             Condition:
               StringEquals:
                 AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AppFrontendCloudfrontDistribution}"
@@ -796,36 +810,32 @@ Resources:
           CookiesConfig:
             CookieBehavior: none
 
-  AppFrontendEdgeLambda:
-    Type: AWS::Lambda::Function
-    DependsOn:
-      - AppLogGroups
+  AppFrontendViewerRequestFunction:
+    Type: AWS::CloudFront::Function
     Properties:
-      FunctionName: !Sub ${ApplicationPrefix}-lambda-edge
-      Handler: "index.handler"
-      Role: !GetAtt AppSecurityRoles.Outputs.EdgeFunctionRoleArn
-      Runtime: nodejs22.x
-      Code:
-        ZipFile: |
-          'use strict';
-          exports.handler = async (event) => {
-              const request = event.Records[0].cf.request;
-              const uri = request.uri;
-              if (uri === '/docs') {
-                  request.uri = "/docs/index.html";
-              }
-              if (!uri.startsWith('/api') && !uri.match(/\.\w+$/)) {
-                  request.uri = "/index.html";
-              }
-              return request;
-          };
-      MemorySize: 128
-      Timeout: 5
+      Name: !Sub ${ApplicationPrefix}-url-rewrite-function
+      AutoPublish: true
+      FunctionConfig:
+        Comment: "Handles SPA routing by rewriting URIs to index.html"
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+            var request = event.request;
+            var uri = request.uri;
 
-  AppFrontendEdgeLambdaVersion:
-    Type: AWS::Lambda::Version
-    Properties:
-      FunctionName: !Ref AppFrontendEdgeLambda
+            // Rewrite /docs or /docs/ to the documentation index file
+            if (uri === '/docs' || uri === '/docs/') {
+                request.uri = '/docs/index.html';
+                return request;
+            }
+
+            // Rewrite paths for the SPA, excluding /api and files with extensions
+            if (!uri.startsWith('/api') && !uri.includes('.')) {
+                request.uri = '/index.html';
+            }
+
+            return request;
+        }
 
   AppIcalCloudfrontDistribution:
     Type: AWS::CloudFront::Distribution
@@ -897,40 +907,40 @@ Resources:
         KeyValueStoreAssociations:
           - KeyValueStoreARN: !Sub '${LinkryRecordsCloudfrontStore.Arn}'
       FunctionCode: !Sub |
-        import cf from 'cloudfront';
-        const kvsId = '${LinkryRecordsCloudfrontStore.Id}';
-        const kvs = cf.kvs(kvsId);
+          import cf from 'cloudfront';
+          const kvsId = '${LinkryRecordsCloudfrontStore.Id}';
+          const kvs = cf.kvs(kvsId);
 
-        async function handler(event) {
-          const request = event.request;
-          const path = request.uri.replace(/^\/+/, '');
-          if (path === "") {
-            return {
-              statusCode: 301,
-              statusDescription: 'Found',
-              headers: {
-                'location': { value: "https://core.acm.illinois.edu/linkry" }
+          async function handler(event) {
+            const request = event.request;
+            const path = request.uri.replace(/^\/+/, '');
+            if (path === "") {
+              return {
+                statusCode: 301,
+                statusDescription: 'Found',
+                headers: {
+                  'location': { value: "https://core.acm.illinois.edu/linkry" }
+                }
               }
             }
-          }
-          let redirectUrl = "https://acm.illinois.edu/404";
-          try {
-            const value = await kvs.get(path);
-            if (value) {
-              redirectUrl = value;
+            let redirectUrl = "https://acm.illinois.edu/404";
+            try {
+              const value = await kvs.get(path);
+              if (value) {
+                redirectUrl = value;
+              }
+            } catch (err) {
+              console.log(`KVS key lookup failed for $!{path}: $!{err}`);
             }
-          } catch (err) {
-            console.log('KVS key lookup failed');
+            var response = {
+              statusCode: 302,
+              statusDescription: 'Found',
+              headers: {
+                'location': { value: redirectUrl }
+              }
+            };
+            return response;
           }
-          var response = {
-            statusCode: 302,
-            statusDescription: 'Found',
-            headers: {
-              'location': { value: redirectUrl }
-            }
-          };
-          return response;
-        }
       AutoPublish: true
 
   AppLinkryCloudfrontDistribution:
