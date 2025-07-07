@@ -748,8 +748,18 @@ Resources:
           - Effect: Allow
             Principal:
               Service: cloudfront.amazonaws.com
-            Action: s3:GetObject
+            Action:
+              - s3:GetObject
             Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AppFrontendCloudfrontDistribution}"
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action:
+              - s3:ListBucket
+            Resource: !Sub "${AppFrontendS3Bucket.Arn}"
             Condition:
               StringEquals:
                 AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AppFrontendCloudfrontDistribution}"
