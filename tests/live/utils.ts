@@ -3,6 +3,7 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
+import { randomUUID } from "node:crypto";
 
 export const getSecretValue = async (
   secretId: string,
@@ -47,7 +48,7 @@ export async function createJwt(
     iss: "custom_jwt",
     iat: Math.floor(Date.now() / 1000),
     nbf: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 3600 * 24, // Token expires after 24 hour
+    exp: Math.floor(Date.now() / 1000) + 3600 * 1, // Token expires after 1 hour
     acr: "1",
     aio: "AXQAi/8TAAAA",
     amr: ["pwd"],
@@ -64,7 +65,7 @@ export async function createJwt(
     sub: "subject",
     tid: "tenant-id",
     unique_name: username,
-    uti: "uti-value",
+    uti: randomUUID().toString(),
     ver: "1.0",
   };
   const token = jwt.sign(payload, secretData.JWTKEY, { algorithm: "HS256" });
