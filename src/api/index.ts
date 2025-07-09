@@ -236,7 +236,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
   if (isRunningInLambda && !isSwaggerServer) {
     // Serve docs from S3
     app.get("/api/documentation", (_request, response) => {
-      response.redirect("/docs/index.html", 308);
+      response.redirect("/docs/", 308);
     });
     app.get("/api/documentation/json", (_request, response) => {
       response.redirect("/docs/openapi.json", 308);
