@@ -56,7 +56,7 @@ Mappings:
       HostedZoneId: Z04502822NVIA85WM2SML
       UiDomainName: "core.aws.qa.acmuiuc.org"
       EnvDomainName: "aws.qa.acmuiuc.org"
-      EnvCertificateArn: arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23
+      EnvCertificateArn: arn:aws:acm:us-east-2:427040638965:certificate/db26480e-e2b8-468d-8d3c-0790ca26c3b4
     prod:
       HostedZoneId: Z05246633460N5MEB9DBF
       UiDomainName: "core.acm.illinois.edu"
