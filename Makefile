@@ -14,7 +14,7 @@ integration_test_directory_root = tests/live_integration/
 application_key=infra-core-api
 application_name="InfraCoreApi"
 techlead="tarasha2@illinois.edu"
-region="us-east-1"
+region="us-east-2"
 
 # DO NOT CHANGE
 common_params = --no-confirm-changeset \

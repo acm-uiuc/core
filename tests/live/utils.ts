@@ -9,7 +9,7 @@ export const getSecretValue = async (
   secretId: string,
 ): Promise<Record<string, string | number | boolean> | null> => {
   const smClient = new SecretsManagerClient({
-    region: process.env.AWS_REGION || "us-east-1",
+    region: process.env.AWS_REGION || "us-east-2",
   });
   const data = await smClient.send(
     new GetSecretValueCommand({ SecretId: secretId }),

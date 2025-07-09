@@ -15,7 +15,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
           role-session-name: Core_Dev_Deployment
-          aws-region: us-east-1
+          aws-region: us-east-2
 
       - name: Get AWS Caller Identity
         run: aws sts get-caller-identity

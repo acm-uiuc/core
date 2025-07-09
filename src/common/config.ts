@@ -76,7 +76,7 @@ const genericConfig: GenericConfigType = {
   EntraSecretName: "infra-core-api-entra",
   EntraReadOnlySecretName: "infra-core-api-ro-entra",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
-  AwsRegion: process.env.AWS_REGION || "us-east-1",
+  AwsRegion: process.env.AWS_REGION || "us-east-2",
   EntraTenantId: "c8d9148f-9a59-4db3-827d-42ea0c2b6e2e",
   MerchStorePurchasesTableName: "infra-merchstore-purchase-history",
   MerchStoreMetadataTableName: "infra-merchstore-metadata",
@@ -113,7 +113,7 @@ const environmentConfig: EnvironmentConfigType = {
       "https://core.aws.qa.acmuiuc.org/api/v1/membership",
     EmailDomain: "aws.qa.acmuiuc.org",
     SqsQueueUrl:
-      "https://sqs.us-east-1.amazonaws.com/427040638965/infra-core-api-sqs",
+      "https://sqs.us-east-2.amazonaws.com/427040638965/infra-core-api-sqs",
     PaidMemberGroupId: "9222451f-b354-4e64-ba28-c0f367a277c2",
     PaidMemberPriceId: "price_1R4TcTDGHrJxx3mKI6XF9cNG",
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
@@ -139,7 +139,7 @@ const environmentConfig: EnvironmentConfigType = {
       "https://core.acm.illinois.edu/api/v1/membership",
     EmailDomain: "acm.illinois.edu",
     SqsQueueUrl:
-      "https://sqs.us-east-1.amazonaws.com/298118738376/infra-core-api-sqs",
+      "https://sqs.us-east-2.amazonaws.com/298118738376/infra-core-api-sqs",
     PaidMemberGroupId: "172fd9ee-69f0-4384-9786-41ff1a43cf8e",
     PaidMemberPriceId: "price_1MUGIRDiGOXU9RuSChPYK6wZ",
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
