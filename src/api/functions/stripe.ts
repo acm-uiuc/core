@@ -232,12 +232,12 @@ export const getPaymentMethodDescriptionString = ({
       if (!cardData) {
         return null;
       }
-      return `${friendlyName} (${cardBrandMap[cardData.display_brand || "unknown"]} ending in ${cardData.last4}`;
+      return `${friendlyName} (${cardBrandMap[cardData.display_brand || "unknown"]} ending in ${cardData.last4})`;
     case "card_present":
       const cardPresentData = paymentMethod[paymentMethodType];
       if (!cardPresentData) {
         return null;
       }
-      return `${friendlyName} (${cardBrandMap[cardPresentData.brand || "unknown"]} ending in ${cardPresentData.last4}`;
+      return `${friendlyName} (${cardBrandMap[cardPresentData.brand || "unknown"]} ending in ${cardPresentData.last4})`;
   }
 };

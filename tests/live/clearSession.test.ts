@@ -29,6 +29,8 @@ describe("Session clearing tests", async () => {
     });
     expect(clearResponse.status).toBe(201);
     // token should be revoked
+    // add a sleep because delay shouldn't fail the pipeline
+    await new Promise((r) => setTimeout(r, 1000));
     const responseFail = await fetch(`${baseEndpoint}/api/v1/protected`, {
       method: "GET",
       headers: {
