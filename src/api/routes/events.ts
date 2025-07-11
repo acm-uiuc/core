@@ -8,6 +8,7 @@ import {
   PutItemCommand,
   QueryCommand,
   ScanCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { EVENT_CACHED_DURATION, genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -288,24 +289,16 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       },
     );
   };
-
-  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
-    "/:id?",
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
+    "/:id",
     {
       schema: withRoles(
         [AppRoles.EVENTS_MANAGER],
         withTags(["Events"], {
-          // response: {
-          //   201: z.object({
-          //     id: z.string(),
-          //     resource: z.string(),
-          //   }),
-          // },
-          body: postRequestSchema,
+          body: postRequestSchema.partial(),
           params: z.object({
-            id: z.string().min(1).optional().meta({
-              description:
-                "Event ID to modify (leave empty to create a new event).",
+            id: z.string().min(1).meta({
+              description: "Event ID to modify.",
               example: "6667e095-8b04-4877-b361-f636f459ba42",
             }),
           }),
@@ -319,35 +312,168 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         throw new UnauthenticatedError({ message: "Username not found." });
       }
       try {
-        let originalEvent;
-        const userProvidedId = request.params.id;
-        const entryUUID = userProvidedId || randomUUID();
-        if (userProvidedId) {
-          const response = await fastify.dynamoClient.send(
-            new GetItemCommand({
-              TableName: genericConfig.EventsDynamoTableName,
-              Key: { id: { S: userProvidedId } },
-            }),
-          );
-          originalEvent = response.Item;
-          if (!originalEvent) {
-            throw new ValidationError({
-              message: `${userProvidedId} is not a valid event ID.`,
+        const entryUUID = request.params.id;
+        const updateData = {
+          ...request.body,
+          updatedAt: new Date().toISOString(),
+        };
+
+        Object.keys(updateData).forEach(
+          (key) =>
+            (updateData as Record<string, any>)[key] === undefined &&
+            delete (updateData as Record<string, any>)[key],
+        );
+
+        if (Object.keys(updateData).length === 0) {
+          throw new ValidationError({
+            message: "At least one field must be updated.",
+          });
+        }
+
+        const updateExpressionParts: string[] = [];
+        const expressionAttributeNames: Record<string, string> = {};
+        const expressionAttributeValues: Record<string, any> = {};
+
+        for (const [key, value] of Object.entries(updateData)) {
+          updateExpressionParts.push(`#${key} = :${key}`);
+          expressionAttributeNames[`#${key}`] = key;
+          expressionAttributeValues[`:${key}`] = value;
+        }
+
+        const updateExpression = `SET ${updateExpressionParts.join(", ")}`;
+
+        const command = new UpdateItemCommand({
+          TableName: genericConfig.EventsDynamoTableName,
+          Key: { id: { S: entryUUID } },
+          UpdateExpression: updateExpression,
+          ExpressionAttributeNames: expressionAttributeNames,
+          ConditionExpression: "attribute_exists(id)",
+          ExpressionAttributeValues: marshall(expressionAttributeValues),
+          ReturnValues: "ALL_OLD",
+        });
+        let oldAttributes;
+        let updatedEntry;
+        try {
+          oldAttributes = (await fastify.dynamoClient.send(command)).Attributes;
+
+          if (!oldAttributes) {
+            throw new DatabaseInsertError({
+              message: "Item not found or update failed.",
             });
           }
-          originalEvent = unmarshall(originalEvent);
+
+          const oldEntry = oldAttributes ? unmarshall(oldAttributes) : null;
+          // we know updateData has no undefines because we filtered them out.
+          updatedEntry = {
+            ...oldEntry,
+            ...updateData,
+          } as unknown as IUpdateDiscord;
+        } catch (e: unknown) {
+          if (
+            e instanceof Error &&
+            e.name === "ConditionalCheckFailedException"
+          ) {
+            throw new NotFoundError({ endpointName: request.url });
+          }
+          if (e instanceof BaseError) {
+            throw e;
+          }
+          request.log.error(e);
+          throw new DiscordEventError({});
         }
-        let verb = "created";
-        if (userProvidedId && userProvidedId === entryUUID) {
-          verb = "modified";
+        if (updatedEntry.featured && !updatedEntry.repeats) {
+          try {
+            await updateDiscord(
+              {
+                botToken: fastify.secretConfig.discord_bot_token,
+                guildId: fastify.environmentConfig.DiscordGuildId,
+              },
+              updatedEntry,
+              request.username,
+              false,
+              request.log,
+            );
+          } catch (e) {
+            await fastify.dynamoClient.send(
+              new PutItemCommand({
+                TableName: genericConfig.EventsDynamoTableName,
+                Item: oldAttributes!,
+              }),
+            );
+
+            if (e instanceof Error) {
+              request.log.error(`Failed to publish event to Discord: ${e} `);
+            }
+          }
         }
+        const postUpdatePromises = [
+          atomicIncrementCacheCounter(
+            fastify.dynamoClient,
+            `events-etag-${entryUUID}`,
+            1,
+            false,
+          ),
+          atomicIncrementCacheCounter(
+            fastify.dynamoClient,
+            "events-etag-all",
+            1,
+            false,
+          ),
+          createAuditLogEntry({
+            dynamoClient: fastify.dynamoClient,
+            entry: {
+              module: Modules.EVENTS,
+              actor: request.username,
+              target: entryUUID,
+              message: "Updated target event.",
+              requestId: request.id,
+            },
+          }),
+        ];
+        await Promise.all(postUpdatePromises);
+
+        reply
+          .status(201)
+          .header(
+            "Location",
+            `${fastify.environmentConfig.UserFacingUrl}/api/v1/events/${entryUUID}`,
+          )
+          .send();
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+          request.log.error(`Failed to update DynamoDB: ${e.toString()}`);
+        }
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        throw new DatabaseInsertError({
+          message: "Failed to update event in Dynamo table.",
+        });
+      }
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/",
+    {
+      schema: withRoles(
+        [AppRoles.EVENTS_MANAGER],
+        withTags(["Events"], {
+          body: postRequestSchema,
+          summary: "Create a calendar event.",
+        }),
+      ) satisfies FastifyZodOpenApiSchema,
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      if (!request.username) {
+        throw new UnauthenticatedError({ message: "Username not found." });
+      }
+      try {
+        const entryUUID = randomUUID();
         const entry = {
           ...request.body,
           id: entryUUID,
-          createdAt:
-            originalEvent && originalEvent.createdAt
-              ? originalEvent.createdAt
-              : new Date().toISOString(),
+          createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
         await fastify.dynamoClient.send(
@@ -377,14 +503,6 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               Key: { id: { S: entryUUID } },
             }),
           );
-          if (userProvidedId) {
-            await fastify.dynamoClient.send(
-              new PutItemCommand({
-                TableName: genericConfig.EventsDynamoTableName,
-                Item: originalEvent,
-              }),
-            );
-          }
 
           if (e instanceof Error) {
             request.log.error(`Failed to publish event to Discord: ${e} `);
@@ -394,32 +512,38 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           }
           throw new DiscordEventError({});
         }
-        await atomicIncrementCacheCounter(
-          fastify.dynamoClient,
-          `events-etag-${entryUUID}`,
-          1,
-          false,
-        );
-        await atomicIncrementCacheCounter(
-          fastify.dynamoClient,
-          "events-etag-all",
-          1,
-          false,
-        );
-        await createAuditLogEntry({
-          dynamoClient: fastify.dynamoClient,
-          entry: {
-            module: Modules.EVENTS,
-            actor: request.username,
-            target: entryUUID,
-            message: `${verb} event "${entryUUID}"`,
-            requestId: request.id,
-          },
-        });
-        reply.status(201).send({
-          id: entryUUID,
-          resource: `/api/v1/events/${entryUUID}`,
-        });
+        const postUpdatePromises = [
+          atomicIncrementCacheCounter(
+            fastify.dynamoClient,
+            `events-etag-${entryUUID}`,
+            1,
+            false,
+          ),
+          atomicIncrementCacheCounter(
+            fastify.dynamoClient,
+            "events-etag-all",
+            1,
+            false,
+          ),
+          createAuditLogEntry({
+            dynamoClient: fastify.dynamoClient,
+            entry: {
+              module: Modules.EVENTS,
+              actor: request.username,
+              target: entryUUID,
+              message: "Created target event.",
+              requestId: request.id,
+            },
+          }),
+        ];
+        await Promise.all(postUpdatePromises);
+        reply
+          .status(201)
+          .header(
+            "Location",
+            `${fastify.environmentConfig.UserFacingUrl}/api/v1/events/${entryUUID}`,
+          )
+          .send();
       } catch (e: unknown) {
         if (e instanceof Error) {
           request.log.error(`Failed to insert to DynamoDB: ${e.toString()}`);

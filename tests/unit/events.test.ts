@@ -67,7 +67,8 @@ test("ETag should increment after event creation", async () => {
     });
 
   expect(eventResponse.statusCode).toBe(201);
-  const eventId = eventResponse.body.id;
+  expect(eventResponse.header["location"]).toBeDefined();
+  const eventId = eventResponse.header["location"].split("/").at(-1);
 
   // Mock GetItemCommand to return the event we just created
   ddbMock.on(GetItemCommand).resolves({
@@ -237,7 +238,8 @@ test("Should NOT return 304 when ETag has changed", async () => {
     });
 
   expect(eventResponse.statusCode).toBe(201);
-  const eventId = eventResponse.body.id;
+  expect(eventResponse.header["location"]).toBeDefined();
+  const eventId = eventResponse.header["location"].split("/").at(-1);
 
   // Mock GetItemCommand to return the event we just created
   ddbMock.on(GetItemCommand).resolves({
@@ -292,7 +294,9 @@ test("Should handle 304 responses for individual event endpoints", async () => {
     });
 
   expect(eventResponse.statusCode).toBe(201);
-  const eventId = eventResponse.body.id;
+  console.log(eventResponse.headers);
+  expect(eventResponse.header["location"]).toBeDefined();
+  const eventId = eventResponse.header["location"].split("/").at(-1);
 
   // Mock GetItemCommand to return the event
   ddbMock.on(GetItemCommand).resolves({

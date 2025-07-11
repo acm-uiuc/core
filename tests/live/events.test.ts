@@ -51,7 +51,7 @@ test("metadata is not included when includeMetadata query parameter is unset", a
 
 describe("Event lifecycle tests", async () => {
   let createdEventUuid: string;
-  test("creating an event", { timeout: 30000 }, async () => {
+  test("Creating an event", { timeout: 30000 }, async () => {
     const token = await createJwt();
     const response = await fetch(`${baseEndpoint}/api/v1/events`, {
       method: "POST",
@@ -70,13 +70,16 @@ describe("Event lifecycle tests", async () => {
         repeats: "weekly",
       }),
     });
-    const responseJson = await response.json();
-    expect(response.status).toBe(201);
-    expect(responseJson).toHaveProperty("id");
-    expect(responseJson).toHaveProperty("resource");
-    createdEventUuid = responseJson.id;
+    if (response.headers.get("location")) {
+      createdEventUuid = response.headers
+        .get("location")!
+        .split("/")
+        .at(-1) as string;
+    }
+    expect(response.headers.get("location")).toBeDefined();
+    expect(response.headers.get("location")).not.toBeNull();
   });
-  test("getting a created event", { timeout: 30000 }, async () => {
+  test("Getting an event", { timeout: 30000 }, async () => {
     if (!createdEventUuid) {
       throw new Error("Event UUID not found");
     }
@@ -95,6 +98,47 @@ describe("Event lifecycle tests", async () => {
     expect(responseJson).toHaveProperty("repeats");
     expect(responseJson["repeatEnds"]).toBeUndefined();
     createdEventUuid = responseJson.id;
+  });
+  test("Modifying an event", { timeout: 30000 }, async () => {
+    const token = await createJwt();
+    if (!createdEventUuid) {
+      throw new Error("Event UUID not found");
+    }
+    const response = await fetch(
+      `${baseEndpoint}/api/v1/events/${createdEventUuid}?ts=${Date.now()}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          description: "An event of all time THAT HAS BEEN MODIFIED",
+        }),
+      },
+    );
+    expect(response.status).toBe(201);
+  });
+  test("Getting a modified event", { timeout: 30000 }, async () => {
+    if (!createdEventUuid) {
+      throw new Error("Event UUID not found");
+    }
+    const response = await fetch(
+      `${baseEndpoint}/api/v1/events/${createdEventUuid}?ts=${Date.now()}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    const responseJson = await response.json();
+    expect(response.status).toBe(200);
+    expect(responseJson).toHaveProperty("id");
+    expect(responseJson).toHaveProperty("description");
+    expect(responseJson["description"]).toStrictEqual(
+      "An event of all time THAT HAS BEEN MODIFIED",
+    );
   });
 
   test("deleting a previously-created event", { timeout: 30000 }, async () => {
