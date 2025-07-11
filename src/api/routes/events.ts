@@ -479,6 +479,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         await fastify.dynamoClient.send(
           new PutItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
+            ConditionExpression: "attribute_not_exists(id)",
             Item: marshall(entry, { removeUndefinedValues: true }),
           }),
         );
