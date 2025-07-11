@@ -3,6 +3,7 @@ interface BaseErrorParams<T extends string> {
   id: number;
   message: string;
   httpStatusCode: number;
+  internalLog?: string;
 }
 
 export abstract class BaseError<T extends string> extends Error {
@@ -14,20 +15,24 @@ export abstract class BaseError<T extends string> extends Error {
 
   public httpStatusCode: number;
 
-  constructor({ name, id, message, httpStatusCode }: BaseErrorParams<T>) {
+  public internalLog: string | undefined;
+
+  constructor({ name, id, message, httpStatusCode, internalLog }: BaseErrorParams<T>) {
     super(message || name || "Error");
     this.name = name;
     this.id = id;
     this.message = message;
     this.httpStatusCode = httpStatusCode;
+    this.internalLog = internalLog;
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, this.constructor);
     }
   }
 
   toString() {
-    return `Error ${this.id} (${this.name}): ${this.message}\n\n${this.stack}`;
+    return `Error ${this.id} (${this.name}): ${this.message}${this.internalLog ? `\n\nInternal Message: ${this.internalLog}` : ''}\n\n${this.stack}`;
   }
+
   toJson() {
     return {
       error: true,
@@ -67,7 +72,7 @@ export class UnauthenticatedError extends BaseError<"UnauthenticatedError"> {
 }
 
 export class InternalServerError extends BaseError<"InternalServerError"> {
-  constructor({ message }: { message?: string } = {}) {
+  constructor({ message, internalLog }: { message?: string, internalLog?: string } = {}) {
     super({
       name: "InternalServerError",
       id: 100,
@@ -75,6 +80,7 @@ export class InternalServerError extends BaseError<"InternalServerError"> {
         message ||
         "An internal server error occurred. Please try again or contact support.",
       httpStatusCode: 500,
+      internalLog
     });
   }
 }

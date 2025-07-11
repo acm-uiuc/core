@@ -6,22 +6,20 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
-import {
-  buildAuditLogTransactPut,
-  createAuditLogEntry,
-} from "api/functions/auditLog.js";
+import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import {
   createStripeLink,
   deactivateStripeLink,
   deactivateStripeProduct,
+  getPaymentMethodDescriptionString,
+  getPaymentMethodForPaymentIntent,
+  paymentMethodTypeToFriendlyName,
   StripeLinkCreateParams,
+  SupportedStripePaymentMethod,
+  supportedStripePaymentMethods,
 } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
-import {
-  environmentConfig,
-  genericConfig,
-  notificationRecipients,
-} from "common/config.js";
+import { genericConfig, notificationRecipients } from "common/config.js";
 import {
   BaseError,
   DatabaseFetchError,
@@ -457,6 +455,43 @@ Please ask the payee to try again, perhaps with a different payment method, or c
             const eventId = event.id;
             const paymentAmount = event.data.object.amount_total;
             const paymentCurrency = event.data.object.currency;
+            const paymentIntentId =
+              event.data.object.payment_intent?.toString();
+            if (!paymentIntentId) {
+              request.log.warn(
+                "Could not find payment intent ID in webhook payload!",
+              );
+              throw new ValidationError({
+                message: "No payment intent ID found.",
+              });
+            }
+            const stripeApiKey = fastify.secretConfig.stripe_secret_key;
+            const paymentMethodData = await getPaymentMethodForPaymentIntent({
+              paymentIntentId,
+              stripeApiKey,
+            });
+            const paymentMethodType =
+              paymentMethodData.type.toString() as SupportedStripePaymentMethod;
+            if (
+              !supportedStripePaymentMethods.includes(
+                paymentMethodData.type.toString() as SupportedStripePaymentMethod,
+              )
+            ) {
+              throw new InternalServerError({
+                internalLog: `Unknown payment method type ${paymentMethodData.type}!`,
+              });
+            }
+            const paymentMethodDescriptionData =
+              paymentMethodData[paymentMethodType];
+            if (!paymentMethodDescriptionData) {
+              throw new InternalServerError({
+                internalLog: `No payment method data for ${paymentMethodData.type}!`,
+              });
+            }
+            const paymentMethodString = getPaymentMethodDescriptionString({
+              paymentMethod: paymentMethodData,
+              paymentMethodType,
+            });
             const { email, name } = event.data.object.customer_details || {
               email: null,
               name: null,
@@ -581,6 +616,9 @@ Please contact Officer Board with any questions.
                       subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
                       content: `
 ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
+
+${paymentMethodString ? `\nPayment method: ${paymentMethodString}.\n` : ""}
+
 ${paidInFull ? "\nThis invoice should now be considered settled.\n" : ""}
 Please contact Officer Board with any questions.`,
                       callToActionButton: {
