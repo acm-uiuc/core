@@ -1,5 +1,6 @@
 import * as z from "zod/v4";
 import { AllOrganizationList } from "@acm-uiuc/js-shared";
+import { illinoisSemesterId } from "./generic.js"
 
 export const eventThemeOptions = [
   "Arts & Music",
@@ -147,9 +148,7 @@ export const roomRequestPostResponse = z.object({
 export const roomRequestBaseSchema = z.object({
   host: z.enum(AllOrganizationList),
   title: z.string().min(2, "Title must have at least 2 characters"),
-  semester: z.
-    string().
-    regex(/^(fa|sp|su|wi)\d{2}$/, "Invalid semester provided")
+  semester: illinoisSemesterId
 });
 export const roomRequestDataSchema = roomRequestBaseSchema.extend({
   eventStart: z.coerce.date({

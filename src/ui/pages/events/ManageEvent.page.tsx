@@ -204,11 +204,14 @@ export const ManageEventPage: React.FC = () => {
             ? values.metadata
             : undefined,
       };
-
       const eventURL = isEditing
         ? `/api/v1/events/${eventId}`
         : "/api/v1/events";
-      await api.post(eventURL, realValues);
+      if (isEditing) {
+        await api.patch(eventURL, realValues);
+      } else {
+        await api.post(eventURL, realValues);
+      }
       notifications.show({
         title: isEditing ? "Event updated!" : "Event created!",
         message: `Changes may take up to ${Math.ceil(EVENT_CACHED_DURATION / 60)} minutes to reflect to users.`,
@@ -304,14 +307,19 @@ export const ManageEventPage: React.FC = () => {
       resourceDef={{ service: "core", validRoles: [AppRoles.EVENTS_MANAGER] }}
     >
       <Box maw={400} mx="auto" mt="xl">
-        <Title mb="sm" order={2}>
-          {isEditing ? `Edit` : `Create`} Event
-        </Title>
+        <Title order={2}>{isEditing ? `Edit` : `Create`} Event</Title>
+        {eventId && (
+          <Text size="xs" c="dimmed">
+            Event ID: <code>{eventId}</code>
+          </Text>
+        )}
         {Intl.DateTimeFormat().resolvedOptions().timeZone !==
           "America/Chicago" && (
           <Alert
             variant="light"
             color="red"
+            mt="xs"
+            mb="xs"
             title="Timezone Alert"
             icon={<IconInfoCircle />}
           >

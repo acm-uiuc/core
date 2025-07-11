@@ -1,16 +1,32 @@
 import { AppRoles } from "common/roles.js";
 import { FastifyZodOpenApiSchema } from "fastify-zod-openapi";
 import * as z from "zod/v4";
+import { CoreOrganizationList } from "@acm-uiuc/js-shared";
+export {
+  illinoisSemesterId as semesterId,
+  illinoisNetId,
+} from "../../common/types/generic.js";
 
-export const ts = z.coerce
-  .number()
-  .min(0)
-  .optional()
-  .meta({ description: "Staleness bound", example: 0 });
+export const ts = z.coerce.number().min(0).optional().meta({
+  description:
+    "Staleness bound as Unix epoch time (requires authentication to specify)",
+  example: 1752248256,
+  id: "AcmStalenessBoundTimestamp",
+});
+
 export const groupId = z.string().min(1).meta({
   description: "Entra ID Group ID",
   example: "d8cbb7c9-2f6d-4b7e-8ba6-b54f8892003b",
+  id: "EntraGroupId",
 });
+
+export const acmCoreOrganization = z
+  .enum(CoreOrganizationList as [string, ...string[]])
+  .meta({
+    description: "ACM Organization",
+    id: "AcmOrganization",
+    examples: ["ACM", "Infrastructure Committee"],
+  });
 
 export function withTags<T extends FastifyZodOpenApiSchema>(
   tags: string[],
