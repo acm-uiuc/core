@@ -466,7 +466,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
-    "/",
+    "",
     {
       schema: withRoles(
         [AppRoles.EVENTS_MANAGER],
