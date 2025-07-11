@@ -1,7 +1,6 @@
 import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { AppRoles } from "../../common/roles.js";
 import * as z from "zod/v4";
-import { CoreOrganizationList } from "@acm-uiuc/js-shared";
 import {
   DeleteItemCommand,
   GetItemCommand,
@@ -39,7 +38,12 @@ import {
   FastifyZodOpenApiSchema,
   FastifyZodOpenApiTypeProvider,
 } from "fastify-zod-openapi";
-import { ts, withRoles, withTags } from "api/components/index.js";
+import {
+  acmCoreOrganization,
+  ts,
+  withRoles,
+  withTags,
+} from "api/components/index.js";
 import { metadataSchema } from "common/types/events.js";
 import { evaluateAllRequestPolicies } from "api/plugins/evaluatePolicies.js";
 
@@ -108,8 +112,9 @@ const baseSchema = z.object({
     description: "Google Maps link for easy navigation to the event location.",
     example: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
   }),
-  host: z.enum(CoreOrganizationList as [string, ...string[]]),
+  host: acmCoreOrganization,
   featured: z.boolean().default(false).meta({
+    ref: "acmOrganizationList",
     description:
       "Whether or not the event should be shown on the ACM @ UIUC website home page (and added to Discord, as available).",
   }),
@@ -166,12 +171,9 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               description:
                 "If true, only get events which are marked as featured.",
             }),
-            host: z
-              .enum(CoreOrganizationList as [string, ...string[]])
-              .optional()
-              .meta({
-                description: "Retrieve events only for a specific host.",
-              }),
+            host: z.optional(acmCoreOrganization).meta({
+              description: "Retrieve events only for this organization.",
+            }),
             ts,
             includeMetadata: zodIncludeMetadata,
           }),

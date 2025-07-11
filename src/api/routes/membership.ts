@@ -5,7 +5,6 @@ import {
   setPaidMembershipInTable,
   MEMBER_CACHE_SECONDS,
 } from "api/functions/membership.js";
-import { validateNetId } from "api/functions/validation.js";
 import { FastifyPluginAsync } from "fastify";
 import {
   BaseError,
@@ -26,7 +25,7 @@ import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import rawbody from "fastify-raw-body";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
-import { withTags } from "api/components/index.js";
+import { illinoisNetId, withTags } from "api/components/index.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
 
 const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
@@ -76,12 +75,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       "/checkout/:netId",
       {
         schema: withTags(["Membership"], {
-          params: z
-            .object({ netId: z.string().min(1) })
-            .refine((data) => validateNetId(data.netId), {
-              message: "NetID is not valid!",
-              path: ["netId"],
-            }),
+          params: z.object({ netId: illinoisNetId }),
           summary:
             "Create a checkout session to purchase an ACM @ UIUC membership.",
         }),
@@ -201,12 +195,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       "/:netId",
       {
         schema: withTags(["Membership"], {
-          params: z
-            .object({ netId: z.string().min(1) })
-            .refine((data) => validateNetId(data.netId), {
-              message: "NetID is not valid!",
-              path: ["netId"],
-            }),
+          params: z.object({ netId: illinoisNetId }),
           querystring: z.object({
             list: z.string().min(1).optional().meta({
               description:

@@ -25,7 +25,7 @@ import { genericConfig, notificationRecipients } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
-import { withRoles, withTags } from "api/components/index.js";
+import { semesterId, withRoles, withTags } from "api/components/index.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
@@ -54,10 +54,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "Room request ID.",
               example: "6667e095-8b04-4877-b361-f636f459ba42",
             }),
-            semesterId: z.string().min(1).meta({
-              description: "Short semester slug for a given semester.",
-              example: "sp25",
-            }),
+            semesterId,
           }),
           body: roomRequestStatusUpdateRequest,
         }),
@@ -185,10 +182,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Room Requests"], {
           summary: "Get room requests for a specific semester.",
           params: z.object({
-            semesterId: z.string().min(1).meta({
-              description: "Short semester slug for a given semester.",
-              example: "sp25",
-            }),
+            semesterId,
           }),
           querystring: z.object(
             getDefaultFilteringQuerystring({
