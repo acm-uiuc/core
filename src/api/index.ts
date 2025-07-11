@@ -102,13 +102,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
   });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
-  await app.register(authorizeFromSchemaPlugin);
-  await app.register(fastifyAuthPlugin);
-  await app.register(FastifyAuthProvider);
-  await app.register(evaluatePoliciesPlugin);
-  await app.register(errorHandlerPlugin);
-  await app.register(fastifyZodOpenApiPlugin);
-  await app.register(locationPlugin);
+
   if (!isRunningInLambda) {
     try {
       const fastifySwagger = import("@fastify/swagger");
@@ -150,7 +144,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
             },
             {
               name: "Generic",
-              description: "Retrieve metadata about a user or ACM @ UIUC .",
+              description: "Retrieve metadata about a user or ACM @ UIUC.",
             },
             {
               name: "iCalendar Integration",
@@ -224,7 +218,13 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
       app.log.warn("Fastify Swagger not created!");
     }
   }
-
+  await app.register(authorizeFromSchemaPlugin);
+  await app.register(fastifyAuthPlugin);
+  await app.register(FastifyAuthProvider);
+  await app.register(evaluatePoliciesPlugin);
+  await app.register(errorHandlerPlugin);
+  await app.register(fastifyZodOpenApiPlugin);
+  await app.register(locationPlugin);
   await app.register(fastifyStatic, {
     root: path.join(__dirname, "public"),
     prefix: "/",
