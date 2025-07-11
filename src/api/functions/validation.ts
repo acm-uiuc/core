@@ -1,7 +1,7 @@
 import * as z from "zod/v4";
 
 export function validateEmail(email: string): boolean {
-  const emailSchema = z.string().email();
+  const emailSchema = z.email();
   const result = emailSchema.safeParse(email);
   return result.success;
 }

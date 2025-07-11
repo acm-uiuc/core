@@ -4,7 +4,6 @@ import {
   Table,
   Modal,
   Group,
-  Transition,
   ButtonGroup,
   Title,
   Badge,
@@ -176,7 +175,10 @@ export const ViewEventsPage: React.FC = () => {
         <Table.Td>{capitalizeFirstLetter(event.repeats || "Never")}</Table.Td>
         <Table.Td>
           <ButtonGroup>
-            <Button component="a" href={`/events/edit/${event.id}`}>
+            <Button
+              component="a"
+              onClick={() => navigate(`/events/edit/${event.id}`)}
+            >
               Edit
             </Button>
             <Button
