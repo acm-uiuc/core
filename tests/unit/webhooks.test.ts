@@ -19,6 +19,26 @@ const paymentLinkMock = {
   url: `https://buy.stripe.com/${linkId}`,
 };
 
+vi.mock(import("../../src/api/functions/stripe.js"), async (importOriginal) => {
+  const mod = await importOriginal();
+  return {
+    ...mod,
+    getPaymentMethodForPaymentIntent: vi.fn().mockImplementation(async () => {
+      return {
+        type: "us_bank_account",
+        us_bank_account: {
+          bank_name: "ACM Bank N.A.",
+          account_type: "checking",
+          last4: "0123",
+        },
+      };
+    }),
+    getPaymentMethodDescriptionString: vi.fn().mockImplementation(async () => {
+      return "Your payment method here.";
+    }),
+  };
+});
+
 const app = await init();
 describe("Test Stripe webhooks", async () => {
   test("Stripe Payment Link skips non-existing links", async () => {
@@ -38,6 +58,7 @@ describe("Test Stripe webhooks", async () => {
       data: {
         object: {
           payment_link: linkId,
+          payment_intent: "pi_123",
           amount_total: 10000,
           currency: "usd",
           customer_details: {
@@ -81,6 +102,7 @@ describe("Test Stripe webhooks", async () => {
       data: {
         object: {
           payment_link: linkId,
+          payment_intent: "pi_123",
           amount_total: 10000,
           currency: "usd",
           customer_details: {
@@ -136,6 +158,7 @@ describe("Test Stripe webhooks", async () => {
         object: {
           payment_link: linkId,
           amount_total: 10000,
+          payment_intent: "pi_123",
           currency: "usd",
           customer_details: {
             name: "Test User",

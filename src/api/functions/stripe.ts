@@ -1,4 +1,5 @@
-import { InternalServerError } from "common/errors/index.js";
+import { InternalServerError, ValidationError } from "common/errors/index.js";
+import { capitalizeFirstLetter } from "common/types/roomRequest.js";
 import Stripe from "stripe";
 
 export type StripeLinkCreateParams = {
@@ -127,4 +128,116 @@ export const deactivateStripeProduct = async ({
   await stripe.products.update(productId, {
     active: false,
   });
+};
+
+export const getStripePaymentIntentData = async ({
+  stripeClient,
+  paymentIntentId,
+  stripeApiKey,
+}: {
+  paymentIntentId: string;
+  stripeApiKey: string;
+  stripeClient?: Stripe;
+}) => {
+  const stripe = stripeClient || new Stripe(stripeApiKey);
+  return await stripe.paymentIntents.retrieve(paymentIntentId);
+};
+
+export const getPaymentMethodForPaymentIntent = async ({
+  paymentIntentId,
+  stripeApiKey,
+}: {
+  paymentIntentId: string;
+  stripeApiKey: string;
+}) => {
+  const stripe = new Stripe(stripeApiKey);
+  const paymentIntentData = await getStripePaymentIntentData({
+    paymentIntentId,
+    stripeApiKey,
+    stripeClient: stripe,
+  });
+  if (!paymentIntentData) {
+    throw new InternalServerError({
+      internalLog: `Could not find payment intent data for payment intent ID "${paymentIntentId}".`,
+    });
+  }
+  const paymentMethodId = paymentIntentData.payment_method?.toString();
+  if (!paymentMethodId) {
+    throw new InternalServerError({
+      internalLog: `Could not find payment method ID for payment intent ID "${paymentIntentId}".`,
+    });
+  }
+  const paymentMethodData =
+    await stripe.paymentMethods.retrieve(paymentMethodId);
+  if (!paymentMethodData) {
+    throw new InternalServerError({
+      internalLog: `Could not find payment method data for payment intent ID "${paymentIntentId}".`,
+    });
+  }
+  return paymentMethodData;
+};
+
+export const supportedStripePaymentMethods = [
+  "us_bank_account",
+  "card",
+  "card_present",
+] as const;
+export type SupportedStripePaymentMethod =
+  (typeof supportedStripePaymentMethods)[number];
+export const paymentMethodTypeToFriendlyName: Record<
+  SupportedStripePaymentMethod,
+  string
+> = {
+  us_bank_account: "ACH Direct Debit",
+  card: "Credit/Debit Card",
+  card_present: "Credit/Debit Card (Card Present)",
+};
+
+export const cardBrandMap: Record<string, string> = {
+  amex: "American Express",
+  american_express: "American Express",
+  cartes_bancaires: "Cartes Bancaires",
+  diners: "Diners Club",
+  diners_club: "Diners Club",
+  discover: "Discover",
+  eftpos_au: "EFTPOS Australia",
+  eftpos_australia: "EFTPOS Australia",
+  interac: "Interac",
+  jcb: "JCB",
+  link: "Link",
+  mastercard: "Mastercard",
+  unionpay: "UnionPay",
+  visa: "Visa",
+  unknown: "Unknown Brand",
+  other: "Unknown Brand",
+};
+
+export const getPaymentMethodDescriptionString = ({
+  paymentMethod,
+  paymentMethodType,
+}: {
+  paymentMethod: Stripe.PaymentMethod;
+  paymentMethodType: SupportedStripePaymentMethod;
+}) => {
+  const friendlyName = paymentMethodTypeToFriendlyName[paymentMethodType];
+  switch (paymentMethodType) {
+    case "us_bank_account":
+      const bankData = paymentMethod[paymentMethodType];
+      if (!bankData) {
+        return null;
+      }
+      return `${friendlyName} (${bankData.bank_name} ${capitalizeFirstLetter(bankData.account_type || "checking")} ${bankData.last4})`;
+    case "card":
+      const cardData = paymentMethod[paymentMethodType];
+      if (!cardData) {
+        return null;
+      }
+      return `${friendlyName} (${cardBrandMap[cardData.display_brand || "unknown"]} ending in ${cardData.last4})`;
+    case "card_present":
+      const cardPresentData = paymentMethod[paymentMethodType];
+      if (!cardPresentData) {
+        return null;
+      }
+      return `${friendlyName} (${cardBrandMap[cardPresentData.brand || "unknown"]} ending in ${cardPresentData.last4})`;
+  }
 };
