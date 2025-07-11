@@ -2,11 +2,11 @@ import { AppRoles } from "common/roles.js";
 import { FastifyZodOpenApiSchema } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 
-export const ts = z.coerce
-  .number()
-  .min(0)
-  .optional()
-  .meta({ description: "Staleness bound", example: 0 });
+export const ts = z.coerce.number().min(0).optional().meta({
+  description:
+    "Staleness bound as Unix epoch time (requires authentication to specify)",
+  example: 1752248256,
+});
 export const groupId = z.string().min(1).meta({
   description: "Entra ID Group ID",
   example: "d8cbb7c9-2f6d-4b7e-8ba6-b54f8892003b",
