@@ -188,9 +188,9 @@ type NotificationRecipientsType = {
 
 const notificationRecipients: NotificationRecipientsType = {
   dev: {
-    OfficerBoard: 'infra@acm.illinois.edu',
-    InfraChairs: 'infra@acm.illinois.edu',
-    Treasurer: 'infra@acm.illinois.edu'
+    OfficerBoard: 'infrasharedservices-l@acm.illinois.edu',
+    InfraChairs: 'infrasharedservices-l@acm.illinois.edu',
+    Treasurer: 'infrasharedservices-l@acm.illinois.edu'
   },
   prod: {
     OfficerBoard: 'officers@acm.illinois.edu',
