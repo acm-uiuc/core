@@ -6,10 +6,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
-import {
-  buildAuditLogTransactPut,
-  createAuditLogEntry,
-} from "api/functions/auditLog.js";
+import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import {
   createStripeLink,
   deactivateStripeLink,
@@ -22,11 +19,7 @@ import {
   supportedStripePaymentMethods,
 } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
-import {
-  environmentConfig,
-  genericConfig,
-  notificationRecipients,
-} from "common/config.js";
+import { genericConfig, notificationRecipients } from "common/config.js";
 import {
   BaseError,
   DatabaseFetchError,
@@ -492,7 +485,7 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               paymentMethodData[paymentMethodType];
             if (!paymentMethodDescriptionData) {
               throw new InternalServerError({
-                internalLog: `Unknown payment method type ${paymentMethodData.type}!`,
+                internalLog: `No payment method data for ${paymentMethodData.type}!`,
               });
             }
             const paymentMethodString = getPaymentMethodDescriptionString({

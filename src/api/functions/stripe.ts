@@ -226,7 +226,7 @@ export const getPaymentMethodDescriptionString = ({
       if (!bankData) {
         return null;
       }
-      return `${friendlyName} (${bankData.bank_name} ${capitalizeFirstLetter(bankData.account_type!)} ${bankData.last4})`;
+      return `${friendlyName} (${bankData.bank_name} ${capitalizeFirstLetter(bankData.account_type || "checking")} ${bankData.last4})`;
     case "card":
       const cardData = paymentMethod[paymentMethodType];
       if (!cardData) {
