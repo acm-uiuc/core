@@ -307,14 +307,19 @@ export const ManageEventPage: React.FC = () => {
       resourceDef={{ service: "core", validRoles: [AppRoles.EVENTS_MANAGER] }}
     >
       <Box maw={400} mx="auto" mt="xl">
-        <Title mb="sm" order={2}>
-          {isEditing ? `Edit` : `Create`} Event
-        </Title>
+        <Title order={2}>{isEditing ? `Edit` : `Create`} Event</Title>
+        {eventId && (
+          <Text size="xs" c="dimmed">
+            Event ID: <code>{eventId}</code>
+          </Text>
+        )}
         {Intl.DateTimeFormat().resolvedOptions().timeZone !==
           "America/Chicago" && (
           <Alert
             variant="light"
             color="red"
+            mt="xs"
+            mb="xs"
             title="Timezone Alert"
             icon={<IconInfoCircle />}
           >

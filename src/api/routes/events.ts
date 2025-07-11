@@ -185,6 +185,17 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         const includeMetadata = request.query.includeMetadata || false;
         const host = request.query?.host;
         const ts = request.query?.ts; // we only use this to disable cache control
+        if (ts) {
+          // cache bypass requires auth
+          try {
+            await fastify.authorize(request, reply, [], false);
+          } catch (e) {
+            throw new UnauthenticatedError({
+              message:
+                "You must be authenticated to specify a staleness bound.",
+            });
+          }
+        }
         const projection = createProjectionParams(includeMetadata);
         try {
           const ifNoneMatch = request.headers["if-none-match"];
@@ -683,6 +694,16 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
     async (request, reply) => {
       const id = request.params.id;
       const ts = request.query?.ts;
+      if (ts) {
+        // cache bypass requires auth
+        try {
+          await fastify.authorize(request, reply, [], false);
+        } catch (e) {
+          throw new UnauthenticatedError({
+            message: "You must be authenticated to specify a staleness bound.",
+          });
+        }
+      }
       const includeMetadata = request.query?.includeMetadata || false;
 
       try {

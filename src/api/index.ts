@@ -150,7 +150,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
             },
             {
               name: "Generic",
-              description: "Retrieve metadata about a user or ACM @ UIUC .",
+              description: "Retrieve metadata about a user or ACM @ UIUC.",
             },
             {
               name: "iCalendar Integration",

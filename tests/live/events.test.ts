@@ -26,8 +26,15 @@ test("getting events for a given host", async () => {
 });
 
 test("metadata is included when includeMetadata query parameter is set", async () => {
+  const token = await createJwt();
   const response = await fetch(
     `${baseEndpoint}/api/v1/events?host=Infrastructure Committee&includeMetadata=true&ts=${Date.now()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
   );
   expect(response.status).toBe(200);
 
@@ -38,8 +45,15 @@ test("metadata is included when includeMetadata query parameter is set", async (
 });
 
 test("metadata is not included when includeMetadata query parameter is unset", async () => {
+  const token = await createJwt();
   const response = await fetch(
     `${baseEndpoint}/api/v1/events?host=Infrastructure Committee&ts=${Date.now()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
   );
   expect(response.status).toBe(200);
 
@@ -80,6 +94,7 @@ describe("Event lifecycle tests", async () => {
     expect(response.headers.get("location")).not.toBeNull();
   });
   test("Getting an event", { timeout: 30000 }, async () => {
+    const token = await createJwt();
     if (!createdEventUuid) {
       throw new Error("Event UUID not found");
     }
@@ -88,6 +103,7 @@ describe("Event lifecycle tests", async () => {
       {
         method: "GET",
         headers: {
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       },
@@ -123,11 +139,13 @@ describe("Event lifecycle tests", async () => {
     if (!createdEventUuid) {
       throw new Error("Event UUID not found");
     }
+    const token = await createJwt();
     const response = await fetch(
       `${baseEndpoint}/api/v1/events/${createdEventUuid}?ts=${Date.now()}`,
       {
         method: "GET",
         headers: {
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       },
@@ -162,10 +180,15 @@ describe("Event lifecycle tests", async () => {
     if (!createdEventUuid) {
       throw new Error("Event UUID not found");
     }
+    const token = await createJwt();
     const response = await fetch(
       `${baseEndpoint}/api/v1/events/${createdEventUuid}?ts=${Date.now()}`,
       {
         method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       },
     );
     expect(response.status).toBe(404);
