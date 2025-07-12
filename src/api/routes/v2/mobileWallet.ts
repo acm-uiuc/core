@@ -15,6 +15,7 @@ import jwt, { Algorithm } from "jsonwebtoken";
 import { getJwksKey } from "api/plugins/auth.js";
 import { issueAppleWalletMembershipCard } from "api/functions/mobileWallet.js";
 import { Redis } from "api/types.js";
+import { Readable } from "stream";
 
 const UIUC_TENANT_ID = "44467e6f-462c-4ea2-823f-7800de5434e3";
 const COULD_NOT_PARSE_MESSAGE = "ID token could not be parsed.";
@@ -169,9 +170,14 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
         request.log,
         name,
       );
-      await reply
-        .header("Content-Type", "application/vnd.apple.pkpass")
-        .send(pkpass);
+      const myStream = new Readable({
+        read() {
+          this.push(pkpass);
+          this.push(null);
+        },
+      });
+
+      await reply.type("application/vnd.apple.pkpass").send(myStream);
     },
   );
 };
