@@ -7,11 +7,16 @@ const html = `
 <!doctype html>
 <html>
   <head>
-    <title>ACM @ UIUC Core API Reference</title>
+    <title>Core API Documentation | ACM @ UIUC</title>
     <meta charset="utf-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1" />
+    <meta property="og:title" content="Core API Documentation | ACM @ UIUC" />
+    <meta property="og:description" content="The ACM @ UIUC Core API provides services for managing chapter operations." />
+    <meta property="description" content="The ACM @ UIUC Core API provides services for managing chapter operations." />
+    <meta property="og:image" content="https://static.acm.illinois.edu/square-blue.png" />
+    <meta property="og:url" content="https://core.acm.illinois.edu/docs" />
   </head>
 
   <body>
