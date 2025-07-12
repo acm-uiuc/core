@@ -111,8 +111,8 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
           }),
         }),
         response: {
-          204: {
-            description: "A mobile wallet pass has been generated.",
+          200: {
+            description: "The mobile wallet pass has been generated.",
             content: {
               "application/vnd.apple.pkpass": {
                 schema: z.any(),
@@ -132,7 +132,7 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
         redisClient: fastify.redisClient,
         logger: request.log,
       });
-      const { preferred_username: upn, email, name } = verifiedData;
+      const { preferred_username: upn, name } = verifiedData;
       const netId = upn.replace("@illinois.edu", "");
       if (netId.includes("@")) {
         request.log.error(
