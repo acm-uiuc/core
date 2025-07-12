@@ -115,7 +115,7 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
             description: "The mobile wallet pass has been generated.",
             content: {
               "application/vnd.apple.pkpass": {
-                schema: z.any(),
+                schema: z.file(),
                 description:
                   "A pkpass file which contains the user's ACM @ UIUC membership pass.",
               },
