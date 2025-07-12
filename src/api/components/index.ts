@@ -61,6 +61,7 @@ export function getCorrectJsonSchema<T, U>({
 export const notAuthenticatedError = getCorrectJsonSchema({
   schema: z
     .object({
+      error: z.literal(true),
       name: z.literal("UnauthenticatedError"),
       id: z.literal(102),
       message: z.string().min(1),
@@ -70,6 +71,7 @@ export const notAuthenticatedError = getCorrectJsonSchema({
     }),
   description: "The request could not be authenticated.",
   example: {
+    error: true,
     name: "UnauthenticatedError",
     id: 102,
     message: "Token not found.",
@@ -79,6 +81,7 @@ export const notAuthenticatedError = getCorrectJsonSchema({
 export const notFoundError = getCorrectJsonSchema({
   schema: z
     .object({
+      error: z.literal(true),
       name: z.literal("NotFoundError"),
       id: z.literal(103),
       message: z.string().min(1),
@@ -88,6 +91,7 @@ export const notFoundError = getCorrectJsonSchema({
     }),
   description: "The resource could not be found.",
   example: {
+    error: true,
     name: "NotFoundError",
     id: 103,
     message: "{url} is not a valid URL.",
@@ -97,6 +101,7 @@ export const notFoundError = getCorrectJsonSchema({
 export const notAuthorizedError = getCorrectJsonSchema({
   schema: z
     .object({
+      error: z.literal(true),
       name: z.literal("UnauthorizedError"),
       id: z.literal(101),
       message: z.string().min(1),
@@ -107,6 +112,7 @@ export const notAuthorizedError = getCorrectJsonSchema({
   description:
     "The caller does not have the appropriate permissions for this task.",
   example: {
+    error: true,
     name: "UnauthorizedError",
     id: 101,
     message: "User does not have the privileges for this task.",
@@ -119,6 +125,7 @@ export const internalServerError = getCorrectJsonSchema({
       "application/json": {
         schema: z
           .object({
+            error: z.literal(true),
             name: z.literal("InternalServerError"),
             id: z.literal(100),
             message: z.string().min(1),
@@ -133,6 +140,7 @@ export const internalServerError = getCorrectJsonSchema({
   },
   description: "The server encountered an error processing the request.",
   example: {
+    error: true,
     name: "InternalServerError",
     id: 100,
     message:
@@ -143,6 +151,7 @@ export const internalServerError = getCorrectJsonSchema({
 export const rateLimitExceededError = getCorrectJsonSchema({
   schema: z
     .object({
+      error: z.literal(true),
       name: z.literal("RateLimitExceededError"),
       id: z.literal(409),
       message: z.literal("Rate limit exceeded."),
@@ -153,6 +162,7 @@ export const rateLimitExceededError = getCorrectJsonSchema({
     }),
   description: "The caller has sent too many requests. Try again later.",
   example: {
+    error: true,
     name: "RateLimitExceededError",
     id: 409,
     message: "Rate limit exceeded.",
@@ -162,9 +172,10 @@ export const rateLimitExceededError = getCorrectJsonSchema({
 export const validationError = getCorrectJsonSchema({
   schema: z
     .object({
-      name: z.literal("RateLimitExceededError"),
-      id: z.literal(104),
-      message: z.literal("Rate limit exceeded."),
+      error: z.literal(true),
+      name: z.string().min(1),
+      id: z.number(),
+      message: z.string().min(1),
     })
     .meta({
       id: "validationError",
@@ -172,6 +183,7 @@ export const validationError = getCorrectJsonSchema({
     }),
   description: "The request is invalid.",
   example: {
+    error: true,
     name: "ValidationError",
     id: 104,
     message: "Request is invalid.",
