@@ -27,8 +27,8 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             content: {
               "application/json": {
                 schema: z
-                  .enum(AllOrganizationList)
-                  .default(JSON.stringify(AllOrganizationList)),
+                  .array(z.enum(AllOrganizationList))
+                  .default(AllOrganizationList),
               },
             },
           },

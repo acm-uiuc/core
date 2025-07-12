@@ -225,6 +225,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                   schema: z
                     .object({
                       netId: illinoisNetId,
+                      list: z.optional(z.string().min(1)),
                       isPaidMember: z.boolean(),
                     })
                     .meta({
