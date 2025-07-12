@@ -59,6 +59,7 @@ import clearSessionRoute from "./routes/clearSession.js";
 import protectedRoute from "./routes/protected.js";
 import eventsPlugin from "./routes/events.js";
 import mobileWalletV2Route from "./routes/v2/mobileWallet.js";
+import membershipV2Plugin from "./routes/v2/membership.js";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
@@ -120,7 +121,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
             title: "ACM @ UIUC Core API",
             description:
               "The ACM @ UIUC Core API provides services for managing chapter operations.",
-            version: "1.1.0",
+            version: "2.0.0",
             contact: {
               name: "ACM @ UIUC Infrastructure Team",
               email: "infra@acm.illinois.edu",
@@ -357,6 +358,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
   await app.register(
     async (api, _options) => {
       api.register(mobileWalletV2Route, { prefix: "/mobileWallet" });
+      api.register(membershipV2Plugin, { prefix: "/membership" });
     },
     { prefix: "/api/v2" },
   );

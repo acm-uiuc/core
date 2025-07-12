@@ -10,7 +10,7 @@ import {
 } from "../../functions/membership.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
-import { withTags } from "api/components/index.js";
+import { notAuthenticatedError, withTags } from "api/components/index.js";
 import jwt, { Algorithm } from "jsonwebtoken";
 import { getJwksKey } from "api/plugins/auth.js";
 import { issueAppleWalletMembershipCard } from "api/functions/mobileWallet.js";
@@ -80,7 +80,17 @@ export const verifyUiucIdToken = async ({
     }
     throw e;
   }
-  return verifiedData;
+  const { preferred_username: upn, email, name } = verifiedData;
+  if (!upn || !email || !name) {
+    throw new UnauthenticatedError({
+      message: COULD_NOT_PARSE_MESSAGE,
+    });
+  }
+  return verifiedData as {
+    preferred_username: string;
+    email: string;
+    name: string;
+  };
 };
 
 const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
@@ -97,7 +107,7 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
         headers: z.object({
           "x-uiuc-id-token": z.jwt().min(1).meta({
             description:
-              "An access token for the user in the UIUC Entra ID tenant.",
+              "An ID token for the user in the UIUC Entra ID tenant.",
           }),
         }),
         response: {
@@ -111,6 +121,7 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
               },
             },
           },
+          403: notAuthenticatedError,
         },
       }),
     },
@@ -122,11 +133,6 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
         logger: request.log,
       });
       const { preferred_username: upn, email, name } = verifiedData;
-      if (!upn || !email || !name) {
-        throw new UnauthenticatedError({
-          message: COULD_NOT_PARSE_MESSAGE,
-        });
-      }
       const netId = upn.replace("@illinois.edu", "");
       if (netId.includes("@")) {
         request.log.error(
