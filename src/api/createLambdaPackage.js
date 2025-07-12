@@ -15,6 +15,10 @@ export const packagesToTransfer = [
   "passkit-generator",
   "argon2",
   "ioredis",
+  "fastify-zod-openapi",
+  "@fastify/swagger",
+  "zod-openapi",
+  "zod",
 ];
 const filePath = `${getPath().dirname}/package.json`;
 const writeFilePath = `${getPath().dirname}/package.lambda.json`;

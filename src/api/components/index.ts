@@ -28,16 +28,6 @@ export const acmCoreOrganization = z
     examples: ["ACM", "Infrastructure Committee"],
   });
 
-export function withTags<T extends FastifyZodOpenApiSchema>(
-  tags: string[],
-  schema: T,
-) {
-  return {
-    tags,
-    ...schema,
-  };
-}
-
 export type RoleSchema = {
   "x-required-roles": AppRoles[];
   "x-disable-api-key-auth": boolean;
@@ -48,6 +38,128 @@ type RolesConfig = {
   disableApiKeyAuth: boolean;
 };
 
+export function getCorrectJsonSchema<T, U>({
+  schema,
+  example,
+  description,
+}: {
+  schema: T;
+  example: U;
+  description: string;
+}) {
+  return {
+    description,
+    content: {
+      "application/json": {
+        example,
+        schema,
+      },
+    },
+  };
+}
+
+export const notAuthenticatedError = getCorrectJsonSchema({
+  schema: z
+    .object({
+      name: z.literal("UnauthenticatedError"),
+      id: z.literal(102),
+      message: z.string().min(1),
+    })
+    .meta({
+      id: "notAuthenticatedError",
+    }),
+  description: "The request could not be authenticated.",
+  example: {
+    name: "UnauthenticatedError",
+    id: 102,
+    message: "Token not found.",
+  },
+});
+
+export const notFoundError = getCorrectJsonSchema({
+  schema: z
+    .object({
+      name: z.literal("NotFoundError"),
+      id: z.literal(103),
+      message: z.string().min(1),
+    })
+    .meta({
+      id: "notFoundError",
+    }),
+  description: "The resource could not be found.",
+  example: {
+    name: "NotFoundError",
+    id: 103,
+    message: "{url} is not a valid URL.",
+  },
+});
+
+export const notAuthorizedError = getCorrectJsonSchema({
+  schema: z
+    .object({
+      name: z.literal("UnauthorizedError"),
+      id: z.literal(101),
+      message: z.string().min(1),
+    })
+    .meta({
+      id: "notAuthorizedError",
+    }),
+  description:
+    "The caller does not have the appropriate permissions for this task.",
+  example: {
+    name: "UnauthorizedError",
+    id: 101,
+    message: "User does not have the privileges for this task.",
+  },
+});
+
+export const internalServerError = getCorrectJsonSchema({
+  schema: {
+    content: {
+      "application/json": {
+        schema: z
+          .object({
+            name: z.literal("InternalServerError"),
+            id: z.literal(100),
+            message: z.string().min(1),
+          })
+          .meta({
+            id: "internalServerError",
+            description:
+              "The server encountered an error processing the request.",
+          }),
+      },
+    },
+  },
+  description: "The server encountered an error.",
+  example: {
+    name: "InternalServerError",
+    id: 100,
+    message:
+      "An internal server error occurred. Please try again or contact support.",
+  },
+});
+
+export const rateLimitExceededError = getCorrectJsonSchema({
+  schema: z
+    .object({
+      name: z.literal("RateLimitExceededError"),
+      id: z.literal(409),
+      message: z.literal("Rate limit exceeded."),
+    })
+    .meta({
+      id: "RateLimitExceededError",
+      description:
+        "You have sent too many requests. Check the response headers and try again.",
+    }),
+  description: "The request exceeeds the rate limit.",
+  example: {
+    name: "RateLimitExceededError",
+    id: 409,
+    message: "Rate limit exceeded.",
+  },
+});
+
 export function withRoles<T extends FastifyZodOpenApiSchema>(
   roles: AppRoles[],
   schema: T,
@@ -57,6 +169,11 @@ export function withRoles<T extends FastifyZodOpenApiSchema>(
   if (!disableApiKeyAuth) {
     security.push({ apiKeyAuth: [] });
   }
+  const responses = {
+    401: notAuthorizedError,
+    403: notAuthenticatedError,
+    ...schema.response,
+  };
   return {
     security,
     "x-required-roles": roles,
@@ -66,5 +183,22 @@ export function withRoles<T extends FastifyZodOpenApiSchema>(
         ? `${disableApiKeyAuth ? "API key authentication is not permitted for this route.\n\n" : ""}Requires one of the following roles: ${roles.join(", ")}.${schema.description ? `\n\n${schema.description}` : ""}`
         : "Requires valid authentication but no specific role.",
     ...schema,
+    response: responses,
+  };
+}
+
+export function withTags<T extends FastifyZodOpenApiSchema>(
+  tags: string[],
+  schema: T,
+) {
+  const responses = {
+    500: internalServerError,
+    429: rateLimitExceededError,
+    ...schema.response,
+  };
+  return {
+    tags,
+    ...schema,
+    response: responses,
   };
 }
