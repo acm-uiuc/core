@@ -113,7 +113,7 @@ If you did not create this API key, please secure your account and notify the AC
           `,
           callToActionButton: {
             name: "View API Keys",
-            url: `${fastify.environmentConfig.UserFacingUrl}/apiKeys`,
+            url: `${fastify.environmentConfig.UserFacingUrl}/login?returnTo=%2FapiKeys`,
           },
         },
       };
@@ -215,7 +215,7 @@ If you did not delete this API key, please secure your account and notify the AC
           `,
           callToActionButton: {
             name: "View API Keys",
-            url: `${fastify.environmentConfig.UserFacingUrl}/apiKeys`,
+            url: `${fastify.environmentConfig.UserFacingUrl}/login?returnTo=%2FapiKeys`,
           },
         },
       };
