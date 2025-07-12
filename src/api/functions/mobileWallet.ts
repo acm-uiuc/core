@@ -19,6 +19,7 @@ import { RunEnvironment } from "common/roles.js";
 import pino from "pino";
 import { createAuditLogEntry } from "./auditLog.js";
 import { Modules } from "common/modules.js";
+import { FastifyBaseLogger } from "fastify";
 
 function trim(s: string) {
   return (s || "").replace(/^\s+|\s+$/g, "");
@@ -37,7 +38,7 @@ export async function issueAppleWalletMembershipCard(
   runEnvironment: RunEnvironment,
   email: string,
   initiator: string,
-  logger: pino.Logger,
+  logger: pino.Logger | FastifyBaseLogger,
   name?: string,
 ) {
   if (!email.endsWith("@illinois.edu")) {
