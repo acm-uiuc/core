@@ -3,6 +3,7 @@ import { AllOrganizationList } from "@acm-uiuc/js-shared";
 import fastifyCaching from "@fastify/caching";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { withTags } from "api/components/index.js";
+import { z } from "zod/v4";
 
 const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(fastifyCaching, {
@@ -20,6 +21,18 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     {
       schema: withTags(["Generic"], {
         summary: "Get a list of ACM @ UIUC sub-organizations.",
+        response: {
+          200: {
+            description: "List of ACM @ UIUC sub-organizations.",
+            content: {
+              "application/json": {
+                schema: z
+                  .enum(AllOrganizationList)
+                  .default(JSON.stringify(AllOrganizationList)),
+              },
+            },
+          },
+        },
       }),
     },
     async (_request, reply) => {

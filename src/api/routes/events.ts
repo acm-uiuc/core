@@ -40,6 +40,7 @@ import {
 } from "fastify-zod-openapi";
 import {
   acmCoreOrganization,
+  notFoundError,
   ts,
   withRoles,
   withTags,
@@ -178,7 +179,16 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             includeMetadata: zodIncludeMetadata,
           }),
           summary: "Retrieve calendar events with applied filters.",
-          // response: { 200: getEventsSchema },
+          response: {
+            200: {
+              content: {
+                "application/json": {
+                  schema: z.array(getEventSchema),
+                  description: "Event data matching specified filter.",
+                },
+              },
+            },
+          },
         }),
       },
       async (request, reply) => {
@@ -315,6 +325,17 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               example: "6667e095-8b04-4877-b361-f636f459ba42",
             }),
           }),
+          response: {
+            201: {
+              description: "Event modified.",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
+              },
+            },
+            404: notFoundError,
+          },
           summary: "Modify a calendar event.",
         }),
       ) satisfies FastifyZodOpenApiSchema,
@@ -472,6 +493,17 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         [AppRoles.EVENTS_MANAGER],
         withTags(["Events"], {
           body: postRequestSchema,
+          response: {
+            201: {
+              description:
+                "Event created. The 'Location' header specifies the URL of the created event.",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
+              },
+            },
+          },
           summary: "Create a calendar event.",
         }),
       ) satisfies FastifyZodOpenApiSchema,
@@ -583,12 +615,17 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               example: "6667e095-8b04-4877-b361-f636f459ba42",
             }),
           }),
-          // response: {
-          //   201: z.object({
-          //     id: z.string(),
-          //     resource: z.string(),
-          //   }),
-          // },
+          response: {
+            204: {
+              description: "Event deleted.",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
+              },
+            },
+            404: notFoundError,
+          },
           summary: "Delete a calendar event.",
         }),
       ) satisfies FastifyZodOpenApiSchema,
@@ -689,8 +726,18 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           ts,
           includeMetadata: zodIncludeMetadata,
         }),
+        response: {
+          200: {
+            description: "Event data.",
+            content: {
+              "application/json": {
+                schema: getEventSchema,
+              },
+            },
+          },
+          404: notFoundError,
+        },
         summary: "Retrieve a calendar event.",
-        // response: { 200: getEventSchema },
       }),
     },
     async (request, reply) => {
