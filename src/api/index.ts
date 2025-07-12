@@ -58,6 +58,7 @@ import apiKeyRoute from "./routes/apiKey.js";
 import clearSessionRoute from "./routes/clearSession.js";
 import protectedRoute from "./routes/protected.js";
 import eventsPlugin from "./routes/events.js";
+import mobileWalletV2Route from "./routes/v2/mobileWallet.js";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
@@ -352,6 +353,12 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
       }
     },
     { prefix: "/api/v1" },
+  );
+  await app.register(
+    async (api, _options) => {
+      api.register(mobileWalletV2Route, { prefix: "/mobileWallet" });
+    },
+    { prefix: "/api/v2" },
   );
   await app.register(cors, {
     origin: app.environmentConfig.ValidCorsOrigins,

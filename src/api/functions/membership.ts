@@ -16,6 +16,9 @@ import {
 import { EntraGroupError } from "common/errors/index.js";
 import { EntraGroupActions } from "common/types/iam.js";
 import { pollUntilNoError } from "./general.js";
+import Redis from "ioredis";
+import { getKey } from "./redisCache.js";
+import { FastifyBaseLogger } from "fastify";
 
 export const MEMBER_CACHE_SECONDS = 43200; // 12 hours
 
@@ -40,6 +43,23 @@ export async function checkExternalMembership(
     return false;
   }
   return true;
+}
+
+export async function checkPaidMembershipFromRedis(
+  netId: string,
+  redisClient: Redis.default,
+  logger: FastifyBaseLogger,
+) {
+  const cacheKey = `membership:${netId}:acmpaid`;
+  const result = await getKey<{ isMember: boolean }>({
+    redisClient,
+    key: cacheKey,
+    logger,
+  });
+  if (!result) {
+    return null;
+  }
+  return result.isMember;
 }
 
 export async function checkPaidMembershipFromTable(
