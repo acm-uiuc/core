@@ -327,7 +327,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           }),
           response: {
             201: {
-              description: "Event modified.",
+              description: "The event has been modified.",
               content: {
                 "application/json": {
                   schema: z.null(),
@@ -617,7 +617,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           }),
           response: {
             204: {
-              description: "Event deleted.",
+              description: "The event has been deleted.",
               content: {
                 "application/json": {
                   schema: z.null(),

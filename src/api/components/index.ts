@@ -131,7 +131,7 @@ export const internalServerError = getCorrectJsonSchema({
       },
     },
   },
-  description: "The server encountered an error.",
+  description: "The server encountered an error processing the request.",
   example: {
     name: "InternalServerError",
     id: 100,
@@ -148,15 +148,33 @@ export const rateLimitExceededError = getCorrectJsonSchema({
       message: z.literal("Rate limit exceeded."),
     })
     .meta({
-      id: "RateLimitExceededError",
-      description:
-        "You have sent too many requests. Check the response headers and try again.",
+      id: "rateLimitExceededError",
+      description: "The caller has sent too many requests. Try again later.",
     }),
-  description: "The request exceeeds the rate limit.",
+  description: "The caller has sent too many requests. Try again later.",
   example: {
     name: "RateLimitExceededError",
     id: 409,
     message: "Rate limit exceeded.",
+  },
+});
+
+export const validationError = getCorrectJsonSchema({
+  schema: z
+    .object({
+      name: z.literal("RateLimitExceededError"),
+      id: z.literal(104),
+      message: z.literal("Rate limit exceeded."),
+    })
+    .meta({
+      id: "validationError",
+      description: "The request is invalid.",
+    }),
+  description: "The request is invalid.",
+  example: {
+    name: "ValidationError",
+    id: 104,
+    message: "Request is invalid.",
   },
 });
 
@@ -194,6 +212,7 @@ export function withTags<T extends FastifyZodOpenApiSchema>(
   const responses = {
     500: internalServerError,
     429: rateLimitExceededError,
+    400: validationError,
     ...schema.response,
   };
   return {
