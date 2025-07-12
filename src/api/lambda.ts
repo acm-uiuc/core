@@ -8,6 +8,7 @@ const realHandler = awsLambdaFastify(app, {
   decorateRequest: false,
   serializeLambdaArguments: true,
   callbackWaitsForEmptyEventLoop: false,
+  binaryMimeTypes: ["application/octet-stream", "application/vnd.apple.pkpass"],
 });
 type WarmerEvent = { action: "warmer" };
 const handler = async (
