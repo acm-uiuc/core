@@ -38,59 +38,127 @@ type RolesConfig = {
   disableApiKeyAuth: boolean;
 };
 
-export const notAuthenticatedError = z
-  .object({
-    name: z.literal("UnauthenticatedError"),
-    id: z.literal(102),
-    message: z.string().min(1),
-  })
-  .meta({
-    id: "notAuthenticatedError",
-    description: "Request not authenticated.",
-  });
-
-export const notFoundError = z
-  .object({
-    name: z.literal("NotFoundError"),
-    id: z.literal(103),
-    message: z.string().min(1),
-  })
-  .meta({
-    id: "notFoundError",
-    description: "Resource was not found.",
-    example: {
-      name: "NotFoundError",
-      id: 103,
-      message: "{url} is not a valid URL.",
+export function getCorrectJsonSchema<T, U>({
+  schema,
+  example,
+  description,
+}: {
+  schema: T;
+  example: U;
+  description: string;
+}) {
+  return {
+    description,
+    content: {
+      "application/json": {
+        example,
+        schema,
+      },
     },
-  });
+  };
+}
 
-export const notAuthorizedError = z
-  .object({
-    name: z.literal("UnauthorizedError"),
-    id: z.literal(101),
-    message: z.string().min(1),
-  })
-  .meta({
-    id: "notAuthorizedError",
-    description: "Request not authorized (lacking permissions).",
-  });
+export const notAuthenticatedError = getCorrectJsonSchema({
+  schema: z
+    .object({
+      name: z.literal("UnauthenticatedError"),
+      id: z.literal(102),
+      message: z.string().min(1),
+    })
+    .meta({
+      id: "notAuthenticatedError",
+    }),
+  description: "The request could not be authenticated.",
+  example: {
+    name: "UnauthenticatedError",
+    id: 102,
+    message: "Token not found.",
+  },
+});
 
-export const internalServerError = z
-  .object({
-    name: z.literal("InternalServerError"),
-    id: z.literal(100),
-    message: z
-      .string()
-      .min(1)
-      .default(
-        "An internal server error occurred. Please try again or contact support.",
-      ),
-  })
-  .meta({
-    id: "internalServerError",
-    description: "The server encountered an error processing the request.",
-  });
+export const notFoundError = getCorrectJsonSchema({
+  schema: z
+    .object({
+      name: z.literal("NotFoundError"),
+      id: z.literal(103),
+      message: z.string().min(1),
+    })
+    .meta({
+      id: "notFoundError",
+    }),
+  description: "The resource could not be found.",
+  example: {
+    name: "NotFoundError",
+    id: 103,
+    message: "{url} is not a valid URL.",
+  },
+});
+
+export const notAuthorizedError = getCorrectJsonSchema({
+  schema: z
+    .object({
+      name: z.literal("UnauthorizedError"),
+      id: z.literal(101),
+      message: z.string().min(1),
+    })
+    .meta({
+      id: "notAuthorizedError",
+    }),
+  description:
+    "The caller does not have the appropriate permissions for this task.",
+  example: {
+    name: "UnauthorizedError",
+    id: 101,
+    message: "User does not have the privileges for this task.",
+  },
+});
+
+export const internalServerError = getCorrectJsonSchema({
+  schema: {
+    content: {
+      "application/json": {
+        schema: z
+          .object({
+            name: z.literal("InternalServerError"),
+            id: z.literal(100),
+            message: z.string().min(1),
+          })
+          .meta({
+            id: "internalServerError",
+            description:
+              "The server encountered an error processing the request.",
+          }),
+      },
+    },
+  },
+  description: "The server encountered an error.",
+  example: {
+    name: "InternalServerError",
+    id: 100,
+    message:
+      "An internal server error occurred. Please try again or contact support.",
+  },
+});
+
+export const rateLimitExceededError = getCorrectJsonSchema({
+  schema: z
+    .object({
+      name: z.literal("RateLimitExceededError"),
+      id: z.literal(409),
+      message: z.literal("Rate limit exceeded."),
+    })
+    .meta({
+      id: "RateLimitExceededError",
+      description:
+        "You have sent too many requests. Check the response headers and try again.",
+    }),
+  description: "The request exceeeds the rate limit.",
+  example: {
+    name: "RateLimitExceededError",
+    id: 409,
+    message: "Rate limit exceeded.",
+  },
+});
 
 export function withRoles<T extends FastifyZodOpenApiSchema>(
   roles: AppRoles[],
@@ -124,8 +192,8 @@ export function withTags<T extends FastifyZodOpenApiSchema>(
   schema: T,
 ) {
   const responses = {
-    200: z.object({}),
     500: internalServerError,
+    429: rateLimitExceededError,
     ...schema.response,
   };
   return {

@@ -78,6 +78,19 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           params: z.object({ netId: illinoisNetId }),
           summary:
             "Create a checkout session to purchase an ACM @ UIUC membership.",
+          response: {
+            200: {
+              description: "Stripe checkout link.",
+              content: {
+                "text/plain": {
+                  schema: z.url().meta({
+                    example:
+                      "https://buy.stripe.com/test_14A00j9Hq9tj9ZfchM3AY0s",
+                  }),
+                },
+              },
+            },
+          },
         }),
       },
       async (request, reply) => {
@@ -204,6 +217,26 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }),
           summary:
             "Check ACM @ UIUC paid membership (or partner organization membership) status.",
+          response: {
+            200: {
+              description: "List membership status.",
+              content: {
+                "application/json": {
+                  schema: z
+                    .object({
+                      netId: illinoisNetId,
+                      isPaidMember: z.boolean(),
+                    })
+                    .meta({
+                      example: {
+                        netId: "rjjones",
+                        isPaidMember: false,
+                      },
+                    }),
+                },
+              },
+            },
+          },
         }),
       },
       async (request, reply) => {
