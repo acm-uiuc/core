@@ -59,10 +59,10 @@
     "stripe": "^18.0.0",
     "uuid": "^11.1.0",
     "zod": "^3.25.73",
-    "zod-validation-error": "^3.3.1"
+    "zod-validation-error": "^3.3.1",
+    "@fastify/swagger": "^9.5.0"
   },
   "devDependencies": {
-    "@fastify/swagger": "^9.5.0",
     "@fastify/swagger-ui": "^5.2.2",
     "@tsconfig/node22": "^22.0.1",
     "@types/aws-lambda": "^8.10.149",

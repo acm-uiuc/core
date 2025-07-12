@@ -100,6 +100,12 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
       return event.requestContext.requestId;
     },
   });
+  if (!process.env.RunEnvironment) {
+    process.env.RunEnvironment = "dev";
+  }
+  app.runEnvironment = process.env.RunEnvironment as RunEnvironment;
+  app.environmentConfig =
+    environmentConfig[app.runEnvironment as RunEnvironment];
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
@@ -111,8 +117,9 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
         openapi: {
           info: {
             title: "ACM @ UIUC Core API",
-            description: "ACM @ UIUC Core Management Platform",
-            version: "1.0.0",
+            description:
+              "The ACM @ UIUC Core API provides services for managing chapter operations.",
+            version: "1.1.0",
             contact: {
               name: "ACM @ UIUC Infrastructure Team",
               email: "infra@acm.illinois.edu",
@@ -127,12 +134,8 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
           },
           servers: [
             {
-              url: "https://core.acm.illinois.edu",
-              description: "Production API server",
-            },
-            {
-              url: "https://core.aws.qa.acmuiuc.org",
-              description: "QA API server",
+              url: app.environmentConfig.UserFacingUrl,
+              description: "Main API server",
             },
           ],
 
@@ -215,6 +218,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
       });
       isSwaggerServer = true;
     } catch (e) {
+      app.log.error(e);
       app.log.warn("Fastify Swagger not created!");
     }
   }
@@ -229,9 +233,6 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
     root: path.join(__dirname, "public"),
     prefix: "/",
   });
-  if (!process.env.RunEnvironment) {
-    process.env.RunEnvironment = "dev";
-  }
   if (isRunningInLambda && !isSwaggerServer) {
     // Serve docs from S3
     app.get("/api/documentation", (_request, response) => {
@@ -264,9 +265,6 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
       "Audit logging to Dynamo is disabled! Audit log statements will be logged to the console.",
     );
   }
-  app.runEnvironment = process.env.RunEnvironment as RunEnvironment;
-  app.environmentConfig =
-    environmentConfig[app.runEnvironment as RunEnvironment];
   app.nodeCache = new NodeCache({ checkperiod: 30 });
   if (initClients) {
     app.dynamoClient = new DynamoDBClient({
