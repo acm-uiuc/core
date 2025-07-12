@@ -4,27 +4,37 @@ import { writeFile, mkdir } from "fs/promises";
 import init from "./index.js"; // Assuming this is your Fastify app initializer
 
 const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="ACM @ UIUC Core API Docs" />
-  <title>ACM @ UIUC Core API</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
-</head>
-<body>
-<div id="swagger-ui"></div>
-<script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
-<script>
-  window.onload = () => {
-    window.ui = SwaggerUIBundle({
-      url: '/docs/openapi.json',
-      dom_id: '#swagger-ui',
-    });
-  };
-</script>
-</body>
+<!doctype html>
+<html>
+  <head>
+    <title>Core API Documentation | ACM @ UIUC</title>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1" />
+    <meta property="og:title" content="Core API Documentation | ACM @ UIUC" />
+    <meta property="og:description" content="The ACM @ UIUC Core API provides services for managing chapter operations." />
+    <meta property="description" content="The ACM @ UIUC Core API provides services for managing chapter operations." />
+    <meta property="og:image" content="https://static.acm.illinois.edu/square-blue.png" />
+    <meta property="og:url" content="https://core.acm.illinois.edu/docs" />
+  </head>
+
+  <body>
+    <div id="app"></div>
+
+    <!-- Load the Script -->
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+
+    <!-- Initialize the Scalar API Reference -->
+    <script>
+      Scalar.createApiReference('#app', {
+        // The URL of the OpenAPI/Swagger document
+        url: '/docs/openapi.json',
+        // Avoid CORS issues
+        proxyUrl: 'https://proxy.scalar.com',
+      })
+    </script>
+  </body>
 </html>
 `;
 /**

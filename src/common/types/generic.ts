@@ -3,13 +3,12 @@ import * as z from "zod/v4";
 
 export const illinoisSemesterId = z
   .string()
-  .min(1)
-  .max(4)
+  .length(4)
   .regex(/^(fa|sp|su|wi)\d{2}$/)
   .meta({
     description: "Short semester slug for a given semester.",
     id: "IllinoisSemesterId",
-    examples: ["sp25", "fa24"],
+    example: "fa24",
   });
 
 export const illinoisNetId = z
