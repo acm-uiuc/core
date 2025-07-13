@@ -92,6 +92,8 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
       level: process.env.LOG_LEVEL || "info",
       transport,
     },
+    ignoreTrailingSlash: true,
+    ignoreDuplicateSlashes: true,
     disableRequestLogging: true,
     genReqId: (request) => {
       const header = request.headers["x-apigateway-event"];

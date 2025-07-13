@@ -853,16 +853,6 @@ Resources:
             OriginCustomHeaders:
               - HeaderName: X-Origin-Verify
                 HeaderValue: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
-          - Id: ACMRootOrigin
-            DomainName: !Select [0, !Split ['/', !Select [1, !Split ['https://', !GetAtt AppLambdaUrl.FunctionUrl]]]]
-            OriginPath: "/api/v1/ical/ACM"
-            CustomOriginConfig:
-              HTTPPort: 80
-              HTTPSPort: 443
-              OriginProtocolPolicy: https-only
-            OriginCustomHeaders:
-              - HeaderName: X-Origin-Verify
-                HeaderValue: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
         Enabled: true
         Aliases:
           - !Join
@@ -893,28 +883,6 @@ Resources:
               Forward: none
           CachePolicyId: !Ref CloudfrontCachePolicy
           OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
-        CacheBehaviors:
-          - PathPattern: "/"
-            Compress: true
-            TargetOriginId: ACMRootOrigin
-            ViewerProtocolPolicy: redirect-to-https
-            AllowedMethods:
-              - GET
-              - HEAD
-              - OPTIONS
-              - PUT
-              - POST
-              - DELETE
-              - PATCH
-            CachedMethods:
-              - GET
-              - HEAD
-            ForwardedValues:
-              QueryString: false
-              Cookies:
-                Forward: none
-            CachePolicyId: !Ref CloudfrontCachePolicy
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
         ViewerCertificate:
           AcmCertificateArn: !FindInMap
             - ApiGwConfig
