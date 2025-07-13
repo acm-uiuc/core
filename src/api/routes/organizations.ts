@@ -20,10 +20,10 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     "",
     {
       schema: withTags(["Generic"], {
-        summary: "Get a list of ACM @ UIUC sub-organizations.",
+        summary: "Get all ACM @ UIUC organizations",
         response: {
           200: {
-            description: "List of ACM @ UIUC sub-organizations.",
+            description: "A list of ACM @ UIUC organizations was retrieved.",
             content: {
               "application/json": {
                 schema: z
