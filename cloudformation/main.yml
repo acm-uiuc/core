@@ -853,7 +853,7 @@ Resources:
             OriginCustomHeaders:
               - HeaderName: X-Origin-Verify
                 HeaderValue: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
-          - Id: ACMRootOrigi
+          - Id: ACMRootOrigin
             DomainName: !Select [0, !Split ['/', !Select [1, !Split ['https://', !GetAtt AppLambdaUrl.FunctionUrl]]]]
             OriginPath: "/api/v1/ical/ACM"
             CustomOriginConfig:

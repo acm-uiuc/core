@@ -47,14 +47,29 @@ describe(
   },
 );
 
-test("Check that the ical base works", { timeout: 45000 }, async () => {
-  const response = await fetchWithRateLimit(
-    `${baseEndpoint.replace("core", "ical")}/ACM`,
-  );
-  expect(response.status).toBe(200);
-  expect(response.headers.get("Content-Disposition")).toEqual(
-    'attachment; filename="calendar.ics"',
-  );
-  const calendar = ical.sync.parseICS(await response.text());
-  expect(calendar["vcalendar"]["type"]).toEqual("VCALENDAR");
-});
+test(
+  "Check that the ical base works and uses a default host of ACM",
+  { timeout: 45000 },
+  async () => {
+    const response = await fetchWithRateLimit(
+      `${baseEndpoint.replace("core", "ical")}/ACM`,
+    );
+    const responseBase = await fetchWithRateLimit(
+      `${baseEndpoint.replace("core", "ical")}`,
+    );
+    expect(response.status).toBe(200);
+    expect(responseBase.status).toBe(200);
+    expect(response.headers.get("Content-Disposition")).toEqual(
+      'attachment; filename="calendar.ics"',
+    );
+    expect(responseBase.headers.get("Content-Disposition")).toEqual(
+      'attachment; filename="calendar.ics"',
+    );
+    const text1 = await response.text();
+    const text2 = await responseBase.text();
+    expect(text1).toStrictEqual(text2);
+
+    const calendar = ical.sync.parseICS(text1);
+    expect(calendar["vcalendar"]["type"]).toEqual("VCALENDAR");
+  },
+);
