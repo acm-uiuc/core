@@ -1,4 +1,4 @@
-import { AppRoles } from "common/roles.js";
+import { AppRoleHumanMapper, AppRoles } from "common/roles.js";
 import { FastifyZodOpenApiSchema } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import { CoreOrganizationList } from "@acm-uiuc/js-shared";
@@ -208,10 +208,30 @@ export function withRoles<T extends FastifyZodOpenApiSchema>(
     security,
     "x-required-roles": roles,
     "x-disable-api-key-auth": disableApiKeyAuth,
-    description:
-      roles.length > 0
-        ? `${disableApiKeyAuth ? "API key authentication is not permitted for this route.\n\n" : ""}Requires one of the following roles: ${roles.join(", ")}.${schema.description ? `\n\n${schema.description}` : ""}`
-        : "Requires valid authentication but no specific role.",
+    description: `
+${
+  disableApiKeyAuth
+    ? `
+> [!important]
+> This resource cannot be accessed with an API key.
+`
+    : ""
+}
+
+${
+  schema.description
+    ? `
+#### Description
+<hr />
+${schema.description}
+`
+    : ""
+}
+
+#### Authorization
+<hr />
+${roles.length > 0 ? `Requires any of the following roles:\n\n${roles.map((item) => `* ${AppRoleHumanMapper[item]} (<code>${item}</code>)`).join("\n")}` : "Requires valid authentication but no specific authorization."}
+  `,
     ...schema,
     response: responses,
   };

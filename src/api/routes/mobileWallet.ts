@@ -43,6 +43,10 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
       }),
     },
     async (request, reply) => {
+      reply.header(
+        "Deprecation",
+        "The V1 endpoint will soon be deprecated. Please use the V2 endpoint moving forward.",
+      );
       const isPaidMember =
         (fastify.runEnvironment === "dev" &&
           request.query.email === "testinguser@illinois.edu") ||
