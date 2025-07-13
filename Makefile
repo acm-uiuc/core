@@ -56,10 +56,13 @@ clean:
 	rm -rf dist_devel/
 	rm -rf coverage/
 
+build_swagger:
+	cd src/api && npx tsx --experimental-loader=./mockLoader.mjs createSwagger.ts && cd ../..
+
 build: src/ cloudformation/
 	yarn -D
 	VITE_BUILD_HASH=$(GIT_HASH) yarn build
-	cd src/api && npx tsx --experimental-loader=./mockLoader.mjs createSwagger.ts
+	make build_swagger
 	cp -r src/api/resources/ dist/api/resources
 	rm -rf dist/lambda/sqs
 	sam build --template-file cloudformation/main.yml --use-container --parallel

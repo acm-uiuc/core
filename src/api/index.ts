@@ -61,7 +61,7 @@ import protectedRoute from "./routes/protected.js";
 import eventsPlugin from "./routes/events.js";
 import mobileWalletV2Route from "./routes/v2/mobileWallet.js";
 import membershipV2Plugin from "./routes/v2/membership.js";
-import { docsHtml } from "./docs.js";
+import { docsHtml, securitySchemes } from "./docs.js";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
@@ -217,20 +217,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
 
           openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
           components: {
-            securitySchemes: {
-              bearerAuth: {
-                type: "http",
-                scheme: "bearer",
-                bearerFormat: "JWT",
-                description:
-                  "Authorization: Bearer {token}\n\nThis API uses JWT tokens issued by Entra ID (Azure AD) with the Core API audience. Tokens must be included in the Authorization header as a Bearer token for all protected endpoints.",
-              },
-              apiKeyAuth: {
-                type: "apiKey",
-                in: "header",
-                name: "X-Api-Key",
-              },
-            },
+            securitySchemes: securitySchemes as any,
           },
         },
         transform: fastifyZodOpenApiTransform,
