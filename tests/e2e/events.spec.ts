@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { capitalizeFirstLetter, getUpcomingEvents, test } from "./base";
+import { capitalizeFirstLetter, getUpcomingEvents, test } from "./base.js";
 import { describe } from "node:test";
 
 describe("Events tests", () => {

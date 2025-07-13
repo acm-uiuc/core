@@ -5,7 +5,7 @@ const app = await init();
 test("Test getting OpenAPI JSON", async () => {
   const response = await app.inject({
     method: "GET",
-    url: "/api/documentation/json",
+    url: "/docs/openapi.json",
   });
   expect(response.statusCode).toBe(200);
   const responseDataJson = await response.json();
@@ -19,7 +19,7 @@ afterAll(async () => {
 test("Test getting OpenAPI UI", async () => {
   const response = await app.inject({
     method: "GET",
-    url: "/api/documentation",
+    url: "/docs",
   });
   expect(response.statusCode).toBe(200);
   const contentType = response.headers["content-type"];

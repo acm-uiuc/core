@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { test } from "./base";
+import { test } from "./base.js";
 import { describe } from "node:test";
 
 describe("Login tests", () => {
