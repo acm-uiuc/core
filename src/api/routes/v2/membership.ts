@@ -58,7 +58,8 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
                 "An ID token for the user in the UIUC Entra ID tenant.",
             }),
           }),
-          summary: "Create membership purchase checkout session",
+          summary:
+            "Create a checkout session to purchase an ACM @ UIUC membership.",
           response: {
             200: {
               description: "Stripe checkout link.",

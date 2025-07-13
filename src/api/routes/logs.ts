@@ -12,11 +12,8 @@ import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 
-const logEntriesResponseSchema = z.array(loggingEntryFromDatabase).meta({
-  description: "An array of log entries.",
-});
-
-type ResponseType = z.infer<typeof logEntriesResponseSchema>;
+const responseSchema = z.array(loggingEntryFromDatabase);
+type ResponseType = z.infer<typeof responseSchema>;
 
 const logsPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {
@@ -48,20 +45,11 @@ const logsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             }),
           params: z.object({
             module: z
-              .enum(Modules)
+              .nativeEnum(Modules)
               .meta({ description: "Module to get audit logs for." }),
           }),
-          summary: "Get module auditx logs",
-          response: {
-            200: {
-              description: "The log entries have been retrieved.",
-              content: {
-                "application/json": {
-                  schema: logEntriesResponseSchema,
-                },
-              },
-            },
-          },
+          summary: "Retrieve audit logs for a module.",
+          // response: { 200: responseSchema },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
