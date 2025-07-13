@@ -74,4 +74,3 @@ test("Check that the base route works", { timeout: 45000 }, async () => {
   const calendar = ical.sync.parseICS(text1);
   expect(calendar["vcalendar"]["type"]).toEqual("VCALENDAR");
 });
-s;
