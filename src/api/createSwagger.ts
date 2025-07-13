@@ -166,6 +166,6 @@ async function createSwaggerFiles() {
     process.exit(1);
   }
 }
-if (import.meta.url === `file://createSwagger.ts`) {
+if (import.meta.url.includes("createSwagger.ts")) {
   createSwaggerFiles();
 }
