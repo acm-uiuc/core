@@ -37,26 +37,8 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
       schema: withRoles(
         [AppRoles.MANAGE_ORG_API_KEYS],
         withTags(["API Keys"], {
-          summary: "Create an organization API key",
-          description:
-            "Organization API keys are not tied to the permissions of a specific user, but rather are assigned their own permissions with optional restrictions.",
+          summary: "Create an organization API key.",
           body: apiKeyPostBody,
-          response: {
-            201: {
-              description: "The organization API key has been created.",
-              content: {
-                "application/json": {
-                  schema: z.object({
-                    apiKey: z.string().min(1).meta({
-                      description: "The API key.",
-                      example:
-                        "acmuiuc_sample435be_example244b8607e7665319c221496ad7282edbb09558f720e0e634ab77615b_d305c1",
-                    }),
-                  }),
-                },
-              },
-            },
-          },
         }),
         { disableApiKeyAuth: true },
       ),
@@ -161,23 +143,13 @@ If you did not create this API key, please secure your account and notify the AC
       schema: withRoles(
         [AppRoles.MANAGE_ORG_API_KEYS],
         withTags(["API Keys"], {
-          summary: "Delete an organization API key",
+          summary: "Delete an organization API key.",
           params: z.object({
             keyId: z.string().min(1).meta({
               description:
                 "Key ID to delete. The key ID is the second segment of the API key.",
             }),
           }),
-          response: {
-            204: {
-              description: "The organization API key has been deleted.",
-              content: {
-                "application/json": {
-                  schema: z.null(),
-                },
-              },
-            },
-          },
         }),
         { disableApiKeyAuth: true },
       ),
@@ -270,18 +242,7 @@ If you did not delete this API key, please secure your account and notify the AC
       schema: withRoles(
         [AppRoles.MANAGE_ORG_API_KEYS],
         withTags(["API Keys"], {
-          summary: "Get all organization API keys",
-          response: {
-            200: {
-              description:
-                "The list of organization API keys has been retrieved.",
-              content: {
-                "application/json": {
-                  schema: z.array(apiKeyPostBody),
-                },
-              },
-            },
-          },
+          summary: "Get all organization API keys.",
         }),
         { disableApiKeyAuth: true },
       ),
