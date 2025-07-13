@@ -31,6 +31,8 @@ import {
   groupModificationPatchSchema,
   EntraGroupActions,
   entraProfilePatchRequest,
+  entraActionResponseSchema,
+  entraGroupMembershipListResponse,
 } from "../../common/types/iam.js";
 import { clearAuthCache, getGroupRoles } from "../functions/authorization.js";
 import { getRoleCredentials } from "api/functions/sts.js";
@@ -220,8 +222,17 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         [AppRoles.IAM_INVITE_ONLY, AppRoles.IAM_ADMIN],
         withTags(["IAM"], {
           body: invitePostRequestSchema,
-          summary: "Invite a user to the ACM @ UIUC Entra ID tenant.",
-          // response: { 202: entraActionResponseSchema },
+          summary: "Invite users to the ACM @ UIUC Entra ID tenant",
+          response: {
+            202: {
+              description: "At least one of the users have been invited.",
+              content: {
+                "application/json": {
+                  schema: entraActionResponseSchema,
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -290,7 +301,12 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }
       }
       await Promise.allSettled(logPromises);
-      reply.status(202).send(response);
+      if (response.success.length > 0) {
+        reply.status(202);
+      } else {
+        reply.status(500);
+      }
+      reply.send(response);
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
@@ -553,7 +569,16 @@ No action is required from you at this time.
       schema: withRoles(
         [AppRoles.IAM_ADMIN],
         withTags(["IAM"], {
-          // response: { 200: entraGroupMembershipListResponse },
+          response: {
+            200: {
+              description: "The members of the group have been retrieved.",
+              content: {
+                "application/json": {
+                  schema: entraGroupMembershipListResponse,
+                },
+              },
+            },
+          },
           params: z.object({
             groupId,
           }),

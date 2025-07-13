@@ -82,11 +82,17 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 "Membership list to check from (defaults to ACM Paid Member list).",
             }),
           }),
-          summary:
-            "Check ACM @ UIUC paid membership (or partner organization membership) status.",
+          summary: "Check membership status for a member list",
+          description:
+            "By default, retrieves whether or not a given NetID is an ACM @ UIUC paid member. If the `list` parameter is specified, then the API checks the specific list (for example, partner organzations).",
           response: {
             200: {
-              description: "List membership status.",
+              description: "The membership status was retrieved.",
+              headers: z.object({
+                "x-acm-data-source": z.enum(["dynamo", "aad", "cache"]).meta({
+                  description: "The data source for the fetched data.",
+                }),
+              }),
               content: {
                 "application/json": {
                   schema: z

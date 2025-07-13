@@ -23,7 +23,9 @@ export interface EntraInvitationResponse {
 }
 
 export const invitePostRequestSchema = z.object({
-  emails: z.array(z.string())
+  emails: z.array(z.string()).min(1).meta({
+    description: "An array of emails, all ending in @illinois.edu."
+  })
 });
 
 export type InviteUserPostRequest = z.infer<typeof invitePostRequestSchema>;
@@ -31,7 +33,7 @@ export type InviteUserPostRequest = z.infer<typeof invitePostRequestSchema>;
 export const groupMappingCreatePostSchema = z.object({
   roles: z.union([
     z.
-      array(z.nativeEnum(AppRoles)).
+      array(z.enum(AppRoles)).
       min(1).
       refine((items) => new Set(items).size === items.length, {
         message: "All roles must be unique, no duplicate values allowed"
@@ -49,6 +51,9 @@ export const entraActionResponseSchema = z.object({
   failure: z.
     array(z.object({ email: z.string(), message: z.string() })).
     optional()
+}).meta({
+  description: "A list of successes and failures (partial successes are possible).",
+  id: "entraActionResponseSchema"
 });
 
 export type EntraActionResponse = z.infer<typeof entraActionResponseSchema>;
@@ -69,7 +74,9 @@ export const entraGroupMembershipListResponse = z.array(
     name: z.string(),
     email: z.string()
   })
-);
+).meta({
+  description: "An array of user emails and names."
+});
 
 export type GroupMemberGetResponse = z.infer<
   typeof entraGroupMembershipListResponse>;

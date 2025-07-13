@@ -26,6 +26,7 @@ import {
 import { type ZodOpenApiVersion } from "zod-openapi";
 import { withTags } from "./components/index.js";
 import RedisModule from "ioredis";
+import * as z from "zod/v4";
 
 /** BEGIN EXTERNAL PLUGINS */
 import fastifyIp from "fastify-ip";
@@ -357,7 +358,21 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
     "/api/v1/healthz",
     {
       schema: withTags(["Generic"], {
-        summary: "Verify that the API server is healthy.",
+        summary: "Get API server health status",
+        response: {
+          200: {
+            description: "The API server is healthy.",
+            content: {
+              "application/json": {
+                schema: z.object({
+                  message: z.literal("UP").meta({ example: "UP" }),
+                }),
+              },
+            },
+          },
+          400: null,
+          429: null,
+        },
       }),
     },
     async (_, reply) => {

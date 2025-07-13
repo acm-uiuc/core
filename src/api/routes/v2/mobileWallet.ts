@@ -104,13 +104,15 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
     "/membership",
     {
       schema: withTags(["Mobile Wallet"], {
-        summary: "Retrieve mobile wallet pass for ACM member.",
+        summary: "Get member mobile wallet pass",
         headers: z.object({
           "x-uiuc-id-token": z.jwt().min(1).meta({
             description:
               "An ID token for the user in the UIUC Entra ID tenant.",
           }),
         }),
+        description:
+          "This endpoint returns an Apple Wallet format pass by default. This pass can usually also be imported into Google Wallet.",
         response: {
           200: {
             description: "The mobile wallet pass has been generated.",
