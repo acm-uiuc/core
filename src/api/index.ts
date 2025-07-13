@@ -60,6 +60,7 @@ import protectedRoute from "./routes/protected.js";
 import eventsPlugin from "./routes/events.js";
 import mobileWalletV2Route from "./routes/v2/mobileWallet.js";
 import membershipV2Plugin from "./routes/v2/membership.js";
+import { docsHtml } from "./createSwagger.js";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
@@ -114,14 +115,31 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
   if (!isRunningInLambda) {
     try {
       const fastifySwagger = import("@fastify/swagger");
-      const fastifySwaggerUI = import("@fastify/swagger-ui");
       await app.register(fastifySwagger, {
         openapi: {
           info: {
             title: "ACM @ UIUC Core API",
-            description:
-              "The ACM @ UIUC Core API provides services for managing chapter operations.",
-            version: "2.0.0",
+            description: `
+The ACM @ UIUC Core API provides services for managing chapter operations.
+
+## Usage
+
+The primary consumer of the Core API is the Management Portal, which allows members to manage the chapter.
+Others may call the API with an API key; please contact us to obtain one.
+
+This API also integrates into the ACM website and other suborganization to provide calendar services.
+
+Calendar clients call the iCal endpoints (available through [ical.acm.illinois.edu](https://ical.acm.illinois.edu)) for calendar services.
+
+## Contact
+<hr />
+
+If you are an ACM @ UIUC member, please join the Infra Committee Discord for support.
+Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for support.
+
+**For all security concerns, please email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) with the subject "Security Concern".**
+`,
+            version: "2.0.1",
             contact: {
               name: "ACM @ UIUC Infrastructure Team",
               email: "infra@acm.illinois.edu",
@@ -215,9 +233,23 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
         transform: fastifyZodOpenApiTransform,
         transformObject: fastifyZodOpenApiTransformObject,
       });
-      await app.register(fastifySwaggerUI, {
-        routePrefix: "/api/documentation",
+      app.get("/docs", { schema: { hide: true } }, (_request, reply) => {
+        reply.type("text/html").send(docsHtml);
       });
+      app.get(
+        "/docs/openapi.json",
+        { schema: { hide: true } },
+        (_request, reply) => {
+          reply.send(app.swagger());
+        },
+      );
+      app.get(
+        "/docs/openapi.yml",
+        { schema: { hide: true } },
+        (_request, reply) => {
+          reply.send(app.swagger({ yaml: true }));
+        },
+      );
       isSwaggerServer = true;
     } catch (e) {
       app.log.error(e);

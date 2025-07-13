@@ -3,7 +3,7 @@ import path from "node:path";
 import { writeFile, mkdir } from "fs/promises";
 import init from "./index.js"; // Assuming this is your Fastify app initializer
 
-const html = `
+export const docsHtml = `
 <!doctype html>
 <html>
   <head>
@@ -157,7 +157,7 @@ async function createSwaggerFiles() {
     const yamlSpec = app.swagger({ yaml: true });
     await writeFile(path.join(outputDir, "openapi.json"), jsonSpec);
     await writeFile(path.join(outputDir, "openapi.yaml"), yamlSpec);
-    await writeFile(path.join(outputDir, "index.html"), html);
+    await writeFile(path.join(outputDir, "index.html"), docsHtml);
 
     console.log(`✅ Swagger files successfully generated in ${outputDir}`);
     await app.close();
@@ -166,5 +166,6 @@ async function createSwaggerFiles() {
     process.exit(1);
   }
 }
-
-createSwaggerFiles();
+if (import.meta.url === `file://createSwagger.ts`) {
+  createSwaggerFiles();
+}
