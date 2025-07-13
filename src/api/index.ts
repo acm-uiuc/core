@@ -60,7 +60,7 @@ import protectedRoute from "./routes/protected.js";
 import eventsPlugin from "./routes/events.js";
 import mobileWalletV2Route from "./routes/v2/mobileWallet.js";
 import membershipV2Plugin from "./routes/v2/membership.js";
-import { docsHtml } from "./createSwagger.js";
+import { docsHtml } from "./docs.js";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
