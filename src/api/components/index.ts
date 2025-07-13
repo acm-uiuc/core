@@ -205,6 +205,7 @@ export function withRoles<T extends FastifyZodOpenApiSchema>(
     ...schema.response,
   };
   return {
+    ...schema,
     security,
     "x-required-roles": roles,
     "x-disable-api-key-auth": disableApiKeyAuth,
@@ -232,7 +233,6 @@ ${schema.description}
 <hr />
 ${roles.length > 0 ? `Requires any of the following roles:\n\n${roles.map((item) => `* ${AppRoleHumanMapper[item]} (<code>${item}</code>)`).join("\n")}` : "Requires valid authentication but no specific authorization."}
   `,
-    ...schema,
     response: responses,
   };
 }
@@ -241,11 +241,21 @@ export function withTags<T extends FastifyZodOpenApiSchema>(
   tags: string[],
   schema: T,
 ) {
+  const cleanedResponse = schema.response
+    ? Object.fromEntries(
+        Object.entries(schema.response).filter(([_, value]) => value !== null),
+      )
+    : {};
   const responses = {
-    500: internalServerError,
-    429: rateLimitExceededError,
-    400: validationError,
-    ...schema.response,
+    ...(schema.response && schema.response["500"] !== null
+      ? { 500: internalServerError }
+      : {}),
+    ...(schema.response && schema.response["429"] !== null
+      ? { 429: rateLimitExceededError }
+      : {}),
+    ...(schema.response &&
+      schema.response["400"] !== null && { 400: validationError }),
+    ...cleanedResponse,
   };
   return {
     tags,

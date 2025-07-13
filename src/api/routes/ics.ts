@@ -56,8 +56,21 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
             description: "Organization to retrieve calendar for",
           }),
         }),
-        summary:
-          "Retrieve the calendar for ACM @ UIUC or a specific sub-organization.",
+        summary: "Retrieve an organization's calendar",
+        response: {
+          200: {
+            description: "The organization's calendar has been generated.",
+            content: {
+              "text/calendar": {
+                schema: z.string().meta({
+                  description: "Calendar in iCalendar format.",
+                  example:
+                    "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//sebbo.net//ical-generator//EN\nMETHOD:PUBLISH\nNAME:ACM@UIUC - Infrastructure Committee Events\nX-WR-CALNAME:ACM@UIUC - Infrastructure Committee Events\nTIMEZONE-ID:America/Chicago\nX-WR-TIMEZONE:America/Chicago\nEND:VCALENDAR",
+                }),
+              },
+            },
+          },
+        },
       } satisfies FastifyZodOpenApiSchema),
     },
     async (request, reply) => {
