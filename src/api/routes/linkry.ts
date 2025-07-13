@@ -26,13 +26,7 @@ import {
   getLinkryKvArn,
   setKey,
 } from "api/functions/cloudfrontKvStore.js";
-import {
-  createRequest,
-  linkryAccessList,
-  linkryRecordWithOwner,
-  linkryRedirectTarget,
-  linkrySlug,
-} from "common/types/linkry.js";
+import { createRequest, linkrySlug } from "common/types/linkry.js";
 import {
   extractUniqueSlugs,
   fetchOwnerRecords,
@@ -88,40 +82,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       {
         schema: withRoles(
           [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
-          withTags(["Linkry"], {
-            summary: "Get current user's links",
-            description:
-              "If the user has bypass permissions, all links will be returned. Otherwise, only links owned by the current user, or delegated to the current user, will be returned.",
-            response: {
-              200: {
-                description: "The current user's links have been retrieved.",
-                content: {
-                  "application/json": {
-                    schema: z.object({
-                      ownedLinks: z
-                        .array(
-                          z.object({
-                            slug: linkrySlug,
-                            createdAt: z.iso.datetime(),
-                            updatedAt: z.iso.datetime(),
-                            redirect: linkryRedirectTarget,
-                            access: linkryAccessList,
-                          }),
-                        )
-                        .meta({
-                          description:
-                            "A list of all links that the current user owns.",
-                        }),
-                      delegatedLinks: z.array(linkryRecordWithOwner).meta({
-                        description:
-                          "A list of all links that the current user has delegated access to (including superuser access).",
-                      }),
-                    }),
-                  },
-                },
-              },
-            },
-          }),
+          withTags(["Linkry"], {}),
         ),
         onRequest: fastify.authorizeFromSchema,
       },
@@ -216,27 +177,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         schema: withRoles(
           [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
           withTags(["Linkry"], {
-            summary: "Create short link record",
             body: createRequest,
-            response: {
-              201: {
-                description: "The short link has been created.",
-                headers: {
-                  Location: z
-                    .url()
-                    .min(1)
-                    .meta({
-                      description: "The resource URL for the shortened link.",
-                      example: `${fastify.environmentConfig.UserFacingUrl}/api/v1/linkry/redir/healthz`,
-                    }),
-                },
-                content: {
-                  "application/json": {
-                    schema: z.null(),
-                  },
-                },
-              },
-            },
           }),
         ),
         preValidation: async (request, reply) => {
@@ -509,13 +450,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: `Created redirect to "${request.body.redirect}"`,
           },
         });
-        return reply
-          .header(
-            "Location",
-            `${fastify.environmentConfig.UserFacingUrl}/api/v1/linkry/redir/${request.body.slug}`,
-          )
-          .status(201)
-          .send();
+        return reply.status(201).send();
       },
     );
 
@@ -528,17 +463,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             params: z.object({
               slug: linkrySlug,
             }),
-            summary: "Get a short link record",
-            response: {
-              200: {
-                description: "The short link record has been retrieved.",
-                content: {
-                  "application/json": {
-                    schema: linkryRecordWithOwner,
-                  },
-                },
-              },
-            },
           }),
         ),
         onRequest: fastify.authorizeFromSchema,
@@ -588,20 +512,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         schema: withRoles(
           [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
           withTags(["Linkry"], {
-            summary: "Delete a short link record",
             params: z.object({
               slug: linkrySlug,
             }),
-            response: {
-              204: {
-                description: "The short link record has been deleted.",
-                content: {
-                  "application/json": {
-                    schema: z.null(),
-                  },
-                },
-              },
-            },
           }),
         ),
         onRequest: async (request, reply) => {

@@ -30,7 +30,7 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
     "/membership",
     {
       schema: withTags(["Mobile Wallet"], {
-        deprecated: true,
+        // response: { 202: queuedResponseJsonSchema },
         querystring: z
           .object({
             email: z.string().email(),
@@ -39,7 +39,7 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
             message: "Email must be on the illinois.edu domain.",
             path: ["email"],
           }),
-        summary: "Email membership mobile wallet pass to user",
+        summary: "Email mobile wallet pass for ACM membership to user.",
       }),
     },
     async (request, reply) => {

@@ -24,10 +24,10 @@ export type DecomposedApiKey = {
 
 const policySchemas = Object.entries(AuthorizationPoliciesRegistry).map(
   ([key, policy]) =>
-    z.object({
-      name: z.literal(key),
-      params: policy.paramsSchema
-    })
+  z.object({
+    name: z.literal(key),
+    params: policy.paramsSchema
+  })
 );
 
 if (policySchemas.length === 0) {
@@ -37,26 +37,26 @@ if (policySchemas.length === 0) {
 }
 
 export const policyUnion = policySchemas.length > 0 ?
-  z.discriminatedUnion("name", policySchemas as [typeof policySchemas[0], ...typeof policySchemas]) :
-  z.never();
+z.discriminatedUnion("name", policySchemas as [typeof policySchemas[0], ...typeof policySchemas]) :
+z.never();
 
 export const apiKeyAllowedRoles = [
-  AppRoles.EVENTS_MANAGER,
-  AppRoles.TICKETS_MANAGER,
-  AppRoles.TICKETS_SCANNER,
-  AppRoles.ROOM_REQUEST_CREATE,
-  AppRoles.STRIPE_LINK_CREATOR,
-  AppRoles.LINKS_MANAGER];
+AppRoles.EVENTS_MANAGER,
+AppRoles.TICKETS_MANAGER,
+AppRoles.TICKETS_SCANNER,
+AppRoles.ROOM_REQUEST_CREATE,
+AppRoles.STRIPE_LINK_CREATOR,
+AppRoles.LINKS_MANAGER];
 
 
 export const apiKeyPostBody = z.object({
   roles: z.array(z.enum(apiKeyAllowedRoles as [AppRoles, ...AppRoles[]])).
-    min(1).
-    refine((items) => new Set(items).size === items.length, {
-      message: "All roles must be unique, no duplicate values allowed"
-    }).meta({
-      description: `Roles granted to the API key. These roles are a subset of the overall application roles.`
-    }),
+  min(1).
+  refine((items) => new Set(items).size === items.length, {
+    message: "All roles must be unique, no duplicate values allowed"
+  }).meta({
+    description: `Roles granted to the API key. These roles are a subset of the overall application roles.`
+  }),
   description: z.string().min(1).meta({
     description: "Description of the key's use.",
     example: "Publish events to ACM Calendar as part of the CI process."
