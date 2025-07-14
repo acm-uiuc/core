@@ -444,6 +444,12 @@ Resources:
               KeyType: "RANGE"
           Projection:
             ProjectionType: "KEYS_ONLY"
+        - IndexName: "keysOnlyIndex"
+          KeySchema:
+            - AttributeName: "memberList"
+              KeyType: "HASH"
+          Projection:
+            ProjectionType: "KEYS_ONLY"
 
 
   RoomRequestsTable:

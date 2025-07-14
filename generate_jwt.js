@@ -4,6 +4,7 @@ import {
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
+import { randomUUID } from "crypto";
 
 export const getSecretValue = async (secretId) => {
   const smClient = new SecretsManagerClient();
@@ -56,7 +57,7 @@ const payload = {
   sub: "subject",
   tid: "tenant-id",
   unique_name: username,
-  uti: "uti-value",
+  uti: randomUUID(),
   ver: "1.0",
 };
 

@@ -78,7 +78,10 @@ describe("Test membership routes", async () => {
   });
   test("External list members are correctly found", async () => {
     ddbMock.on(QueryCommand).callsFake((command) => {
-      if (command.TableName === genericConfig.ExternalMembershipTableName) {
+      if (
+        command.TableName === genericConfig.ExternalMembershipTableName &&
+        command.IndexName === "invertedIndex"
+      ) {
         const requestedEmail = command.ExpressionAttributeValues[":pk"].S;
         const requestedList = command.ExpressionAttributeValues[":sk"].S;
         const requestedKey = `${requestedEmail}_${requestedList}`;
