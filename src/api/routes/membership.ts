@@ -244,11 +244,14 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             message: "Failed to get all member lists.",
           });
         }
-        return reply.send(
-          response.Items.map((x) => unmarshall(x))
-            .filter((x) => !!x)
-            .map((x) => x.memberList),
-        );
+        const deduped = [
+          ...new Set(
+            response.Items.map((x) => unmarshall(x))
+              .filter((x) => !!x)
+              .map((x) => x.memberList),
+          ),
+        ];
+        return reply.send(deduped);
       },
     );
     // I would have liked to do an overwrite here, but delete all in PK isn't atomic in Dynamo.
