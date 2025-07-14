@@ -80,15 +80,24 @@ describe("Test membership routes", async () => {
     ddbMock.on(QueryCommand).callsFake((command) => {
       if (command.TableName === genericConfig.ExternalMembershipTableName) {
         const requestedEmail = command.ExpressionAttributeValues[":pk"].S;
+        const requestedList = command.ExpressionAttributeValues[":sk"].S;
+        const requestedKey = `${requestedEmail}_${requestedList}`;
         const mockMembershipData = {
-          eadon2_built: { netid_list: "eadon2_built" },
-          yourm4_wcs: { netid_list: "yourm4_wcs" },
+          eadon2_built: { netId: "eadon2", list: "built" },
+          yourm4_wcs: { netId: "yourm4", list: "wcs" },
         };
 
         return Promise.resolve({
-          Items: mockMembershipData[requestedEmail]
-            ? [marshall(mockMembershipData[requestedEmail])]
-            : [],
+          Items:
+            requestedKey in mockMembershipData
+              ? [
+                  marshall(
+                    mockMembershipData[
+                      requestedKey as keyof typeof mockMembershipData
+                    ],
+                  ),
+                ]
+              : [],
         });
       }
       return Promise.reject(new Error("Table not mocked"));

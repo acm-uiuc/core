@@ -30,12 +30,14 @@ export async function checkExternalMembership(
   const { Items } = await dynamoClient.send(
     new QueryCommand({
       TableName: genericConfig.ExternalMembershipTableName,
-      KeyConditionExpression: "#pk = :pk",
+      KeyConditionExpression: "#pk = :pk and #sk = :sk",
       ExpressionAttributeNames: {
-        "#pk": "netid_list",
+        "#pk": "netId",
+        "#sk": "memberList",
       },
       ExpressionAttributeValues: marshall({
-        ":pk": `${netId}_${list}`,
+        ":pk": netId,
+        ":sk": list,
       }),
     }),
   );
