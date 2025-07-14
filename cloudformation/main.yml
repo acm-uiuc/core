@@ -415,13 +415,13 @@ Resources:
         - AttributeName: netid_list
           KeyType: HASH
 
-  ExternalMembershipV2RecordsTable:
+  ExternalMembershipV3RecordsTable:
     Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
     UpdateReplacePolicy: "Retain"
     Properties:
       BillingMode: "PAY_PER_REQUEST"
-      TableName: infra-core-api-membership-external-v2
+      TableName: infra-core-api-membership-external-v3
       DeletionProtectionEnabled: true
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: !If [IsProd, true, false]
@@ -431,19 +431,19 @@ Resources:
         - AttributeName: "memberList"
           AttributeType: "S"
       KeySchema:
-        - AttributeName: "netId"
-          KeyType: "HASH"
         - AttributeName: "memberList"
+          KeyType: "HASH"
+        - AttributeName: "netId"
           KeyType: "RANGE"
       GlobalSecondaryIndexes:
         - IndexName: "invertedIndex"
           KeySchema:
-            - AttributeName: "memberList"
-              KeyType: "HASH"
             - AttributeName: "netId"
+              KeyType: "HASH"
+            - AttributeName: "memberList"
               KeyType: "RANGE"
           Projection:
-            ProjectionType: "ALL"
+            ProjectionType: "KEYS_ONLY"
 
 
   RoomRequestsTable:
