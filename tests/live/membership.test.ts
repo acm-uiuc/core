@@ -1,5 +1,5 @@
 import { expect, test, describe } from "vitest";
-import { getBaseEndpoint } from "./utils.js";
+import { createJwt, getBaseEndpoint } from "./utils.js";
 
 const baseEndpoint = getBaseEndpoint();
 
@@ -125,6 +125,86 @@ describe("Membership API basic checks", async () => {
         list: "acmtesting",
         isPaidMember: true,
       });
+    },
+  );
+  test(
+    "Test that getting external lists succeeds",
+    { timeout: 10000 },
+    async () => {
+      const token = await createJwt();
+      const response = await fetch(
+        `${baseEndpoint}/api/v1/membership/externalList`,
+        {
+          method: "GET",
+          headers: {
+            authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      expect(response.status).toBe(200);
+
+      const responseBody = await response.json();
+      expect(responseBody.length).toBeGreaterThan(0);
+    },
+  );
+  test(
+    "Test that patching external list members succeeds",
+    { timeout: 10000 },
+    async () => {
+      const token = await createJwt();
+      const responseInit = await fetch(
+        `${baseEndpoint}/api/v1/membership/externalList/acmLiveTesting`,
+        {
+          method: "PATCH",
+          headers: {
+            authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            add: ["acmtest3"],
+            remove: [],
+          }),
+        },
+      );
+      expect(responseInit.status).toBe(201);
+      const response = await fetch(
+        `${baseEndpoint}/api/v1/membership/externalList/acmLiveTesting`,
+        {
+          method: "PATCH",
+          headers: {
+            authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            add: ["acmtest2"],
+            remove: ["acmtest3"],
+          }),
+        },
+      );
+
+      expect(response.status).toBe(201);
+    },
+  );
+  test(
+    "Test that getting external list members succeeds",
+    { timeout: 10000 },
+    async () => {
+      const token = await createJwt();
+      const response = await fetch(
+        `${baseEndpoint}/api/v1/membership/externalList/acmLiveTesting`,
+        {
+          method: "GET",
+          headers: {
+            authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      expect(response.status).toBe(200);
+
+      const responseBody = await response.json();
+      expect(responseBody.length).toBeGreaterThan(0);
+      expect(responseBody).toContain("acmtest2");
+      expect(responseBody).not.toContain("acmtest3");
     },
   );
 });
