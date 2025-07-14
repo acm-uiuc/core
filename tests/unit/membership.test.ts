@@ -3,10 +3,16 @@ import init from "../../src/api/index.js";
 import { EventGetResponse } from "../../src/api/routes/events.js";
 import { afterEach, describe } from "node:test";
 import { setPaidMembershipInTable } from "../../src/api/functions/membership.js";
-import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
+import {
+  BatchWriteItemCommand,
+  DynamoDBClient,
+  QueryCommand,
+  ScanCommand,
+} from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
+import { createJwt } from "./auth.test.js";
 
 const app = await init();
 const ddbMock = mockClient(DynamoDBClient);
@@ -171,6 +177,76 @@ describe("Test membership routes", async () => {
       list: "built",
       isPaidMember: true,
     });
+  });
+  test("External lists are correctly found", async () => {
+    const adminJwt = createJwt();
+    ddbMock.on(ScanCommand).callsFake((command) => {
+      if (
+        command.TableName === genericConfig.ExternalMembershipTableName &&
+        command.IndexName === "keysOnlyIndex"
+      ) {
+        return Promise.resolve({
+          Items: [{ memberList: { S: "acmUnitTesting" } }],
+        });
+      }
+      return Promise.reject(
+        new Error("Table not mocked or not called correctly"),
+      );
+    });
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/membership/externalList",
+      headers: {
+        authorization: `Bearer ${adminJwt}`,
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    const json = await response.json();
+    expect(json).toStrictEqual(["acmUnitTesting"]);
+  });
+  test("External list members are correctly patched", async () => {
+    const adminJwt = createJwt();
+    ddbMock.on(BatchWriteItemCommand).callsFake((command) => {
+      if (
+        (command.RequestItems = {
+          [genericConfig.ExternalMembershipTableName]: [
+            {
+              PutRequest: {
+                Item: {
+                  memberList: { S: "acmUnitTesting" },
+                  netId: { S: "acmtest2" },
+                },
+              },
+            },
+            {
+              DeleteRequest: {
+                Item: {
+                  memberList: { S: "acmUnitTesting" },
+                  netId: { S: "acmtest3" },
+                },
+              },
+            },
+          ],
+        })
+      ) {
+        return Promise.resolve({});
+      }
+      return Promise.reject(
+        new Error("Table not mocked or not called correctly"),
+      );
+    });
+    let response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/membership/externalList/acmUnitTesting",
+      headers: {
+        authorization: `Bearer ${adminJwt}`,
+      },
+      body: {
+        add: ["acmtest2"],
+        remove: ["acmtest3"],
+      },
+    });
+    expect(response.statusCode).toBe(201);
   });
   afterEach(async () => {
     ddbMock.reset();
