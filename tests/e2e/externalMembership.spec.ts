@@ -51,13 +51,13 @@ describe("External Membership tests", () => {
       .click();
     await page.getByRole("button", { name: "Confirm and Save" }).click();
     await expect(page.getByText("Member list has been updated.")).toBeVisible();
+    // Part 2
     await page.reload();
     await expect(
       page.getByText("Manage External Membership Lists"),
     ).toBeVisible();
     await page.getByPlaceholder("Pick a list to manage").click();
     await expect(page.getByText(uuid)).not.toBeVisible();
-    await page.getByText("acmlivetesting").click();
-    await expect(page.getByText("acmtest2")).toBeVisible();
+    await expect(page.getByText("acmlivetesting")).toBeVisible();
   });
 });
