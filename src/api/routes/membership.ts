@@ -250,7 +250,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
               .filter((x) => !!x)
               .map((x) => x.memberList),
           ),
-        ];
+        ].sort();
         return reply.send(deduped);
       },
     );

@@ -131,7 +131,8 @@ export async function getExternalMemberList(
   }
   return Items.map((x) => unmarshall(x))
     .filter((x) => !!x)
-    .map((x) => x.netId);
+    .map((x) => x.netId)
+    .sort();
 }
 
 export async function checkExternalMembership(
