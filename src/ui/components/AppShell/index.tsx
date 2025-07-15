@@ -21,6 +21,7 @@ import {
   IconDoor,
   IconHistory,
   IconKey,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
@@ -96,6 +97,16 @@ export const navItems = [
     icon: IconKey,
     description: null,
     validRoles: [AppRoles.MANAGE_ORG_API_KEYS],
+  },
+  {
+    link: "/externalMembership",
+    name: "External Membership",
+    icon: IconExternalLink,
+    description: null,
+    validRoles: [
+      AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST,
+      AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST,
+    ],
   },
 ];
 

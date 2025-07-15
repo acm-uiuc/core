@@ -111,7 +111,7 @@ describe("Membership API basic checks", async () => {
     { timeout: 10000 },
     async () => {
       const response = await fetch(
-        `${baseEndpoint}/api/v1/membership/zzzz?list=acmtesting`,
+        `${baseEndpoint}/api/v1/membership/zzzz?list=do_not_delete_acmtesting`,
         {
           method: "GET",
         },
@@ -122,7 +122,7 @@ describe("Membership API basic checks", async () => {
       const responseBody = await response.json();
       expect(responseBody).toStrictEqual({
         netId: "zzzz",
-        list: "acmtesting",
+        list: "do_not_delete_acmtesting",
         isPaidMember: true,
       });
     },
