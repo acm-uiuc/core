@@ -5,10 +5,17 @@ import { randomUUID } from "crypto";
 
 describe("Link Shortener tests", () => {
   test("A user can create shortened links, fetch them, and then delete them", async ({
+    browserName,
     page,
     becomeUser,
     request, // Inject the request fixture
   }) => {
+    // This is a slow test - we only need to run it once
+    // on chromium is probably fine nothing here is browser specific
+    test.skip(
+      browserName.toLowerCase() !== "chromium",
+      `Test only for chromium!`,
+    );
     test.slow();
     const uuid = `e2e-${randomUUID()}`;
     await becomeUser(page);

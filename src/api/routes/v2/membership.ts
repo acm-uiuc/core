@@ -1,36 +1,14 @@
 import {
-  checkExternalMembership,
-  checkPaidMembershipFromEntra,
   checkPaidMembershipFromTable,
-  setPaidMembershipInTable,
-  MEMBER_CACHE_SECONDS,
   checkPaidMembershipFromRedis,
 } from "api/functions/membership.js";
 import { FastifyPluginAsync } from "fastify";
-import {
-  BaseError,
-  InternalServerError,
-  UnauthenticatedError,
-  ValidationError,
-} from "common/errors/index.js";
-import { getEntraIdToken } from "api/functions/entraId.js";
-import { genericConfig, roleArns } from "common/config.js";
-import { getRoleCredentials } from "api/functions/sts.js";
-import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { ValidationError } from "common/errors/index.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { createCheckoutSession } from "api/functions/stripe.js";
-import { getSecretValue } from "api/plugins/auth.js";
-import stripe, { Stripe } from "stripe";
-import rawbody from "fastify-raw-body";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
-import {
-  illinoisNetId,
-  notAuthenticatedError,
-  withTags,
-} from "api/components/index.js";
-import { getKey, setKey } from "api/functions/redisCache.js";
+import { notAuthenticatedError, withTags } from "api/components/index.js";
 import { verifyUiucIdToken } from "./mobileWallet.js";
 
 function splitOnce(s: string, on: string) {
