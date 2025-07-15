@@ -41,6 +41,7 @@ export const ManageExternalMembershipPage = () => {
           color: "red",
           icon: <IconAlertCircle size={16} />,
         });
+        throw error;
       }
     };
 
@@ -87,6 +88,7 @@ export const ManageExternalMembershipPage = () => {
         color: "red",
         icon: <IconAlertCircle size={16} />,
       });
+      throw error;
     }
   };
   if (!validLists) {
