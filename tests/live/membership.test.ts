@@ -159,6 +159,7 @@ describe("Membership API basic checks", async () => {
           method: "PATCH",
           headers: {
             authorization: `Bearer ${token}`,
+            "content-type": "application/json",
           },
           body: JSON.stringify({
             add: ["acmtest3"],
@@ -173,6 +174,7 @@ describe("Membership API basic checks", async () => {
           method: "PATCH",
           headers: {
             authorization: `Bearer ${token}`,
+            "content-type": "application/json",
           },
           body: JSON.stringify({
             add: ["acmtest2"],
@@ -182,14 +184,7 @@ describe("Membership API basic checks", async () => {
       );
 
       expect(response.status).toBe(201);
-    },
-  );
-  test(
-    "Test that getting external list members succeeds",
-    { timeout: 10000 },
-    async () => {
-      const token = await createJwt();
-      const response = await fetch(
+      const response2 = await fetch(
         `${baseEndpoint}/api/v1/membership/externalList/acmLiveTesting`,
         {
           method: "GET",
@@ -199,9 +194,9 @@ describe("Membership API basic checks", async () => {
         },
       );
 
-      expect(response.status).toBe(200);
+      expect(response2.status).toBe(200);
 
-      const responseBody = await response.json();
+      const responseBody = await response2.json();
       expect(responseBody.length).toBeGreaterThan(0);
       expect(responseBody).toContain("acmtest2");
       expect(responseBody).not.toContain("acmtest3");
