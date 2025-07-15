@@ -13,12 +13,16 @@ import {
   Select,
   Box,
   Textarea,
+  Accordion,
+  ScrollArea,
+  Stack,
 } from "@mantine/core";
 import { IconUserPlus, IconTrash } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { illinoisNetId } from "@common/types/generic";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { AppRoles } from "@common/roles";
+import pluralize from "pluralize";
 
 interface ExternalMemberListManagementProps {
   fetchMembers: (listId: string) => Promise<string[]>;
@@ -32,6 +36,7 @@ interface ExternalMemberListManagementProps {
 }
 
 const ITEMS_PER_PAGE = 10;
+const CHANGE_DISPLAY_LIMIT = 10;
 
 const ExternalMemberListManagement: React.FC<
   ExternalMemberListManagementProps
@@ -202,25 +207,40 @@ const ExternalMemberListManagement: React.FC<
   };
 
   const handleReplaceList = () => {
-    const rawNetIds = replacementList
+    const allLines = replacementList
       .split("\n")
-      .map((id) => id.trim())
+      .map((line) => line.trim())
       .filter(Boolean);
     const validNetIds = new Set<string>();
     const invalidEntries: string[] = [];
 
-    for (const netId of rawNetIds) {
-      if (illinoisNetId.safeParse(netId).success) {
-        validNetIds.add(netId);
+    for (const line of allLines) {
+      // Rule: If it contains "@" but is not a valid "@illinois.edu" email, it's invalid.
+      if (line.includes("@") && !line.endsWith("@illinois.edu")) {
+        invalidEntries.push(line);
+        continue;
+      }
+
+      // Strip the domain to get the potential NetID for Zod validation
+      const potentialNetId = line.replace("@illinois.edu", "");
+
+      if (illinoisNetId.safeParse(potentialNetId).success) {
+        validNetIds.add(potentialNetId);
       } else {
-        invalidEntries.push(netId);
+        invalidEntries.push(line); // Add the original failing line
       }
     }
 
     if (invalidEntries.length > 0) {
+      const pluralize = (singular: string, plural: string, count: number) =>
+        count === 1 ? singular : plural;
+      const verbIs = pluralize("is", "are", invalidEntries.length);
+      const verbHas = pluralize("has", "have", invalidEntries.length);
+      const entriesStr = invalidEntries.join(", ");
+
       notifications.show({
         title: "Invalid Entries Skipped",
-        message: `The following ${invalidEntries.length} entries were invalid and have been ignored.`,
+        message: `${entriesStr} ${verbIs} invalid and ${verbHas} been ignored.`,
         color: "orange",
       });
     }
@@ -238,11 +258,19 @@ const ExternalMemberListManagement: React.FC<
 
     setReplaceModalOpened(false);
     setReplacementList("");
-    notifications.show({
-      title: "Changes Computed",
-      message: `Queued ${membersToAdd.length} additions and ${membersToRemove.length} removals. Click 'Save Changes' to apply.`,
-      color: "blue",
-    });
+    if (membersToAdd.length + membersToRemove.length > 0) {
+      notifications.show({
+        title: "Changes Computed",
+        message: `Queued ${membersToAdd.length} additions and ${membersToRemove.length} removals. Click 'Save Changes' to apply.`,
+        color: "blue",
+      });
+    } else {
+      notifications.show({
+        title: "No Changes Found",
+        message: `Both lists are the same.`,
+        color: "green",
+      });
+    }
   };
 
   const rows = paginatedData.map((member) => {
@@ -357,7 +385,7 @@ const ExternalMemberListManagement: React.FC<
       <Table verticalSpacing="sm" highlightOnHover>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th>Member</Table.Th>
+            <Table.Th>Member NetID</Table.Th>
             <Table.Th>Status</Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>
@@ -398,16 +426,19 @@ const ExternalMemberListManagement: React.FC<
         </Table.Tbody>
       </Table>
 
-      {totalPages > 1 && (
-        <Group justify="center" mt="md">
+      <Stack justify="center" align="center" mt="md">
+        <Text size="sm" c="dimmed">
+          Found {members.length} {pluralize("member", members.length)}.
+        </Text>
+        {totalPages > 1 && (
           <Pagination
             total={totalPages}
             value={activePage}
             onChange={setPage}
             disabled={isLoading}
           />
-        </Group>
-      )}
+        )}
+      </Stack>
 
       <AuthGuard
         isAppShell={false}
@@ -461,12 +492,31 @@ const ExternalMemberListManagement: React.FC<
             <Text fw={500} size="sm" mb="xs">
               Members to Add:
             </Text>
-            {toAdd.map((netId) => (
-              <Text key={netId} fz="sm">
-                {" "}
-                - {netId}
-              </Text>
-            ))}
+            {toAdd.length > CHANGE_DISPLAY_LIMIT ? (
+              <Accordion variant="separated" radius="md">
+                <Accordion.Item value="add-list">
+                  <Accordion.Control>
+                    <Text fz="sm">{toAdd.length} members</Text>
+                  </Accordion.Control>
+                  <Accordion.Panel>
+                    <ScrollArea h={200}>
+                      {toAdd.map((netId) => (
+                        <Text key={netId} fz="sm" py={2}>
+                          - {netId}
+                        </Text>
+                      ))}
+                    </ScrollArea>
+                  </Accordion.Panel>
+                </Accordion.Item>
+              </Accordion>
+            ) : (
+              toAdd.map((netId) => (
+                <Text key={netId} fz="sm">
+                  {" "}
+                  - {netId}
+                </Text>
+              ))
+            )}
           </Box>
         )}
         {toRemove.length > 0 && (
@@ -474,12 +524,33 @@ const ExternalMemberListManagement: React.FC<
             <Text fw={500} size="sm" mb="xs">
               Members to Remove:
             </Text>
-            {toRemove.map((netId) => (
-              <Text key={netId} fz="sm" c="red">
-                {" "}
-                - {netId}
-              </Text>
-            ))}
+            {toRemove.length > CHANGE_DISPLAY_LIMIT ? (
+              <Accordion variant="separated" radius="md">
+                <Accordion.Item value="remove-list">
+                  <Accordion.Control>
+                    <Text fz="sm" c="red">
+                      {toRemove.length} members
+                    </Text>
+                  </Accordion.Control>
+                  <Accordion.Panel>
+                    <ScrollArea h={200}>
+                      {toRemove.map((netId) => (
+                        <Text key={netId} fz="sm" c="red" py={2}>
+                          - {netId}
+                        </Text>
+                      ))}
+                    </ScrollArea>
+                  </Accordion.Panel>
+                </Accordion.Item>
+              </Accordion>
+            ) : (
+              toRemove.map((netId) => (
+                <Text key={netId} fz="sm" c="red">
+                  {" "}
+                  - {netId}
+                </Text>
+              ))
+            )}
           </Box>
         )}
         <Group justify="flex-end" mt="lg">
@@ -544,7 +615,7 @@ const ExternalMemberListManagement: React.FC<
           necessary additions and removals to match the list you provide.
         </Text>
         <Textarea
-          placeholder={"jdoe1\nasmith2\njohnson3"}
+          placeholder={"jdoe2\nasmith3@illinois.edu\njohns4"}
           value={replacementList}
           onChange={(e) => setReplacementList(e.currentTarget.value)}
           autosize

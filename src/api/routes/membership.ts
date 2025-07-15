@@ -307,6 +307,10 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           listId,
           clients: { dynamoClient, redisClient },
           logger: request.log,
+          auditLogData: {
+            actor: request.username!,
+            requestId: request.id,
+          },
         });
         return reply.status(201).send();
       },

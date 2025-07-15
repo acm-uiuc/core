@@ -21,6 +21,8 @@ import Redis from "ioredis";
 import { getKey, setKey } from "./redisCache.js";
 import { FastifyBaseLogger } from "fastify";
 import type pino from "pino";
+import { createAuditLogEntry } from "./auditLog.js";
+import { Modules } from "common/modules.js";
 
 export const MEMBER_CACHE_SECONDS = 43200; // 12 hours
 
@@ -30,12 +32,14 @@ export async function patchExternalMemberList({
   remove: oldRemove,
   clients: { dynamoClient, redisClient },
   logger,
+  auditLogData: { actor, requestId },
 }: {
   listId: string;
   add: string[];
   remove: string[];
   clients: { dynamoClient: DynamoDBClient; redisClient: Redis.default };
   logger: pino.Logger | FastifyBaseLogger;
+  auditLogData: { actor: string; requestId: string };
 }) {
   const listId = oldListId.toLowerCase();
   const add = oldAdd.map((x) => x.toLowerCase());
@@ -104,11 +108,41 @@ export async function patchExternalMemberList({
       logger,
     }),
   );
+  const auditLogPromises = [];
+  if (add.length > 0) {
+    auditLogPromises.push(
+      createAuditLogEntry({
+        dynamoClient,
+        entry: {
+          module: Modules.EXTERNAL_MEMBERSHIP,
+          actor,
+          requestId,
+          message: `Added ${add.length} member(s) to target list.`,
+          target: listId,
+        },
+      }),
+    );
+  }
+  if (remove.length > 0) {
+    auditLogPromises.push(
+      createAuditLogEntry({
+        dynamoClient,
+        entry: {
+          module: Modules.EXTERNAL_MEMBERSHIP,
+          actor,
+          requestId,
+          message: `Removed ${remove.length} member(s) from target list.`,
+          target: listId,
+        },
+      }),
+    );
+  }
   await Promise.all([
     ...removeCacheInvalidation,
     ...addCacheInvalidation,
     ...batchPromises,
   ]);
+  await Promise.all(auditLogPromises);
 }
 export async function getExternalMemberList(
   list: string,

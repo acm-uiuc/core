@@ -2,7 +2,7 @@ import { Modules } from "../modules.js";
 import * as z from "zod/v4";
 
 export const loggingEntry = z.object({
-  module: z.nativeEnum(Modules),
+  module: z.enum(Modules),
   actor: z.string().min(1),
   target: z.string().min(1),
   requestId: z.optional(z.string().min(1).uuid()),
