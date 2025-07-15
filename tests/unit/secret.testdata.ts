@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { SecretConfig } from "../../src/common/config.js";
 
 const secretObject = {
@@ -43,7 +44,7 @@ const jwtPayload = {
   sub: "subject",
   tid: "tenant-id",
   unique_name: "infra-unit-test@acm.illinois.edu",
-  uti: "uti-value",
+  uti: randomUUID(),
   ver: "1.0",
 };
 
@@ -69,7 +70,7 @@ const jwtPayloadNoGroups = {
   sub: "subject",
   tid: "tenant-id",
   unique_name: "infra-unit-test@acm.illinois.edu",
-  uti: "uti-value",
+  uti: randomUUID(),
   ver: "1.0",
 };
 

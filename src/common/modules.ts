@@ -10,6 +10,7 @@ export enum Modules {
   AUDIT_LOG = "auditLog",
   API_KEY = "apiKey",
   ROOM_RESERVATIONS = "roomReservations",
+  EXTERNAL_MEMBERSHIP = "externalMembership",
 }
 
 
@@ -25,4 +26,5 @@ export const ModulesToHumanName: Record<Modules, string> = {
   [Modules.AUDIT_LOG]: "Audit Log",
   [Modules.API_KEY]: "API Keys",
   [Modules.ROOM_RESERVATIONS]: "Room Reservations",
+  [Modules.EXTERNAL_MEMBERSHIP]: "External Membership",
 }
