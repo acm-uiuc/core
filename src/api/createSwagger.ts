@@ -20,6 +20,11 @@ async function createSwaggerFiles() {
     await mkdir(outputDir, { recursive: true });
     const swaggerConfig = app.swagger();
     const realSwaggerConfig = JSON.parse(JSON.stringify(swaggerConfig));
+    // set version
+    if (process.env.VITE_BUILD_HASH) {
+      realSwaggerConfig.info = realSwaggerConfig.info || {};
+      realSwaggerConfig.info.version = process.env.VITE_BUILD_HASH;
+    }
     realSwaggerConfig.components = realSwaggerConfig.components || {};
     realSwaggerConfig.components.securitySchemes = securitySchemes;
     const jsonSpec = JSON.stringify(realSwaggerConfig, null, 2);

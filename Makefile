@@ -61,7 +61,7 @@ build_swagger:
 
 build: src/ cloudformation/
 	yarn -D
-	VITE_BUILD_HASH=$(GIT_HASH) yarn build
+	yarn build
 	make build_swagger
 	cp -r src/api/resources/ dist/api/resources
 	rm -rf dist/lambda/sqs
