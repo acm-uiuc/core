@@ -15,7 +15,7 @@
 ## Deploy to AWS env
 
 1. Get AWS credentials with `aws configure sso`
-2. Ensure AWS profile is set to the right account (DEV or PROD).
+2. Ensure AWS profile is set to the right account (QA or PROD).
 3. Run `make deploy_dev` or `make deploy_prod`.
 
 ## Generating JWT token

@@ -1,9 +1,12 @@
-name: Deploy all resources to DEV
-run-name: DEV deploy - @${{ github.actor }}
+name: Deploy all resources to QA
+run-name: QA deploy - @${{ github.actor }}
 
 on:
   workflow_dispatch:
   pull_request:
+    branches:
+      - main
+  push:
     branches:
       - main
 
@@ -83,8 +86,8 @@ jobs:
     concurrency:
       group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
-    environment: "AWS DEV"
-    name: Deploy to DEV and Run Live Tests
+    environment: "AWS QA"
+    name: Deploy to QA and Run Live Tests
     needs:
       - test
       - build
