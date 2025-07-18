@@ -13,9 +13,15 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
 
     steps:
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.REQUIRED_REVIEWS_APP_ID }}
+          private-key: ${{ secrets.REQUIRED_REVIEWS_APP_KEY }}
       - uses: Automattic/action-required-review@v4.1.0
         with:
-          token: ${{ secrets.REQUIRED_REVIEWS_TOKEN }}
+          token: ${{ steps.generate-token.outputs.token }}
           status: Required Reviews
           requirements: |
             - name: Cloud provider files
