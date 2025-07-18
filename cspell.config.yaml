@@ -1,0 +1,11 @@
+version: "0.2"
+ignorePaths:
+  - cloudformation/**
+  - Makefile
+  - .github/**
+dictionaryDefinitions: []
+dictionaries: []
+words:
+  - UIUC
+ignoreWords: []
+import: []

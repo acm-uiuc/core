@@ -2,10 +2,11 @@ name: Deploy all resources to PROD
 run-name: PROD deploy - @${{ github.actor }}
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+  release:
+    types: [created]
+    tags:
+      - 'v*'
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -56,12 +57,17 @@ jobs:
           restore-keys: |
             yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
+      - name: Extract version from tag
+        id: get_version
+        run: echo "VITE_BUILD_HASH=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
+
       - name: Run build
         run: make build
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: prod
           RunEnvironment: prod
+          VITE_BUILD_HASH: ${{ env.VITE_BUILD_HASH }}
 
       - name: Upload Build files
         uses: actions/upload-artifact@v4
