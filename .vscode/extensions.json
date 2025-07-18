@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+        "editorconfig.editorconfig",
+        "rvest.vs-code-prettier-eslint",
+        "eamodio.gitlens",
+        "ms-vscode.makefile-tools",
+        "amazonwebservices.aws-toolkit-vscode"
+    ]
+}
