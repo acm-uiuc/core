@@ -849,11 +849,15 @@ Resources:
                 return request;
             }
 
-            // Rewrite paths for the SPA, excluding /api and files with extensions
-            if (!uri.startsWith('/api') && !uri.includes('.')) {
-                request.uri = '/index.html';
+            // If the URI starts with /api/ and has a trailing slash, or includes a dot (is a file),
+            // let it pass through without modification.
+            // This ensures paths like /api/v1/data or /some/image.png are not rewritten.
+            if (uri.startsWith('/api/') || uri.includes('.')) {
+                return request;
             }
 
+            // Rewrite and all other non-file paths to index.html for the SPA.
+            request.uri = '/index.html';
             return request;
         }
 
