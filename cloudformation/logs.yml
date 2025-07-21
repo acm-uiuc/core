@@ -10,6 +10,7 @@ Parameters:
 Resources:
   AppApiLambdaLogGroup:
     Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
     Properties:
       LogGroupName:
         Fn::Sub: /aws/lambda/${LambdaFunctionName}
