@@ -116,6 +116,8 @@ invalidate_cloudfront:
 install:
 	yarn -D
 	pip install cfn-lint
+	terraform -chdir=terraform/envs/qa init
+	terraform -chdir=terraform/envs/prod init
 
 test_live_integration: install
 	yarn test:live
