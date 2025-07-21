@@ -9,14 +9,20 @@ terraform {
   required_version = ">= 1.2"
 }
 
+provider "aws" {
+  region = "us-east-1"
+  default_tags {
+    tags = {
+      project = var.ProjectId
+    }
+  }
+}
 
 import {
   to = aws_cloudwatch_log_group.main_app_logs
-  id = "${var.resource_prefix}-logs"
+  id = "/aws/lambda/${var.ProjectId}-lambda"
 }
-
-
 resource "aws_cloudwatch_log_group" "main_app_logs" {
-  name              = "${var.resource_prefix}-logs"
-  retention_in_days = var.retention_in_days
+  name              = "/aws/lambda/${var.ProjectId}-lambda"
+  retention_in_days = var.LogRetentionDays
 }

@@ -11,10 +11,18 @@ terraform {
 
 provider "aws" {
   region = "us-east-1"
+  default_tags {
+    tags = {
+      project = var.ProjectId
+    }
+  }
 }
 
-module "cloudwatch_logs" {
-  source            = "../../modules/cloudwatch_logs"
-  resource_prefix   = var.ResourcePrefix
+import {
+  to = aws_cloudwatch_log_group.main_app_logs
+  id = "/aws/lambda/${var.ProjectId}-lambda"
+}
+resource "aws_cloudwatch_log_group" "main_app_logs" {
+  name              = "/aws/lambda/${var.ProjectId}-lambda"
   retention_in_days = var.LogRetentionDays
 }

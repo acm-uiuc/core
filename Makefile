@@ -96,6 +96,8 @@ deploy_prod: check_account_prod
 deploy_dev: check_account_dev
 	@echo "Deploying CloudFormation stack..."
 	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
+	@echo "Deploying Terraform..."
+	terraform -chdir=terraform/envs/qa apply -auto-approve
 	make postdeploy
 
 invalidate_cloudfront:
@@ -121,6 +123,10 @@ test_live_integration: install
 test_unit: install
 	yarn lint
 	cfn-lint cloudformation/**/*
+	terraform -chdir=terraform/envs/qa fmt -check
+	terraform -chdir=terraform/envs/prod fmt -check
+	terraform -chdir=terraform/envs/qa validate
+	terraform -chdir=terraform/envs/prod validate
 	yarn prettier
 	yarn test:unit
 

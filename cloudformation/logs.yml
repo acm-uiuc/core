@@ -11,6 +11,7 @@ Resources:
   AppApiLambdaLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       LogGroupName:
         Fn::Sub: /aws/lambda/${LambdaFunctionName}
