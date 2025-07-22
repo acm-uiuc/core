@@ -133,10 +133,10 @@ test_live_integration: install
 test_unit: install
 	yarn lint
 	cfn-lint cloudformation/**/*
-	terraform -chdir=terraform/envs/qa init -backend=false
+	terraform -chdir=terraform/envs/qa init -reconfigure -backend=false -upgrade
 	terraform -chdir=terraform/envs/qa fmt -check
 	terraform -chdir=terraform/envs/qa validate
-	terraform -chdir=terraform/envs/prod init -backend=false
+	terraform -chdir=terraform/envs/prod init -reconfigure -backend=false
 	terraform -chdir=terraform/envs/prod fmt -check
 	terraform -chdir=terraform/envs/prod validate
 	yarn prettier
