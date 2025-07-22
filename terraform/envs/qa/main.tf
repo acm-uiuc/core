@@ -7,6 +7,13 @@ terraform {
   }
 
   required_version = ">= 1.2"
+
+  backend "s3" {
+    bucket       = "427040638965-terraform"
+    key          = "infra-core-api"
+    region       = "us-east-1"
+    use_lockfile = true
+  }
 }
 
 provider "aws" {
@@ -17,7 +24,15 @@ provider "aws" {
     }
   }
 }
+import {
+  to = aws_cloudwatch_log_group.main_app_logs
+  id = "/aws/lambda/${var.ProjectId}-lambda"
+}
 resource "aws_cloudwatch_log_group" "main_app_logs" {
   name              = "/aws/lambda/${var.ProjectId}-lambda"
   retention_in_days = var.LogRetentionDays
+}
+module "sqs_queues" {
+  source          = "../../modules/sqs"
+  resource_prefix = var.ProjectId
 }
