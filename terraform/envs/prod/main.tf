@@ -18,10 +18,6 @@ provider "aws" {
   }
 }
 
-import {
-  to = aws_cloudwatch_log_group.main_app_logs
-  id = "/aws/lambda/${var.ProjectId}-lambda"
-}
 resource "aws_cloudwatch_log_group" "main_app_logs" {
   name              = "/aws/lambda/${var.ProjectId}-lambda"
   retention_in_days = var.LogRetentionDays
@@ -33,4 +29,9 @@ module "app_alarms" {
   resource_prefix                 = var.ProjectId
   priority_sns_arn                = var.GeneralSNSAlertArn
   standard_sns_arn                = var.PrioritySNSAlertArn
+}
+
+module "sqs_queues" {
+  source          = "../../modules/sqs"
+  resource_prefix = var.ProjectId
 }

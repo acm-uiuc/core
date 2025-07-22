@@ -21,3 +21,7 @@ resource "aws_cloudwatch_log_group" "main_app_logs" {
   name              = "/aws/lambda/${var.ProjectId}-lambda"
   retention_in_days = var.LogRetentionDays
 }
+module "sqs_queues" {
+  source          = "../../modules/sqs"
+  resource_prefix = var.ProjectId
+}

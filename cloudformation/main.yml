@@ -22,10 +22,6 @@ Parameters:
     Description: How long the SQS lambda is permitted to run (in seconds)
     Default: 180
     Type: Number
-  SqsMessageTimeout:
-    Description: MessageVisibilityTimeout for the SQS Lambda queue (should be at least (numMaxRetry + 1)*SqsLambdaTimeout)
-    Default: 720
-    Type: Number
   S3BucketPrefix:
     Description: S3 bucket prefix which will ensure global uniqueness
     Type: String
@@ -86,21 +82,13 @@ Resources:
         RunEnvironment: !Ref RunEnvironment
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
         SesEmailDomain: !FindInMap [General, !Ref RunEnvironment, SesDomain]
-        SqsQueueArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
+        SqsQueueArn: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:infra-core-api-sqs-sales"
         LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
 
   AppLogGroups:
     Type: AWS::Serverless::Application
     Properties:
       Location: ./logs.yml
-
-  AppSQSQueues:
-    Type: AWS::Serverless::Application
-    Properties:
-      Location: ./sqs.yml
-      Parameters:
-        QueueName: !Sub ${ApplicationPrefix}-sqs
-        MessageTimeout: !Ref SqsMessageTimeout
 
   LinkryRecordSetv4:
     Condition: IsDev
@@ -319,7 +307,7 @@ Resources:
       - AppSqsLambdaFunction
     Properties:
       BatchSize: 5
-      EventSourceArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
+      EventSourceArn: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:infra-core-api-sqs"
       FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
       FunctionResponseTypes:
         - ReportBatchItemFailures
@@ -330,7 +318,7 @@ Resources:
       - AppSqsLambdaFunction
     Properties:
       BatchSize: 5
-      EventSourceArn: !GetAtt AppSQSQueues.Outputs.SalesEmailQueueArn
+      EventSourceArn: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:infra-core-api-sqs-sales"
       FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
       FunctionResponseTypes:
         - ReportBatchItemFailures
@@ -1011,4 +999,4 @@ Outputs:
 
   SalesEmailQueueArn:
     Description: Sales Email Queue Arn
-    Value: !GetAtt AppSQSQueues.Outputs.SalesEmailQueueArn
+    Value: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:infra-core-api-sqs-sales"
