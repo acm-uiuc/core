@@ -90,17 +90,20 @@ postdeploy:
 
 deploy_prod: check_account_prod
 	@echo "Deploying CloudFormation stack..."
-	terraform -chdir=terraform/envs/prod init
-	terraform -chdir=terraform/envs/prod apply -auto-approve
 	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
+	@echo "Deploying Terraform..."
+	$(eval MAIN_DISTRIBUTION_ID := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontDistributionId'].OutputValue" --output text))
+	terraform -chdir=terraform/envs/prod init
+	terraform -chdir=terraform/envs/prod apply -auto-approve -var main_cloudfront_distribution_id="$(MAIN_DISTRIBUTION_ID)"
 	make postdeploy
 
 deploy_dev: check_account_dev
 	@echo "Deploying CloudFormation stack..."
 	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
 	@echo "Deploying Terraform..."
+	$(eval MAIN_DISTRIBUTION_ID := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontDistributionId'].OutputValue" --output text))
 	terraform -chdir=terraform/envs/qa init
-	terraform -chdir=terraform/envs/qa apply -auto-approve
+	terraform -chdir=terraform/envs/qa apply -auto-approve -var main_cloudfront_distribution_id="$(MAIN_DISTRIBUTION_ID)"
 	make postdeploy
 
 invalidate_cloudfront:
