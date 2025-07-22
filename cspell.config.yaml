@@ -6,6 +6,7 @@ ignorePaths:
 dictionaryDefinitions: []
 dictionaries: []
 words:
+  - redrive
   - UIUC
 ignoreWords: []
 import: []
