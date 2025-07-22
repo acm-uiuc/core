@@ -1,22 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Stack Log Groups
 Transform: AWS::Serverless-2016-10-31
-Parameters:
-  LambdaFunctionName:
-    Type: String
-    AllowedPattern: ^[a-zA-Z0-9]+[a-zA-Z0-9-]+[a-zA-Z0-9]+$
-  LogRetentionDays:
-    Type: Number
+
 Resources:
-  AppApiLambdaLogGroup:
-    Type: AWS::Logs::LogGroup
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      LogGroupName:
-        Fn::Sub: /aws/lambda/${LambdaFunctionName}
-      RetentionInDays:
-        Ref: LogRetentionDays
   AppAuditLog:
     Type: "AWS::DynamoDB::Table"
     DeletionPolicy: "Retain"
