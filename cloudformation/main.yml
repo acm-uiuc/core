@@ -82,7 +82,7 @@ Resources:
         RunEnvironment: !Ref RunEnvironment
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
         SesEmailDomain: !FindInMap [General, !Ref RunEnvironment, SesDomain]
-        SqsQueueArn: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:infra-core-api-sqs-sales"
+        SqsQueueArn: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:infra-core-api-sqs"
         LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
 
   AppLogGroups:
