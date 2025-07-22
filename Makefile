@@ -130,7 +130,7 @@ install:
 test_live_integration: install
 	yarn test:live
 
-test_unit: install init_terraform
+test_unit: install
 	yarn lint
 	cfn-lint cloudformation/**/*
 	terraform -chdir=terraform/envs/qa fmt -check
