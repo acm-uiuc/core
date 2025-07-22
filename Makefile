@@ -90,6 +90,8 @@ postdeploy:
 
 deploy_prod: check_account_prod
 	@echo "Deploying CloudFormation stack..."
+	terraform -chdir=terraform/envs/prod apply -auto-approve
+	terraform -chdir=terraform/envs/prod init
 	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
 	make postdeploy
 
@@ -97,6 +99,7 @@ deploy_dev: check_account_dev
 	@echo "Deploying CloudFormation stack..."
 	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
 	@echo "Deploying Terraform..."
+	terraform -chdir=terraform/envs/qa init
 	terraform -chdir=terraform/envs/qa apply -auto-approve
 	make postdeploy
 
