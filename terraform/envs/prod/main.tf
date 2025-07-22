@@ -1,3 +1,8 @@
+data "aws_caller_identity" "current" {}
+locals {
+  account_id = data.aws_caller_identity.current.account_id
+}
+
 terraform {
   required_providers {
     aws = {
@@ -7,6 +12,12 @@ terraform {
   }
 
   required_version = ">= 1.2"
+  backend "s3" {
+    bucket       = "298118738376-terraform"
+    key          = "infra-core-api"
+    region       = "us-east-1"
+    use_lockfile = true
+  }
 }
 
 provider "aws" {
