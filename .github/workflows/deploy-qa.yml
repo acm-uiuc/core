@@ -40,13 +40,6 @@ jobs:
           restore-keys: |
             yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::298118738376:role/GitHubActionsRole
-          role-session-name: Core_QA_Test_${{ github.run_id }}
-          aws-region: us-east-1
-
       - name: Run unit testing
         run: make test_unit
 
@@ -145,7 +138,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
-          role-session-name: Core_QA_Deployment_${{ github.run_id }}
+          role-session-name: Core_Dev_Deployment_${{ github.run_id }}
           aws-region: us-east-1
 
       - name: Publish to AWS
