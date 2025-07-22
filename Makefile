@@ -93,7 +93,7 @@ deploy_prod: check_account_prod
 	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
 	@echo "Deploying Terraform..."
 	$(eval MAIN_DISTRIBUTION_ID := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontDistributionId'].OutputValue" --output text))
-	terraform -chdir=terraform/envs/prod init
+	terraform -chdir=terraform/envs/prod init -lockfile=readonly
 	terraform -chdir=terraform/envs/prod apply -auto-approve -var main_cloudfront_distribution_id="$(MAIN_DISTRIBUTION_ID)"
 	make postdeploy
 
@@ -102,7 +102,7 @@ deploy_dev: check_account_dev
 	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
 	@echo "Deploying Terraform..."
 	$(eval MAIN_DISTRIBUTION_ID := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontDistributionId'].OutputValue" --output text))
-	terraform -chdir=terraform/envs/qa init
+	terraform -chdir=terraform/envs/qa init -lockfile=readonly
 	terraform -chdir=terraform/envs/qa apply -auto-approve -var main_cloudfront_distribution_id="$(MAIN_DISTRIBUTION_ID)"
 	make postdeploy
 
@@ -119,11 +119,13 @@ invalidate_cloudfront:
 	aws cloudfront wait invalidation-completed --distribution-id $(DISTRIBUTION_ID_2) --id $(INVALIDATION_ID_2)
 	@echo "CloudFront invalidation completed!"
 
+init_terraform:
+	terraform -chdir=terraform/envs/qa init
+	terraform -chdir=terraform/envs/prod init
+
 install:
 	yarn -D
 	pip install cfn-lint
-	terraform -chdir=terraform/envs/qa init
-	terraform -chdir=terraform/envs/prod init
 
 test_live_integration: install
 	yarn test:live
@@ -131,9 +133,11 @@ test_live_integration: install
 test_unit: install
 	yarn lint
 	cfn-lint cloudformation/**/*
+	terraform -chdir=terraform/envs/qa init -reconfigure -backend=false -upgrade
 	terraform -chdir=terraform/envs/qa fmt -check
-	terraform -chdir=terraform/envs/prod fmt -check
 	terraform -chdir=terraform/envs/qa validate
+	terraform -chdir=terraform/envs/prod init -reconfigure -backend=false
+	terraform -chdir=terraform/envs/prod fmt -check
 	terraform -chdir=terraform/envs/prod validate
 	yarn prettier
 	yarn test:unit
@@ -149,3 +153,7 @@ dev_health_check:
 
 prod_health_check:
 	curl -f https://core.acm.illinois.edu/api/v1/healthz && curl -f https://core.acm.illinois.edu
+
+lock_terraform: init_terraform
+	terraform -chdir=terraform/envs/qa providers lock -platform=windows_amd64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=linux_amd64 -platform=linux_arm64
+	terraform -chdir=terraform/envs/prod providers lock -platform=windows_amd64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=linux_amd64 -platform=linux_arm64
