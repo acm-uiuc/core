@@ -6,14 +6,6 @@ Parameters:
   RunEnvironment:
     Type: String
     AllowedValues: ["dev", "prod"]
-  AlertSNSArn:
-    Description: SNS Queue to send general alarm alerts to (prod only)
-    Type: String
-    Default: arn:aws:sns:us-east-1:298118738376:infra-monitor-alerts
-  PriorityAlertSNSArn:
-    Description: SNS Queue to send priority alarm alerts to (prod only)
-    Type: String
-    Default: arn:aws:sns:us-east-1:298118738376:infra-core-api-priority-alerts
   ApplicationPrefix:
     Type: String
     Description: Application prefix, no ending dash
@@ -46,10 +38,8 @@ Conditions:
 Mappings:
   General:
     dev:
-      LogRetentionDays: 7
       SesDomain: "aws.qa.acmuiuc.org"
     prod:
-      LogRetentionDays: 90
       SesDomain: "acm.illinois.edu"
   ApiGwConfig:
     dev:
@@ -103,10 +93,6 @@ Resources:
     Type: AWS::Serverless::Application
     Properties:
       Location: ./logs.yml
-      Parameters:
-        LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
-        LogRetentionDays:
-          !FindInMap [General, !Ref RunEnvironment, LogRetentionDays]
 
   AppSQSQueues:
     Type: AWS::Serverless::Application
@@ -115,18 +101,6 @@ Resources:
       Parameters:
         QueueName: !Sub ${ApplicationPrefix}-sqs
         MessageTimeout: !Ref SqsMessageTimeout
-
-  AppAlarms:
-    Condition: IsProd
-    Type: AWS::Serverless::Application
-    Properties:
-      Location: ./alerting.yml
-      Parameters:
-        AlertSNSArn: !Ref AlertSNSArn
-        PriorityAlertSNSArn: !Ref PriorityAlertSNSArn
-        ApplicationPrefix: !Ref ApplicationPrefix
-        ApplicationFriendlyName: !Ref ApplicationFriendlyName
-        MainCloudfrontDistributionId: !GetAtt AppFrontendCloudfrontDistribution.Id
 
   LinkryRecordSetv4:
     Condition: IsDev
