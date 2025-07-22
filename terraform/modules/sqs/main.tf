@@ -15,19 +15,19 @@ resource "aws_sqs_queue" "app_dlq" {
 resource "aws_sqs_queue" "app_queue" {
   name                       = "${var.resource_prefix}-sqs"
   visibility_timeout_seconds = var.sqs_message_timeout
-  redrive_policy = {
+  redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.app_dlq.arn
     maxReceiveCount     = 3
-  }
+  })
 }
 
 resource "aws_sqs_queue" "sales_email_queue" {
   name                       = "${var.resource_prefix}-sqs-sales"
   visibility_timeout_seconds = var.sqs_message_timeout
-  redrive_policy = {
+  redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.app_dlq.arn
     maxReceiveCount     = 3
-  }
+  })
 }
 
 output "main_queue_arn" {
