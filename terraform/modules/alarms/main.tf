@@ -1,4 +1,9 @@
-provider "aws" {
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_dlq_messages_alarm" {
