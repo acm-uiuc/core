@@ -119,16 +119,18 @@ invalidate_cloudfront:
 	aws cloudfront wait invalidation-completed --distribution-id $(DISTRIBUTION_ID_2) --id $(INVALIDATION_ID_2)
 	@echo "CloudFront invalidation completed!"
 
+init_terraform:
+	terraform -chdir=terraform/envs/qa init
+	terraform -chdir=terraform/envs/prod init
+
 install:
 	yarn -D
 	pip install cfn-lint
-	terraform -chdir=terraform/envs/qa init -lockfile=readonly
-	terraform -chdir=terraform/envs/prod init -lockfile=readonly
 
 test_live_integration: install
 	yarn test:live
 
-test_unit: install
+test_unit: install init_terraform
 	yarn lint
 	cfn-lint cloudformation/**/*
 	terraform -chdir=terraform/envs/qa fmt -check
@@ -149,3 +151,7 @@ dev_health_check:
 
 prod_health_check:
 	curl -f https://core.acm.illinois.edu/api/v1/healthz && curl -f https://core.acm.illinois.edu
+
+lock_terraform: init_terraform
+	terraform -chdir=terraform/envs/qa providers lock -platform=windows_amd64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=linux_amd64 -platform=linux_arm64
+	terraform -chdir=terraform/envs/prod providers lock -platform=windows_amd64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=linux_amd64 -platform=linux_arm64
