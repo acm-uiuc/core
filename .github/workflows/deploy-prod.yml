@@ -23,6 +23,11 @@ jobs:
           node-version: 22.x
           cache: "yarn"
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.12.2
+
       - name: Restore Yarn Cache
         uses: actions/cache@v4
         with:
@@ -98,6 +103,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.12.2
 
       - uses: actions/checkout@v4
         env:
