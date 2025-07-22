@@ -4,6 +4,7 @@
         "rvest.vs-code-prettier-eslint",
         "eamodio.gitlens",
         "ms-vscode.makefile-tools",
-        "amazonwebservices.aws-toolkit-vscode"
+        "amazonwebservices.aws-toolkit-vscode",
+        "hashicorp.terraform"
     ]
 }
