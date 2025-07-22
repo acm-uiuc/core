@@ -11,12 +11,9 @@ resource "aws_cloudwatch_metric_alarm" "app_dlq_messages_alarm" {
   evaluation_periods  = 1
   comparison_operator = "GreaterThanThreshold"
   threshold           = 0
-  dimensions = [
-    {
-      Name  = "QueueName"
-      Value = "${var.resource_prefix}-sqs-dlq"
-    }
-  ]
+  dimensions = {
+    QueueName = "${var.resource_prefix}-sqs-dlq"
+  }
   alarm_actions = [
     var.priority_sns_arn
   ]
@@ -35,12 +32,9 @@ resource "aws_cloudwatch_metric_alarm" "app_latency_alarm" {
   alarm_actions = [
     var.standard_sns_arn
   ]
-  dimensions = [
-    {
-      Name  = "FunctionName"
-      Value = "${var.resource_prefix}-lambda"
-    }
-  ]
+  dimensions = {
+    FunctionName = "${var.resource_prefix}-lambda"
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_no_requests_alarm" {
@@ -56,12 +50,9 @@ resource "aws_cloudwatch_metric_alarm" "app_no_requests_alarm" {
   alarm_actions = [
     var.priority_sns_arn
   ]
-  dimensions = [
-    {
-      Name  = "FunctionName"
-      Value = "${var.resource_prefix}-lambda"
-    }
-  ]
+  dimensions = {
+    FunctionName = "${var.resource_prefix}-lambda"
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_invocation_error_alarm" {
@@ -77,12 +68,9 @@ resource "aws_cloudwatch_metric_alarm" "app_invocation_error_alarm" {
   alarm_actions = [
     var.priority_sns_arn
   ]
-  dimensions = [
-    {
-      Name  = "FunctionName"
-      Value = "${var.resource_prefix}-lambda"
-    }
-  ]
+  dimensions = {
+    FunctionName = "${var.resource_prefix}-lambda"
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "app5xx_error_alarm" {
@@ -98,10 +86,7 @@ resource "aws_cloudwatch_metric_alarm" "app5xx_error_alarm" {
   alarm_actions = [
     var.priority_sns_arn
   ]
-  dimensions = [
-    {
-      Name  = "DistributionId"
-      Value = var.main_cloudfront_distribution_id
-    }
-  ]
+  dimensions = {
+    DistributionId = var.main_cloudfront_distribution_id
+  }
 }
