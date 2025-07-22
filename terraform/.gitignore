@@ -32,7 +32,7 @@ Session.vim
 **/*.tfvars
 
 # tf lock file
-**/.terraform.lock.hcl
+!**/.terraform.lock.hcl
 
 # Crash log files
 crash.log
