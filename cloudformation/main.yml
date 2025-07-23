@@ -85,11 +85,6 @@ Resources:
         SqsQueueArn: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:infra-core-api-sqs"
         LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
 
-  AppLogGroups:
-    Type: AWS::Serverless::Application
-    Properties:
-      Location: ./logs.yml
-
   LinkryRecordSetv4:
     Condition: IsDev
     Type: AWS::Route53::RecordSet

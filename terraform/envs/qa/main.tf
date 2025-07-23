@@ -36,3 +36,31 @@ module "sqs_queues" {
   source          = "../../modules/sqs"
   resource_prefix = var.ProjectId
 }
+
+import {
+  to = aws_dynamodb_table.app_audit_log
+  id = "${var.ProjectId}-audit-log"
+}
+
+resource "aws_dynamodb_table" "app_audit_log" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-audit-log"
+  deletion_protection_enabled = true
+  hash_key                    = "module"
+  range_key                   = "createdAt"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "module"
+    type = "S"
+  }
+  attribute {
+    name = "createdAt"
+    type = "N"
+  }
+  ttl {
+    attribute_name = "createdAt"
+    enabled        = true
+  }
+}
