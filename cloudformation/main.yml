@@ -213,8 +213,6 @@ Resources:
 
   AppApiLambdaFunction:
     Type: AWS::Serverless::Function
-    DependsOn:
-      - AppLogGroups
     Properties:
       Architectures: [arm64]
       CodeUri: ../dist/lambda
@@ -256,8 +254,6 @@ Resources:
 
   AppSqsLambdaFunction:
     Type: AWS::Serverless::Function
-    DependsOn:
-      - AppLogGroups
     Properties:
       Architectures: [arm64]
       CodeUri: ../dist/sqsConsumer
