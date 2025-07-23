@@ -154,6 +154,6 @@ dev_health_check:
 prod_health_check:
 	curl -f https://core.acm.illinois.edu/api/v1/healthz && curl -f https://core.acm.illinois.edu
 
-lock_terraform: init_terraform
+lock_terraform:
 	terraform -chdir=terraform/envs/qa providers lock -platform=windows_amd64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=linux_amd64 -platform=linux_arm64
 	terraform -chdir=terraform/envs/prod providers lock -platform=windows_amd64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=linux_amd64 -platform=linux_arm64
