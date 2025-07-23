@@ -82,3 +82,10 @@ module "lambda_warmer" {
   source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v0.1.1"
   function_to_warm = "infra-core-api-lambda"
 }
+resource "null_resource" "delete_v2_table" {
+
+  provisioner "local-exec" {
+    command = "aws dynamodb update-table --table-name infra-core-api-membership-external-v2 --no-deletion-protection-enabled && aws dynamodb delete-table --table-name infra-core-api-membership-external-v2"
+  }
+
+}
