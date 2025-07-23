@@ -64,3 +64,8 @@ resource "aws_dynamodb_table" "app_audit_log" {
     enabled        = true
   }
 }
+
+module "lambda_warmer" {
+  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer"
+  function_to_warm = "infra-core-api-lambda"
+}
