@@ -3,6 +3,11 @@ run-name: Manual PROD deploy - @${{ github.actor }}
 
 on:
   workflow_dispatch:
+    inputs:
+      api_version:
+        description: 'API version to report to consumers (no v in front).'
+        required: true
+        type: string
 
 jobs:
   test:
@@ -65,7 +70,7 @@ jobs:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: prod
           RunEnvironment: prod
-          VITE_BUILD_HASH: ${{ github.sha }}
+          VITE_BUILD_HASH: ${{ inputs.api_version }}
 
       - name: Upload Build files
         uses: actions/upload-artifact@v4
