@@ -56,6 +56,10 @@ module "dynamo" {
   ProjectId = var.ProjectId
 }
 
+module "lambda_warmer" {
+  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v0.1.1"
+  function_to_warm = "infra-core-api-lambda"
+}
 import {
   id = "${var.ProjectId}-membership-external-v3"
   to = aws_dynamodb_table.external_membership
