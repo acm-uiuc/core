@@ -27,7 +27,6 @@ Parameters:
     Type: String
 
 Conditions:
-  IsProd: !Equals [!Ref RunEnvironment, "prod"]
   IsDev: !Equals [!Ref RunEnvironment, "dev"]
   ShouldAttachVpc: !Equals [true, !Ref VpcRequired]
 
