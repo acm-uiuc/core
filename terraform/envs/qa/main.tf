@@ -70,3 +70,46 @@ module "lambda_warmer" {
   source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v0.1.1"
   function_to_warm = "infra-core-api-lambda"
 }
+
+
+// Membership Logs
+import {
+  to = aws_dynamodb_table.membership_provisioning_log
+  id = "${var.ProjectId}-membership-provisioning"
+}
+resource "aws_dynamodb_table" "membership_provisioning_log" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-membership-provisioning"
+  deletion_protection_enabled = true
+  hash_key                    = "email"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "email"
+    type = "S"
+  }
+}
+
+// API Keys
+import {
+  to = aws_dynamodb_table.api_keys
+  id = "${var.ProjectId}-api-keys"
+}
+resource "aws_dynamodb_table" "api_keys" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-api-keys"
+  deletion_protection_enabled = true
+  hash_key                    = "keyId"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "keyId"
+    type = "S"
+  }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+}
