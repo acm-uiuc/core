@@ -21,14 +21,12 @@ provider "aws" {
   region = "us-east-1"
   default_tags {
     tags = {
-      project = var.ProjectId
+      project           = var.ProjectId
+      terraform_managed = true
     }
   }
 }
-import {
-  to = aws_cloudwatch_log_group.main_app_logs
-  id = "/aws/lambda/${var.ProjectId}-lambda"
-}
+
 resource "aws_cloudwatch_log_group" "main_app_logs" {
   name              = "/aws/lambda/${var.ProjectId}-lambda"
   retention_in_days = var.LogRetentionDays
@@ -36,11 +34,6 @@ resource "aws_cloudwatch_log_group" "main_app_logs" {
 module "sqs_queues" {
   source          = "../../modules/sqs"
   resource_prefix = var.ProjectId
-}
-
-import {
-  to = aws_dynamodb_table.app_audit_log
-  id = "${var.ProjectId}-audit-log"
 }
 
 resource "aws_dynamodb_table" "app_audit_log" {
@@ -73,10 +66,6 @@ module "lambda_warmer" {
 
 
 // Membership Logs
-import {
-  to = aws_dynamodb_table.membership_provisioning_log
-  id = "${var.ProjectId}-membership-provisioning"
-}
 resource "aws_dynamodb_table" "membership_provisioning_log" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-membership-provisioning"
@@ -92,10 +81,6 @@ resource "aws_dynamodb_table" "membership_provisioning_log" {
 }
 
 // API Keys
-import {
-  to = aws_dynamodb_table.api_keys
-  id = "${var.ProjectId}-api-keys"
-}
 resource "aws_dynamodb_table" "api_keys" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-keys"
@@ -111,5 +96,71 @@ resource "aws_dynamodb_table" "api_keys" {
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
+  }
+}
+
+// Room Requests
+import {
+  to = aws_dynamodb_table.room_requests
+  id = "${var.ProjectId}-room-requests"
+}
+import {
+  to = aws_dynamodb_table.room_requests_status
+  id = "${var.ProjectId}-room-requests-status"
+}
+resource "aws_dynamodb_table" "room_requests" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-room-requests"
+  deletion_protection_enabled = true
+  hash_key                    = "semesterId"
+  range_key                   = "userId#requestId"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "userId#requestId"
+    type = "S"
+  }
+  attribute {
+    name = "requestId"
+    type = "S"
+  }
+  attribute {
+    name = "semesterId"
+    type = "S"
+  }
+  global_secondary_index {
+    name            = "RequestIdIndex"
+    hash_key        = "requestId"
+    projection_type = "ALL"
+  }
+}
+
+resource "aws_dynamodb_table" "room_requests_status" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-room-requests-status"
+  deletion_protection_enabled = true
+  hash_key                    = "requestId"
+  range_key                   = "createdAt#status"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "createdAt#status"
+    type = "S"
+  }
+  attribute {
+    name = "requestId"
+    type = "S"
+  }
+  attribute {
+    name = "semesterId"
+    type = "S"
+  }
+  global_secondary_index {
+    name            = "SemesterId"
+    hash_key        = "semesterId"
+    range_key       = "requestId"
+    projection_type = "ALL"
   }
 }
