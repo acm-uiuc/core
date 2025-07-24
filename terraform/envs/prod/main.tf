@@ -55,28 +55,42 @@ module "dynamo" {
   source    = "../../modules/dynamo"
   ProjectId = var.ProjectId
 }
-moved {
-  from = aws_dynamodb_table.app_audit_log
-  to   = module.dynamo.aws_dynamodb_table.app_audit_log
+
+import {
+  id = "${var.ProjectId}-membership-external-v3"
+  to = aws_dynamodb_table.external_membership
 }
+resource "aws_dynamodb_table" "external_membership" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-membership-external-v3"
+  deletion_protection_enabled = true
+  hash_key                    = "memberList"
+  range_key                   = "netId"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "netId"
+    type = "S"
+  }
 
-moved {
-  from = aws_dynamodb_table.membership_provisioning_log
-  to   = module.dynamo.aws_dynamodb_table.membership_provisioning_log
-}
+  attribute {
+    name = "memberList"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "invertedIndex"
+    hash_key        = "netId"
+    range_key       = "memberList"
+    projection_type = "KEYS_ONLY"
+  }
 
 
-moved {
-  from = aws_dynamodb_table.api_keys
-  to   = module.dynamo.aws_dynamodb_table.api_keys
-}
+  global_secondary_index {
+    name            = "keysOnlyIndex"
+    hash_key        = "memberList"
+    projection_type = "KEYS_ONLY"
+  }
 
-moved {
-  from = aws_dynamodb_table.room_requests
-  to   = module.dynamo.aws_dynamodb_table.room_requests
-}
-
-moved {
-  from = aws_dynamodb_table.room_requests_status
-  to   = module.dynamo.aws_dynamodb_table.room_requests_status
 }
