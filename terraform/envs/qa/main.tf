@@ -98,7 +98,7 @@ import {
 }
 resource "aws_dynamodb_table" "api_keys" {
   billing_mode                = "PAY_PER_REQUEST"
-  name                        = "${var.ProjectId}-api-keys"
+  name                        = "${var.ProjectId}-keys"
   deletion_protection_enabled = true
   hash_key                    = "keyId"
   point_in_time_recovery {
