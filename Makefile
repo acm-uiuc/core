@@ -32,6 +32,7 @@ docs_s3_bucket = "$(s3_bucket_prefix)-docs"
 
 
 GIT_HASH := $(shell git rev-parse --short HEAD)
+ORIGIN_SECRET := $(shell openssl rand -hex 32)
 
 .PHONY: clean
 
@@ -90,7 +91,7 @@ postdeploy:
 
 deploy_prod: check_account_prod
 	@echo "Deploying CloudFormation stack..."
-	sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
+	@sam deploy $(common_params) --parameter-overrides $(run_env)=prod $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)" CloudfrontOriginSecret="$(ORIGIN_SECRET)"
 	@echo "Deploying Terraform..."
 	$(eval MAIN_DISTRIBUTION_ID := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontDistributionId'].OutputValue" --output text))
 	terraform -chdir=terraform/envs/prod init -lockfile=readonly
@@ -99,7 +100,7 @@ deploy_prod: check_account_prod
 
 deploy_dev: check_account_dev
 	@echo "Deploying CloudFormation stack..."
-	sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)"
+	@sam deploy $(common_params) --parameter-overrides $(run_env)=dev $(set_application_prefix)=$(application_key) $(set_application_name)="$(application_name)" S3BucketPrefix="$(s3_bucket_prefix)" CloudfrontOriginSecret="$(ORIGIN_SECRET)"
 	@echo "Deploying Terraform..."
 	$(eval MAIN_DISTRIBUTION_ID := $(shell aws cloudformation describe-stacks --stack-name $(application_key) --query "Stacks[0].Outputs[?OutputKey=='CloudfrontDistributionId'].OutputValue" --output text))
 	terraform -chdir=terraform/envs/qa init -lockfile=readonly
