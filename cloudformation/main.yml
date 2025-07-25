@@ -25,6 +25,10 @@ Parameters:
   S3BucketPrefix:
     Description: S3 bucket prefix which will ensure global uniqueness
     Type: String
+  CloudfrontOriginSecret:
+    NoEcho: true
+    Description: Value for X-Origin-Verify passed to Lambda URL from cloudfront
+    Type: String
 
 Conditions:
   IsDev: !Equals [!Ref RunEnvironment, "dev"]
@@ -220,7 +224,7 @@ Resources:
           EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
           LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
           AWS_CRT_NODEJS_BINARY_RELATIVE_PATH: node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node
-          ORIGIN_VERIFY_KEY: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+          ORIGIN_VERIFY_KEY: !Ref CloudfrontOriginSecret
           NODE_OPTIONS: --enable-source-maps
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
@@ -340,7 +344,7 @@ Resources:
               OriginProtocolPolicy: https-only
             OriginCustomHeaders:
               - HeaderName: X-Origin-Verify
-                HeaderValue: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+                HeaderValue: !Ref CloudfrontOriginSecret
         Enabled: true
         DefaultRootObject: index.html
         Aliases:
@@ -545,7 +549,7 @@ Resources:
               OriginProtocolPolicy: https-only
             OriginCustomHeaders:
               - HeaderName: X-Origin-Verify
-                HeaderValue: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+                HeaderValue: !Ref CloudfrontOriginSecret
         Enabled: true
         Aliases:
           - !Join
