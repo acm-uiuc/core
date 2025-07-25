@@ -58,6 +58,7 @@ import apiKeyRoute from "./routes/apiKey.js";
 import clearSessionRoute from "./routes/clearSession.js";
 import protectedRoute from "./routes/protected.js";
 import eventsPlugin from "./routes/events.js";
+import sigleadRoutes from "./routes/siglead.js";
 import mobileWalletV2Route from "./routes/v2/mobileWallet.js";
 import membershipV2Plugin from "./routes/v2/membership.js";
 import { docsHtml, securitySchemes } from "./docs.js";
@@ -366,6 +367,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       api.register(linkryRoutes, { prefix: "/linkry" });
       api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
       api.register(stripeRoutes, { prefix: "/stripe" });
+      api.register(sigleadRoutes, { prefix: "/siglead" });
       api.register(roomRequestRoutes, { prefix: "/roomRequests" });
       api.register(logsPlugin, { prefix: "/logs" });
       api.register(apiKeyRoute, { prefix: "/apiKey" });

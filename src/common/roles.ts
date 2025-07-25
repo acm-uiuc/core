@@ -3,6 +3,7 @@ export const runEnvironments = ["dev", "prod"] as const;
 export type RunEnvironment = (typeof runEnvironments)[number];
 export enum AppRoles {
   EVENTS_MANAGER = "manage:events",
+  SIGLEAD_MANAGER = "manage:siglead",
   TICKETS_SCANNER = "scan:tickets",
   TICKETS_MANAGER = "manage:tickets",
   IAM_ADMIN = "admin:iam",
@@ -19,7 +20,7 @@ export enum AppRoles {
   MANAGE_EXTERNAL_MEMBERSHIP_LIST = "manage:externalMembershipList"
 }
 export const allAppRoles = Object.values(AppRoles).filter(
-  (value) => typeof value === "string",
+  (value) => typeof value === "string", 
 );
 
 export const AppRoleHumanMapper: Record<AppRoles, string> = {
@@ -35,6 +36,8 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.ROOM_REQUEST_CREATE]: "Room Request Creator",
   [AppRoles.ROOM_REQUEST_UPDATE]: "Room Request Updater",
   [AppRoles.AUDIT_LOG_VIEWER]: "Audit Log Viewer",
+  [AppRoles.SIGLEAD_MANAGER]: "SIG Lead Manager",
+  [AppRoles.MANAGE_ORG_API_KEYS]: "Org API Keys Manager"
   [AppRoles.MANAGE_ORG_API_KEYS]: "Org API Keys Manager",
   [AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Viewer",
   [AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Manager",
