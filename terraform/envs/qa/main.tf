@@ -45,6 +45,32 @@ module "dynamo" {
   ProjectId = var.ProjectId
 }
 
+moved {
+  from = aws_dynamodb_table.app_audit_log
+  to   = module.dynamo.aws_dynamodb_table.app_audit_log
+}
+
+moved {
+  from = aws_dynamodb_table.membership_provisioning_log
+  to   = module.dynamo.aws_dynamodb_table.membership_provisioning_log
+}
+
+
+moved {
+  from = aws_dynamodb_table.api_keys
+  to   = module.dynamo.aws_dynamodb_table.api_keys
+}
+
+moved {
+  from = aws_dynamodb_table.room_requests
+  to   = module.dynamo.aws_dynamodb_table.room_requests
+}
+
+moved {
+  from = aws_dynamodb_table.room_requests_status
+  to   = module.dynamo.aws_dynamodb_table.room_requests_status
+}
+
 import {
   id = "${var.ProjectId}-membership-external-v3"
   to = aws_dynamodb_table.external_membership
