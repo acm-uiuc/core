@@ -275,7 +275,7 @@ resource "aws_dynamodb_table" "cache" {
     type = "S"
   }
   ttl {
-    attribute_name = "expiresAt"
+    attribute_name = "expireAt"
     enabled        = true
   }
 }
