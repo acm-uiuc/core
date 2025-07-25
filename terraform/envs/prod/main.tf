@@ -268,7 +268,7 @@ resource "aws_dynamodb_table" "cache" {
   deletion_protection_enabled = true
   hash_key                    = "primaryKey"
   point_in_time_recovery {
-    enabled = true
+    enabled = false
   }
   attribute {
     name = "primaryKey"
