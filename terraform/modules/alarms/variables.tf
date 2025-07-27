@@ -17,3 +17,7 @@ variable "main_cloudfront_distribution_id" {
   type        = string
   description = "ID for the cloudfront distribution that serves the main application"
 }
+
+variable "main_lambda_function_name" {
+  type = string
+}

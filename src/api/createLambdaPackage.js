@@ -19,6 +19,7 @@ export const packagesToTransfer = [
   "@fastify/swagger",
   "zod-openapi",
   "zod",
+  "aws-crt",
 ];
 const filePath = `${getPath().dirname}/package.json`;
 const writeFilePath = `${getPath().dirname}/package.lambda.json`;

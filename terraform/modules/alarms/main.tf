@@ -38,7 +38,7 @@ resource "aws_cloudwatch_metric_alarm" "app_latency_alarm" {
     var.standard_sns_arn
   ]
   dimensions = {
-    FunctionName = "${var.resource_prefix}-lambda"
+    FunctionName = var.main_lambda_function_name
   }
 }
 
@@ -56,7 +56,7 @@ resource "aws_cloudwatch_metric_alarm" "app_no_requests_alarm" {
     var.priority_sns_arn
   ]
   dimensions = {
-    FunctionName = "${var.resource_prefix}-lambda"
+    FunctionName = var.main_lambda_function_name
   }
 }
 
@@ -74,7 +74,7 @@ resource "aws_cloudwatch_metric_alarm" "app_invocation_error_alarm" {
     var.priority_sns_arn
   ]
   dimensions = {
-    FunctionName = "${var.resource_prefix}-lambda"
+    FunctionName = var.main_lambda_function_name
   }
 }
 
