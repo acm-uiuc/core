@@ -32,6 +32,13 @@ resource "aws_iam_role" "api_role" {
         Effect = "Allow"
         Principal = {
           Service = "lambda.amazonaws.com"
+        },
+        Condition = {
+          ArnLike = {
+            "AWS:SourceArn" = [
+              "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:${local.core_api_lambda_name}"
+            ]
+          }
         }
       },
     ]
@@ -48,6 +55,13 @@ resource "aws_iam_role" "sqs_consumer_role" {
         Effect = "Allow"
         Principal = {
           Service = "lambda.amazonaws.com"
+        },
+        Condition = {
+          ArnLike = {
+            "AWS:SourceArn" = [
+              "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:${local.core_sqs_consumer_lambda_name}"
+            ]
+          }
         }
       },
     ]
