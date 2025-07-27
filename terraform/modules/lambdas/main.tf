@@ -13,6 +13,18 @@ data "archive_file" "sqs_lambda_code" {
 locals {
   core_api_lambda_name          = "${var.ProjectId}-main-server"
   core_sqs_consumer_lambda_name = "${var.ProjectId}-sqs-consumer"
+  entra_policies = {
+    shared = aws_iam_policy.shared_iam_policy.arn
+    entra  = aws_iam_policy.entra_policy.arn
+  }
+  sqs_policies = {
+    sqs    = aws_iam_policy.sqs_policy.arn
+    shared = aws_iam_policy.shared_iam_policy.arn
+  }
+  api_policies = {
+    api    = aws_iam_policy.api_only_policy.arn
+    shared = aws_iam_policy.shared_iam_policy.arn
+  }
 }
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
@@ -295,20 +307,20 @@ resource "aws_iam_policy" "shared_iam_policy" {
 }
 
 resource "aws_iam_role_policy_attachment" "api_attach" {
-  for_each   = toset([aws_iam_policy.shared_iam_policy.arn, aws_iam_policy.api_only_policy.arn])
+  for_each   = local.api_policies
   role       = aws_iam_role.api_role.name
-  policy_arn = each.key
+  policy_arn = each.value
 }
 
 resource "aws_iam_role_policy_attachment" "entra_attach" {
-  for_each   = toset([aws_iam_policy.shared_iam_policy.arn, aws_iam_policy.entra_policy.arn])
+  for_each   = local.entra_policies
   role       = aws_iam_role.entra_role.name
-  policy_arn = each.key
+  policy_arn = each.value
 }
 resource "aws_iam_role_policy_attachment" "sqs_attach_shared" {
-  for_each   = toset(["arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole", aws_iam_policy.sqs_policy.arn, aws_iam_policy.shared_iam_policy.arn])
+  for_each   = local.sqs_policies
   role       = aws_iam_role.sqs_consumer_role.name
-  policy_arn = each.key
+  policy_arn = each.value
 }
 
 resource "aws_lambda_function" "api_lambda" {
