@@ -9,7 +9,7 @@ terraform {
   required_version = ">= 1.2"
 
   backend "s3" {
-    bucket       = "427040638965-terraform"
+    bucket       = "298118738376-terraform"
     key          = "infra-core-api"
     region       = "us-east-1"
     use_lockfile = true
