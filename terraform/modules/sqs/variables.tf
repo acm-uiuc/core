@@ -14,3 +14,7 @@ variable "dlq_message_retention" {
   description = "DLQ Message retention in seconds"
   default     = 1209600
 }
+
+variable "core_sqs_consumer_lambda_name" {
+  type = string
+}

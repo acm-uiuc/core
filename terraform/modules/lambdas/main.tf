@@ -74,9 +74,7 @@ resource "aws_iam_role" "sqs_consumer_role" {
           Service = "lambda.amazonaws.com"
         }
         Condition = {
-          StringEquals = {
-            "aws:SourceArn" = "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:${local.core_sqs_consumer_lambda_name}"
-          }
+          ArnEqualsIfExists = "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:${local.core_sqs_consumer_lambda_name}"
         }
       },
     ]
@@ -267,34 +265,20 @@ resource "aws_iam_policy" "shared_iam_policy" {
 
 }
 
-resource "aws_iam_role_policy_attachment" "api_attach_shared" {
+resource "aws_iam_role_policy_attachment" "api_attach" {
   role       = aws_iam_role.api_role.name
   policy_arn = aws_iam_policy.shared_iam_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "entra_attach_shared" {
+resource "aws_iam_role_policy_attachment" "entra_attach" {
+  for_each   = toset([aws_iam_policy.shared_iam_policy.arn, aws_iam_policy.entra_policy.arn])
   role       = aws_iam_role.entra_role.name
-  policy_arn = aws_iam_policy.shared_iam_policy.arn
+  policy_arn = each.key
 }
-
-resource "aws_iam_role_policy_attachment" "entra_attach_specific" {
-  role       = aws_iam_role.entra_role.name
-  policy_arn = aws_iam_policy.entra_policy.arn
-}
-
 resource "aws_iam_role_policy_attachment" "sqs_attach_shared" {
+  for_each   = toset(["arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole", aws_iam_policy.sqs_policy.arn, aws_iam_policy.shared_iam_policy.arn])
   role       = aws_iam_role.sqs_consumer_role.name
-  policy_arn = aws_iam_policy.shared_iam_policy.arn
-}
-
-resource "aws_iam_role_policy_attachment" "sqs_attach_managed" {
-  role       = aws_iam_role.sqs_consumer_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"
-}
-
-resource "aws_iam_role_policy_attachment" "sqs_attach_specific" {
-  role       = aws_iam_role.sqs_consumer_role.name
-  policy_arn = aws_iam_policy.sqs_policy.arn
+  policy_arn = each.key
 }
 
 resource "aws_lambda_function" "api_lambda" {
@@ -352,3 +336,12 @@ resource "aws_lambda_function_url" "api_lambda_function_url" {
 output "core_function_url" {
   value = replace(replace(aws_lambda_function_url.api_lambda_function_url.function_url, "https://", ""), "/", "")
 }
+
+output "core_api_lambda_name" {
+  value = local.core_api_lambda_name
+}
+
+output "core_sqs_consumer_lambda_name" {
+  value = local.core_sqs_consumer_lambda_name
+}
+

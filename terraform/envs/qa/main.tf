@@ -39,8 +39,9 @@ resource "aws_cloudwatch_log_group" "main_app_logs" {
   retention_in_days = var.LogRetentionDays
 }
 module "sqs_queues" {
-  source          = "../../modules/sqs"
-  resource_prefix = var.ProjectId
+  source                        = "../../modules/sqs"
+  resource_prefix               = var.ProjectId
+  core_sqs_consumer_lambda_name = module.lambdas.core_sqs_consumer_lambda_name
 }
 
 module "lambda_warmer" {
@@ -56,15 +57,26 @@ resource "random_password" "origin_verify_key" {
   length  = 20
   special = false
   keepers = {
-    force_recreation = formatdate("DD-MMM-YYYY", timestamp())
+    force_recreation = formatdate("DD-MMM-YYYY", plantimestamp())
   }
 }
+
+// TEMPORARY LINKRY KV IMPORT
+import {
+  to = aws_cloudfront_key_value_store.linkry_kv
+  id = "${var.ProjectId}-cloudfront-linkry-kv"
+}
+
+resource "aws_cloudfront_key_value_store" "linkry_kv" {
+  name = "${var.ProjectId}-cloudfront-linkry-kv"
+}
+//
 
 module "lambdas" {
   source           = "../../modules/lambdas"
   ProjectId        = var.ProjectId
   RunEnvironment   = "dev"
-  LinkryKvArn      = "arn:aws:cloudfront::427040638965:key-value-store/0c2c02fd-7c47-4029-975d-bc5d0376bba1"
+  LinkryKvArn      = aws_cloudfront_key_value_store.linkry_kv.arn
   OriginVerifyKey  = random_password.origin_verify_key.result
   LogRetentionDays = 30
   EmailDomain      = var.EmailDomain
@@ -78,13 +90,16 @@ module "frontend" {
   ProjectId          = var.ProjectId
   CoreCertificateArn = var.CoreCertificateArn
   CorePublicDomain   = var.CorePublicDomain
-
+  IcalPublicDomain   = var.IcalPublicDomain
+  LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
+  LinkryKvId         = aws_cloudfront_key_value_store.linkry_kv.id
 }
 // QA only - setup Route 53 records
-resource "aws_route53_record" "frontend_ipv4" {
-  zone_id = "Z04502822NVIA85WM2SML"
-  type    = "A"
-  name    = var.CorePublicDomain
+resource "aws_route53_record" "frontend" {
+  for_each = toset(["A", "AAAA"])
+  zone_id  = "Z04502822NVIA85WM2SML"
+  type     = each.key
+  name     = var.CorePublicDomain
   alias {
     name                   = module.frontend.main_cloudfront_domain_name
     zone_id                = "Z2FDTNDATAQYW2"
@@ -92,16 +107,18 @@ resource "aws_route53_record" "frontend_ipv4" {
   }
 }
 
-resource "aws_route53_record" "frontend_ipv6" {
-  zone_id = "Z04502822NVIA85WM2SML"
-  type    = "AAAA"
-  name    = var.CorePublicDomain
+resource "aws_route53_record" "ical" {
+  for_each = toset(["A", "AAAA"])
+  zone_id  = "Z04502822NVIA85WM2SML"
+  type     = each.key
+  name     = var.IcalPublicDomain
   alias {
-    name                   = module.frontend.main_cloudfront_domain_name
+    name                   = module.frontend.ical_cloudfront_domain_name
     zone_id                = "Z2FDTNDATAQYW2"
     evaluate_target_health = false
   }
 }
+
 // This section last: moved records into modules
 moved {
   from = aws_dynamodb_table.app_audit_log

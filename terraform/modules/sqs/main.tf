@@ -30,6 +30,14 @@ resource "aws_sqs_queue" "sales_email_queue" {
   })
 }
 
+resource "aws_lambda_event_source_mapping" "queue_consumer" {
+  for_each                = toset([aws_sqs_queue.app_queue.arn, aws_sqs_queue.sales_email_queue.arn])
+  batch_size              = 5
+  event_source_arn        = each.key
+  function_name           = var.core_sqs_consumer_lambda_name
+  function_response_types = ["ReportBatchItemFailures"]
+}
+
 output "main_queue_arn" {
   description = "Main Queue Arn"
   value       = aws_sqs_queue.app_queue.arn

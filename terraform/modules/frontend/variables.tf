@@ -13,6 +13,11 @@ variable "CorePublicDomain" {
   description = "Core Public Host"
 }
 
+variable "IcalPublicDomain" {
+  type        = string
+  description = "Ical Public Host"
+}
+
 
 variable "CoreCertificateArn" {
   type        = string
@@ -25,5 +30,12 @@ variable "BucketPrefix" {
 }
 
 variable "OriginVerifyKey" {
+  type = string
+}
+
+variable "LinkryKvArn" {
+  type = string
+}
+variable "LinkryKvId" {
   type = string
 }
