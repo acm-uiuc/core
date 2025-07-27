@@ -119,7 +119,7 @@ resource "aws_iam_policy" "api_only_policy" {
         Effect = "Allow",
         Action = ["sqs:SendMessage"],
         Resource = [
-          "arn:aws:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:infra-core-api-*",
+          "arn:aws:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${var.ProjectId}-*",
         ]
       }
     ]
@@ -294,8 +294,9 @@ resource "aws_iam_policy" "shared_iam_policy" {
 }
 
 resource "aws_iam_role_policy_attachment" "api_attach" {
+  for_each   = toset([aws_iam_policy.shared_iam_policy.arn, aws_iam_policy.api_only_policy.arn])
   role       = aws_iam_role.api_role.name
-  policy_arn = aws_iam_policy.shared_iam_policy.arn
+  policy_arn = each.key
 }
 
 resource "aws_iam_role_policy_attachment" "entra_attach" {
