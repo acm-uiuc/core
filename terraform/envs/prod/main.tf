@@ -93,6 +93,7 @@ module "frontend" {
   IcalPublicDomain   = var.IcalPublicDomain
   LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
   LinkryKvId         = aws_cloudfront_key_value_store.linkry_kv.id
+  LinkryPublicDomain = var.LinkryPublicDomain
 }
 
 // This section last: moved records into modules
