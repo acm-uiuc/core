@@ -27,13 +27,18 @@ provider "aws" {
   }
 }
 
-resource "aws_cloudwatch_log_group" "main_app_logs" {
-  name              = "/aws/lambda/${var.ProjectId}-lambda"
-  retention_in_days = var.LogRetentionDays
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+locals {
+  bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
 }
+
 module "sqs_queues" {
-  source          = "../../modules/sqs"
-  resource_prefix = var.ProjectId
+  depends_on                    = [module.lambdas]
+  source                        = "../../modules/sqs"
+  resource_prefix               = var.ProjectId
+  core_sqs_consumer_lambda_name = module.lambdas.core_sqs_consumer_lambda_name
 }
 
 module "lambda_warmer" {
@@ -45,6 +50,83 @@ module "dynamo" {
   ProjectId = var.ProjectId
 }
 
+resource "random_password" "origin_verify_key" {
+  length  = 20
+  special = false
+  keepers = {
+    force_recreation = formatdate("DD-MMM-YYYY", plantimestamp())
+  }
+}
+
+// TEMPORARY LINKRY KV IMPORT
+import {
+  to = aws_cloudfront_key_value_store.linkry_kv
+  id = "${var.ProjectId}-cloudfront-linkry-kv"
+}
+
+resource "aws_cloudfront_key_value_store" "linkry_kv" {
+  name = "${var.ProjectId}-cloudfront-linkry-kv"
+}
+//
+
+module "lambdas" {
+  source           = "../../modules/lambdas"
+  ProjectId        = var.ProjectId
+  RunEnvironment   = "dev"
+  LinkryKvArn      = aws_cloudfront_key_value_store.linkry_kv.arn
+  OriginVerifyKey  = random_password.origin_verify_key.result
+  LogRetentionDays = 30
+  EmailDomain      = var.EmailDomain
+}
+
+module "frontend" {
+  source             = "../../modules/frontend"
+  BucketPrefix       = local.bucket_prefix
+  CoreLambdaHost     = module.lambdas.core_function_url
+  OriginVerifyKey    = random_password.origin_verify_key.result
+  ProjectId          = var.ProjectId
+  CoreCertificateArn = var.CoreCertificateArn
+  CorePublicDomain   = var.CorePublicDomain
+  IcalPublicDomain   = var.IcalPublicDomain
+  LinkryPublicDomain = var.LinkryPublicDomain
+  LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
+}
+// QA only - setup Route 53 records
+resource "aws_route53_record" "frontend" {
+  for_each = toset(["A", "AAAA"])
+  zone_id  = "Z04502822NVIA85WM2SML"
+  type     = each.key
+  name     = var.CorePublicDomain
+  alias {
+    name                   = module.frontend.main_cloudfront_domain_name
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "ical" {
+  for_each = toset(["A", "AAAA"])
+  zone_id  = "Z04502822NVIA85WM2SML"
+  type     = each.key
+  name     = var.IcalPublicDomain
+  alias {
+    name                   = module.frontend.ical_cloudfront_domain_name
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "linkry" {
+  for_each = toset(["A", "AAAA"])
+  zone_id  = "Z04502822NVIA85WM2SML"
+  type     = each.key
+  name     = var.LinkryPublicDomain
+  alias {
+    name                   = module.frontend.linkry_cloudfront_domain_name
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
+}
 
 // This section last: moved records into modules
 moved {

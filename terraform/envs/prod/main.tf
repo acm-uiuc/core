@@ -1,8 +1,3 @@
-data "aws_caller_identity" "current" {}
-locals {
-  account_id = data.aws_caller_identity.current.account_id
-}
-
 terraform {
   required_providers {
     aws = {
@@ -12,13 +7,15 @@ terraform {
   }
 
   required_version = ">= 1.2"
+
   backend "s3" {
-    bucket       = "298118738376-terraform"
+    bucket       = "427040638965-terraform"
     key          = "infra-core-api"
     region       = "us-east-1"
     use_lockfile = true
   }
 }
+
 
 provider "aws" {
   region = "us-east-1"
@@ -29,36 +26,78 @@ provider "aws" {
     }
   }
 }
-import {
-  to = aws_cloudwatch_log_group.main_app_logs
-  id = "/aws/lambda/${var.ProjectId}-lambda"
-}
-resource "aws_cloudwatch_log_group" "main_app_logs" {
-  name              = "/aws/lambda/${var.ProjectId}-lambda"
-  retention_in_days = var.LogRetentionDays
-}
 
-module "app_alarms" {
-  source                          = "../../modules/alarms"
-  main_cloudfront_distribution_id = var.main_cloudfront_distribution_id
-  resource_prefix                 = var.ProjectId
-  priority_sns_arn                = var.GeneralSNSAlertArn
-  standard_sns_arn                = var.PrioritySNSAlertArn
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+locals {
+  bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
 }
 
 module "sqs_queues" {
-  source          = "../../modules/sqs"
-  resource_prefix = var.ProjectId
-}
-
-module "dynamo" {
-  source    = "../../modules/dynamo"
-  ProjectId = var.ProjectId
+  source                        = "../../modules/sqs"
+  resource_prefix               = var.ProjectId
+  core_sqs_consumer_lambda_name = module.lambdas.core_sqs_consumer_lambda_name
 }
 
 module "lambda_warmer" {
   source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v0.1.1"
   function_to_warm = "infra-core-api-lambda"
+}
+module "dynamo" {
+  source    = "../../modules/dynamo"
+  ProjectId = var.ProjectId
+}
+
+resource "random_password" "origin_verify_key" {
+  length  = 20
+  special = false
+  keepers = {
+    force_recreation = formatdate("DD-MMM-YYYY", plantimestamp())
+  }
+}
+
+// TEMPORARY LINKRY KV IMPORT
+import {
+  to = aws_cloudfront_key_value_store.linkry_kv
+  id = "${var.ProjectId}-cloudfront-linkry-kv"
+}
+
+resource "aws_cloudfront_key_value_store" "linkry_kv" {
+  name = "${var.ProjectId}-cloudfront-linkry-kv"
+}
+//
+
+module "alarms" {
+  source                          = "../../modules/alarms"
+  priority_sns_arn                = var.PrioritySNSAlertArn
+  resource_prefix                 = var.ProjectId
+  main_cloudfront_distribution_id = module.frontend.main_cloudfront_distribution_id
+  standard_sns_arn                = var.GeneralSNSAlertArn
+  main_lambda_function_name       = module.lambdas.core_api_lambda_name
+}
+
+module "lambdas" {
+  source           = "../../modules/lambdas"
+  ProjectId        = var.ProjectId
+  RunEnvironment   = "dev"
+  LinkryKvArn      = aws_cloudfront_key_value_store.linkry_kv.arn
+  OriginVerifyKey  = random_password.origin_verify_key.result
+  LogRetentionDays = 30
+  EmailDomain      = var.EmailDomain
+}
+
+module "frontend" {
+  source             = "../../modules/frontend"
+  BucketPrefix       = local.bucket_prefix
+  CoreLambdaHost     = module.lambdas.core_function_url
+  OriginVerifyKey    = random_password.origin_verify_key.result
+  ProjectId          = var.ProjectId
+  CoreCertificateArn = var.CoreCertificateArn
+  CorePublicDomain   = var.CorePublicDomain
+  IcalPublicDomain   = var.IcalPublicDomain
+  LinkryPublicDomain = var.LinkryPublicDomain
+  LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
 }
 
 // This section last: moved records into modules
