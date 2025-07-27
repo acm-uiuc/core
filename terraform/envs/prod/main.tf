@@ -63,7 +63,7 @@ resource "random_password" "origin_verify_key" {
 
 // TEMPORARY LINKRY KV IMPORT
 import {
-  to = aws_cloudfront_key_value_store.test
+  to = aws_cloudfront_key_value_store.linkry_kv
   id = "${var.ProjectId}-cloudfront-linkry-kv"
 }
 
@@ -71,6 +71,14 @@ resource "aws_cloudfront_key_value_store" "linkry_kv" {
   name = "${var.ProjectId}-cloudfront-linkry-kv"
 }
 //
+
+module "alarms" {
+  source                          = "../../modules/alarms"
+  priority_sns_arn                = var.PrioritySNSAlertArn
+  resource_prefix                 = var.ProjectId
+  main_cloudfront_distribution_id = module.frontend.main_cloudfront_distribution_id
+  standard_sns_arn                = var.GeneralSNSAlertArn
+}
 
 module "lambdas" {
   source           = "../../modules/lambdas"
@@ -91,8 +99,8 @@ module "frontend" {
   CoreCertificateArn = var.CoreCertificateArn
   CorePublicDomain   = var.CorePublicDomain
   IcalPublicDomain   = var.IcalPublicDomain
-  LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
   LinkryPublicDomain = var.LinkryPublicDomain
+  LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
 }
 
 // This section last: moved records into modules

@@ -220,7 +220,7 @@ async function handler(event) {
       statusCode: 301,
       statusDescription: 'Found',
       headers: {
-        'location': { value: "https://core.acm.illinois.edu/linkry" }
+        'location': { value: "https://${var.CorePublicDomain}/linkry" }
       }
     }
   }

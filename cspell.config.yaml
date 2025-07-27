@@ -1,6 +1,6 @@
 version: "0.2"
 ignorePaths:
-  - cloudformation/**
+  - terraform/**
   - Makefile
   - .github/**
 dictionaryDefinitions: []
