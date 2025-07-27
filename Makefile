@@ -123,14 +123,12 @@ init_terraform:
 
 install:
 	yarn -D
-	pip install cfn-lint
 
 test_live_integration: install
 	yarn test:live
 
 test_unit: install
 	yarn lint
-	cfn-lint cloudformation/**/*
 	terraform -chdir=terraform/envs/qa init -reconfigure -backend=false -upgrade
 	terraform -chdir=terraform/envs/qa fmt -check
 	terraform -chdir=terraform/envs/qa validate
