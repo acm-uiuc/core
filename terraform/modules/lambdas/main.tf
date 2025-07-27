@@ -45,7 +45,7 @@ resource "aws_iam_policy" "shared_iam_policy" {
       {
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Effect   = "Allow",
-        Resource = [aws_cloudwatch_log_group.api_logs.arn]
+        Resource = ["${aws_cloudwatch_log_group.api_logs.arn}:*"]
       },
       {
         Action = ["secretsmanager:GetSecretValue"],

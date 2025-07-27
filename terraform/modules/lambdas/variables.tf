@@ -22,7 +22,8 @@ variable "RunEnvironment" {
 }
 
 variable "OriginVerifyKey" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "LogRetentionDays" {

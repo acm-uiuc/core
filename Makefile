@@ -67,6 +67,8 @@ build: src/ cloudformation/
 	cp -r src/api/resources/ dist/api/resources
 	rm -rf dist/lambda/sqs
 	sam build --template-file cloudformation/main.yml --use-container --parallel
+	npm --prefix=dist/lambda/ i --cpu arm64 --os linux
+	npm --prefix=dist/sqsConsumer/ i --cpu arm64 --os linux
 	mkdir -p .aws-sam/build/AppApiLambdaFunction/node_modules/aws-crt/
 	cp -r node_modules/aws-crt/dist .aws-sam/build/AppApiLambdaFunction/node_modules/aws-crt
 ## IF WE EVER CHANGE THE LAMBDA ARCH, BE SURE TO CHANGE THESE ##
@@ -79,6 +81,17 @@ build: src/ cloudformation/
 	rm -rf .aws-sam/build/AppApiLambdaFunction/node_modules/argon2/prebuilds/linux-x64*
 	rm -rf .aws-sam/build/AppApiLambdaFunction/node_modules/argon2/prebuilds/win32-x64*
 	rm -rf .aws-sam/build/AppApiLambdaFunction/node_modules/argon2/prebuilds/linux-arm64/argon2.armv8.musl.node
+
+## NEW
+	rm -rf dist/lambda/node_modules/aws-crt/dist/bin/darwin*
+	rm -rf dist/lambda/node_modules/aws-crt/dist/bin/linux-x64*
+	rm -rf dist/lambda/node_modules/aws-crt/dist/bin/linux-arm64-musl
+	rm -rf dist/lambda/node_modules/argon2/prebuilds/darwin*
+	rm -rf dist/lambda/node_modules/argon2/prebuilds/freebsd*
+	rm -rf dist/lambda/node_modules/argon2/prebuilds/linux-arm
+	rm -rf dist/lambda/node_modules/argon2/prebuilds/linux-x64*
+	rm -rf dist/lambda/node_modules/argon2/prebuilds/win32-x64*
+	rm -rf dist/lambda/node_modules/argon2/prebuilds/linux-arm64/argon2.armv8.musl.node
 
 local:
 	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
