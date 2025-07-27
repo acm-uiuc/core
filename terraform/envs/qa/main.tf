@@ -93,7 +93,6 @@ module "frontend" {
   IcalPublicDomain   = var.IcalPublicDomain
   LinkryPublicDomain = var.LinkryPublicDomain
   LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
-  LinkryKvId         = aws_cloudfront_key_value_store.linkry_kv.id
 }
 // QA only - setup Route 53 records
 resource "aws_route53_record" "frontend" {

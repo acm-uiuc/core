@@ -41,6 +41,3 @@ variable "OriginVerifyKey" {
 variable "LinkryKvArn" {
   type = string
 }
-variable "LinkryKvId" {
-  type = string
-}

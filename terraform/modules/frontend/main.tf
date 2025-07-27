@@ -210,8 +210,7 @@ resource "aws_cloudfront_function" "linkry_redirect" {
   runtime                      = "cloudfront-js-2.0"
   code                         = <<EOT
 import cf from 'cloudfront';
-const kvsId = '${var.LinkryKvId}';
-const kvs = cf.kvs(kvsId);
+const kvs = cf.kvs();
 
 async function handler(event) {
   const request = event.request;
@@ -303,7 +302,7 @@ resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
-
+    cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
     function_association {
       event_type   = "viewer-request"
       function_arn = aws_cloudfront_function.linkry_redirect.arn
