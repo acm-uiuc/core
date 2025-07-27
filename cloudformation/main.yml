@@ -590,6 +590,8 @@ Resources:
         PriceClass: PriceClass_100
 
   LinkryRecordsCloudfrontStore:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::CloudFront::KeyValueStore
     Properties:
       Name: infra-core-api-cloudfront-linkry-kv
