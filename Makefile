@@ -60,13 +60,12 @@ clean:
 build_swagger:
 	cd src/api && npx tsx --experimental-loader=./mockLoader.mjs createSwagger.ts && cd ../..
 
-build: src/ cloudformation/
+build: src/
 	yarn -D
 	yarn build
 	make build_swagger
 	cp -r src/api/resources/ dist/api/resources
 	rm -rf dist/lambda/sqs
-# 	sam build --template-file cloudformation/main.yml --use-container --parallel
 	npm --prefix=dist/lambda/ i --cpu arm64 --os linux
 	npm --prefix=dist/sqsConsumer/ i --cpu arm64 --os linux
 	rm -rf dist/lambda/node_modules/aws-crt/dist/bin/darwin*

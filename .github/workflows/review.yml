@@ -27,7 +27,7 @@ jobs:
             - name: Cloud provider files
               paths:
                 - '.github/'
-                - 'cloudformation/'
+                - 'terraform/'
               teams:
                 - "officers"
                 - "infra-chairs"
