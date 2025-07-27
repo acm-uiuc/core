@@ -18,8 +18,9 @@ locals {
     entra  = aws_iam_policy.entra_policy.arn
   }
   sqs_policies = {
-    sqs    = aws_iam_policy.sqs_policy.arn
-    shared = aws_iam_policy.shared_iam_policy.arn
+    sqs     = aws_iam_policy.sqs_policy.arn
+    shared  = aws_iam_policy.shared_iam_policy.arn
+    managed = "arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"
   }
   api_policies = {
     api    = aws_iam_policy.api_only_policy.arn
@@ -45,13 +46,6 @@ resource "aws_iam_role" "api_role" {
         Principal = {
           Service = "lambda.amazonaws.com"
         },
-        Condition = {
-          ArnLike = {
-            "AWS:SourceArn" = [
-              "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:${local.core_api_lambda_name}"
-            ]
-          }
-        }
       },
     ]
   })
@@ -67,13 +61,6 @@ resource "aws_iam_role" "sqs_consumer_role" {
         Effect = "Allow"
         Principal = {
           Service = "lambda.amazonaws.com"
-        },
-        Condition = {
-          ArnLike = {
-            "AWS:SourceArn" = [
-              "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:${local.core_sqs_consumer_lambda_name}"
-            ]
-          }
         }
       },
     ]
@@ -385,6 +372,11 @@ output "core_function_url" {
 output "core_api_lambda_name" {
   value = local.core_api_lambda_name
 }
+
+output "core_sqs_consumer_lambda_arn" {
+  value = aws_lambda_function.sqs_lambda.arn
+}
+
 
 output "core_sqs_consumer_lambda_name" {
   value = local.core_sqs_consumer_lambda_name

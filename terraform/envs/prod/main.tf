@@ -57,16 +57,9 @@ resource "random_password" "origin_verify_key" {
   }
 }
 
-// TEMPORARY LINKRY KV IMPORT
-import {
-  to = aws_cloudfront_key_value_store.linkry_kv
-  id = "${var.ProjectId}-cloudfront-linkry-kv"
-}
-
 resource "aws_cloudfront_key_value_store" "linkry_kv" {
   name = "${var.ProjectId}-cloudfront-linkry-kv"
 }
-//
 
 module "alarms" {
   source                          = "../../modules/alarms"
@@ -80,7 +73,7 @@ module "alarms" {
 module "lambdas" {
   source           = "../../modules/lambdas"
   ProjectId        = var.ProjectId
-  RunEnvironment   = "dev"
+  RunEnvironment   = "prod"
   LinkryKvArn      = aws_cloudfront_key_value_store.linkry_kv.arn
   OriginVerifyKey  = random_password.origin_verify_key.result
   LogRetentionDays = 30
@@ -98,6 +91,15 @@ module "frontend" {
   IcalPublicDomain   = var.IcalPublicDomain
   LinkryPublicDomain = var.LinkryPublicDomain
   LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
+}
+
+resource "aws_lambda_event_source_mapping" "queue_consumer" {
+  depends_on              = [module.lambdas, module.sqs_queues]
+  for_each                = toset([module.sqs_queues.main_queue_arn, module.sqs_queues.sales_email_queue_arn])
+  batch_size              = 5
+  event_source_arn        = each.key
+  function_name           = module.lambdas.core_sqs_consumer_lambda_arn
+  function_response_types = ["ReportBatchItemFailures"]
 }
 
 // This section last: moved records into modules
