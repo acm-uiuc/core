@@ -1,8 +1,10 @@
 data "aws_caller_identity" "current" {}
-locals {
-  account_id = data.aws_caller_identity.current.account_id
-}
+data "aws_region" "current" {}
 
+locals {
+  bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
+  account_id    = data.aws_caller_identity.current.account_id
+}
 terraform {
   required_providers {
     aws = {
@@ -30,12 +32,6 @@ provider "aws" {
   }
 }
 
-data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
-
-locals {
-  bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
-}
 import {
   to = aws_cloudwatch_log_group.main_app_logs
   id = "/aws/lambda/${var.ProjectId}-lambda"
