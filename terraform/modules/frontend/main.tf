@@ -1,0 +1,174 @@
+resource "aws_s3_bucket" "frontend" {
+  bucket = "${var.BucketPrefix}-${var.ProjectId}"
+}
+
+resource "aws_cloudfront_origin_access_control" "frontend_oac" {
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+  name                              = "${var.ProjectId}-ui-oac"
+}
+
+resource "aws_cloudfront_cache_policy" "headers_no_cookies" {
+  name        = "${var.ProjectId}-origin-cache-policy"
+  default_ttl = 0
+  max_ttl     = 31536000
+  min_ttl     = 0
+  parameters_in_cache_key_and_forwarded_to_origin {
+    enable_accept_encoding_brotli = true
+    enable_accept_encoding_gzip   = true
+    headers_config {
+      header_behavior = "whitelist"
+      headers {
+        items = ["x-method-override", "origin", "x-http-method", "x-http-method-override"]
+      }
+    }
+    query_strings_config {
+      query_string_behavior = "all"
+    }
+    cookies_config {
+      cookie_behavior = "none"
+    }
+  }
+}
+
+resource "aws_cloudfront_cache_policy" "no_cache" {
+  name        = "${var.ProjectId}-disable-cache-policy"
+  default_ttl = 0
+  max_ttl     = 31536000
+  min_ttl     = 0
+  parameters_in_cache_key_and_forwarded_to_origin {
+    enable_accept_encoding_brotli = true
+    enable_accept_encoding_gzip   = true
+    headers_config {
+      header_behavior = "none"
+    }
+    query_strings_config {
+      query_string_behavior = "none"
+    }
+    cookies_config {
+      cookie_behavior = "none"
+    }
+  }
+}
+
+resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
+  http_version = "http2and3"
+  origin {
+    origin_id                = "S3Bucket"
+    origin_access_control_id = aws_cloudfront_origin_access_control.frontend_oac.id
+    domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
+  }
+  origin {
+    origin_id   = "LambdaFunction"
+    domain_name = var.CoreLambdaHost
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
+    }
+    custom_header {
+      name  = "X-Origin-Verify"
+      value = var.OriginVerifyKey
+    }
+  }
+  default_root_object = "index.html"
+  aliases             = [var.CorePublicDomain]
+  enabled             = true
+  is_ipv6_enabled     = true
+  default_cache_behavior {
+    compress               = true
+    target_origin_id       = "S3Bucket"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6" # caching-optimized
+  }
+  viewer_certificate {
+    acm_certificate_arn      = var.CoreCertificateArn
+    minimum_protocol_version = "TLSv1.2_2021"
+    ssl_support_method       = "sni-only"
+  }
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+  ordered_cache_behavior {
+    path_pattern             = "/api/v1/events*"
+    target_origin_id         = "LambdaFunction"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = aws_cloudfront_cache_policy.headers_no_cookies.id
+    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    compress                 = true
+  }
+  ordered_cache_behavior {
+    path_pattern             = "/api/v1/organizations"
+    target_origin_id         = "LambdaFunction"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    compress                 = true
+  }
+  ordered_cache_behavior {
+    path_pattern             = "/api/*"
+    target_origin_id         = "LambdaFunction"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = aws_cloudfront_cache_policy.no_cache.id
+    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    compress                 = true
+  }
+  price_class = "PriceClass_100"
+}
+
+resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
+  bucket = aws_s3_bucket.frontend.id
+  policy = jsonencode(({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        },
+        Action   = "s3:GetObject",
+        Resource = "${aws_s3_bucket.frontend.arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
+          }
+        }
+      },
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        },
+        Action   = "s3:ListBucket",
+        Resource = aws_s3_bucket.frontend.arn
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
+          }
+        }
+      }
+    ]
+
+  }))
+
+}
+
+output "main_cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.app_cloudfront_distribution.id
+}
+
+output "main_cloudfront_domain_name" {
+  value = aws_cloudfront_distribution.app_cloudfront_distribution.domain_name
+}

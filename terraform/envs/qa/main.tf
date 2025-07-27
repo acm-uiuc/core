@@ -27,6 +27,13 @@ provider "aws" {
   }
 }
 
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+locals {
+  bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
+}
+
 resource "aws_cloudwatch_log_group" "main_app_logs" {
   name              = "/aws/lambda/${var.ProjectId}-lambda"
   retention_in_days = var.LogRetentionDays
@@ -49,7 +56,7 @@ resource "random_password" "origin_verify_key" {
   length  = 20
   special = false
   keepers = {
-    force_recreation = uuid()
+    force_recreation = formatdate("DD-MMM-YYYY", timestamp())
   }
 }
 
@@ -60,8 +67,41 @@ module "lambdas" {
   LinkryKvArn      = "arn:aws:cloudfront::427040638965:key-value-store/0c2c02fd-7c47-4029-975d-bc5d0376bba1"
   OriginVerifyKey  = random_password.origin_verify_key.result
   LogRetentionDays = 30
+  EmailDomain      = var.EmailDomain
 }
 
+module "frontend" {
+  source             = "../../modules/frontend"
+  BucketPrefix       = local.bucket_prefix
+  CoreLambdaHost     = module.lambdas.core_function_url
+  OriginVerifyKey    = random_password.origin_verify_key.result
+  ProjectId          = var.ProjectId
+  CoreCertificateArn = var.CoreCertificateArn
+  CorePublicDomain   = var.CorePublicDomain
+
+}
+// QA only - setup Route 53 records
+resource "aws_route53_record" "frontend_ipv4" {
+  zone_id = "Z04502822NVIA85WM2SML"
+  type    = "A"
+  name    = var.CorePublicDomain
+  alias {
+    name                   = module.frontend.main_cloudfront_domain_name
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "frontend_ipv6" {
+  zone_id = "Z04502822NVIA85WM2SML"
+  type    = "AAAA"
+  name    = var.CorePublicDomain
+  alias {
+    name                   = module.frontend.main_cloudfront_domain_name
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
+}
 // This section last: moved records into modules
 moved {
   from = aws_dynamodb_table.app_audit_log

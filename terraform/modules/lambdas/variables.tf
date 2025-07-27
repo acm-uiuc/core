@@ -24,3 +24,7 @@ variable "OriginVerifyKey" {
 variable "LogRetentionDays" {
   type = number
 }
+
+variable "EmailDomain" {
+  type = string
+}

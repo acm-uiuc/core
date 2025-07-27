@@ -4,8 +4,15 @@ data "archive_file" "api_lambda_code" {
   output_path = "${path.module}/../../../dist/terraform/api.zip"
 }
 
+data "archive_file" "sqs_lambda_code" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../../dist/sqsConsumer"
+  output_path = "${path.module}/../../../dist/terraform/sqs.zip"
+}
+
 locals {
-  core_api_lambda_name = "${var.ProjectId}-tf-lambda"
+  core_api_lambda_name          = "${var.ProjectId}-tf-lambda"
+  core_sqs_consumer_lambda_name = "${var.ProjectId}-tf-sqs-consumer"
 }
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
@@ -54,6 +61,28 @@ resource "aws_iam_role" "entra_role" {
   })
 }
 
+resource "aws_iam_role" "sqs_consumer_role" {
+  name = "${local.core_sqs_consumer_lambda_name}-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = ""
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Condition = {
+          StringEquals = {
+            "aws:SourceArn" = "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:${local.core_sqs_consumer_lambda_name}"
+          }
+        }
+      },
+    ]
+  })
+}
+
 resource "aws_iam_policy" "entra_policy" {
   name = "${var.ProjectId}-entra-policy"
   policy = jsonencode(({
@@ -71,6 +100,53 @@ resource "aws_iam_policy" "entra_policy" {
   }))
 
 }
+
+resource "aws_iam_policy" "sqs_policy" {
+  name = "${var.ProjectId}-sqs-consumer-policy"
+  policy = jsonencode(({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "SendMembershipEmails",
+        Effect   = "Allow",
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"],
+        Resource = ["*"],
+        Condition = {
+          "StringEquals" = {
+            "ses:FromAddress" = "membership@${var.EmailDomain}"
+          },
+          "ForAllValues:StringLike" = {
+            "ses:Recipients" = ["*@illinois.edu"]
+          }
+        }
+      },
+      {
+        Sid      = "SendNotificationEmails",
+        Effect   = "Allow",
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"],
+        Resource = ["*"],
+        Condition = {
+          "StringEquals" = {
+            "ses:FromAddress" = "notifications@${var.EmailDomain}"
+          },
+        }
+      },
+      {
+        Sid      = "SendSalesEmails",
+        Effect   = "Allow",
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"],
+        Resource = ["*"],
+        Condition = {
+          "StringEquals" = {
+            "ses:FromAddress" = "sales@${var.EmailDomain}"
+          },
+        }
+      }
+    ]
+  }))
+
+}
+
 
 resource "aws_iam_policy" "shared_iam_policy" {
   name = "${var.ProjectId}-lambda-shared-policy"
@@ -206,6 +282,21 @@ resource "aws_iam_role_policy_attachment" "entra_attach_specific" {
   policy_arn = aws_iam_policy.entra_policy.arn
 }
 
+resource "aws_iam_role_policy_attachment" "sqs_attach_shared" {
+  role       = aws_iam_role.sqs_consumer_role.name
+  policy_arn = aws_iam_policy.shared_iam_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "sqs_attach_managed" {
+  role       = aws_iam_role.sqs_consumer_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "sqs_attach_specific" {
+  role       = aws_iam_role.sqs_consumer_role.name
+  policy_arn = aws_iam_policy.sqs_policy.arn
+}
+
 resource "aws_lambda_function" "api_lambda" {
   depends_on       = [aws_cloudwatch_log_group.api_logs]
   function_name    = local.core_api_lambda_name
@@ -229,11 +320,28 @@ resource "aws_lambda_function" "api_lambda" {
   }
 }
 
-resource "aws_lambda_alias" "warmer_function_alias" {
-  name             = "live"
-  description      = "Live environment alias"
-  function_name    = aws_lambda_function.api_lambda.arn
-  function_version = aws_lambda_function.api_lambda.version
+resource "aws_lambda_function" "sqs_lambda" {
+  depends_on = [aws_cloudwatch_log_group.api_logs]
+  logging_config {
+    log_format = "JSON"
+    log_group  = aws_cloudwatch_log_group.api_logs.name
+  }
+  function_name    = local.core_sqs_consumer_lambda_name
+  role             = aws_iam_role.sqs_consumer_role.arn
+  architectures    = ["arm64"]
+  handler          = "index.handler"
+  runtime          = "nodejs22.x"
+  filename         = data.archive_file.sqs_lambda_code.output_path
+  timeout          = 300
+  memory_size      = 2048
+  source_code_hash = data.archive_file.sqs_lambda_code.output_sha256
+  environment {
+    variables = {
+      "RunEnvironment" = var.RunEnvironment
+      EntraRoleArn     = aws_iam_role.entra_role.arn
+      "NODE_OPTIONS"   = "--enable-source-maps"
+    }
+  }
 }
 
 resource "aws_lambda_function_url" "api_lambda_function_url" {
@@ -242,5 +350,5 @@ resource "aws_lambda_function_url" "api_lambda_function_url" {
 }
 
 output "core_function_url" {
-  value = aws_lambda_function_url.api_lambda_function_url.function_url
+  value = replace(replace(aws_lambda_function_url.api_lambda_function_url.function_url, "https://", ""), "/", "")
 }

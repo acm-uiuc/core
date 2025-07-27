@@ -29,6 +29,13 @@ provider "aws" {
     }
   }
 }
+
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+locals {
+  bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
+}
 import {
   to = aws_cloudwatch_log_group.main_app_logs
   id = "/aws/lambda/${var.ProjectId}-lambda"
@@ -40,7 +47,7 @@ resource "aws_cloudwatch_log_group" "main_app_logs" {
 
 module "app_alarms" {
   source                          = "../../modules/alarms"
-  main_cloudfront_distribution_id = var.main_cloudfront_distribution_id
+  main_cloudfront_distribution_id = module.frontend.main_cloudfront_distribution_id
   resource_prefix                 = var.ProjectId
   priority_sns_arn                = var.GeneralSNSAlertArn
   standard_sns_arn                = var.PrioritySNSAlertArn
@@ -59,6 +66,35 @@ module "dynamo" {
 module "lambda_warmer" {
   source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v0.1.1"
   function_to_warm = "infra-core-api-lambda"
+}
+
+resource "random_password" "origin_verify_key" {
+  length  = 20
+  special = false
+  keepers = {
+    force_recreation = uuid()
+  }
+}
+
+module "lambdas" {
+  source           = "../../modules/lambdas"
+  ProjectId        = var.ProjectId
+  RunEnvironment   = "dev"
+  LinkryKvArn      = "arn:aws:cloudfront::427040638965:key-value-store/0c2c02fd-7c47-4029-975d-bc5d0376bba1"
+  OriginVerifyKey  = random_password.origin_verify_key.result
+  LogRetentionDays = 30
+  EmailDomain      = var.EmailDomain
+}
+
+module "frontend" {
+  source             = "../../modules/frontend"
+  BucketPrefix       = local.bucket_prefix
+  CoreLambdaHost     = module.lambdas.core_function_url
+  OriginVerifyKey    = random_password.origin_verify_key.result
+  ProjectId          = var.ProjectId
+  CoreCertificateArn = var.CoreCertificateArn
+  CorePublicDomain   = var.CorePublicDomain
+
 }
 
 // This section last: moved records into modules
