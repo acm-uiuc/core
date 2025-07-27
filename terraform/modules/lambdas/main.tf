@@ -55,7 +55,7 @@ resource "aws_iam_role" "entra_role" {
 }
 
 resource "aws_iam_policy" "entra_policy" {
-  name = "${var.ProjectId}-lambda-shared-policy"
+  name = "${var.ProjectId}-entra-policy"
   policy = jsonencode(({
     Version = "2012-10-17"
     Statement = [
