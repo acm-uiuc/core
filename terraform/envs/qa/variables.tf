@@ -15,17 +15,17 @@ variable "CoreCertificateArn" {
 
 variable "CorePublicDomain" {
   type    = string
-  default = "core-tf.aws.qa.acmuiuc.org"
+  default = "core.aws.qa.acmuiuc.org"
 }
 
 variable "LinkryPublicDomain" {
   type    = string
-  default = "go-tf.aws.qa.acmuiuc.org"
+  default = "go.aws.qa.acmuiuc.org"
 }
 
 variable "IcalPublicDomain" {
   type    = string
-  default = "ical-tf.aws.qa.acmuiuc.org"
+  default = "ical.aws.qa.acmuiuc.org"
 }
 
 variable "EmailDomain" {

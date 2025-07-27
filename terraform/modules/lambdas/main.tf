@@ -11,8 +11,8 @@ data "archive_file" "sqs_lambda_code" {
 }
 
 locals {
-  core_api_lambda_name          = "${var.ProjectId}-tf-lambda"
-  core_sqs_consumer_lambda_name = "${var.ProjectId}-tf-sqs-consumer"
+  core_api_lambda_name          = "${var.ProjectId}-lambda"
+  core_sqs_consumer_lambda_name = "${var.ProjectId}-sqs-consumer"
 }
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
