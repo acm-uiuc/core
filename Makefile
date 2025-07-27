@@ -5,6 +5,7 @@ current_aws_account := $(shell aws sts get-caller-identity --query Account --out
 src_directory_root = src/
 dist_ui_directory_root = dist_ui/
 integration_test_directory_root = tests/live_integration/
+npm_install_params = --production --target_arch=arm64 --target_platform=linux --target_libc=glibc --cpu arm64 --os linux --arch=arm64
 GIT_HASH := $(shell git rev-parse --short HEAD)
 
 .PHONY: clean
@@ -39,8 +40,9 @@ build: src/
 	make build_swagger
 	cp -r src/api/resources/ dist/api/resources
 	rm -rf dist/lambda/sqs
-	npm --prefix=dist/lambda/ i --cpu arm64 --os linux
-	npm --prefix=dist/sqsConsumer/ i --cpu arm64 --os linux
+	docker run --rm -v "$(shell pwd)/dist/lambda":/var/task public.ecr.aws/sam/build-nodejs22.x:latest npm install $(npm_install_params)
+	docker run --rm -v "$(shell pwd)/dist/sqsConsumer":/var/task public.ecr.aws/sam/build-nodejs22.x:latest npm install $(npm_install_params)
+# Lambda
 	rm -rf dist/lambda/node_modules/aws-crt/dist/bin/darwin*
 	rm -rf dist/lambda/node_modules/aws-crt/dist/bin/linux-x64*
 	rm -rf dist/lambda/node_modules/aws-crt/dist/bin/linux-arm64-musl
@@ -50,6 +52,16 @@ build: src/
 	rm -rf dist/lambda/node_modules/argon2/prebuilds/linux-x64*
 	rm -rf dist/lambda/node_modules/argon2/prebuilds/win32-x64*
 	rm -rf dist/lambda/node_modules/argon2/prebuilds/linux-arm64/argon2.armv8.musl.node
+# SQS
+	rm -rf dist/sqsConsumer/node_modules/aws-crt/dist/bin/darwin*
+	rm -rf dist/sqsConsumer/node_modules/aws-crt/dist/bin/linux-arm64-musl
+	rm -rf dist/sqsConsumer/node_modules/aws-crt/dist/bin/linux-x64*
+	rm -rf dist/sqsConsumer/node_modules/argon2/prebuilds/darwin*
+	rm -rf dist/sqsConsumer/node_modules/argon2/prebuilds/freebsd*
+	rm -rf dist/sqsConsumer/node_modules/argon2/prebuilds/linux-arm
+	rm -rf dist/sqsConsumer/node_modules/argon2/prebuilds/linux-x64*
+	rm -rf dist/sqsConsumer/node_modules/argon2/prebuilds/win32-x64*
+	rm -rf dist/sqsConsumer/node_modules/argon2/prebuilds/linux-arm64/argon2.armv8.musl.node
 
 local:
 	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev

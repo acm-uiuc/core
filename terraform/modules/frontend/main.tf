@@ -18,6 +18,7 @@ resource "null_resource" "upload_frontend" {
 }
 
 resource "null_resource" "invalidate_frontend" {
+  depends_on = [null_resource.upload_frontend]
   triggers = {
     ui_bucket_sha = data.archive_file.ui.output_sha
   }

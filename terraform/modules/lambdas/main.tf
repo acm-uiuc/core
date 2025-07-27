@@ -311,9 +311,12 @@ resource "aws_lambda_function" "sqs_lambda" {
   source_code_hash = data.archive_file.sqs_lambda_code.output_sha256
   environment {
     variables = {
-      "RunEnvironment" = var.RunEnvironment
-      EntraRoleArn     = aws_iam_role.entra_role.arn
-      "NODE_OPTIONS"   = "--enable-source-maps"
+      "RunEnvironment"                      = var.RunEnvironment
+      "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
+      ORIGIN_VERIFY_KEY                     = var.OriginVerifyKey
+      EntraRoleArn                          = aws_iam_role.entra_role.arn
+      LinkryKvArn                           = var.LinkryKvArn
+      "NODE_OPTIONS"                        = "--enable-source-maps"
     }
   }
 }
