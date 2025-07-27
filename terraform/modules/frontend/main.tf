@@ -282,6 +282,46 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
 
 }
 
+resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
+  http_version = "http2and3"
+  origin {
+    origin_id   = "DummyOrigin"
+    domain_name = "example.com"
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
+    }
+  }
+  aliases         = [var.LinkryPublicDomain]
+  enabled         = true
+  is_ipv6_enabled = true
+  default_cache_behavior {
+    compress               = true
+    target_origin_id       = "DummyOrigin"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.linkry_redirect.arn
+    }
+  }
+  viewer_certificate {
+    acm_certificate_arn      = var.CoreCertificateArn
+    minimum_protocol_version = "TLSv1.2_2021"
+    ssl_support_method       = "sni-only"
+  }
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+  price_class = "PriceClass_100"
+}
+
 output "main_cloudfront_distribution_id" {
   value = aws_cloudfront_distribution.app_cloudfront_distribution.id
 }
@@ -296,4 +336,12 @@ output "ical_cloudfront_distribution_id" {
 
 output "ical_cloudfront_domain_name" {
   value = aws_cloudfront_distribution.ical_cloudfront_distribution.domain_name
+}
+
+output "linkry_cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.linkry_cloudfront_distribution.id
+}
+
+output "linkry_cloudfront_domain_name" {
+  value = aws_cloudfront_distribution.linkry_cloudfront_distribution.domain_name
 }

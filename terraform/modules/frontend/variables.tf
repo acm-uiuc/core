@@ -18,6 +18,11 @@ variable "IcalPublicDomain" {
   description = "Ical Public Host"
 }
 
+variable "LinkryPublicDomain" {
+  type        = string
+  description = "Ical Public Host"
+}
+
 
 variable "CoreCertificateArn" {
   type        = string

@@ -30,14 +30,8 @@ resource "aws_iam_role" "api_role" {
       {
         Action = "sts:AssumeRole"
         Effect = "Allow"
-        Sid    = ""
         Principal = {
           Service = "lambda.amazonaws.com"
-        }
-        Condition = {
-          StringEquals = {
-            "aws:SourceArn" = "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:${local.core_api_lambda_name}"
-          }
         }
       },
     ]

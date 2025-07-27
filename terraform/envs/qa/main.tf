@@ -91,6 +91,7 @@ module "frontend" {
   CoreCertificateArn = var.CoreCertificateArn
   CorePublicDomain   = var.CorePublicDomain
   IcalPublicDomain   = var.IcalPublicDomain
+  LinkryPublicDomain = var.LinkryPublicDomain
   LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
   LinkryKvId         = aws_cloudfront_key_value_store.linkry_kv.id
 }
@@ -114,6 +115,18 @@ resource "aws_route53_record" "ical" {
   name     = var.IcalPublicDomain
   alias {
     name                   = module.frontend.ical_cloudfront_domain_name
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "linkry" {
+  for_each = toset(["A", "AAAA"])
+  zone_id  = "Z04502822NVIA85WM2SML"
+  type     = each.key
+  name     = var.LinkryPublicDomain
+  alias {
+    name                   = module.frontend.linkry_cloudfront_domain_name
     zone_id                = "Z2FDTNDATAQYW2"
     evaluate_target_health = false
   }
