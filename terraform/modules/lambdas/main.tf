@@ -38,6 +38,22 @@ resource "aws_iam_role" "api_role" {
   })
 }
 
+resource "aws_iam_role" "sqs_consumer_role" {
+  name = "${local.core_sqs_consumer_lambda_name}-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
 resource "aws_iam_role" "entra_role" {
   name = "${var.ProjectId}-entra-role"
   assume_role_policy = jsonencode({
@@ -51,20 +67,12 @@ resource "aws_iam_role" "entra_role" {
           AWS = aws_iam_role.api_role.arn
         }
       },
-    ]
-  })
-}
-
-resource "aws_iam_role" "sqs_consumer_role" {
-  name = "${local.core_sqs_consumer_lambda_name}-role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
       {
         Action = "sts:AssumeRole"
         Effect = "Allow"
+        Sid    = "AllowApiRole"
         Principal = {
-          Service = "lambda.amazonaws.com"
+          AWS = aws_iam_role.sqs_consumer_role.arn
         }
       },
     ]
