@@ -37,6 +37,41 @@ resource "aws_iam_role" "api_role" {
   })
 }
 
+resource "aws_iam_role" "entra_role" {
+  name = "${var.ProjectId}-entra-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = "AllowApiRole"
+        Principal = {
+          AWS = aws_iam_role.api_role.arn
+        }
+      },
+    ]
+  })
+}
+
+resource "aws_iam_policy" "entra_policy" {
+  name = "${var.ProjectId}-lambda-shared-policy"
+  policy = jsonencode(({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = ["secretsmanager:GetSecretValue"],
+        Resource = [
+          "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-entra*",
+          "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-ro-entra*"
+        ]
+      }
+    ]
+  }))
+
+}
+
 resource "aws_iam_policy" "shared_iam_policy" {
   name = "${var.ProjectId}-lambda-shared-policy"
   policy = jsonencode(({
@@ -161,6 +196,16 @@ resource "aws_iam_role_policy_attachment" "api_attach_shared" {
   policy_arn = aws_iam_policy.shared_iam_policy.arn
 }
 
+resource "aws_iam_role_policy_attachment" "entra_attach_shared" {
+  role       = aws_iam_role.entra_role.name
+  policy_arn = aws_iam_policy.shared_iam_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "entra_attach_specific" {
+  role       = aws_iam_role.entra_role.name
+  policy_arn = aws_iam_policy.entra_policy.arn
+}
+
 resource "aws_lambda_function" "api_lambda" {
   depends_on       = [aws_cloudwatch_log_group.api_logs]
   function_name    = local.core_api_lambda_name
@@ -177,7 +222,7 @@ resource "aws_lambda_function" "api_lambda" {
       "RunEnvironment"                      = var.RunEnvironment
       "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
       ORIGIN_VERIFY_KEY                     = var.OriginVerifyKey
-      EntraRoleArn                          = var.EntraRoleArn
+      EntraRoleArn                          = aws_iam_role.entra_role.arn
       LinkryKvArn                           = var.LinkryKvArn
       "NODE_OPTIONS"                        = "--enable-source-maps"
     }

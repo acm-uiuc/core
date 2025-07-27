@@ -3,11 +3,6 @@ variable "ProjectId" {
   description = "Prefix before each resource"
 }
 
-variable "EntraRoleArn" {
-  type = string
-}
-
-
 variable "LinkryKvArn" {
   type = string
 }

@@ -57,7 +57,6 @@ module "lambdas" {
   source           = "../../modules/lambdas"
   ProjectId        = var.ProjectId
   RunEnvironment   = "dev"
-  EntraRoleArn     = "arn:aws:iam::427040638965:role/infra-core-api-AppSecurityRoles--EntraLambdaIAMRole-b3CFiiF0S5pN"
   LinkryKvArn      = "arn:aws:cloudfront::427040638965:key-value-store/0c2c02fd-7c47-4029-975d-bc5d0376bba1"
   OriginVerifyKey  = random_password.origin_verify_key.result
   LogRetentionDays = 30
