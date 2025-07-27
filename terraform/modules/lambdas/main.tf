@@ -108,8 +108,24 @@ resource "aws_iam_policy" "entra_policy" {
       }
     ]
   }))
-
 }
+
+resource "aws_iam_policy" "api_only_policy" {
+  name = "${var.ProjectId}-entra-policy"
+  policy = jsonencode(({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = ["sqs:SendMessage"],
+        Resource = [
+          "arn:aws:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:infra-core-api-*",
+        ]
+      }
+    ]
+  }))
+}
+
 
 resource "aws_iam_policy" "sqs_policy" {
   name = "${var.ProjectId}-sqs-consumer-policy"
