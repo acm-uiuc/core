@@ -84,7 +84,7 @@ resource "aws_iam_role" "entra_role" {
       {
         Action = "sts:AssumeRole"
         Effect = "Allow"
-        Sid    = "AllowApiRole"
+        Sid    = "AllowConsumerRole"
         Principal = {
           AWS = aws_iam_role.sqs_consumer_role.arn
         }
