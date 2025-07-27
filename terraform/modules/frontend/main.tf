@@ -2,6 +2,37 @@ resource "aws_s3_bucket" "frontend" {
   bucket = "${var.BucketPrefix}-${var.ProjectId}"
 }
 
+data "archive_file" "ui" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../../dist_ui/"
+  output_path = "/tmp/ui_archive.zip"
+}
+resource "null_resource" "upload_frontend" {
+  triggers = {
+    ui_bucket_sha = data.archive_file.ui.output_sha
+  }
+
+  provisioner "local-exec" {
+    command = "aws s3 sync ${data.archive_file.ui.source_dir} s3://${aws_s3_bucket.frontend.id} --delete"
+  }
+}
+
+resource "null_resource" "invalidate_frontend" {
+  triggers = {
+    ui_bucket_sha = data.archive_file.ui.output_sha
+  }
+
+  provisioner "local-exec" {
+    command     = <<-EOT
+      set -e
+      INVALIDATION_ID=$(aws cloudfront create-invalidation --distribution-id ${aws_cloudfront_distribution.app_cloudfront_distribution.id} --paths "/*" --query 'Invalidation.Id' --output text)
+      aws cloudfront wait invalidation-completed --distribution-id ${aws_cloudfront_distribution.app_cloudfront_distribution.id} --id "$INVALIDATION_ID"
+    EOT
+    interpreter = ["bash", "-c"]
+  }
+}
+
+
 resource "aws_cloudfront_origin_access_control" "frontend_oac" {
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
