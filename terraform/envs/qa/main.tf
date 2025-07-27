@@ -34,11 +34,8 @@ locals {
   bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
 }
 
-resource "aws_cloudwatch_log_group" "main_app_logs" {
-  name              = "/aws/lambda/${var.ProjectId}-lambda"
-  retention_in_days = var.LogRetentionDays
-}
 module "sqs_queues" {
+  depends_on                    = [module.lambdas]
   source                        = "../../modules/sqs"
   resource_prefix               = var.ProjectId
   core_sqs_consumer_lambda_name = module.lambdas.core_sqs_consumer_lambda_name
