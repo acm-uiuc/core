@@ -56,7 +56,7 @@ resource "aws_iam_role" "entra_role" {
 }
 
 resource "aws_iam_role" "sqs_consumer_role" {
-  name = "${local.core_api_lambda_name}-role"
+  name = "${local.core_sqs_consumer_lambda_name}-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
