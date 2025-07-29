@@ -352,9 +352,7 @@ resource "aws_lambda_function" "sqs_lambda" {
     variables = {
       "RunEnvironment"                      = var.RunEnvironment
       "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
-      ORIGIN_VERIFY_KEY                     = var.OriginVerifyKey
       EntraRoleArn                          = aws_iam_role.entra_role.arn
-      LinkryKvArn                           = var.LinkryKvArn
       "NODE_OPTIONS"                        = "--enable-source-maps"
     }
   }
