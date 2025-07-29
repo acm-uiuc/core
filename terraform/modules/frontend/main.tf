@@ -273,7 +273,7 @@ async function handler(event) {
     statusCode: statusCode,
     statusDescription: statusDescription,
     headers: {
-      'location': { value: redirectUrl }
+      'location': { value: redirectUrl },
       'cache-control': { value: 'no-cache, no-store, must-revalidate' }
     }
   };
