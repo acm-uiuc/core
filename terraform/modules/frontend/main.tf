@@ -256,20 +256,25 @@ async function handler(event) {
       }
     }
   }
+  let statusCode = 307;
+  let statusDescription = 'Not Found';
   let redirectUrl = "https://acm.illinois.edu/404";
   try {
     const value = await kvs.get(path);
     if (value) {
       redirectUrl = value;
+      statusCode = 302;
+      statusDescription = 'Found'
     }
   } catch (err) {
     console.log(`KVS key lookup failed for $!{path}: $!{err}`);
   }
   var response = {
-    statusCode: 302,
-    statusDescription: 'Found',
+    statusCode: statusCode,
+    statusDescription: statusDescription,
     headers: {
       'location': { value: redirectUrl }
+      'cache-control': { value: 'no-cache, no-store, must-revalidate' }
     }
   };
   return response;
