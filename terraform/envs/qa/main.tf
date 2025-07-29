@@ -50,12 +50,6 @@ module "dynamo" {
   ProjectId = var.ProjectId
 }
 
-module "auditlog" {
-  source       = "../../modules/auditlog"
-  ProjectId    = var.ProjectId
-  BucketPrefix = local.bucket_prefix
-}
-
 resource "random_password" "origin_verify_key" {
   length  = 20
   special = false
