@@ -30,9 +30,6 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-locals {
-  bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
-}
 
 module "sqs_queues" {
   depends_on                    = [module.lambdas]
@@ -40,6 +37,14 @@ module "sqs_queues" {
   resource_prefix               = var.ProjectId
   core_sqs_consumer_lambda_name = module.lambdas.core_sqs_consumer_lambda_name
 }
+locals {
+  bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
+  queue_arns = {
+    main = module.sqs_queues.main_queue_arn
+    sqs  = module.sqs_queues.sales_email_queue_arn
+  }
+}
+
 
 module "lambda_warmer" {
   source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v0.1.1"
@@ -122,7 +127,7 @@ resource "aws_route53_record" "linkry" {
 }
 resource "aws_lambda_event_source_mapping" "queue_consumer" {
   depends_on              = [module.lambdas, module.sqs_queues]
-  for_each                = toset([module.sqs_queues.main_queue_arn, module.sqs_queues.sales_email_queue_arn])
+  for_each                = local.queue_arns
   batch_size              = 5
   event_source_arn        = each.key
   function_name           = module.lambdas.core_sqs_consumer_lambda_arn
