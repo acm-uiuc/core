@@ -63,7 +63,7 @@ deploy_prod: check_account_prod
 deploy_dev: check_account_dev
 	@echo "Deploying Terraform..."
 	terraform -chdir=terraform/envs/qa init -lockfile=readonly
-	terraform -chdir=terraform/envs/qa apply -refresh-only -auto-approve
+	terraform -chdir=terraform/envs/qa apply -refresh-only -auto-approve -lock=false
 	terraform -chdir=terraform/envs/qa apply -auto-approve
 
 init_terraform:
