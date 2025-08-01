@@ -58,12 +58,16 @@ local:
 deploy_prod: check_account_prod
 	@echo "Deploying Terraform..."
 	terraform -chdir=terraform/envs/prod init -lockfile=readonly
-	terraform -chdir=terraform/envs/prod apply -auto-approve
+	terraform -chdir=terraform/envs/qa plan -out=tfplan
+	terraform -chdir=terraform/envs/prod apply -auto-approve tfplan
+	rm tfplan
 
 deploy_dev: check_account_dev
 	@echo "Deploying Terraform..."
 	terraform -chdir=terraform/envs/qa init -lockfile=readonly
-	terraform -chdir=terraform/envs/qa apply -auto-approve
+	terraform -chdir=terraform/envs/qa plan -out=tfplan
+	terraform -chdir=terraform/envs/qa apply -auto-approve tfplan
+	rm tfplan
 
 init_terraform:
 	terraform -chdir=terraform/envs/qa init
