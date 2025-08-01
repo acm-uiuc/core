@@ -160,6 +160,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         new SendMessageCommand({
           QueueUrl: fastify.environmentConfig.SqsQueueUrl,
           MessageBody: JSON.stringify(sqsPayload),
+          MessageGroupId: "roomReservationNotification",
         }),
       );
       if (!result.MessageId) {
@@ -388,6 +389,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         new SendMessageCommand({
           QueueUrl: fastify.environmentConfig.SqsQueueUrl,
           MessageBody: JSON.stringify(sqsPayload),
+          MessageGroupId: "roomReservationNotification",
         }),
       );
       if (!result.MessageId) {
