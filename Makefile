@@ -10,16 +10,6 @@ GIT_HASH := $(shell git rev-parse --short HEAD)
 
 .PHONY: clean
 
-check_account_prod:
-ifneq ($(current_aws_account),$(prod_aws_account))
-	$(error Error: running in account $(current_aws_account), expected account ID $(prod_aws_account))
-endif
-
-check_account_dev:
-ifneq ($(current_aws_account),$(dev_aws_account))
-	$(error Error: running in account $(current_aws_account), expected account ID $(dev_aws_account))
-endif
-
 
 clean:
 	rm -rf .aws-sam
@@ -55,19 +45,19 @@ build: src/
 local:
 	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
 
-deploy_prod: check_account_prod
+deploy_prod:
 	@echo "Deploying Terraform..."
 	terraform -chdir=terraform/envs/prod init -lockfile=readonly
-	terraform -chdir=terraform/envs/qa plan -out=tfplan
+	terraform -chdir=terraform/envs/prod plan -out=tfplan
 	terraform -chdir=terraform/envs/prod apply -auto-approve tfplan
-	rm tfplan
+	rm terraform/envs/prod/tfplan
 
-deploy_dev: check_account_dev
+deploy_qa:
 	@echo "Deploying Terraform..."
 	terraform -chdir=terraform/envs/qa init -lockfile=readonly
 	terraform -chdir=terraform/envs/qa plan -out=tfplan
 	terraform -chdir=terraform/envs/qa apply -auto-approve tfplan
-	rm tfplan
+	rm terraform/envs/qa/tfplan
 
 init_terraform:
 	terraform -chdir=terraform/envs/qa init

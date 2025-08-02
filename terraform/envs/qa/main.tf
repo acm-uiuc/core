@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.92"
+      version = "~> 6.7.0"
     }
   }
 
@@ -18,7 +18,8 @@ terraform {
 
 
 provider "aws" {
-  region = "us-east-1"
+  allowed_account_ids = ["427040638965"]
+  region              = "us-east-1"
   default_tags {
     tags = {
       project           = var.ProjectId
@@ -38,7 +39,7 @@ module "sqs_queues" {
   core_sqs_consumer_lambda_name = module.lambdas.core_sqs_consumer_lambda_name
 }
 locals {
-  bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
+  bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.region}"
   queue_arns = {
     main = module.sqs_queues.main_queue_arn
     sqs  = module.sqs_queues.sales_email_queue_arn
@@ -129,7 +130,7 @@ resource "aws_lambda_event_source_mapping" "queue_consumer" {
   depends_on              = [module.lambdas, module.sqs_queues]
   for_each                = local.queue_arns
   batch_size              = 5
-  event_source_arn        = each.key
+  event_source_arn        = each.value
   function_name           = module.lambdas.core_sqs_consumer_lambda_arn
   function_response_types = ["ReportBatchItemFailures"]
 }

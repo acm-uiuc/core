@@ -130,11 +130,11 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
-          role-session-name: Core_Dev_Deployment_${{ github.run_id }}
+          role-session-name: Core_QA_Deployment_${{ github.run_id }}
           aws-region: us-east-1
 
       - name: Publish to AWS
-        run: make deploy_dev
+        run: make deploy_qa
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev

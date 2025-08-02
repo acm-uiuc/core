@@ -5,7 +5,6 @@
 2. Enable Tailscale VPN so you can reach the development database in AWS
 3. Log into AWS with `aws configure sso` so you can retrieve the AWS secret and configuration.
 4. `yarn -D`
-5. `make check_account_dev` - If this fails make sure that AWS is configured.
 6. `make local`
 
 ## Build for AWS Lambda
@@ -16,7 +15,7 @@
 
 1. Get AWS credentials with `aws configure sso`
 2. Ensure AWS profile is set to the right account (QA or PROD).
-3. Run `make deploy_dev` or `make deploy_prod`.
+3. Run `make deploy_qa` or `make deploy_prod`.
 
 ## Generating JWT token
 
