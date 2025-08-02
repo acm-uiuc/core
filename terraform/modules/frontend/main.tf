@@ -220,8 +220,7 @@ resource "aws_cloudfront_function" "origin_key_injection" {
   runtime = "cloudfront-js-2.0"
   code    = <<EOT
 function handler(event) {
-    var request = event.request;
-    request.headers['x-origin-verify'] = { value: "${var.OriginVerifyKey}" };
+    event.request.headers['x-origin-verify'] = { value: "${var.OriginVerifyKey}" };
     return request;
 }
 EOT
