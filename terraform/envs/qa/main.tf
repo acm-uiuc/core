@@ -57,7 +57,7 @@ module "dynamo" {
 }
 
 resource "random_password" "origin_verify_key" {
-  length  = 32
+  length  = 16
   special = false
   keepers = {
     force_recreation = formatdate("DD-MMM-YYYY", plantimestamp())
