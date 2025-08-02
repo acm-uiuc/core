@@ -126,6 +126,7 @@ If you did not create this API key, please secure your account and notify the AC
         new SendMessageCommand({
           QueueUrl: fastify.environmentConfig.SqsQueueUrl,
           MessageBody: JSON.stringify(sqsPayload),
+          MessageGroupId: "securityNotification",
         }),
       );
       if (result.MessageId) {
@@ -228,6 +229,7 @@ If you did not delete this API key, please secure your account and notify the AC
         new SendMessageCommand({
           QueueUrl: fastify.environmentConfig.SqsQueueUrl,
           MessageBody: JSON.stringify(sqsPayload),
+          MessageGroupId: "securityNotification",
         }),
       );
       if (result.MessageId) {

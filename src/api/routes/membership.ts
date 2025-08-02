@@ -459,6 +459,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
               new SendMessageCommand({
                 QueueUrl: fastify.environmentConfig.SqsQueueUrl,
                 MessageBody: JSON.stringify(sqsPayload),
+                MessageGroupId: "membershipProvisioning",
               }),
             );
             if (!result.MessageId) {

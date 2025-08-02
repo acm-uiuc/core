@@ -79,6 +79,7 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
         new SendMessageCommand({
           QueueUrl: fastify.environmentConfig.SqsQueueUrl,
           MessageBody: JSON.stringify(sqsPayload),
+          MessageGroupId: "mobileWalletNotification",
         }),
       );
       if (!result.MessageId) {
