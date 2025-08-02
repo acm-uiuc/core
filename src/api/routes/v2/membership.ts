@@ -31,9 +31,9 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
       {
         schema: withTags(["Membership"], {
           headers: z.object({
-            "x-uiuc-id-token": z.jwt().min(1).meta({
+            "x-uiuc-token": z.jwt().min(1).meta({
               description:
-                "An ID token for the user in the UIUC Entra ID tenant.",
+                "An access token for the user in the UIUC Entra ID tenant.",
             }),
           }),
           summary:
@@ -55,7 +55,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
         }),
       },
       async (request, reply) => {
-        const idToken = request.headers["x-uiuc-id-token"];
+        const idToken = request.headers["x-uiuc-token"];
         const verifiedData = await verifyUiucIdToken({
           idToken,
           redisClient: fastify.redisClient,
