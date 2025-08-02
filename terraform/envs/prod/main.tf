@@ -102,7 +102,7 @@ resource "aws_lambda_event_source_mapping" "queue_consumer" {
   depends_on              = [module.lambdas, module.sqs_queues]
   for_each                = local.queue_arns
   batch_size              = 5
-  event_source_arn        = each.key
+  event_source_arn        = each.value
   function_name           = module.lambdas.core_sqs_consumer_lambda_arn
   function_response_types = ["ReportBatchItemFailures"]
 }
