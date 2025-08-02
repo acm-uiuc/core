@@ -227,7 +227,6 @@ function handler(event) {
 EOT
 }
 
-
 resource "aws_cloudfront_function" "core_frontend_redirect" {
   name    = "${var.ProjectId}-spa-rewrite"
   comment = "Handles SPA routing by rewriting URIs to index.html"
