@@ -100,10 +100,6 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
       origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
     }
-    custom_header {
-      name  = "X-Origin-Verify"
-      value = var.OriginVerifyKey
-    }
   }
   default_root_object = "index.html"
   aliases             = [var.CorePublicDomain]
@@ -140,6 +136,10 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
     cache_policy_id          = aws_cloudfront_cache_policy.headers_no_cookies.id
     origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
     compress                 = true
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.origin_key_injection.arn
+    }
   }
   ordered_cache_behavior {
     path_pattern             = "/api/v1/organizations"
@@ -150,6 +150,10 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
     cache_policy_id          = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
     compress                 = true
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.origin_key_injection.arn
+    }
   }
   ordered_cache_behavior {
     path_pattern             = "/api/*"
@@ -160,6 +164,10 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
     cache_policy_id          = aws_cloudfront_cache_policy.no_cache.id
     origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
     compress                 = true
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.origin_key_injection.arn
+    }
   }
   price_class = "PriceClass_100"
 }
@@ -176,10 +184,6 @@ resource "aws_cloudfront_distribution" "ical_cloudfront_distribution" {
       origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
     }
-    custom_header {
-      name  = "X-Origin-Verify"
-      value = var.OriginVerifyKey
-    }
   }
   aliases         = [var.IcalPublicDomain]
   enabled         = true
@@ -192,6 +196,10 @@ resource "aws_cloudfront_distribution" "ical_cloudfront_distribution" {
     cached_methods           = ["GET", "HEAD"]
     cache_policy_id          = aws_cloudfront_cache_policy.headers_no_cookies.id
     origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.origin_key_injection.arn
+    }
   }
   viewer_certificate {
     acm_certificate_arn      = var.CoreCertificateArn
@@ -205,6 +213,20 @@ resource "aws_cloudfront_distribution" "ical_cloudfront_distribution" {
   }
   price_class = "PriceClass_100"
 }
+
+resource "aws_cloudfront_function" "origin_key_injection" {
+  name    = "${var.ProjectId}-origin-verification-injection"
+  comment = "Injects origin verification key into requests"
+  runtime = "cloudfront-js-2.0"
+  code    = <<EOT
+function handler(event) {
+    var request = event.request;
+    request.headers['x-origin-verify'] = { value: "${var.OriginVerifyKey}" }; // REPLACE THIS WITH var.OriginVerifyKey
+    return request;
+}
+EOT
+}
+
 
 resource "aws_cloudfront_function" "core_frontend_redirect" {
   name    = "${var.ProjectId}-spa-rewrite"
