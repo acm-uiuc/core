@@ -106,9 +106,9 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
       schema: withTags(["Mobile Wallet"], {
         summary: "Retrieve mobile wallet pass for ACM member.",
         headers: z.object({
-          "x-uiuc-id-token": z.jwt().min(1).meta({
+          "x-uiu-token": z.jwt().min(1).meta({
             description:
-              "An ID token for the user in the UIUC Entra ID tenant.",
+              "An access token for the user in the UIUC Entra ID tenant.",
           }),
         }),
         response: {
@@ -127,7 +127,7 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
       }),
     },
     async (request, reply) => {
-      const idToken = request.headers["x-uiuc-id-token"];
+      const idToken = request.headers["x-uiuc-token"];
       const verifiedData = await verifyUiucIdToken({
         idToken,
         redisClient: fastify.redisClient,
