@@ -434,6 +434,7 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                   new SendMessageCommand({
                     QueueUrl: fastify.environmentConfig.SqsQueueUrl,
                     MessageBody: JSON.stringify(sqsPayload),
+                    MessageGroupId: "invoiceNotification",
                   }),
                 );
                 queueId = result.MessageId || "";
@@ -588,6 +589,7 @@ Please contact Officer Board with any questions.
                   new SendMessageCommand({
                     QueueUrl: fastify.environmentConfig.SqsQueueUrl,
                     MessageBody: JSON.stringify(sqsPayload),
+                    MessageGroupId: "invoiceNotification",
                   }),
                 );
                 queueId = result.MessageId || "";
@@ -636,6 +638,7 @@ Please contact Officer Board with any questions.`,
                   new SendMessageCommand({
                     QueueUrl: fastify.environmentConfig.SqsQueueUrl,
                     MessageBody: JSON.stringify(sqsPayload),
+                    MessageGroupId: "invoiceNotification",
                   }),
                 );
                 queueId = result.MessageId || "";
