@@ -11,88 +11,9 @@ import {
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { notAuthenticatedError, withTags } from "api/components/index.js";
-import jwt, { Algorithm } from "jsonwebtoken";
-import { getJwksKey } from "api/plugins/auth.js";
 import { issueAppleWalletMembershipCard } from "api/functions/mobileWallet.js";
-import { Redis } from "api/types.js";
 import { Readable } from "stream";
-
-const UIUC_TENANT_ID = "44467e6f-462c-4ea2-823f-7800de5434e3";
-const COULD_NOT_PARSE_MESSAGE = "ID token could not be parsed.";
-
-export const verifyUiucIdToken = async ({
-  idToken,
-  redisClient,
-  logger,
-}: {
-  idToken: string | string[] | undefined;
-  redisClient: Redis;
-  logger: FastifyBaseLogger;
-}) => {
-  if (!idToken) {
-    throw new UnauthenticatedError({
-      message: "ID token not found.",
-    });
-  }
-  if (Array.isArray(idToken)) {
-    throw new ValidationError({
-      message: "Multiple tokens cannot be specified!",
-    });
-  }
-  const decoded = jwt.decode(idToken, { complete: true });
-  if (!decoded) {
-    throw new UnauthenticatedError({
-      message: COULD_NOT_PARSE_MESSAGE,
-    });
-  }
-  const header = decoded?.header;
-  if (!header.kid) {
-    throw new UnauthenticatedError({
-      message: COULD_NOT_PARSE_MESSAGE,
-    });
-  }
-  const signingKey = await getJwksKey({
-    redisClient,
-    kid: header.kid,
-    logger,
-  });
-  const verifyOptions: jwt.VerifyOptions = {
-    algorithms: ["RS256" as Algorithm],
-    issuer: `https://login.microsoftonline.com/${UIUC_TENANT_ID}/v2.0`,
-  };
-  let verifiedData;
-  try {
-    verifiedData = jwt.verify(idToken, signingKey, verifyOptions) as {
-      preferred_username?: string;
-      email?: string;
-      name?: string;
-    };
-  } catch (e) {
-    if (e instanceof Error && e.name === "TokenExpiredError") {
-      throw new UnauthenticatedError({
-        message: "Access token has expired.",
-      });
-    }
-    if (e instanceof Error && e.name === "JsonWebTokenError") {
-      logger.error(e);
-      throw new UnauthenticatedError({
-        message: COULD_NOT_PARSE_MESSAGE,
-      });
-    }
-    throw e;
-  }
-  const { preferred_username: upn, email, name } = verifiedData;
-  if (!upn || !email || !name) {
-    throw new UnauthenticatedError({
-      message: COULD_NOT_PARSE_MESSAGE,
-    });
-  }
-  return verifiedData as {
-    preferred_username: string;
-    email: string;
-    name: string;
-  };
-};
+import { verifyUiucAccessToken } from "api/functions/uin.js";
 
 const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {
@@ -127,13 +48,12 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
       }),
     },
     async (request, reply) => {
-      const idToken = request.headers["x-uiuc-token"];
-      const verifiedData = await verifyUiucIdToken({
-        idToken,
-        redisClient: fastify.redisClient,
+      const accessToken = request.headers["x-uiuc-token"];
+      const verifiedData = await verifyUiucAccessToken({
+        accessToken,
         logger: request.log,
       });
-      const { preferred_username: upn, name } = verifiedData;
+      const { userPrincipalName: upn, givenName, surname } = verifiedData;
       const netId = upn.replace("@illinois.edu", "");
       if (netId.includes("@")) {
         request.log.error(
@@ -168,7 +88,7 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
         upn,
         upn,
         request.log,
-        name,
+        `${givenName} ${surname}`,
       );
       const myStream = new Readable({
         read() {

@@ -9,7 +9,7 @@ import { createCheckoutSession } from "api/functions/stripe.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import { notAuthenticatedError, withTags } from "api/components/index.js";
-import { verifyUiucIdToken } from "./mobileWallet.js";
+import { verifyUiucAccessToken, getHashedUserUin } from "api/functions/uin.js";
 
 function splitOnce(s: string, on: string) {
   const [first, ...rest] = s.split(on);
@@ -55,13 +55,12 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
         }),
       },
       async (request, reply) => {
-        const idToken = request.headers["x-uiuc-token"];
-        const verifiedData = await verifyUiucIdToken({
-          idToken,
-          redisClient: fastify.redisClient,
+        const accessToken = request.headers["x-uiuc-token"];
+        const verifiedData = await verifyUiucAccessToken({
+          accessToken,
           logger: request.log,
         });
-        const { preferred_username: upn, email, name } = verifiedData;
+        const { userPrincipalName: upn, givenName, surname } = verifiedData;
         const netId = upn.replace("@illinois.edu", "");
         if (netId.includes("@")) {
           request.log.error(
@@ -87,15 +86,6 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             message: `${upn} is already a paid member.`,
           });
         }
-        let firstName: string = "";
-        let lastName: string = "";
-        if (!name.includes(",")) {
-          const splitted = splitOnce(name, " ");
-          firstName = splitted[0] || "";
-          lastName = splitted[1] || "";
-        }
-        firstName = trim(name.split(",")[1]);
-        lastName = name.split(",")[0];
 
         return reply.status(200).send(
           await createCheckoutSession({
@@ -118,7 +108,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
                 },
                 type: "text",
                 text: {
-                  default_value: firstName,
+                  default_value: givenName,
                 },
               },
               {
@@ -129,7 +119,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
                 },
                 type: "text",
                 text: {
-                  default_value: lastName,
+                  default_value: surname,
                 },
               },
             ],
