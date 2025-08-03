@@ -18,10 +18,7 @@ const compiledTemplate = Handlebars.compile(emailTemplate);
 
 const stripHtml = (html: string): string => {
   // Remove all HTML tags and attributes, then normalize whitespace and trim
-  const sanitized = sanitizeHtml(html, {
-    allowedTags: [],
-    allowedAttributes: {},
-  });
+  const sanitized = sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} });
   return sanitized.replace(/\s+/g, " ").trim();
 };
 
