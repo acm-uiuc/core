@@ -48,7 +48,7 @@ locals {
 
 
 module "lambda_warmer" {
-  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v0.1.1"
+  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
   function_to_warm = module.lambdas.core_api_lambda_name
 }
 module "dynamo" {
