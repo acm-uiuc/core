@@ -6,6 +6,7 @@ import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import Handlebars from "handlebars";
 import emailTemplate from "./templates/notification.js";
+import sanitizeHtml from "sanitize-html";
 
 Handlebars.registerHelper("nl2br", (text) => {
   let nl2br = `${text}`.replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, "$1<br>$2");
@@ -16,17 +17,23 @@ Handlebars.registerHelper("nl2br", (text) => {
 const compiledTemplate = Handlebars.compile(emailTemplate);
 
 const stripHtml = (html: string): string => {
-  return html
-    .replace(/<[^>]*>/g, "") // Remove HTML tags
-    .replace(/&nbsp;/g, " ") // Replace non-breaking spaces
-    .replace(/\s+/g, " ") // Normalize whitespace
-    .trim();
+  return sanitizeHtml(
+    html
+      .replace(/<[^>]*>/g, "") // Remove HTML tags
+      .replace(/&nbsp;/g, " ") // Replace non-breaking spaces
+      .replace(/\s+/g, " ") // Normalize whitespace
+      .trim(),
+  );
 };
 
 export const emailNotificationsHandler: SQSHandlerFunction<
   AvailableSQSFunctions.EmailNotifications
 > = async (payload, metadata, logger) => {
   const { to, cc, bcc, content, subject } = payload;
+  if (to.length + (cc || []).length + (bcc || []).length === 0) {
+    logger.warn("Found no message recipients. Exiting without calling SES.");
+    return;
+  }
   const senderEmailAddress = `notifications@${currentEnvironmentConfig.EmailDomain}`;
   const senderEmail = `ACM @ UIUC <${senderEmailAddress}>`;
   logger.info("Constructing email...");
@@ -59,17 +66,16 @@ export const emailNotificationsHandler: SQSHandlerFunction<
       },
     },
   });
-  const logPromise = createAuditLogEntry({
-    entry: {
-      module: Modules.EMAIL_NOTIFICATION,
-      actor: metadata.initiator,
-      target: to.join(";"),
-      message: `Sent email notification with subject "${subject}".`,
-    },
-  });
   const sesClient = new SESClient({ region: genericConfig.AwsRegion });
   const response = await sesClient.send(command);
   logger.info("Sent!");
-  await logPromise;
+  await createAuditLogEntry({
+    entry: {
+      module: Modules.EMAIL_NOTIFICATION,
+      actor: metadata.initiator,
+      target: [...to, ...(bcc || []), ...(cc || [])].join(";"),
+      message: `Sent email notification with subject "${subject}".`,
+    },
+  });
   return response;
 };
