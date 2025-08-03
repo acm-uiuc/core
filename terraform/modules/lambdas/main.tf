@@ -12,7 +12,7 @@ data "archive_file" "sqs_lambda_code" {
 
 locals {
   core_api_lambda_name          = "${var.ProjectId}-main-server"
-  core_api_iam_lambda_name      = "${var.ProjectId}-iam-server"
+  core_api_iam_lambda_name      = "${var.ProjectId}-iam-write"
   core_sqs_consumer_lambda_name = "${var.ProjectId}-sqs-consumer"
   iam_policies = {
     shared = aws_iam_policy.shared_iam_policy.arn

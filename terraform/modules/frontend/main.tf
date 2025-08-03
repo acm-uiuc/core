@@ -101,6 +101,16 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
       origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
     }
   }
+  origin {
+    origin_id   = "IAMLambdaFunction"
+    domain_name = var.IAMLambdaHost
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
+    }
+  }
   default_root_object = "index.html"
   aliases             = [var.CorePublicDomain]
   enabled             = true
@@ -125,6 +135,20 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   restrictions {
     geo_restriction {
       restriction_type = "none"
+    }
+  }
+  ordered_cache_behavior {
+    path_pattern             = "/api/v1/iam*"
+    target_origin_id         = "IAMLambdaFunction"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = aws_cloudfront_cache_policy.headers_no_cookies.id
+    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    compress                 = true
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.origin_key_injection.arn
     }
   }
   ordered_cache_behavior {
