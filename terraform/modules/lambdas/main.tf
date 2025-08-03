@@ -235,7 +235,6 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry/index/*",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-keys",
-
         ]
       },
       {
@@ -265,6 +264,19 @@ resource "aws_iam_policy" "shared_iam_policy" {
         Resource = [
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-audit-log",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-audit-log/index/*",
+        ]
+      },
+      {
+        Sid    = "DynamoDBUINAccess",
+        Effect = "Allow",
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:DescribeTable",
+          "dynamodb:Query",
+        ],
+        Resource = [
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-uin-mapping",
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-uin-mapping/index/*",
         ]
       },
       {
