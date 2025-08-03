@@ -82,6 +82,7 @@ module "frontend" {
   source             = "../../modules/frontend"
   BucketPrefix       = local.bucket_prefix
   CoreLambdaHost     = module.lambdas.core_function_url
+  IAMLambdaHost      = module.lambdas.iam_function_url
   OriginVerifyKey    = random_password.origin_verify_key.result
   ProjectId          = var.ProjectId
   CoreCertificateArn = var.CoreCertificateArn

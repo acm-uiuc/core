@@ -12,10 +12,11 @@ data "archive_file" "sqs_lambda_code" {
 
 locals {
   core_api_lambda_name          = "${var.ProjectId}-main-server"
+  core_api_iam_lambda_name      = "${var.ProjectId}-iam-server"
   core_sqs_consumer_lambda_name = "${var.ProjectId}-sqs-consumer"
-  entra_policies = {
+  iam_policies = {
     shared = aws_iam_policy.shared_iam_policy.arn
-    entra  = aws_iam_policy.entra_policy.arn
+    entra  = aws_iam_policy.iam_policy.arn
   }
   sqs_policies = {
     sqs     = aws_iam_policy.sqs_policy.arn
@@ -67,7 +68,7 @@ resource "aws_iam_role" "sqs_consumer_role" {
   })
 }
 
-resource "aws_iam_role" "entra_role" {
+resource "aws_iam_role" "iam_role" {
   name = "${var.ProjectId}-entra-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -75,9 +76,8 @@ resource "aws_iam_role" "entra_role" {
       {
         Action = "sts:AssumeRole"
         Effect = "Allow"
-        Sid    = "AllowApiRole"
         Principal = {
-          AWS = aws_iam_role.api_role.arn
+          Service = "lambda.amazonaws.com"
         }
       },
       {
@@ -92,7 +92,7 @@ resource "aws_iam_role" "entra_role" {
   })
 }
 
-resource "aws_iam_policy" "entra_policy" {
+resource "aws_iam_policy" "iam_policy" {
   name = "${var.ProjectId}-entra-policy"
   policy = jsonencode(({
     Version = "2012-10-17"
@@ -104,7 +104,27 @@ resource "aws_iam_policy" "entra_policy" {
           "arn:aws:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-entra*",
           "arn:aws:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-ro-entra*"
         ]
-      }
+      },
+      {
+        Sid = "DynamoIAMReadWrite",
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:BatchWriteItem",
+          "dynamodb:ConditionCheckItem",
+          "dynamodb:PutItem",
+          "dynamodb:DescribeTable",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:Scan",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem"
+        ],
+        Effect = "Allow",
+        Resource = [
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-userroles",
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-grouproles",
+        ]
+      },
     ]
   }))
 }
@@ -198,6 +218,21 @@ resource "aws_iam_policy" "shared_iam_policy" {
         Resource = ["*"]
       },
       {
+        Sid = "DynamoIAMReadOnly",
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:DescribeTable",
+          "dynamodb:GetItem",
+          "dynamodb:Scan",
+          "dynamodb:Query",
+        ],
+        Effect = "Allow",
+        Resource = [
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-userroles",
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-grouproles",
+        ]
+      },
+      {
         Sid = "DynamoDBTableAccess"
         Action = [
           "dynamodb:BatchGetItem",
@@ -220,8 +255,6 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-events-tickets",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-events-ticketing-metadata",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-metadata",
-          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-userroles",
-          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-grouproles",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links/index/*",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-provisioning",
@@ -312,15 +345,41 @@ resource "aws_iam_role_policy_attachment" "api_attach" {
   policy_arn = each.value
 }
 
-resource "aws_iam_role_policy_attachment" "entra_attach" {
-  for_each   = local.entra_policies
-  role       = aws_iam_role.entra_role.name
+resource "aws_iam_role_policy_attachment" "iam_attach" {
+  for_each   = local.iam_policies
+  role       = aws_iam_role.iam_role.name
   policy_arn = each.value
 }
 resource "aws_iam_role_policy_attachment" "sqs_attach_shared" {
   for_each   = local.sqs_policies
   role       = aws_iam_role.sqs_consumer_role.name
   policy_arn = each.value
+}
+
+resource "aws_lambda_function" "iam_lambda" {
+  depends_on       = [aws_cloudwatch_log_group.api_logs]
+  function_name    = local.core_api_iam_lambda_name
+  role             = aws_iam_role.iam_role.arn
+  architectures    = ["arm64"]
+  handler          = "lambda.handler"
+  runtime          = "nodejs22.x"
+  filename         = data.archive_file.api_lambda_code.output_path
+  timeout          = 60
+  memory_size      = 2048
+  source_code_hash = data.archive_file.api_lambda_code.output_sha256
+  logging_config {
+    log_format = "json"
+    log_group  = aws_cloudwatch_log_group.api_logs.arn
+  }
+  environment {
+    variables = {
+      "RunEnvironment"                      = var.RunEnvironment
+      "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
+      ORIGIN_VERIFY_KEY                     = var.OriginVerifyKey
+      LinkryKvArn                           = var.LinkryKvArn
+      "NODE_OPTIONS"                        = "--enable-source-maps"
+    }
+  }
 }
 
 resource "aws_lambda_function" "api_lambda" {
@@ -339,7 +398,6 @@ resource "aws_lambda_function" "api_lambda" {
       "RunEnvironment"                      = var.RunEnvironment
       "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
       ORIGIN_VERIFY_KEY                     = var.OriginVerifyKey
-      EntraRoleArn                          = aws_iam_role.entra_role.arn
       LinkryKvArn                           = var.LinkryKvArn
       "NODE_OPTIONS"                        = "--enable-source-maps"
     }
@@ -365,7 +423,7 @@ resource "aws_lambda_function" "sqs_lambda" {
     variables = {
       "RunEnvironment"                      = var.RunEnvironment
       "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
-      EntraRoleArn                          = aws_iam_role.entra_role.arn
+      EntraRoleArn                          = aws_iam_role.iam_role.arn
       "NODE_OPTIONS"                        = "--enable-source-maps"
     }
   }
@@ -376,12 +434,26 @@ resource "aws_lambda_function_url" "api_lambda_function_url" {
   authorization_type = "NONE"
 }
 
+
+resource "aws_lambda_function_url" "iam_lambda_function_url" {
+  function_name      = aws_lambda_function.iam_lambda.function_name
+  authorization_type = "NONE"
+}
+
+
 output "core_function_url" {
   value = replace(replace(aws_lambda_function_url.api_lambda_function_url.function_url, "https://", ""), "/", "")
 }
 
+output "iam_function_url" {
+  value = replace(replace(aws_lambda_function_url.iam_lambda_function_url.function_url, "https://", ""), "/", "")
+}
+
 output "core_api_lambda_name" {
   value = local.core_api_lambda_name
+}
+output "core_api_iam_lambda_name" {
+  value = local.core_api_iam_lambda_name
 }
 
 output "core_sqs_consumer_lambda_arn" {
