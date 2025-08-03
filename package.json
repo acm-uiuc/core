@@ -78,7 +78,7 @@
     "prettier": "^3.5.3",
     "prop-types": "^15.8.1",
     "stylelint": "^16.19.1",
-    "stylelint-config-standard-scss": "^14.0.0",
+    "stylelint-config-standard-scss": "^15.0.1",
     "supertest": "^7.1.4",
     "synp": "^1.9.14",
     "tsx": "^4.19.3",
