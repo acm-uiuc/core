@@ -44,6 +44,7 @@ import rawbody from "fastify-raw-body";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import * as z from "zod/v4";
+import { getAllUserEmails } from "common/utils.js";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -412,7 +413,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                       reqId: request.id,
                     },
                     payload: {
-                      to: [unmarshalledEntry.userId],
+                      to: getAllUserEmails(unmarshalledEntry.userId),
                       subject: `Payment Failed for Invoice ${unmarshalledEntry.invoiceId}`,
                       content: `
 A ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}) <b>has failed.</b>
@@ -565,7 +566,7 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                       reqId: request.id,
                     },
                     payload: {
-                      to: [unmarshalledEntry.userId],
+                      to: getAllUserEmails(unmarshalledEntry.userId),
                       subject: `Payment Pending for Invoice ${unmarshalledEntry.invoiceId}`,
                       content: `
 ACM @ UIUC has received intent of ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
@@ -610,7 +611,7 @@ Please contact Officer Board with any questions.
                       reqId: request.id,
                     },
                     payload: {
-                      to: [unmarshalledEntry.userId],
+                      to: getAllUserEmails(unmarshalledEntry.userId),
                       cc: [
                         notificationRecipients[fastify.runEnvironment]
                           .Treasurer,

@@ -53,3 +53,10 @@ export const getDefaultFilteringQuerystring = ({ defaultSelect }: GetDefaultFilt
     })
   };
 };
+
+export const getAllUserEmails = (username?: string) => {
+  if (!username) {
+    return [];
+  }
+  return [username.replace("@illinois.edu", "@acm.illinois.edu")]
+}
