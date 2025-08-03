@@ -44,6 +44,7 @@ import { AvailableSQSFunctions } from "common/types/sqsMessage.js";
 import { SendMessageBatchCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { randomUUID } from "crypto";
 import { getKey, setKey } from "api/functions/redisCache.js";
+import { getAllUserEmails } from "common/utils.js";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -456,7 +457,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
               reqId: request.id,
             },
             payload: {
-              to: [x],
+              to: getAllUserEmails(x),
               subject: "You have been added to an access group",
               content: `
 Hello,
@@ -478,7 +479,7 @@ No action is required from you at this time.
               reqId: request.id,
             },
             payload: {
-              to: [x],
+              to: getAllUserEmails(x),
               subject: "You have been removed from an access group",
               content: `
 Hello,

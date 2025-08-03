@@ -32,6 +32,7 @@ import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import {
   generateProjectionParams,
+  getAllUserEmails,
   getDefaultFilteringQuerystring,
   nonEmptyCommaSeparatedStringSchema,
 } from "common/utils.js";
@@ -142,7 +143,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           reqId: request.id,
         },
         payload: {
-          to: [originalRequestor],
+          to: getAllUserEmails(originalRequestor),
           subject: "Room Reservation Request Status Change",
           content: `Your Room Reservation Request has been been moved to status "${formatStatus(request.body.status)}". Please visit the management portal for more details.`,
           callToActionButton: {
