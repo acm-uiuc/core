@@ -16,3 +16,4 @@ jobs:
           PR_FILTER: "protected"
           MERGE_MSG: "Auto-update feature branch with changes from the main branch"
           MERGE_CONFLICT_ACTION: "ignore"
+          EXCLUDED_LABELS: "dependencies"
