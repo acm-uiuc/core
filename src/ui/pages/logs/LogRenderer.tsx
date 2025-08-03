@@ -219,7 +219,13 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
               label="Start Time"
               placeholder="Select start time"
               value={startTime}
-              onChange={setStartTime}
+              onChange={(value) => {
+                if (typeof value === "string") {
+                  setStartTime(value ? new Date(value) : null);
+                } else {
+                  setStartTime(value);
+                }
+              }}
               style={{ width: 250 }}
               valueFormat={
                 showUtcTime
@@ -234,7 +240,13 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
               label="End Time"
               placeholder="Select end time"
               value={endTime}
-              onChange={setEndTime}
+              onChange={(value) => {
+                if (typeof value === "string") {
+                  setEndTime(value ? new Date(value) : null);
+                } else {
+                  setEndTime(value);
+                }
+              }}
               style={{ width: 250 }}
               valueFormat={
                 showUtcTime
