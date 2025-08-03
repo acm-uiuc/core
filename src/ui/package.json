@@ -30,7 +30,7 @@
     "@ungap/with-resolvers": "^0.1.0",
     "axios": "^1.10.0",
     "dayjs": "^1.11.12",
-    "dotenv": "^16.5.0",
+    "dotenv": "^17.2.1",
     "dotenv-cli": "^8.0.0",
     "html5-qrcode": "^2.3.8",
     "jsqr": "^1.4.0",
