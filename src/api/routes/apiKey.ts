@@ -24,6 +24,7 @@ import {
 import * as z from "zod/v4";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { getAllUserEmails } from "common/utils.js";
 
 const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -96,7 +97,7 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
           reqId: request.id,
         },
         payload: {
-          to: [request.username!],
+          to: getAllUserEmails(request.username),
           subject: "Important: API Key Created",
           content: `
 This email confirms that an API key for the Core API has been generated from your account.
@@ -203,7 +204,7 @@ If you did not create this API key, please secure your account and notify the AC
           reqId: request.id,
         },
         payload: {
-          to: [request.username!],
+          to: getAllUserEmails(request.username),
           subject: "Important: API Key Deleted",
           content: `
 This email confirms that an API key for the Core API has been deleted from your account.
