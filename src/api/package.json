@@ -65,11 +65,11 @@
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.1",
-    "@types/aws-lambda": "^8.10.149",
+    "@types/aws-lambda": "^8.10.152",
     "@types/qrcode": "^1.5.5",
     "esbuild-copy-static-files": "^0.1.0",
     "nodemon": "^3.1.10",
-    "pino-pretty": "^13.0.0",
+    "pino-pretty": "^13.1.1",
     "yaml": "^2.8.0"
   }
 }
