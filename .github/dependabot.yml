@@ -9,13 +9,45 @@ updates:
     directories: ["src/ui", "src/api", "/"]
     schedule:
       interval: "weekly"
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
+      all-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: "terraform"
     directories: ["terraform/envs/qa", "terraform/envs/prod"]
     schedule:
       interval: "weekly"
+      groups:
+        production-dependencies:
+          dependency-type: "production"
+        development-dependencies:
+          dependency-type: "development"
+        all-minor-patch:
+          patterns:
+            - "*"
+          update-types:
+            - "minor"
+            - "patch"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-
+      groups:
+        production-dependencies:
+          dependency-type: "production"
+        development-dependencies:
+          dependency-type: "development"
+        all-minor-patch:
+          patterns:
+            - "*"
+          update-types:
+            - "minor"
+            - "patch"
 
