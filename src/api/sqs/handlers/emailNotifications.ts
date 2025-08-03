@@ -17,13 +17,9 @@ Handlebars.registerHelper("nl2br", (text) => {
 const compiledTemplate = Handlebars.compile(emailTemplate);
 
 const stripHtml = (html: string): string => {
-  return sanitizeHtml(
-    html
-      .replace(/<[^>]*>/g, "") // Remove HTML tags
-      .replace(/&nbsp;/g, " ") // Replace non-breaking spaces
-      .replace(/\s+/g, " ") // Normalize whitespace
-      .trim(),
-  );
+  // Remove all HTML tags and attributes, then normalize whitespace and trim
+  const sanitized = sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} });
+  return sanitized.replace(/\s+/g, " ").trim();
 };
 
 export const emailNotificationsHandler: SQSHandlerFunction<
