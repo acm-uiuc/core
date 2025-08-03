@@ -54,6 +54,9 @@ export type GenericConfigType = {
   ApiKeyTable: string;
   ConfigSecretName: string;
   TestingCredentialsSecret: string;
+  UinHashingSecret: string;
+  UinExtendedAttributeName: string;
+  UinHashTable: string;
 };
 
 type EnvironmentConfigType = {
@@ -92,6 +95,9 @@ const genericConfig: GenericConfigType = {
   ApiKeyTable: "infra-core-api-keys",
   ConfigSecretName: "infra-core-api-config",
   TestingCredentialsSecret: "infra-core-api-testing-credentials",
+  UinHashingSecret: "infra-core-api-uin-pepper",
+  UinExtendedAttributeName: "extension_a70c2e1556954056a6a8edfb1f42f556_uiucEduUIN",
+  UinHashTable: "infra-core-api-uin-mapping",
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
@@ -104,7 +110,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
       /http:\/\/localhost:\d+$/,
     ],
-    ConfigurationSecretIds: [genericConfig.TestingCredentialsSecret, genericConfig.ConfigSecretName],
+    ConfigurationSecretIds: [genericConfig.TestingCredentialsSecret, genericConfig.ConfigSecretName, genericConfig.UinHashingSecret],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
@@ -124,7 +130,7 @@ const environmentConfig: EnvironmentConfigType = {
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
-    ConfigurationSecretIds: [genericConfig.ConfigSecretName],
+    ConfigurationSecretIds: [genericConfig.ConfigSecretName, genericConfig.UinHashingSecret],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
@@ -160,6 +166,7 @@ export type SecretConfig = {
   stripe_links_endpoint_secret: string;
   redis_url: string;
   encryption_key: string;
+  UIN_HASHING_SECRET_PEPPER: string;
 };
 
 export type SecretTesting = {

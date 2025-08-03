@@ -61,6 +61,7 @@ import eventsPlugin from "./routes/events.js";
 import mobileWalletV2Route from "./routes/v2/mobileWallet.js";
 import membershipV2Plugin from "./routes/v2/membership.js";
 import { docsHtml, securitySchemes } from "./docs.js";
+import syncIdentityPlugin from "./routes/syncIdentity.js";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
@@ -356,6 +357,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
   );
   await app.register(
     async (api, _options) => {
+      api.register(syncIdentityPlugin, { prefix: "/syncIdentity" });
       api.register(protectedRoute, { prefix: "/protected" });
       api.register(eventsPlugin, { prefix: "/events" });
       api.register(organizationsPlugin, { prefix: "/organizations" });

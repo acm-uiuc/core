@@ -270,3 +270,17 @@ resource "aws_dynamodb_table" "cache" {
     enabled        = true
   }
 }
+
+resource "aws_dynamodb_table" "app_uin_records" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-uin-mapping"
+  deletion_protection_enabled = true
+  hash_key                    = "uinHash"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "uinHash"
+    type = "S"
+  }
+}

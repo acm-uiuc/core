@@ -21,6 +21,9 @@ const testSecretObject = {
 const secretJson = JSON.stringify(secretObject);
 
 const testSecretJson = JSON.stringify(testSecretObject);
+const uinSecretJson = JSON.stringify({
+  UIN_HASHING_SECRET_PEPPER: "dc1f1a24-fce5-480b-a342-e7bd34d8f8c5",
+});
 
 const jwtPayload = {
   aud: "custom_jwt",
@@ -81,4 +84,5 @@ export {
   testSecretObject,
   jwtPayload,
   jwtPayloadNoGroups,
+  uinSecretJson,
 };
