@@ -313,7 +313,13 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
           value={expiresAt}
           minDate={new Date(Date.now() + 60 * 24 * 60 * 1000)}
           valueFormat="MM-DD-YYYY h:mm A"
-          onChange={setExpiresAt}
+          onChange={(value) => {
+            if (typeof value === "string") {
+              setExpiresAt(value ? new Date(value) : null);
+            } else {
+              setExpiresAt(value);
+            }
+          }}
           clearable
           mt="md"
         />
