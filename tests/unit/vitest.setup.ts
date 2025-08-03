@@ -7,8 +7,12 @@ import {
 } from "@aws-sdk/client-secrets-manager";
 import { mockClient } from "aws-sdk-client-mock";
 import { marshall } from "@aws-sdk/util-dynamodb";
-import { environmentConfig, genericConfig } from "../../src/common/config.js";
-import { secretJson, testSecretJson } from "./secret.testdata.js";
+import { genericConfig } from "../../src/common/config.js";
+import {
+  secretJson,
+  testSecretJson,
+  uinSecretJson,
+} from "./secret.testdata.js";
 
 const ddbMock = mockClient(DynamoDBClient);
 const smMock = mockClient(SecretsManagerClient);
@@ -40,7 +44,7 @@ vi.mock(
           kLkvWTYwNnJfBkIK7mBi4niXXHYNR7ygbV8utlvFxjw: allAppRoles,
         };
 
-        return mockUserRoles[userEmail as any] || [];
+        return mockUserRoles[userEmail as keyof typeof mockUserRoles] || [];
       }),
 
       getGroupRoles: vi.fn(async (_, groupId) => {
@@ -53,7 +57,7 @@ vi.mock(
           "999": [AppRoles.STRIPE_LINK_CREATOR],
         };
 
-        return mockGroupRoles[groupId as any] || [];
+        return mockGroupRoles[groupId as keyof typeof mockGroupRoles] || [];
       }),
       clearAuthCache: vi.fn(),
     };
@@ -102,8 +106,16 @@ ddbMock.on(QueryCommand).callsFake((command) => {
     };
 
     return Promise.resolve({
-      Items: mockMembershipData[requestedEmail]
-        ? [marshall(mockMembershipData[requestedEmail])]
+      Items: mockMembershipData[
+        requestedEmail as keyof typeof mockMembershipData
+      ]
+        ? [
+            marshall(
+              mockMembershipData[
+                requestedEmail as keyof typeof mockMembershipData
+              ],
+            ),
+          ]
         : [],
     });
   }
@@ -116,6 +128,9 @@ smMock.on(GetSecretValueCommand).callsFake((command) => {
   }
   if (command.SecretId == genericConfig.TestingCredentialsSecret) {
     return Promise.resolve({ SecretString: testSecretJson });
+  }
+  if (command.SecretId == genericConfig.UinHashingSecret) {
+    return Promise.resolve({ SecretString: uinSecretJson });
   }
   return Promise.reject(new Error(`Secret ID ${command.SecretID} not mocked`));
 });

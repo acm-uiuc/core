@@ -23,7 +23,6 @@ const clearSessionPlugin: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
-      reply.status(201).send();
       const username = [request.username!];
       const { redisClient } = fastify;
       const { log: logger } = fastify;
@@ -46,6 +45,7 @@ const clearSessionPlugin: FastifyPluginAsync = async (fastify, _options) => {
           expiresIn,
         });
       }
+      return reply.status(201).send();
     },
   );
 };
