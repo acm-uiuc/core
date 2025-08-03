@@ -1,3 +1,5 @@
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
 import { hash } from "argon2";
 import { genericConfig } from "common/config.js";
 import {
@@ -133,4 +135,27 @@ export async function getHashedUserUin({
       email: "",
     });
   }
+}
+
+type SaveHashedUserUin = GetUserUinInputs & {
+  dynamoClient: DynamoDBClient;
+  netId: string;
+};
+
+export async function saveHashedUserUin({
+  uiucAccessToken,
+  pepper,
+  dynamoClient,
+  netId,
+}: SaveHashedUserUin) {
+  const uinHash = await getHashedUserUin({ uiucAccessToken, pepper });
+  await dynamoClient.send(
+    new PutItemCommand({
+      TableName: genericConfig.UinHashTable,
+      Item: marshall({
+        uinHash,
+        netId,
+      }),
+    }),
+  );
 }

@@ -413,12 +413,8 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             event.data.object.metadata.initiator === "purchase-membership"
           ) {
             const customerEmail = event.data.object.customer_email;
-            const firstName = event.data.object.custom_fields.filter(
-              (x) => x.key === "firstName",
-            )[0].text?.value;
-            const lastName = event.data.object.custom_fields.filter(
-              (x) => x.key === "lastName",
-            )[0].text?.value;
+            const firstName = event.data.object.metadata.givenName;
+            const lastName = event.data.object.metadata.surname;
             if (!customerEmail) {
               request.log.info("No customer email found.");
               return reply

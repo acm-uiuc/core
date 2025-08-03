@@ -9,15 +9,7 @@ import { createCheckoutSession } from "api/functions/stripe.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import { notAuthenticatedError, withTags } from "api/components/index.js";
-import { verifyUiucAccessToken, getHashedUserUin } from "api/functions/uin.js";
-
-function splitOnce(s: string, on: string) {
-  const [first, ...rest] = s.split(on);
-  return [first, rest.length > 0 ? rest.join(on) : null];
-}
-function trim(s: string) {
-  return (s || "").replace(/^\s+|\s+$/g, "");
-}
+import { verifyUiucAccessToken, saveHashedUserUin } from "api/functions/uin.js";
 
 const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
@@ -70,6 +62,13 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             message: "ID token could not be parsed.",
           });
         }
+        request.log.debug("Saving user hashed UIN!");
+        const saveHashPromise = saveHashedUserUin({
+          uiucAccessToken: accessToken,
+          pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
+          dynamoClient: fastify.dynamoClient,
+          netId,
+        });
         let isPaidMember = await checkPaidMembershipFromRedis(
           netId,
           fastify.redisClient,
@@ -81,12 +80,13 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             fastify.dynamoClient,
           );
         }
+        await saveHashPromise;
+        request.log.debug("Saved user hashed UIN!");
         if (isPaidMember) {
           throw new ValidationError({
             message: `${upn} is already a paid member.`,
           });
         }
-
         return reply.status(200).send(
           await createCheckoutSession({
             successUrl: "https://acm.illinois.edu/paid",
@@ -99,30 +99,10 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
                 quantity: 1,
               },
             ],
-            customFields: [
-              {
-                key: "firstName",
-                label: {
-                  type: "custom",
-                  custom: "Member First Name",
-                },
-                type: "text",
-                text: {
-                  default_value: givenName,
-                },
-              },
-              {
-                key: "lastName",
-                label: {
-                  type: "custom",
-                  custom: "Member Last Name",
-                },
-                type: "text",
-                text: {
-                  default_value: surname,
-                },
-              },
-            ],
+            metadata: {
+              givenName,
+              surname,
+            },
             initiator: "purchase-membership",
             allowPromotionCodes: true,
           }),
