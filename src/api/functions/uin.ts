@@ -1,6 +1,6 @@
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
-import { hash } from "argon2";
+import { argon2id, hash } from "argon2";
 import { genericConfig } from "common/config.js";
 import {
   BaseError,
@@ -93,7 +93,17 @@ export async function getUinHash({
   pepper,
   uin,
 }: HashUinInputs): Promise<string> {
-  return hash(uin, { salt: Buffer.from(pepper) });
+  // we set the defaults again because we do direct string comparisions
+  return hash(uin, {
+    secret: Buffer.from(pepper),
+    hashLength: 32,
+    timeCost: 3,
+    memoryCost: 65536,
+    parallelism: 4,
+    type: argon2id,
+    version: 19,
+    salt: Buffer.from("acmuiucuin"),
+  });
 }
 
 export async function getHashedUserUin({
