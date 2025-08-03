@@ -77,10 +77,9 @@
     "postcss-simple-vars": "^7.0.1",
     "prettier": "^3.5.3",
     "prop-types": "^15.8.1",
-    "request": "^2.88.2",
     "stylelint": "^16.19.1",
     "stylelint-config-standard-scss": "^14.0.0",
-    "supertest": "^7.1.0",
+    "supertest": "^7.1.4",
     "synp": "^1.9.14",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3",
@@ -90,6 +89,7 @@
     "yarn-upgrade-all": "^0.7.5"
   },
   "resolutions": {
-    "pdfjs-dist": "^4.8.69"
+    "pdfjs-dist": "^4.8.69",
+    "form-data": "^4.0.4"
   }
 }
