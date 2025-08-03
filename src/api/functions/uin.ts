@@ -155,6 +155,7 @@ export async function saveHashedUserUin({
       Item: marshall({
         uinHash,
         netId,
+        updatedAt: new Date().toISOString(),
       }),
     }),
   );
