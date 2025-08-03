@@ -22,7 +22,7 @@
     "@azure/msal-browser": "^4.11.0",
     "@azure/msal-react": "^3.0.10",
     "@mantine/core": "^7.17.5",
-    "@mantine/dates": "^7.17.5",
+    "@mantine/dates": "^8.2.2",
     "@mantine/form": "^7.17.5",
     "@mantine/hooks": "^7.17.5",
     "@mantine/notifications": "^7.17.5",
