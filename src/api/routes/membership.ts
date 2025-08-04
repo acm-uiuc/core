@@ -107,12 +107,16 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 "application/json": {
                   schema: z
                     .object({
+                      givenName: z.string().min(1),
+                      surname: z.string().min(1),
                       netId: illinoisNetId,
                       list: z.optional(z.string().min(1)),
                       isPaidMember: z.boolean(),
                     })
                     .meta({
                       example: {
+                        givenName: "Robert",
+                        surname: "Jones",
                         netId: "rjjones",
                         isPaidMember: false,
                       },
@@ -148,6 +152,8 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
         if (result) {
           return reply.header("X-ACM-Data-Source", "cache").send({
+            givenName,
+            surname,
             netId,
             list: list === "acmpaid" ? undefined : list,
             isPaidMember: result.isMember,
@@ -167,6 +173,8 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             logger: request.log,
           });
           return reply.header("X-ACM-Data-Source", "dynamo").send({
+            givenName,
+            surname,
             netId,
             list,
             isPaidMember: isMember,
@@ -186,7 +194,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           });
           return reply
             .header("X-ACM-Data-Source", "dynamo")
-            .send({ netId, isPaidMember: true });
+            .send({ givenName, surname, netId, isPaidMember: true });
         }
         const entraIdToken = await getEntraIdToken({
           clients: await getAuthorizedClients(),
@@ -210,7 +218,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           });
           reply
             .header("X-ACM-Data-Source", "aad")
-            .send({ netId, isPaidMember: true });
+            .send({ givenName, surname, netId, isPaidMember: true });
           await setPaidMembershipInTable(netId, fastify.dynamoClient);
           return;
         }
@@ -223,7 +231,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
         return reply
           .header("X-ACM-Data-Source", "aad")
-          .send({ netId, isPaidMember: false });
+          .send({ givenName, surname, netId, isPaidMember: false });
       },
     );
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(

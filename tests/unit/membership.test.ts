@@ -47,6 +47,8 @@ describe("Test membership routes", async () => {
     expect(response.headers).toHaveProperty("x-acm-data-source");
     expect(response.headers["x-acm-data-source"]).toEqual("aad");
     expect(responseDataJson).toEqual({
+      givenName: "Infra",
+      surname: "Testing",
       netId: "fjkldk99",
       isPaidMember: false,
     });
@@ -64,7 +66,12 @@ describe("Test membership routes", async () => {
     const responseDataJson = (await response.json()) as EventGetResponse;
     expect(response.headers).toHaveProperty("x-acm-data-source");
     expect(response.headers["x-acm-data-source"]).toEqual("dynamo");
-    expect(responseDataJson).toEqual({ netId: "valid", isPaidMember: true });
+    expect(responseDataJson).toEqual({
+      givenName: "Infra",
+      surname: "Testing",
+      netId: "valid",
+      isPaidMember: true,
+    });
   });
 
   test("Test getting non-member", async () => {
