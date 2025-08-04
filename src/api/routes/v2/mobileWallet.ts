@@ -27,7 +27,7 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
       schema: withTags(["Mobile Wallet"], {
         summary: "Retrieve mobile wallet pass for ACM member.",
         headers: z.object({
-          "x-uiu-token": z.jwt().min(1).meta({
+          "x-uiuc-token": z.jwt().min(1).meta({
             description:
               "An access token for the user in the UIUC Entra ID tenant.",
           }),
