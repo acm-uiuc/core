@@ -13,6 +13,10 @@ import {
   testSecretJson,
   uinSecretJson,
 } from "./secret.testdata.js";
+import {
+  UnauthenticatedError,
+  ValidationError,
+} from "../../src/common/errors/index.js";
 
 const ddbMock = mockClient(DynamoDBClient);
 const smMock = mockClient(SecretsManagerClient);
@@ -28,6 +32,56 @@ vi.mock(
     };
   },
 );
+
+vi.mock(import("../../src/api/functions/uin.js"), async (importOriginal) => {
+  const mod = await importOriginal();
+  return {
+    ...mod,
+    verifyUiucAccessToken: vi.fn(
+      async ({
+        accessToken,
+        logger,
+      }: {
+        accessToken: string | string[] | undefined;
+        logger: unknown;
+      }) => {
+        if (!accessToken) {
+          throw new UnauthenticatedError({
+            message: "Access token not found.",
+          });
+        }
+        if (Array.isArray(accessToken)) {
+          throw new ValidationError({
+            message: "Multiple tokens cannot be specified!",
+          });
+        }
+        const validTokens = {
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImlhdCI6MTY3Mjc2NjAyOCwiZXhwIjoxNjc0NDk0MDI4fQ.kCak9sLJr74frSRVQp0_27BY4iBCgQSmoT3vQVWKzJg":
+            {
+              userPrincipalName: "fjkldk99@illinois.edu",
+              givenName: "Infra",
+              surname: "Testing",
+              mail: "fjkldk99@illinois.edu",
+            },
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImlhdCI6MTY3Mjc2NjAyOCwiZXhwIjoxNjcyODAyMDI4fQ.P1_rB3hJ5afwiG4TWXLq6jOAcVJkvQZ2Z-ZZOnQ1dZw":
+            {
+              userPrincipalName: "valid@illinois.edu",
+              givenName: "Infra",
+              surname: "Testing",
+              mail: "valid@illinois.edu",
+            },
+        };
+        if (accessToken in validTokens) {
+          return validTokens[accessToken as keyof typeof validTokens];
+        } else {
+          throw new UnauthenticatedError({
+            message: "Invalid or expired access token.",
+          });
+        }
+      },
+    ),
+  };
+});
 
 vi.mock(
   import("../../src/api/functions/authorization.js"),
