@@ -33,10 +33,32 @@ const spySetPaidMembership = vi.spyOn(
 );
 
 describe("Test membership routes", async () => {
-  test("Test getting member", async () => {
+  test("Test getting non-member with UIUC access token", async () => {
     const response = await app.inject({
       method: "GET",
-      url: "/api/v1/membership/valid",
+      url: "/api/v1/membership",
+      headers: {
+        "x-uiuc-token":
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImlhdCI6MTY3Mjc2NjAyOCwiZXhwIjoxNjc0NDk0MDI4fQ.kCak9sLJr74frSRVQp0_27BY4iBCgQSmoT3vQVWKzJg",
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    const responseDataJson = (await response.json()) as EventGetResponse;
+    expect(response.headers).toHaveProperty("x-acm-data-source");
+    expect(response.headers["x-acm-data-source"]).toEqual("aad");
+    expect(responseDataJson).toEqual({
+      netId: "fjkldk99",
+      isPaidMember: false,
+    });
+  });
+  test("Test getting member with UIUC access token", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/membership",
+      headers: {
+        "x-uiuc-token":
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImlhdCI6MTY3Mjc2NjAyOCwiZXhwIjoxNjcyODAyMDI4fQ.P1_rB3hJ5afwiG4TWXLq6jOAcVJkvQZ2Z-ZZOnQ1dZw",
+      },
     });
     expect(response.statusCode).toBe(200);
     const responseDataJson = (await response.json()) as EventGetResponse;
