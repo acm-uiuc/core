@@ -86,20 +86,13 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       "/",
       {
         schema: withTags(["Membership"], {
-          querystring: z.object({
-            list: z.string().min(1).optional().meta({
-              description:
-                "Membership list to check from (defaults to ACM Paid Member list).",
-            }),
-          }),
           headers: z.object({
             "x-uiuc-token": z.jwt().min(1).meta({
               description:
                 "An access token for the user in the UIUC Entra ID tenant.",
             }),
           }),
-          summary:
-            "Authenticated check ACM @ UIUC paid membership (or partner organization membership) status.",
+          summary: "Check self ACM @ UIUC paid membership.",
           response: {
             200: {
               description: "List membership status.",
@@ -110,7 +103,6 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                       givenName: z.string().min(1),
                       surname: z.string().min(1),
                       netId: illinoisNetId,
-                      list: z.optional(z.string().min(1)),
                       isPaidMember: z.boolean(),
                     })
                     .meta({
@@ -143,7 +135,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             message: "ID token could not be parsed.",
           });
         }
-        const list = request.query.list || "acmpaid";
+        const list = "acmpaid";
         const cacheKey = `membership:${netId}:${list}`;
         const result = await getKey<{ isMember: boolean }>({
           redisClient: fastify.redisClient,
@@ -238,6 +230,8 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       "/:netId",
       {
         schema: withTags(["Membership"], {
+          deprecated: true,
+          description: "[DEPRECATED] DO NOT USE!",
           params: z.object({ netId: illinoisNetId }),
           querystring: z.object({
             list: z.string().min(1).optional().meta({
