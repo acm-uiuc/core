@@ -3,6 +3,19 @@ import { test } from "./base.js";
 import { describe } from "node:test";
 import { randomUUID } from "crypto";
 
+// describe("Internal Membership tests", () => {
+//   test("A user can query internal membership", async ({
+//     page,
+//     becomeUser,
+//   }) => {
+//     const uuid = `e2e-${randomUUID()}`;
+//     await becomeUser(page);
+//     await page.locator("a").filter({ hasText: "Membership Lists" }).click();
+//     await page.getByRole("textbox", { name: "NetID" }).fill('dsingh14');
+//     await page.getByRole("button", { name: "Query Membership", exact: true }).click()
+//   });
+// })
+
 describe("External Membership tests", () => {
   test("A user can create, modify, and delete external memberships", async ({
     page,
@@ -10,7 +23,7 @@ describe("External Membership tests", () => {
   }) => {
     const uuid = `e2e-${randomUUID()}`;
     await becomeUser(page);
-    await page.locator("a").filter({ hasText: "External Membership" }).click();
+    await page.locator("a").filter({ hasText: "Membership Lists" }).click();
     await page.getByRole("button", { name: "New List" }).click();
     await page.getByRole("textbox", { name: "New List ID" }).fill(uuid);
     await page.getByRole("textbox", { name: "Initial Member NetID" }).click();
