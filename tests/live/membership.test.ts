@@ -2,11 +2,22 @@ import { expect, test, describe } from "vitest";
 import { createJwt, getBaseEndpoint } from "./utils.js";
 
 const baseEndpoint = getBaseEndpoint();
+const token = await createJwt();
 
 describe("Membership API basic checks", async () => {
-  test("Test that getting member succeeds", { timeout: 10000 }, async () => {
-    const response = await fetch(`${baseEndpoint}/api/v1/membership/dsingh14`, {
+  test("Test that auth is present", { timeout: 10000 }, async () => {
+    const response = await fetch(`${baseEndpoint}/api/v2/membership/dsingh14`, {
       method: "GET",
+    });
+
+    expect(response.status).toBe(403);
+  });
+  test("Test that getting member succeeds", { timeout: 10000 }, async () => {
+    const response = await fetch(`${baseEndpoint}/api/v2/membership/dsingh14`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
 
     expect(response.status).toBe(200);
@@ -26,9 +37,12 @@ describe("Membership API basic checks", async () => {
     { timeout: 10000 },
     async () => {
       const response = await fetch(
-        `${baseEndpoint}/api/v1/membership/DSingh14`,
+        `${baseEndpoint}/api/v2/membership/DSingh14`,
         {
           method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
       );
 
@@ -49,8 +63,11 @@ describe("Membership API basic checks", async () => {
     "Test that getting non-members succeeds",
     { timeout: 10000 },
     async () => {
-      const response = await fetch(`${baseEndpoint}/api/v1/membership/zzzz`, {
+      const response = await fetch(`${baseEndpoint}/api/v2/membership/zzzz`, {
         method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       expect(response.status).toBe(200);
@@ -64,9 +81,12 @@ describe("Membership API basic checks", async () => {
   );
   test("Test that too long NetID is rejected", { timeout: 10000 }, async () => {
     const response = await fetch(
-      `${baseEndpoint}/api/v1/membership/dsafdsfdsfsdafsfsdfasfsfsfds`,
+      `${baseEndpoint}/api/v2/membership/dsafdsfdsfsdafsfsdfasfsfsfds`,
       {
         method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       },
     );
 
@@ -77,8 +97,11 @@ describe("Membership API basic checks", async () => {
     "Test that too short NetID is rejected",
     { timeout: 10000 },
     async () => {
-      const response = await fetch(`${baseEndpoint}/api/v1/membership/ds`, {
+      const response = await fetch(`${baseEndpoint}/api/v2/membership/ds`, {
         method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       expect(response.status).toBe(400);
@@ -90,9 +113,12 @@ describe("Membership API basic checks", async () => {
     { timeout: 10000 },
     async () => {
       const response = await fetch(
-        `${baseEndpoint}/api/v1/membership/zzzz?list=built`,
+        `${baseEndpoint}/api/v2/membership/zzzz?list=built`,
         {
           method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
       );
 
@@ -111,9 +137,12 @@ describe("Membership API basic checks", async () => {
     { timeout: 10000 },
     async () => {
       const response = await fetch(
-        `${baseEndpoint}/api/v1/membership/zzzz?list=do_not_delete_acmtesting`,
+        `${baseEndpoint}/api/v2/membership/zzzz?list=do_not_delete_acmtesting`,
         {
           method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
       );
 

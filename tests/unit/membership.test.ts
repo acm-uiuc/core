@@ -75,9 +75,13 @@ describe("Test membership routes", async () => {
   });
 
   test("Test getting non-member", async () => {
+    const testJwt = createJwt();
     const response = await app.inject({
       method: "GET",
-      url: "/api/v1/membership/invalid",
+      url: "/api/v2/membership/invalid",
+      headers: {
+        authorization: `Bearer ${testJwt}`,
+      },
     });
     expect(response.statusCode).toBe(200);
     const responseDataJson = (await response.json()) as EventGetResponse;
@@ -87,9 +91,13 @@ describe("Test membership routes", async () => {
   });
 
   test("Entra-only members are added to Dynamo", async () => {
+    const testJwt = createJwt();
     let response = await app.inject({
       method: "GET",
-      url: "/api/v1/membership/eadon2",
+      url: "/api/v2/membership/eadon2",
+      headers: {
+        authorization: `Bearer ${testJwt}`,
+      },
     });
 
     expect(response.statusCode).toBe(200);
@@ -103,7 +111,10 @@ describe("Test membership routes", async () => {
     );
     response = await app.inject({
       method: "GET",
-      url: "/api/v1/membership/eadon2",
+      url: "/api/v2/membership/eadon2",
+      headers: {
+        authorization: `Bearer ${testJwt}`,
+      },
     });
     expect(response.statusCode).toBe(200);
     responseDataJson = (await response.json()) as EventGetResponse;
@@ -140,9 +151,13 @@ describe("Test membership routes", async () => {
       }
       return Promise.reject(new Error("Table not mocked"));
     });
+    const testJwt = createJwt();
     let response = await app.inject({
       method: "GET",
-      url: "/api/v1/membership/eadon2?list=built",
+      url: "/api/v2/membership/eadon2?list=built",
+      headers: {
+        authorization: `Bearer ${testJwt}`,
+      },
     });
 
     expect(response.statusCode).toBe(200);
@@ -156,7 +171,10 @@ describe("Test membership routes", async () => {
     });
     response = await app.inject({
       method: "GET",
-      url: "/api/v1/membership/eadon2?list=wcs",
+      url: "/api/v2/membership/eadon2?list=wcs",
+      headers: {
+        authorization: `Bearer ${testJwt}`,
+      },
     });
     expect(response.statusCode).toBe(200);
     responseDataJson = (await response.json()) as EventGetResponse;
@@ -169,7 +187,10 @@ describe("Test membership routes", async () => {
     });
     response = await app.inject({
       method: "GET",
-      url: "/api/v1/membership/yourm4?list=wcs",
+      url: "/api/v2/membership/yourm4?list=wcs",
+      headers: {
+        authorization: `Bearer ${testJwt}`,
+      },
     });
     expect(response.statusCode).toBe(200);
     responseDataJson = (await response.json()) as EventGetResponse;
@@ -182,7 +203,10 @@ describe("Test membership routes", async () => {
     });
     response = await app.inject({
       method: "GET",
-      url: "/api/v1/membership/eadon2?list=wcs",
+      url: "/api/v2/membership/eadon2?list=wcs",
+      headers: {
+        authorization: `Bearer ${testJwt}`,
+      },
     });
     expect(response.statusCode).toBe(200);
     responseDataJson = (await response.json()) as EventGetResponse;
@@ -195,7 +219,10 @@ describe("Test membership routes", async () => {
     });
     response = await app.inject({
       method: "GET",
-      url: "/api/v1/membership/eadon2?list=built",
+      url: "/api/v2/membership/eadon2?list=built",
+      headers: {
+        authorization: `Bearer ${testJwt}`,
+      },
     });
     expect(response.statusCode).toBe(200);
     responseDataJson = (await response.json()) as EventGetResponse;

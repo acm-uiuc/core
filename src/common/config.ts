@@ -19,7 +19,6 @@ export type ConfigType = {
   LinkryBaseUrl: string
   PasskitIdentifier: string;
   PasskitSerialNumber: string;
-  MembershipApiEndpoint: string;
   EmailDomain: string;
   SqsQueueUrl: string;
   PaidMemberGroupId: string;
@@ -115,8 +114,6 @@ const environmentConfig: EnvironmentConfigType = {
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
     PasskitSerialNumber: "0",
-    MembershipApiEndpoint:
-      "https://core.aws.qa.acmuiuc.org/api/v1/membership",
     EmailDomain: "aws.qa.acmuiuc.org",
     SqsQueueUrl:
       "https://sqs.us-east-1.amazonaws.com/427040638965/infra-core-api-sqs",
@@ -141,8 +138,6 @@ const environmentConfig: EnvironmentConfigType = {
     LinkryBaseUrl: "https://go.acm.illinois.edu/",
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
     PasskitSerialNumber: "0",
-    MembershipApiEndpoint:
-      "https://core.acm.illinois.edu/api/v1/membership",
     EmailDomain: "acm.illinois.edu",
     SqsQueueUrl:
       "https://sqs.us-east-1.amazonaws.com/298118738376/infra-core-api-sqs",
