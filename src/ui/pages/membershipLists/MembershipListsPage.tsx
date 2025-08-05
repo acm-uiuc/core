@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
 import {
   Title,
-  SimpleGrid,
-  Select,
   Stack,
-  Text,
   LoadingOverlay,
   Container,
+  Grid, // Import Grid
 } from "@mantine/core";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
@@ -21,6 +19,7 @@ import { notifications } from "@mantine/notifications";
 import { IconAlertCircle } from "@tabler/icons-react";
 import ExternalMemberListManagement from "./ExternalMemberListManagement";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import InternalMembershipQuery from "./InternalMembershipQuery";
 
 export const ManageExternalMembershipPage = () => {
   const api = useApi("core");
@@ -47,6 +46,24 @@ export const ManageExternalMembershipPage = () => {
 
     fetchLists();
   }, [api]);
+
+  const queryInternalMembership = async (netId: string) => {
+    try {
+      const result = await api.get<{ netId: string; isPaidMember: boolean }>(
+        `/api/v2/membership/${netId}`,
+      );
+      return result.data.isPaidMember;
+    } catch (error: any) {
+      console.error("Failed to check internal membership:", error);
+      notifications.show({
+        title: "Failed to get query membership list.",
+        message: "Please try again or contact support.",
+        color: "red",
+        icon: <IconAlertCircle size={16} />,
+      });
+      throw error;
+    }
+  };
 
   const handleListCreated = (listId: string) => {
     setValidLists((prevLists) => [...(prevLists || []), listId]);
@@ -95,24 +112,45 @@ export const ManageExternalMembershipPage = () => {
     return <FullScreenLoader />;
   }
   return (
-    <AuthGuard
-      resourceDef={{
-        service: "core",
-        validRoles: [
-          AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST,
-          AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST,
-        ],
-      }}
-    >
-      <Container>
-        <Title order={2}>Manage External Membership Lists</Title>
-        <ExternalMemberListManagement
-          fetchMembers={fetchMembers}
-          updateMembers={handlePatchMembers}
-          validLists={validLists}
-          onListCreated={handleListCreated}
-        />
-      </Container>
-    </AuthGuard>
+    <Container fluid mr="xl" ml="xl">
+      <Grid>
+        <Grid.Col span={{ base: 12, lg: 6 }}>
+          <AuthGuard
+            resourceDef={{
+              service: "core",
+              validRoles: [AppRoles.VIEW_INTERNAL_MEMBERSHIP_LIST],
+            }}
+          >
+            <Stack>
+              <Title order={2}>Query ACM Paid Membership Lists</Title>
+              <InternalMembershipQuery
+                queryInternalMembership={queryInternalMembership}
+              />
+            </Stack>
+          </AuthGuard>
+        </Grid.Col>
+        <Grid.Col span={{ base: 12, lg: 6 }}>
+          <AuthGuard
+            resourceDef={{
+              service: "core",
+              validRoles: [
+                AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST,
+                AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST,
+              ],
+            }}
+          >
+            <Stack>
+              <Title order={2}>Manage External Membership Lists</Title>
+              <ExternalMemberListManagement
+                fetchMembers={fetchMembers}
+                updateMembers={handlePatchMembers}
+                validLists={validLists}
+                onListCreated={handleListCreated}
+              />
+            </Stack>
+          </AuthGuard>
+        </Grid.Col>
+      </Grid>
+    </Container>
   );
 };

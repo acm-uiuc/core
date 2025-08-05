@@ -22,6 +22,7 @@ import {
   IconHistory,
   IconKey,
   IconExternalLink,
+  IconUser,
 } from "@tabler/icons-react";
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
@@ -99,9 +100,9 @@ export const navItems = [
     validRoles: [AppRoles.MANAGE_ORG_API_KEYS],
   },
   {
-    link: "/externalMembership",
-    name: "External Membership",
-    icon: IconExternalLink,
+    link: "/membershipLists",
+    name: "Membership Lists",
+    icon: IconUser,
     description: null,
     validRoles: [
       AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST,
