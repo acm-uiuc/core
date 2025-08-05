@@ -56,7 +56,7 @@ export class NotImplementedError extends BaseError<"NotImplementedError"> {
 
 export class UnauthorizedError extends BaseError<"UnauthorizedError"> {
   constructor({ message }: { message?: string }) {
-    super({ name: "UnauthorizedError", id: 101, message: message || "Caller does not have permission.", httpStatusCode: 401 });
+    super({ name: "UnauthorizedError", id: 101, message: message || "User does not have the privileges for this task.", httpStatusCode: 401 });
   }
 }
 
