@@ -1,17 +1,68 @@
 import {
   checkPaidMembershipFromTable,
   checkPaidMembershipFromRedis,
+  checkExternalMembership,
+  MEMBER_CACHE_SECONDS,
+  checkPaidMembershipFromEntra,
+  setPaidMembershipInTable,
 } from "api/functions/membership.js";
 import { FastifyPluginAsync } from "fastify";
-import { ValidationError } from "common/errors/index.js";
+import {
+  InternalServerError,
+  UnauthorizedError,
+  ValidationError,
+} from "common/errors/index.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { createCheckoutSession } from "api/functions/stripe.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
-import { notAuthenticatedError, withTags } from "api/components/index.js";
+import {
+  illinoisNetId,
+  notAuthenticatedError,
+  withRoles,
+  withTags,
+} from "api/components/index.js";
 import { verifyUiucAccessToken, saveHashedUserUin } from "api/functions/uin.js";
+import { getKey, setKey } from "api/functions/redisCache.js";
+import { getEntraIdToken } from "api/functions/entraId.js";
+import { genericConfig, roleArns } from "common/config.js";
+import { getRoleCredentials } from "api/functions/sts.js";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { AppRoles } from "common/roles.js";
 
 const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
+  const getAuthorizedClients = async () => {
+    if (roleArns.Entra) {
+      fastify.log.info(
+        `Attempting to assume Entra role ${roleArns.Entra} to get the Entra token...`,
+      );
+      const credentials = await getRoleCredentials(roleArns.Entra);
+      const clients = {
+        smClient: new SecretsManagerClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
+        dynamoClient: new DynamoDBClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
+        redisClient: fastify.redisClient,
+      };
+      fastify.log.info(
+        `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
+      );
+      return clients;
+    }
+    fastify.log.debug(
+      "Did not assume Entra role as no env variable was present",
+    );
+    return {
+      smClient: fastify.secretsManagerClient,
+      dynamoClient: fastify.dynamoClient,
+      redisClient: fastify.redisClient,
+    };
+  };
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     await fastify.register(rateLimiter, {
       limit: 15,
@@ -107,6 +158,158 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             allowPromotionCodes: true,
           }),
         );
+      },
+    );
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+      "/:netId",
+      {
+        schema: withRoles(
+          [
+            AppRoles.VIEW_INTERNAL_MEMBERSHIP_LIST,
+            AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST,
+          ],
+          withTags(["Membership"], {
+            params: z.object({ netId: illinoisNetId }),
+            querystring: z.object({
+              list: z.string().min(1).optional().meta({
+                example: "built",
+                description:
+                  "Membership list to check from (defaults to ACM Paid Member list).",
+              }),
+            }),
+            summary:
+              "Check ACM @ UIUC paid membership (or partner organization membership) status.",
+            response: {
+              200: {
+                description: "List membership status.",
+                content: {
+                  "application/json": {
+                    schema: z
+                      .object({
+                        netId: illinoisNetId,
+                        list: z.optional(z.string().min(1)),
+                        isPaidMember: z.boolean(),
+                      })
+                      .meta({
+                        example: {
+                          netId: "rjjones",
+                          list: "built",
+                          isPaidMember: false,
+                        },
+                      }),
+                  },
+                },
+              },
+            },
+          }),
+        ),
+        onRequest: async (request, reply) => {
+          await fastify.authorizeFromSchema(request, reply);
+          if (!request.userRoles) {
+            throw new InternalServerError({});
+          }
+          const list = request.query.list || "acmpaid";
+          if (
+            list === "acmpaid" &&
+            !request.userRoles.has(AppRoles.VIEW_INTERNAL_MEMBERSHIP_LIST)
+          ) {
+            throw new UnauthorizedError({});
+          }
+          if (
+            list !== "acmpaid" &&
+            !request.userRoles.has(AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST)
+          ) {
+            throw new UnauthorizedError({});
+          }
+        },
+      },
+      async (request, reply) => {
+        const netId = request.params.netId.toLowerCase();
+        const list = request.query.list || "acmpaid";
+        const cacheKey = `membership:${netId}:${list}`;
+        const result = await getKey<{ isMember: boolean }>({
+          redisClient: fastify.redisClient,
+          key: cacheKey,
+          logger: request.log,
+        });
+        if (result) {
+          return reply.header("X-ACM-Data-Source", "cache").send({
+            netId,
+            list: list === "acmpaid" ? undefined : list,
+            isPaidMember: result.isMember,
+          });
+        }
+        if (list !== "acmpaid") {
+          const isMember = await checkExternalMembership(
+            netId,
+            list,
+            fastify.dynamoClient,
+          );
+          await setKey({
+            redisClient: fastify.redisClient,
+            key: cacheKey,
+            data: JSON.stringify({ isMember }),
+            expiresIn: MEMBER_CACHE_SECONDS,
+            logger: request.log,
+          });
+          return reply.header("X-ACM-Data-Source", "dynamo").send({
+            netId,
+            list,
+            isPaidMember: isMember,
+          });
+        }
+        const isDynamoMember = await checkPaidMembershipFromTable(
+          netId,
+          fastify.dynamoClient,
+        );
+        if (isDynamoMember) {
+          await setKey({
+            redisClient: fastify.redisClient,
+            key: cacheKey,
+            data: JSON.stringify({ isMember: true }),
+            expiresIn: MEMBER_CACHE_SECONDS,
+            logger: request.log,
+          });
+          return reply
+            .header("X-ACM-Data-Source", "dynamo")
+            .send({ netId, isPaidMember: true });
+        }
+        const entraIdToken = await getEntraIdToken({
+          clients: await getAuthorizedClients(),
+          clientId: fastify.environmentConfig.AadValidClientId,
+          secretName: genericConfig.EntraSecretName,
+          logger: request.log,
+        });
+        const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
+        const isAadMember = await checkPaidMembershipFromEntra(
+          netId,
+          entraIdToken,
+          paidMemberGroup,
+        );
+        if (isAadMember) {
+          await setKey({
+            redisClient: fastify.redisClient,
+            key: cacheKey,
+            data: JSON.stringify({ isMember: true }),
+            expiresIn: MEMBER_CACHE_SECONDS,
+            logger: request.log,
+          });
+          reply
+            .header("X-ACM-Data-Source", "aad")
+            .send({ netId, isPaidMember: true });
+          await setPaidMembershipInTable(netId, fastify.dynamoClient);
+          return;
+        }
+        await setKey({
+          redisClient: fastify.redisClient,
+          key: cacheKey,
+          data: JSON.stringify({ isMember: false }),
+          expiresIn: MEMBER_CACHE_SECONDS,
+          logger: request.log,
+        });
+        return reply
+          .header("X-ACM-Data-Source", "aad")
+          .send({ netId, isPaidMember: false });
       },
     );
   };

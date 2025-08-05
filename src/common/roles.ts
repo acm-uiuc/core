@@ -15,6 +15,7 @@ export enum AppRoles {
   ROOM_REQUEST_UPDATE = "update:roomRequest",
   AUDIT_LOG_VIEWER = "view:auditLog",
   MANAGE_ORG_API_KEYS = "manage:orgApiKey",
+  VIEW_INTERNAL_MEMBERSHIP_LIST = "view:internalMembershipList",
   VIEW_EXTERNAL_MEMBERSHIP_LIST = "view:externalMembershipList",
   MANAGE_EXTERNAL_MEMBERSHIP_LIST = "manage:externalMembershipList"
 }
@@ -36,6 +37,7 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.ROOM_REQUEST_UPDATE]: "Room Request Updater",
   [AppRoles.AUDIT_LOG_VIEWER]: "Audit Log Viewer",
   [AppRoles.MANAGE_ORG_API_KEYS]: "Org API Keys Manager",
+  [AppRoles.VIEW_INTERNAL_MEMBERSHIP_LIST]: "Internal Membership List Viewer",
   [AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Viewer",
   [AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Manager",
 }

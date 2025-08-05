@@ -49,7 +49,7 @@ describe("CORS tests", async () => {
     expect(response.headers).not.toHaveProperty("access-control-allow-origin");
   });
   test("Membership: Known URL is allowed in CORS", async () => {
-    const response = await fetch(`${baseEndpoint}/api/v1/membership/zzzzzz`, {
+    const response = await fetch(`${baseEndpoint}/api/v1/healthz`, {
       headers: {
         Origin: "https://acmuiuc.pages.dev",
       },
@@ -60,7 +60,7 @@ describe("CORS tests", async () => {
     );
   });
   test("Membership: Known URL is preflight allowed in CORS", async () => {
-    const response = await fetch(`${baseEndpoint}/api/v1/membership/zzzzzz`, {
+    const response = await fetch(`${baseEndpoint}/api/v1/healthz`, {
       method: "OPTIONS",
       headers: {
         "Access-Control-Request-Method": "GET",
