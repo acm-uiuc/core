@@ -28,7 +28,7 @@ import { ViewRoomRequest } from "./pages/roomRequest/ViewRoomRequest.page";
 import { ViewLogsPage } from "./pages/logs/ViewLogs.page";
 import { TermsOfService } from "./pages/tos/TermsOfService.page";
 import { ManageApiKeysPage } from "./pages/apiKeys/ManageKeys.page";
-import { ManageExternalMembershipPage } from "./pages/externalMembership/ManageExternalMembership.page";
+import { ManageExternalMembershipPage } from "./pages/membershipLists/MembershipListsPage";
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -181,7 +181,7 @@ const authenticatedRouter = createBrowserRouter([
     element: <ManageIamPage />,
   },
   {
-    path: "/externalMembership",
+    path: "/membershipLists",
     element: <ManageExternalMembershipPage />,
   },
   {
