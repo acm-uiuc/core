@@ -20,6 +20,7 @@ import { IconAlertCircle } from "@tabler/icons-react";
 import ExternalMemberListManagement from "./ExternalMemberListManagement";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import InternalMembershipQuery from "./InternalMembershipQuery";
+import { AxiosError } from "axios";
 
 export const ManageExternalMembershipPage = () => {
   const api = useApi("core");
@@ -54,6 +55,10 @@ export const ManageExternalMembershipPage = () => {
       );
       return result.data.isPaidMember;
     } catch (error: any) {
+      if (error instanceof AxiosError && error.status === 400) {
+        // Invalid NetID.
+        return false;
+      }
       console.error("Failed to check internal membership:", error);
       notifications.show({
         title: "Failed to get query membership list.",
@@ -112,7 +117,7 @@ export const ManageExternalMembershipPage = () => {
     return <FullScreenLoader />;
   }
   return (
-    <Container fluid mr="xl" ml="xl">
+    <Container fluid m="lg">
       <Grid>
         <Grid.Col span={{ base: 12, lg: 6 }}>
           <AuthGuard
@@ -122,7 +127,7 @@ export const ManageExternalMembershipPage = () => {
             }}
           >
             <Stack>
-              <Title order={2}>Query ACM Paid Membership Lists</Title>
+              <Title order={2}>Query ACM Paid Membership List</Title>
               <InternalMembershipQuery
                 queryInternalMembership={queryInternalMembership}
               />

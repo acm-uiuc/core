@@ -1,13 +1,5 @@
 import { useState } from "react";
-import {
-  TextInput,
-  Button,
-  Stack,
-  Box,
-  Text,
-  Group,
-  Loader,
-} from "@mantine/core";
+import { TextInput, Button, Stack, Box, Text, Group } from "@mantine/core";
 import { IconCircleCheck, IconCircleX } from "@tabler/icons-react";
 
 interface InternalMembershipQueryProps {
@@ -30,13 +22,12 @@ export const InternalMembershipQuery = ({
     }
 
     setIsLoading(true);
-    setResult(null); // Clear previous results on new query
+    setResult(null);
     try {
-      const isMember = await queryInternalMembership(netId.trim());
-      setResult({ netId: netId.trim(), isMember });
-    } catch (error) {
-      // The parent component's passed-in function already handles notifications
-      console.error(`Query failed for ${netId}:`, error);
+      const isMember = await queryInternalMembership(
+        netId.trim().toLowerCase(),
+      );
+      setResult({ netId: netId.trim().toLowerCase(), isMember });
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +69,7 @@ export const InternalMembershipQuery = ({
             ) : (
               <IconCircleX style={{ color: "var(--mantine-color-red-7)" }} />
             )}
-            <Text c={result.isMember ? "green.9" : "red.9"} fw={500}>
+            <Text c={result.isMember ? "green.9" : "red.9"} fw={500} size="sm">
               <Text span fw={700} inherit>
                 {result.netId}
               </Text>{" "}
