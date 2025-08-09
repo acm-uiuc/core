@@ -38,10 +38,12 @@ const validateOriginHeader = (
 // This handler now correctly uses the native streaming support from the packages.
 export const handler = awslambda.streamifyResponse(
   async (event: any, responseStream: any, context: any) => {
-    // 1. Handle warmer events
+    context.callbackWaitsForEmptyEventLoop = false;
     if ("action" in event && event.action === "warmer") {
-      responseStream.write(JSON.stringify({ instanceId }));
-      responseStream.end();
+      const requestStream = Readable.from(
+        Buffer.from(JSON.stringify({ instanceId })),
+      );
+      await pipeline(requestStream, responseStream);
       return;
     }
 
@@ -68,17 +70,18 @@ export const handler = awslambda.streamifyResponse(
           statusCode: error.httpStatusCode,
           headers: { "Content-Type": "application/json" },
         };
-        const httpStream = awslambda.HttpResponseStream.from(
+        responseStream = awslambda.HttpResponseStream.from(
           responseStream,
           meta,
         );
-        httpStream.write(body);
-        httpStream.end();
+        const requestStream = Readable.from(Buffer.from(body));
+        await pipeline(requestStream, responseStream);
         return;
       }
       delete event.headers["x-origin-verify"];
     }
 
+    console.log("calling proxy function");
     const { stream, meta } = await proxy(event, context);
     // Fix issue with Lambda where streaming repsonses always require a body to be present
     const body =
