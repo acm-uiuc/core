@@ -339,7 +339,8 @@ resource "aws_lambda_function" "api_lambda" {
     variables = {
       "RunEnvironment"                      = var.RunEnvironment
       "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
-      ORIGIN_VERIFY_KEY                     = var.OriginVerifyKey
+      ORIGIN_VERIFY_KEY                     = var.CurrentOriginVerifyKey
+      PREVIOUS_ORIGIN_VERIFY_KEY            = var.PreviousOriginVerifyKey
       EntraRoleArn                          = aws_iam_role.entra_role.arn
       LinkryKvArn                           = var.LinkryKvArn
       "NODE_OPTIONS"                        = "--enable-source-maps"
@@ -398,7 +399,8 @@ resource "aws_lambda_function" "slow_lambda" {
     variables = {
       "RunEnvironment"                      = var.RunEnvironment
       "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
-      ORIGIN_VERIFY_KEY                     = var.OriginVerifyKey
+      ORIGIN_VERIFY_KEY                     = var.CurrentOriginVerifyKey
+      PREVIOUS_ORIGIN_VERIFY_KEY            = var.PreviousOriginVerifyKey
       EntraRoleArn                          = aws_iam_role.entra_role.arn
       LinkryKvArn                           = var.LinkryKvArn
       "NODE_OPTIONS"                        = "--enable-source-maps"

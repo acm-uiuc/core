@@ -54,12 +54,9 @@ module "dynamo" {
   ProjectId = var.ProjectId
 }
 
-resource "random_password" "origin_verify_key" {
-  length  = 16
-  special = false
-  keepers = {
-    force_recreation = formatdate("DD-MMM-YYYY", plantimestamp())
-  }
+module "origin_verify" {
+  source    = "../../modules/origin_verify"
+  ProjectId = var.ProjectId
 }
 
 resource "aws_cloudfront_key_value_store" "linkry_kv" {
@@ -77,20 +74,21 @@ module "alarms" {
 }
 
 module "lambdas" {
-  source           = "../../modules/lambdas"
-  ProjectId        = var.ProjectId
-  RunEnvironment   = "prod"
-  LinkryKvArn      = aws_cloudfront_key_value_store.linkry_kv.arn
-  OriginVerifyKey  = random_password.origin_verify_key.result
-  LogRetentionDays = 30
-  EmailDomain      = var.EmailDomain
+  source                  = "../../modules/lambdas"
+  ProjectId               = var.ProjectId
+  RunEnvironment          = "prod"
+  LinkryKvArn             = aws_cloudfront_key_value_store.linkry_kv.arn
+  CurrentOriginVerifyKey  = module.origin_verify.current_origin_verify_key
+  PreviousOriginVerifyKey = module.origin_verify.previous_origin_verify_key
+  LogRetentionDays        = 30
+  EmailDomain             = var.EmailDomain
 }
 
 module "frontend" {
   source             = "../../modules/frontend"
   BucketPrefix       = local.bucket_prefix
   CoreLambdaHost     = module.lambdas.core_function_url
-  OriginVerifyKey    = random_password.origin_verify_key.result
+  OriginVerifyKey    = module.origin_verify.current_origin_verify_key
   ProjectId          = var.ProjectId
   CoreCertificateArn = var.CoreCertificateArn
   CorePublicDomain   = var.CorePublicDomain
