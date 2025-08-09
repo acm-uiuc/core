@@ -392,8 +392,8 @@ resource "aws_lambda_function" "slow_lambda" {
   memory_size      = 2048
   source_code_hash = data.archive_file.api_lambda_code.output_sha256
   logging_config {
-    log_group  = aws_cloudwatch_log_group.api_logs.arn
-    log_format = "text"
+    log_group  = aws_cloudwatch_log_group.api_logs.name
+    log_format = "Text"
   }
   environment {
     variables = {
