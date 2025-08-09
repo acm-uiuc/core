@@ -12,6 +12,7 @@ data "archive_file" "sqs_lambda_code" {
 
 locals {
   core_api_lambda_name          = "${var.ProjectId}-main-server"
+  core_api_slow_lambda_name     = "${var.ProjectId}-slow-server"
   core_sqs_consumer_lambda_name = "${var.ProjectId}-sqs-consumer"
   entra_policies = {
     shared = aws_iam_policy.shared_iam_policy.arn
@@ -361,6 +362,7 @@ resource "aws_lambda_function" "sqs_lambda" {
   timeout          = 300
   memory_size      = 2048
   source_code_hash = data.archive_file.sqs_lambda_code.output_sha256
+
   environment {
     variables = {
       "RunEnvironment"                      = var.RunEnvironment
@@ -376,13 +378,55 @@ resource "aws_lambda_function_url" "api_lambda_function_url" {
   authorization_type = "NONE"
 }
 
+// Slow lambda - used for monitoring purposes to avoid triggering lamdba latency alarms
+resource "aws_lambda_function" "slow_lambda" {
+  depends_on       = [aws_cloudwatch_log_group.api_logs]
+  function_name    = local.core_api_slow_lambda_name
+  role             = aws_iam_role.api_role.arn
+  architectures    = ["arm64"]
+  handler          = "lambda.handler"
+  runtime          = "nodejs22.x"
+  filename         = data.archive_file.api_lambda_code.output_path
+  timeout          = 60
+  memory_size      = 2048
+  source_code_hash = data.archive_file.api_lambda_code.output_sha256
+  logging_config {
+    log_group  = aws_cloudwatch_log_group.api_logs.arn
+    log_format = "text"
+  }
+  environment {
+    variables = {
+      "RunEnvironment"                      = var.RunEnvironment
+      "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
+      ORIGIN_VERIFY_KEY                     = var.OriginVerifyKey
+      EntraRoleArn                          = aws_iam_role.entra_role.arn
+      LinkryKvArn                           = var.LinkryKvArn
+      "NODE_OPTIONS"                        = "--enable-source-maps"
+    }
+  }
+}
+
+resource "aws_lambda_function_url" "slow_api_lambda_function_url" {
+  function_name      = aws_lambda_function.slow_lambda.function_name
+  authorization_type = "NONE"
+}
+
 output "core_function_url" {
   value = replace(replace(aws_lambda_function_url.api_lambda_function_url.function_url, "https://", ""), "/", "")
+}
+
+output "core_slow_function_url" {
+  value = replace(replace(aws_lambda_function_url.slow_api_lambda_function_url.function_url, "https://", ""), "/", "")
 }
 
 output "core_api_lambda_name" {
   value = local.core_api_lambda_name
 }
+
+output "core_api_slow_lambda_name" {
+  value = local.core_api_slow_lambda_name
+}
+
 
 output "core_sqs_consumer_lambda_arn" {
   value = aws_lambda_function.sqs_lambda.arn

@@ -72,7 +72,8 @@ module "alarms" {
   resource_prefix                 = var.ProjectId
   main_cloudfront_distribution_id = module.frontend.main_cloudfront_distribution_id
   standard_sns_arn                = var.GeneralSNSAlertArn
-  main_lambda_function_name       = module.lambdas.core_api_lambda_name
+  all_lambdas                     = set([module.lambdas.core_api_lambda_name, module.lamdbas.core_api_slow_lambda_name, module.lambdas.core_sqs_consumer_lambda_name])
+  performance_noreq_lambdas       = set([module.lambdas.core_api_lambda_name])
 }
 
 module "lambdas" {
@@ -93,6 +94,7 @@ module "frontend" {
   ProjectId          = var.ProjectId
   CoreCertificateArn = var.CoreCertificateArn
   CorePublicDomain   = var.CorePublicDomain
+  CoreSlowLambdaHost = module.lambdas.core_slow_function_url
   IcalPublicDomain   = var.IcalPublicDomain
   LinkryPublicDomain = var.LinkryPublicDomain
   LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn

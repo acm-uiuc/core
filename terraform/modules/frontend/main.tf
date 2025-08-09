@@ -17,6 +17,23 @@ resource "null_resource" "upload_frontend" {
   }
 }
 
+locals {
+  api_cache_behaviors = {
+    "/api/v1/syncIdentity" = {
+      target_origin_id = "SlowLambdaFunction"
+      cache_policy_id  = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    },
+    "/api/v1/organizations" = {
+      target_origin_id = "LambdaFunction"
+      cache_policy_id  = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    },
+    "/api/*" = {
+      target_origin_id = "LambdaFunction"
+      cache_policy_id  = aws_cloudfront_cache_policy.no_cache.id
+    }
+  }
+}
+
 resource "null_resource" "invalidate_frontend" {
   depends_on = [null_resource.upload_frontend]
   triggers = {
@@ -101,6 +118,16 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
       origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
     }
   }
+  origin {
+    origin_id   = "SlowLambdaFunction"
+    domain_name = var.CoreSlowLambdaHost
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
+    }
+  }
   default_root_object = "index.html"
   aliases             = [var.CorePublicDomain]
   enabled             = true
@@ -127,46 +154,21 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
       restriction_type = "none"
     }
   }
-  ordered_cache_behavior {
-    path_pattern             = "/api/v1/events*"
-    target_origin_id         = "LambdaFunction"
-    viewer_protocol_policy   = "redirect-to-https"
-    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-    cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = aws_cloudfront_cache_policy.headers_no_cookies.id
-    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
-    compress                 = true
-    function_association {
-      event_type   = "viewer-request"
-      function_arn = aws_cloudfront_function.origin_key_injection.arn
-    }
-  }
-  ordered_cache_behavior {
-    path_pattern             = "/api/v1/organizations"
-    target_origin_id         = "LambdaFunction"
-    viewer_protocol_policy   = "redirect-to-https"
-    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-    cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
-    compress                 = true
-    function_association {
-      event_type   = "viewer-request"
-      function_arn = aws_cloudfront_function.origin_key_injection.arn
-    }
-  }
-  ordered_cache_behavior {
-    path_pattern             = "/api/*"
-    target_origin_id         = "LambdaFunction"
-    viewer_protocol_policy   = "redirect-to-https"
-    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-    cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = aws_cloudfront_cache_policy.no_cache.id
-    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
-    compress                 = true
-    function_association {
-      event_type   = "viewer-request"
-      function_arn = aws_cloudfront_function.origin_key_injection.arn
+  dynamic "ordered_cache_behavior" {
+    for_each = local.api_cache_behaviors
+    content {
+      path_pattern             = each.key
+      target_origin_id         = each.value.target_origin_id
+      cache_policy_id          = each.value.cache_policy_id
+      viewer_protocol_policy   = "redirect-to-https"
+      allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+      cached_methods           = ["GET", "HEAD"]
+      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+      compress                 = true
+      function_association {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.origin_key_injection.arn
+      }
     }
   }
   price_class = "PriceClass_100"
