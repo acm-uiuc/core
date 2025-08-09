@@ -2,6 +2,7 @@ import awsLambdaFastify from "@fastify/aws-lambda";
 import { pipeline } from "node:stream/promises";
 import init, { instanceId } from "./index.js";
 import { InternalServerError, ValidationError } from "common/errors/index.js";
+import { Readable } from "node:stream";
 
 // Initialize the proxy with the payloadAsStream option
 const app = await init();
@@ -85,7 +86,12 @@ export const handler = awslambda.streamifyResponse(
         responseStream,
         meta as any,
       );
-      await pipeline(stream, responseStream);
+
+      // Fix issue with Lambda where streaming repsonses always require a body to be present
+      const body =
+        stream.readableLength > 0 ? stream : Readable.from(Buffer.from(""));
+
+      await pipeline(body, responseStream);
     } catch (e) {
       console.error("Error during proxy or stream pipeline:", e);
       const error = new InternalServerError({
