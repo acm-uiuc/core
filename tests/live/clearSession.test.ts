@@ -4,7 +4,7 @@ import { allAppRoles } from "../../src/common/roles.js";
 
 const baseEndpoint = getBaseEndpoint();
 
-describe("Session clearing tests", async () => {
+describe("Session clearing tests", { timeout: 30000 }, async () => {
   test("Token is revoked on logout", async () => {
     const token = await createJwt();
     // token works
