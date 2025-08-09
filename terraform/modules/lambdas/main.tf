@@ -341,6 +341,7 @@ resource "aws_lambda_function" "api_lambda" {
       "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
       ORIGIN_VERIFY_KEY                     = var.CurrentOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY            = var.PreviousOriginVerifyKey
+      PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT = var.PreviousOriginVerifyKeyExpiresAt
       EntraRoleArn                          = aws_iam_role.entra_role.arn
       LinkryKvArn                           = var.LinkryKvArn
       "NODE_OPTIONS"                        = "--enable-source-maps"
@@ -401,6 +402,7 @@ resource "aws_lambda_function" "slow_lambda" {
       "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
       ORIGIN_VERIFY_KEY                     = var.CurrentOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY            = var.PreviousOriginVerifyKey
+      PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT = var.PreviousOriginVerifyKeyExpiresAt
       EntraRoleArn                          = aws_iam_role.entra_role.arn
       LinkryKvArn                           = var.LinkryKvArn
       "NODE_OPTIONS"                        = "--enable-source-maps"
@@ -412,6 +414,19 @@ resource "aws_lambda_function_url" "slow_api_lambda_function_url" {
   function_name      = aws_lambda_function.slow_lambda.function_name
   authorization_type = "NONE"
 }
+
+module "lambda_warmer_main" {
+  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
+  function_to_warm = local.core_api_lambda_name
+}
+
+module "lambda_warmer_slow" {
+  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
+  function_to_warm = local.core_api_slow_lambda_name
+}
+
+
+// Outputs
 
 output "core_function_url" {
   value = replace(replace(aws_lambda_function_url.api_lambda_function_url.function_url, "https://", ""), "/", "")

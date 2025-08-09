@@ -26,6 +26,10 @@ variable "PreviousOriginVerifyKey" {
   sensitive = true
 }
 
+variable "PreviousOriginVerifyKeyExpiresAt" {
+  type = string
+}
+
 variable "LogRetentionDays" {
   type = number
 }

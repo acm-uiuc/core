@@ -45,10 +45,6 @@ module "sqs_queues" {
   core_sqs_consumer_lambda_name = module.lambdas.core_sqs_consumer_lambda_name
 }
 
-module "lambda_warmer" {
-  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
-  function_to_warm = module.lambdas.core_api_lambda_name
-}
 module "dynamo" {
   source    = "../../modules/dynamo"
   ProjectId = var.ProjectId
@@ -74,14 +70,15 @@ module "alarms" {
 }
 
 module "lambdas" {
-  source                  = "../../modules/lambdas"
-  ProjectId               = var.ProjectId
-  RunEnvironment          = "prod"
-  LinkryKvArn             = aws_cloudfront_key_value_store.linkry_kv.arn
-  CurrentOriginVerifyKey  = module.origin_verify.current_origin_verify_key
-  PreviousOriginVerifyKey = module.origin_verify.previous_origin_verify_key
-  LogRetentionDays        = 30
-  EmailDomain             = var.EmailDomain
+  source                           = "../../modules/lambdas"
+  ProjectId                        = var.ProjectId
+  RunEnvironment                   = "prod"
+  LinkryKvArn                      = aws_cloudfront_key_value_store.linkry_kv.arn
+  CurrentOriginVerifyKey           = module.origin_verify.current_origin_verify_key
+  PreviousOriginVerifyKey          = module.origin_verify.previous_origin_verify_key
+  PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
+  LogRetentionDays                 = 30
+  EmailDomain                      = var.EmailDomain
 }
 
 module "frontend" {

@@ -21,7 +21,7 @@ locals {
   api_cache_behaviors = {
     "/api/v1/syncIdentity" = {
       target_origin_id = "SlowLambdaFunction"
-      cache_policy_id  = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+      cache_policy_id  = aws_cloudfront_cache_policy.no_cache.id
     },
     "/api/v1/organizations" = {
       target_origin_id = "LambdaFunction"
