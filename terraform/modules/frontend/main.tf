@@ -19,6 +19,10 @@ resource "null_resource" "upload_frontend" {
 
 locals {
   api_cache_behaviors = {
+    "/api/v1/events*" = {
+      target_origin_id = "LambdaFunction",
+      cache_policy_id  = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    },
     "/api/v1/syncIdentity" = {
       target_origin_id = "SlowLambdaFunction"
       cache_policy_id  = aws_cloudfront_cache_policy.no_cache.id
