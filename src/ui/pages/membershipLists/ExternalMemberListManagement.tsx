@@ -148,12 +148,6 @@ const ExternalMemberListManagement: React.FC<
         color: "green",
       });
       await loadMembers();
-    } catch (error) {
-      notifications.show({
-        title: "Update Failed",
-        message: "Could not save changes to the member list.",
-        color: "red",
-      });
     } finally {
       setIsLoading(false);
       setConfirmationModalOpened(false);

@@ -332,7 +332,7 @@ resource "aws_lambda_function" "api_lambda" {
   handler          = "lambda.handler"
   runtime          = "nodejs22.x"
   filename         = data.archive_file.api_lambda_code.output_path
-  timeout          = 60
+  timeout          = 15
   memory_size      = 2048
   source_code_hash = data.archive_file.api_lambda_code.output_sha256
   environment {
@@ -390,7 +390,7 @@ resource "aws_lambda_function" "slow_lambda" {
   handler          = "lambda.handler"
   runtime          = "nodejs22.x"
   filename         = data.archive_file.api_lambda_code.output_path
-  timeout          = 60
+  timeout          = 15
   memory_size      = 2048
   source_code_hash = data.archive_file.api_lambda_code.output_sha256
   logging_config {
