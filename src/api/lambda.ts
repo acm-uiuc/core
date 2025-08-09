@@ -81,7 +81,6 @@ export const handler = awslambda.streamifyResponse(
       delete event.headers["x-origin-verify"];
     }
 
-    console.log("calling proxy function");
     const { stream, meta } = await proxy(event, context);
     // Fix issue with Lambda where streaming repsonses always require a body to be present
     const body =
