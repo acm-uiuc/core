@@ -4,7 +4,7 @@ import { getBaseEndpoint } from "./utils.js";
 const baseEndpoint = getBaseEndpoint();
 
 test("Get OpenAPI JSON", async () => {
-  const response = await fetch(`${baseEndpoint}/api/documentation/json`);
+  const response = await fetch(`${baseEndpoint}/docs/openapi.json`);
   expect(response.status).toBe(200);
 
   const responseDataJson = await response.json();
@@ -13,7 +13,7 @@ test("Get OpenAPI JSON", async () => {
 });
 
 test("Get OpenAPI UI", async () => {
-  const response = await fetch(`${baseEndpoint}/api/documentation`);
+  const response = await fetch(`${baseEndpoint}/docs`);
   expect(response.status).toBe(200);
   const contentType = response.headers.get("content-type");
   expect(contentType).toContain("text/html");

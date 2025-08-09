@@ -89,7 +89,7 @@ const genericConfig: GenericConfigType = {
   IAMTablePrefix: "infra-core-api-iam",
   ProtectedEntraIDGroups: [infraChairsGroupId, officersGroupId],
   MembershipTableName: "infra-core-api-membership-provisioning",
-  ExternalMembershipTableName: "infra-core-api-membership-external",
+  ExternalMembershipTableName: "infra-core-api-membership-external-v3",
   RoomRequestsTableName: "infra-core-api-room-requests",
   RoomRequestsStatusTableName: "infra-core-api-room-requests-status",
   AuditLogTable: "infra-core-api-audit-log",
@@ -182,17 +182,20 @@ type NotificationRecipientsType = {
   [env in RunEnvironment]: {
     OfficerBoard: string;
     InfraChairs: string;
+    Treasurer: string;
   };
 };
 
 const notificationRecipients: NotificationRecipientsType = {
   dev: {
-    OfficerBoard: 'infra@acm.illinois.edu',
-    InfraChairs: 'infra@acm.illinois.edu',
+    OfficerBoard: 'infrasharedservices-l@acm.illinois.edu',
+    InfraChairs: 'infrasharedservices-l@acm.illinois.edu',
+    Treasurer: 'infrasharedservices-l@acm.illinois.edu'
   },
   prod: {
     OfficerBoard: 'officers@acm.illinois.edu',
     InfraChairs: 'infra@acm.illinois.edu',
+    Treasurer: 'treasurer@acm.illinois.edu'
   }
 }
 

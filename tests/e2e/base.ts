@@ -48,7 +48,9 @@ export function capitalizeFirstLetter(string: string) {
 }
 
 async function becomeUser(page: Page) {
-  await page.goto("https://core.aws.qa.acmuiuc.org/login");
+  await page.goto(
+    process.env.E2E_TEST_HOST || "https://core.aws.qa.acmuiuc.org/login",
+  );
   await page
     .getByRole("button", { name: "Sign in with Illinois NetID" })
     .click();
@@ -58,7 +60,9 @@ async function becomeUser(page: Page) {
     .fill(secrets["PLAYWRIGHT_USERNAME"]);
   await page.getByPlaceholder("NetID@illinois.edu").press("Enter");
   await page.getByPlaceholder("Password").click();
-  await page.getByPlaceholder("Password").fill(secrets["PLAYWRIGHT_PASSWORD"]);
+  await page.getByPlaceholder("Password").evaluate((input, password) => {
+    (input as any).value = password;
+  }, secrets["PLAYWRIGHT_PASSWORD"]);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("button", { name: "No" }).click();
 }

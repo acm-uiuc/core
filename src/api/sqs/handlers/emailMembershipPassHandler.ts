@@ -14,7 +14,7 @@ import { SESClient } from "@aws-sdk/client-ses";
 export const emailMembershipPassHandler: SQSHandlerFunction<
   AvailableSQSFunctions.EmailMembershipPass
 > = async (payload, metadata, logger) => {
-  const email = payload.email;
+  const { email, firstName } = payload;
   const commonConfig = { region: genericConfig.AwsRegion };
   const clients = await getAuthorizedClients(logger, commonConfig);
   const entraIdToken = await getEntraIdToken({
@@ -37,6 +37,7 @@ export const emailMembershipPassHandler: SQSHandlerFunction<
     email,
     `membership@${environmentConfig[runEnvironment].EmailDomain}`,
     pkpass.buffer,
+    firstName,
   );
   if (runEnvironment === "dev" && email === "testinguser@illinois.edu") {
     return;

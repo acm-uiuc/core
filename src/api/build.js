@@ -14,9 +14,9 @@ const commonParams = {
     ".json": "file",
   }, // File loaders
   target: "es2022", // Target ES2022
-  sourcemap: false,
+  sourcemap: true,
   platform: "node",
-  external: ["aws-sdk", ...packagesToTransfer],
+  external: ["@aws-sdk/*", ...packagesToTransfer],
   alias: {
     "moment-timezone": resolve(
       process.cwd(),
@@ -34,13 +34,6 @@ const commonParams = {
     `.trim(),
   }, // Banner for compatibility with CommonJS
   plugins: [
-    copy({
-      resolveFrom: "cwd",
-      assets: {
-        from: ["../../node_modules/@fastify/swagger-ui/static/*"],
-        to: ["../../dist/lambda/static"],
-      },
-    }),
     copy({
       resolveFrom: "cwd",
       assets: {
@@ -72,5 +65,17 @@ esbuild
   .then(() => console.log("SQS consumer build completed successfully!"))
   .catch((error) => {
     console.error("SQS consumer build failed:", error);
+    process.exit(1);
+  });
+
+esbuild
+  .build({
+    ...commonParams,
+    entryPoints: ["api/warmer/lambda.js"],
+    outdir: "../../dist/warmer/",
+  })
+  .then(() => console.log("Lambda warmer build completed successfully!"))
+  .catch((error) => {
+    console.error("Lambda warmer build failed:", error);
     process.exit(1);
   });

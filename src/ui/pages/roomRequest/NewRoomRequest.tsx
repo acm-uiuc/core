@@ -477,7 +477,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
 
               <DateInput
                 label="Recurrence End Date"
-                description="The last occurance will occur on this date (inclusive)"
+                description="The last occurrence will occur on this date (inclusive)."
                 withAsterisk
                 mt="sm"
                 placeholder="When does this recurring event end?"
@@ -766,7 +766,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             </Button>
           ))}
         {active === numSteps && !viewOnly && (
-          <Button onClick={handleSubmit} color="green">
+          <Button onClick={handleSubmit} disabled={isSubmitting} color="green">
             {isSubmitting ? (
               <>
                 <Loader size={16} color="white" />

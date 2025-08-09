@@ -4,13 +4,16 @@ import {
   GetItemCommand,
   PutItemCommand,
   ScanCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/index.js";
 import { createJwt } from "./auth.test.js";
 import { testSecretObject } from "./secret.testdata.js";
 import supertest from "supertest";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { randomUUID } from "crypto";
+import { genericConfig } from "../../src/common/config.js";
 
 const ddbMock = mockClient(DynamoDBClient);
 const jwt_secret = testSecretObject["jwt_key"];
@@ -150,13 +153,7 @@ test("Happy path: Adding a non-repeating, featured, paid event", async () => {
     });
 
   expect(response.statusCode).toBe(201);
-  const responseDataJson = response.body as { id: string; resource: string };
-  expect(responseDataJson).toHaveProperty("id");
-  const uuid = responseDataJson["id"];
-  expect(responseDataJson).toEqual({
-    id: uuid,
-    resource: `/api/v1/events/${uuid}`,
-  });
+  expect(response.header["location"]).toBeDefined();
 });
 
 test("Happy path: Adding a weekly repeating, non-featured, paid event", async () => {
@@ -179,13 +176,7 @@ test("Happy path: Adding a weekly repeating, non-featured, paid event", async ()
     });
 
   expect(response.statusCode).toBe(201);
-  const responseDataJson = response.body as { id: string; resource: string };
-  expect(responseDataJson).toHaveProperty("id");
-  const uuid = responseDataJson["id"];
-  expect(responseDataJson).toEqual({
-    id: uuid,
-    resource: `/api/v1/events/${uuid}`,
-  });
+  expect(response.header["location"]).toBeDefined();
 });
 
 describe("ETag Lifecycle Tests", () => {
@@ -231,7 +222,8 @@ describe("ETag Lifecycle Tests", () => {
       });
 
     expect(eventResponse.statusCode).toBe(201);
-    const eventId = eventResponse.body.id;
+    expect(eventResponse.header["location"]).toBeDefined();
+    const eventId = eventResponse.header["location"].split("/").at(-1);
 
     // Mock GetItemCommand to return the event we just created
     ddbMock.on(GetItemCommand).resolves({
@@ -299,7 +291,8 @@ describe("ETag Lifecycle Tests", () => {
       });
 
     expect(eventResponse.statusCode).toBe(201);
-    const eventId = eventResponse.body.id;
+    expect(eventResponse.header["location"]).toBeDefined();
+    const eventId = eventResponse.header["location"].split("/").at(-1);
 
     // Mock GetItemCommand to return the event
     ddbMock.on(GetItemCommand).resolves({
@@ -405,7 +398,8 @@ describe("ETag Lifecycle Tests", () => {
       });
 
     expect(event1Response.statusCode).toBe(201);
-    const event1Id = event1Response.body.id;
+    expect(event1Response.header["location"]).toBeDefined();
+    const event1Id = event1Response.header["location"].split("/").at(-1);
 
     // 3. Create second event
     const event2Response = await supertest(app.server)
@@ -421,7 +415,8 @@ describe("ETag Lifecycle Tests", () => {
       });
 
     expect(event2Response.statusCode).toBe(201);
-    const event2Id = event2Response.body.id;
+    expect(event2Response.header["location"]).toBeDefined();
+    const event2Id = event2Response.header["location"].split("/").at(-1);
 
     // Update GetItemCommand mock to handle different events
     ddbMock.on(GetItemCommand).callsFake((params) => {
@@ -496,6 +491,71 @@ describe("ETag Lifecycle Tests", () => {
   });
 });
 
+describe("Event modification tests", async () => {
+  test("Sad path: Modifying a non-existent event", async () => {
+    const eventUuid = randomUUID();
+    ddbMock.reset();
+    const ourError = new Error("Nonexistent event.");
+    ourError.name = "ConditionalCheckFailedException";
+    ddbMock
+      .on(UpdateItemCommand, {
+        TableName: genericConfig.EventsDynamoTableName,
+        Key: { id: { S: eventUuid } },
+      })
+      .rejects(ourError);
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .patch(`/api/v1/events/${eventUuid}`)
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        paidEventId: "sp24_semiformal_2",
+      });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  test("Happy path: Modifying a weekly repeating, non-featured, paid event", async () => {
+    const eventUuid = randomUUID();
+    const event = {
+      id: eventUuid,
+      description: "Test paid event.",
+      end: "2024-09-25T19:00:00",
+      featured: false,
+      host: "Social Committee",
+      location: "Illini Union",
+      start: "2024-09-25T18:00:00",
+      title: "Fall Semiformal",
+      repeats: "weekly",
+      paidEventId: "sp24_semiformal",
+    };
+    ddbMock.reset();
+    ddbMock
+      .on(UpdateItemCommand, {
+        TableName: genericConfig.EventsDynamoTableName,
+        Key: { id: { S: eventUuid } },
+      })
+      .resolves({ Attributes: marshall(event) });
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .patch(`/api/v1/events/${eventUuid}`)
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        paidEventId: "sp24_semiformal_2",
+      });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.header["location"]).toBeDefined();
+  });
+  beforeEach(() => {
+    (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushdb();
+    ddbMock.reset();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+});
 afterAll(async () => {
   await app.close();
   vi.useRealTimers();

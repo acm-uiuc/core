@@ -1,14 +1,16 @@
-name: Deploy all resources to DEV/PROD
-run-name: DEV/PROD deploy - @${{ github.actor }}
+name: Deploy all resources to PROD
+run-name: PROD deploy - @${{ github.actor }}
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+  release:
+    types: [created]
+    tags:
+      - 'v*'
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     name: Run Unit Tests
     steps:
       - uses: actions/checkout@v4
@@ -21,19 +23,25 @@ jobs:
           node-version: 22.x
           cache: "yarn"
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.12.2
+
       - name: Restore Yarn Cache
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
-            yarn-modules-${{ runner.os }}-
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Run unit testing
         run: make test_unit
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
     name: Build Application
     steps:
       - uses: actions/checkout@v4
@@ -50,15 +58,21 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-prod
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-prod
           restore-keys: |
-            yarn-modules-${{ runner.os }}-
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
+
+      - name: Extract version from tag
+        id: get_version
+        run: echo "VITE_BUILD_HASH=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
 
       - name: Run build
         run: make build
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: prod
+          RunEnvironment: prod
+          VITE_BUILD_HASH: ${{ env.VITE_BUILD_HASH }}
 
       - name: Upload Build files
         uses: actions/upload-artifact@v4
@@ -72,6 +86,7 @@ jobs:
 
   deploy-prod:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     name: Deploy to Prod and Run Health Check
     concurrency:
       group: ${{ github.event.repository.name }}-prod
@@ -88,6 +103,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.12.2
 
       - uses: actions/checkout@v4
         env:

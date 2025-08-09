@@ -6,14 +6,6 @@ Parameters:
   RunEnvironment:
     Type: String
     AllowedValues: ["dev", "prod"]
-  AlertSNSArn:
-    Description: SNS Queue to send general alarm alerts to (prod only)
-    Type: String
-    Default: arn:aws:sns:us-east-1:298118738376:infra-monitor-alerts
-  PriorityAlertSNSArn:
-    Description: SNS Queue to send priority alarm alerts to (prod only)
-    Type: String
-    Default: arn:aws:sns:us-east-1:298118738376:infra-core-api-priority-alerts
   ApplicationPrefix:
     Type: String
     Description: Application prefix, no ending dash
@@ -30,26 +22,23 @@ Parameters:
     Description: How long the SQS lambda is permitted to run (in seconds)
     Default: 180
     Type: Number
-  SqsMessageTimeout:
-    Description: MessageVisibilityTimeout for the SQS Lambda queue (should be at least (numMaxRetry + 1)*SqsLambdaTimeout)
-    Default: 720
-    Type: Number
   S3BucketPrefix:
     Description: S3 bucket prefix which will ensure global uniqueness
     Type: String
+  CloudfrontOriginSecret:
+    NoEcho: true
+    Description: Value for X-Origin-Verify passed to Lambda URL from cloudfront
+    Type: String
 
 Conditions:
-  IsProd: !Equals [!Ref RunEnvironment, "prod"]
   IsDev: !Equals [!Ref RunEnvironment, "dev"]
   ShouldAttachVpc: !Equals [true, !Ref VpcRequired]
 
 Mappings:
   General:
     dev:
-      LogRetentionDays: 7
       SesDomain: "aws.qa.acmuiuc.org"
     prod:
-      LogRetentionDays: 90
       SesDomain: "acm.illinois.edu"
   ApiGwConfig:
     dev:
@@ -87,37 +76,8 @@ Resources:
         RunEnvironment: !Ref RunEnvironment
         LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
         SesEmailDomain: !FindInMap [General, !Ref RunEnvironment, SesDomain]
-        SqsQueueArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
+        SqsQueueArn: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:infra-core-api-sqs"
         LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
-
-  AppLogGroups:
-    Type: AWS::Serverless::Application
-    Properties:
-      Location: ./logs.yml
-      Parameters:
-        LambdaFunctionName: !Sub ${ApplicationPrefix}-lambda
-        LogRetentionDays:
-          !FindInMap [General, !Ref RunEnvironment, LogRetentionDays]
-
-  AppSQSQueues:
-    Type: AWS::Serverless::Application
-    Properties:
-      Location: ./sqs.yml
-      Parameters:
-        QueueName: !Sub ${ApplicationPrefix}-sqs
-        MessageTimeout: !Ref SqsMessageTimeout
-
-  AppAlarms:
-    Condition: IsProd
-    Type: AWS::Serverless::Application
-    Properties:
-      Location: ./alerting.yml
-      Parameters:
-        AlertSNSArn: !Ref AlertSNSArn
-        PriorityAlertSNSArn: !Ref PriorityAlertSNSArn
-        ApplicationPrefix: !Ref ApplicationPrefix
-        ApplicationFriendlyName: !Ref ApplicationFriendlyName
-        MainCloudfrontDistributionId: !GetAtt AppFrontendCloudfrontDistribution.Id
 
   LinkryRecordSetv4:
     Condition: IsDev
@@ -247,17 +207,15 @@ Resources:
 
   AppApiLambdaFunction:
     Type: AWS::Serverless::Function
-    DependsOn:
-      - AppLogGroups
     Properties:
-      Architectures: [x86_64]
+      Architectures: [arm64]
       CodeUri: ../dist/lambda
       AutoPublishAlias: live
       Runtime: nodejs22.x
       Description: !Sub "${ApplicationFriendlyName} API Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-lambda
       Handler: lambda.handler
-      MemorySize: 512
+      MemorySize: 2048
       Role: !GetAtt AppSecurityRoles.Outputs.MainFunctionRoleArn
       Timeout: 60
       Environment:
@@ -265,8 +223,9 @@ Resources:
           RunEnvironment: !Ref RunEnvironment
           EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
           LinkryKvArn: !GetAtt LinkryRecordsCloudfrontStore.Arn
-          AWS_CRT_NODEJS_BINARY_RELATIVE_PATH: node_modules/aws-crt/dist/bin/linux-x64-glibc/aws-crt-nodejs.node
-          ORIGIN_VERIFY_KEY: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+          AWS_CRT_NODEJS_BINARY_RELATIVE_PATH: node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node
+          ORIGIN_VERIFY_KEY: !Ref CloudfrontOriginSecret
+          NODE_OPTIONS: --enable-source-maps
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds:
@@ -285,31 +244,19 @@ Resources:
             !FindInMap [EnvironmentToCidr, !Ref RunEnvironment, SubnetIds],
             !Ref AWS::NoValue,
           ]
-      Events:
-        WarmingSchedule:
-          Type: Schedule
-          Properties:
-            Schedule: !If [
-              ShouldAttachVpc,
-              'rate(15 minutes)',
-              'rate(5 minutes)'
-              ]
-            Input: '{ "warmer":true,"concurrency":3 }'
 
 
   AppSqsLambdaFunction:
     Type: AWS::Serverless::Function
-    DependsOn:
-      - AppLogGroups
     Properties:
-      Architectures: [x86_64]
+      Architectures: [arm64]
       CodeUri: ../dist/sqsConsumer
       AutoPublishAlias: live
       Runtime: nodejs22.x
       Description: !Sub "${ApplicationFriendlyName} SQS Lambda"
       FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
       Handler: index.handler
-      MemorySize: 512
+      MemorySize: 2048
       Role:
         Fn::GetAtt: AppSecurityRoles.Outputs.SqsFunctionRoleArn
       Timeout: !Ref SqsLambdaTimeout
@@ -319,6 +266,7 @@ Resources:
         Variables:
           RunEnvironment: !Ref RunEnvironment
           EntraRoleArn: !GetAtt AppSecurityRoles.Outputs.EntraFunctionRoleArn
+          NODE_OPTIONS: --enable-source-maps
       VpcConfig:
         Ipv6AllowedForDualStack: !If [ShouldAttachVpc, True, !Ref AWS::NoValue]
         SecurityGroupIds:
@@ -344,7 +292,7 @@ Resources:
       - AppSqsLambdaFunction
     Properties:
       BatchSize: 5
-      EventSourceArn: !GetAtt AppSQSQueues.Outputs.MainQueueArn
+      EventSourceArn: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:infra-core-api-sqs"
       FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
       FunctionResponseTypes:
         - ReportBatchItemFailures
@@ -355,264 +303,10 @@ Resources:
       - AppSqsLambdaFunction
     Properties:
       BatchSize: 5
-      EventSourceArn: !GetAtt AppSQSQueues.Outputs.SalesEmailQueueArn
+      EventSourceArn: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:infra-core-api-sqs-sales"
       FunctionName: !Sub ${ApplicationPrefix}-sqs-lambda
       FunctionResponseTypes:
         - ReportBatchItemFailures
-
-  MembershipRecordsTable:
-    Type: "AWS::DynamoDB::Table"
-    DeletionPolicy: "Retain"
-    UpdateReplacePolicy: "Retain"
-    Properties:
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: infra-core-api-membership-provisioning
-      DeletionProtectionEnabled: true
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
-      AttributeDefinitions:
-        - AttributeName: email
-          AttributeType: S
-      KeySchema:
-        - AttributeName: email
-          KeyType: HASH
-
-  ApiKeyTable:
-    Type: "AWS::DynamoDB::Table"
-    DeletionPolicy: "Retain"
-    UpdateReplacePolicy: "Retain"
-    Properties:
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: infra-core-api-keys
-      DeletionProtectionEnabled: !If [IsProd, true, false]
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
-      AttributeDefinitions:
-        - AttributeName: keyId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: keyId
-          KeyType: HASH
-      TimeToLiveSpecification:
-        AttributeName: expiresAt
-        Enabled: true
-
-  ExternalMembershipRecordsTable:
-    Type: "AWS::DynamoDB::Table"
-    DeletionPolicy: "Retain"
-    UpdateReplacePolicy: "Retain"
-    Properties:
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: infra-core-api-membership-external
-      DeletionProtectionEnabled: true
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
-      AttributeDefinitions:
-        - AttributeName: netid_list
-          AttributeType: S
-      KeySchema:
-        - AttributeName: netid_list
-          KeyType: HASH
-
-  RoomRequestsTable:
-    Type: "AWS::DynamoDB::Table"
-    DeletionPolicy: "Retain"
-    UpdateReplacePolicy: "Retain"
-    Properties:
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: infra-core-api-room-requests
-      DeletionProtectionEnabled: true
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
-      AttributeDefinitions:
-        - AttributeName: userId#requestId
-          AttributeType: S
-        - AttributeName: requestId
-          AttributeType: S
-        - AttributeName: semesterId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: semesterId
-          KeyType: HASH
-        - AttributeName: userId#requestId
-          KeyType: RANGE
-      GlobalSecondaryIndexes:
-        - IndexName: RequestIdIndex
-          KeySchema:
-            - AttributeName: requestId
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-
-  RoomRequestUpdatesTable:
-    Type: "AWS::DynamoDB::Table"
-    DeletionPolicy: "Retain"
-    UpdateReplacePolicy: "Retain"
-    Properties:
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: infra-core-api-room-requests-status
-      DeletionProtectionEnabled: true
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
-      AttributeDefinitions:
-        - AttributeName: requestId
-          AttributeType: S
-        - AttributeName: semesterId
-          AttributeType: S
-        - AttributeName: createdAt#status
-          AttributeType: S
-      KeySchema:
-        - AttributeName: requestId
-          KeyType: HASH
-        - AttributeName: createdAt#status
-          KeyType: RANGE
-      GlobalSecondaryIndexes:
-        - IndexName: SemesterId
-          KeySchema:
-            - AttributeName: semesterId
-              KeyType: HASH
-            - AttributeName: requestId
-              KeyType: RANGE
-          Projection:
-            ProjectionType: ALL
-
-
-
-  IamGroupRolesTable:
-    Type: "AWS::DynamoDB::Table"
-    DeletionPolicy: "Retain"
-    UpdateReplacePolicy: "Retain"
-    Properties:
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: infra-core-api-iam-grouproles
-      DeletionProtectionEnabled: true
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: false
-      AttributeDefinitions:
-        - AttributeName: groupUuid
-          AttributeType: S
-      KeySchema:
-        - AttributeName: groupUuid
-          KeyType: HASH
-
-  IamUserRolesTable:
-    Type: "AWS::DynamoDB::Table"
-    DeletionPolicy: "Retain"
-    UpdateReplacePolicy: "Retain"
-    Properties:
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: infra-core-api-iam-userroles
-      DeletionProtectionEnabled: true
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: false
-      AttributeDefinitions:
-        - AttributeName: userEmail
-          AttributeType: S
-      KeySchema:
-        - AttributeName: userEmail
-          KeyType: HASH
-
-  EventRecordsTable:
-    Type: "AWS::DynamoDB::Table"
-    DeletionPolicy: "Retain"
-    UpdateReplacePolicy: "Retain"
-    Properties:
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: infra-core-api-events
-      DeletionProtectionEnabled: true
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
-      AttributeDefinitions:
-        - AttributeName: id
-          AttributeType: S
-        - AttributeName: host
-          AttributeType: S
-      KeySchema:
-        - AttributeName: id
-          KeyType: HASH
-      GlobalSecondaryIndexes:
-        - IndexName: HostIndex
-          KeySchema:
-            - AttributeName: host
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-
-  StripeLinksTable:
-    Type: "AWS::DynamoDB::Table"
-    DeletionPolicy: "Retain"
-    UpdateReplacePolicy: "Retain"
-    Properties:
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: infra-core-api-stripe-links
-      DeletionProtectionEnabled: true
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: false
-      AttributeDefinitions:
-        - AttributeName: userId
-          AttributeType: S
-        - AttributeName: linkId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: userId
-          KeyType: "HASH"
-        - AttributeName: linkId
-          KeyType: "RANGE"
-      GlobalSecondaryIndexes:
-        - IndexName: LinkIdIndex
-          KeySchema:
-            - AttributeName: linkId
-              KeyType: "HASH"
-          Projection:
-            ProjectionType: "ALL"
-
-  LinkryRecordsTable:
-    Type: "AWS::DynamoDB::Table"
-    Properties:
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: "infra-core-api-linkry"
-      DeletionProtectionEnabled: !If [IsProd, true, false] # TODO: remove this
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
-      AttributeDefinitions:
-        - AttributeName: "slug"
-          AttributeType: "S"
-        - AttributeName: "access"
-          AttributeType: "S"
-      KeySchema:
-        - AttributeName: "slug"
-          KeyType: "HASH"
-        - AttributeName: "access"
-          KeyType: "RANGE"
-      GlobalSecondaryIndexes:
-        - IndexName: "AccessIndex"
-          KeySchema:
-            - AttributeName: "access"
-              KeyType: "HASH"
-            - AttributeName: "slug"
-              KeyType: "RANGE"
-          Projection:
-            ProjectionType: "ALL"
-
-  CacheRecordsTable:
-    Type: "AWS::DynamoDB::Table"
-    DeletionPolicy: "Retain"
-    UpdateReplacePolicy: "Retain"
-    Properties:
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: infra-core-api-cache
-      DeletionProtectionEnabled: true
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: false
-      AttributeDefinitions:
-        - AttributeName: primaryKey
-          AttributeType: S
-      KeySchema:
-        - AttributeName: primaryKey
-          KeyType: HASH
-      TimeToLiveSpecification:
-        AttributeName: "expireAt"
-        Enabled: true
 
   AppFrontendS3Bucket:
     Type: AWS::S3::Bucket
@@ -620,12 +314,16 @@ Resources:
       BucketName: !Sub ${S3BucketPrefix}-ui
       WebsiteConfiguration:
         IndexDocument: index.html
+        ErrorDocument: index.html
 
-  CloudFrontOriginAccessIdentity:
-    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+  AppCloudfrontS3OAC:
+    Type: AWS::CloudFront::OriginAccessControl
     Properties:
-      CloudFrontOriginAccessIdentityConfig:
-        Comment: !Sub "Access identity for ${AppFrontendS3Bucket}"
+      OriginAccessControlConfig:
+          Name: InfraCoreApi OAC
+          OriginAccessControlOriginType: s3
+          SigningBehavior: always
+          SigningProtocol: sigv4
 
   AppFrontendCloudfrontDistribution:
     Type: AWS::CloudFront::Distribution
@@ -636,7 +334,8 @@ Resources:
           - Id: S3WebsiteOrigin
             DomainName: !GetAtt AppFrontendS3Bucket.RegionalDomainName
             S3OriginConfig:
-              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt AppCloudfrontS3OAC.Id
           - Id: LambdaOrigin
             DomainName: !Select [0, !Split ['/', !Select [1, !Split ['https://', !GetAtt AppLambdaUrl.FunctionUrl]]]]
             CustomOriginConfig:
@@ -645,7 +344,7 @@ Resources:
               OriginProtocolPolicy: https-only
             OriginCustomHeaders:
               - HeaderName: X-Origin-Verify
-                HeaderValue: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+                HeaderValue: !Ref CloudfrontOriginSecret
         Enabled: true
         DefaultRootObject: index.html
         Aliases:
@@ -669,9 +368,10 @@ Resources:
             Cookies:
               Forward: none
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # caching-optimized
-          LambdaFunctionAssociations:
-            - EventType: origin-request
-              LambdaFunctionARN: !Ref AppFrontendEdgeLambdaVersion
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt AppFrontendViewerRequestFunction.FunctionARN
+
         CacheBehaviors:
           - PathPattern: "/api/v1/events*"
             TargetOriginId: LambdaOrigin
@@ -691,23 +391,6 @@ Resources:
             OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
             Compress: true
           - PathPattern: "/api/v1/organizations"
-            TargetOriginId: LambdaOrigin
-            ViewerProtocolPolicy: redirect-to-https
-            AllowedMethods:
-              - GET
-              - HEAD
-              - OPTIONS
-              - PUT
-              - POST
-              - DELETE
-              - PATCH
-            CachedMethods:
-              - GET
-              - HEAD
-            CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
-            Compress: true
-          - PathPattern: "/api/documentation*"
             TargetOriginId: LambdaOrigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:
@@ -760,9 +443,22 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
-            Action: s3:GetObject
+              Service: cloudfront.amazonaws.com
+            Action:
+              - s3:GetObject
             Resource: !Sub "${AppFrontendS3Bucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AppFrontendCloudfrontDistribution}"
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action:
+              - s3:ListBucket
+            Resource: !Sub "${AppFrontendS3Bucket.Arn}"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AppFrontendCloudfrontDistribution}"
 
   CloudfrontNoCachePolicy:
     Type: AWS::CloudFront::CachePolicy
@@ -807,33 +503,36 @@ Resources:
           CookiesConfig:
             CookieBehavior: none
 
-  AppFrontendEdgeLambda:
-    Type: AWS::Lambda::Function
-    DependsOn:
-      - AppLogGroups
+  AppFrontendViewerRequestFunction:
+    Type: AWS::CloudFront::Function
     Properties:
-      FunctionName: !Sub ${ApplicationPrefix}-lambda-edge
-      Handler: "index.handler"
-      Role: !GetAtt AppSecurityRoles.Outputs.EdgeFunctionRoleArn
-      Runtime: nodejs22.x
-      Code:
-        ZipFile: |
-          'use strict';
-          exports.handler = async (event) => {
-              const request = event.Records[0].cf.request;
-              const uri = request.uri;
-              if (!uri.startsWith('/api') && !uri.match(/\.\w+$/)) {
-                  request.uri = "/index.html";
-              }
-              return request;
-          };
-      MemorySize: 128
-      Timeout: 5
+      Name: !Sub ${ApplicationPrefix}-url-rewrite-function
+      AutoPublish: true
+      FunctionConfig:
+        Comment: "Handles SPA routing by rewriting URIs to index.html"
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+            var request = event.request;
+            var uri = request.uri;
 
-  AppFrontendEdgeLambdaVersion:
-    Type: AWS::Lambda::Version
-    Properties:
-      FunctionName: !Ref AppFrontendEdgeLambda
+            // Rewrite /docs or /docs/ to the documentation index file
+            if (uri === '/docs' || uri === '/docs/') {
+                request.uri = '/docs/index.html';
+                return request;
+            }
+
+            // If the URI starts with /api/ and has a trailing slash, or includes a dot (is a file),
+            // let it pass through without modification.
+            // This ensures paths like /api/v1/data or /some/image.png are not rewritten.
+            if (uri.startsWith('/api/') || uri.includes('.')) {
+                return request;
+            }
+
+            // Rewrite and all other non-file paths to index.html for the SPA.
+            request.uri = '/index.html';
+            return request;
+        }
 
   AppIcalCloudfrontDistribution:
     Type: AWS::CloudFront::Distribution
@@ -850,7 +549,7 @@ Resources:
               OriginProtocolPolicy: https-only
             OriginCustomHeaders:
               - HeaderName: X-Origin-Verify
-                HeaderValue: !Join ['-', ['secret', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+                HeaderValue: !Ref CloudfrontOriginSecret
         Enabled: true
         Aliases:
           - !Join
@@ -891,6 +590,8 @@ Resources:
         PriceClass: PriceClass_100
 
   LinkryRecordsCloudfrontStore:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::CloudFront::KeyValueStore
     Properties:
       Name: infra-core-api-cloudfront-linkry-kv
@@ -905,40 +606,40 @@ Resources:
         KeyValueStoreAssociations:
           - KeyValueStoreARN: !Sub '${LinkryRecordsCloudfrontStore.Arn}'
       FunctionCode: !Sub |
-        import cf from 'cloudfront';
-        const kvsId = '${LinkryRecordsCloudfrontStore.Id}';
-        const kvs = cf.kvs(kvsId);
+          import cf from 'cloudfront';
+          const kvsId = '${LinkryRecordsCloudfrontStore.Id}';
+          const kvs = cf.kvs(kvsId);
 
-        async function handler(event) {
-          const request = event.request;
-          const path = request.uri.replace(/^\/+/, '');
-          if (path === "") {
-            return {
-              statusCode: 301,
-              statusDescription: 'Found',
-              headers: {
-                'location': { value: "https://core.acm.illinois.edu/linkry" }
+          async function handler(event) {
+            const request = event.request;
+            const path = request.uri.replace(/^\/+/, '');
+            if (path === "") {
+              return {
+                statusCode: 301,
+                statusDescription: 'Found',
+                headers: {
+                  'location': { value: "https://core.acm.illinois.edu/linkry" }
+                }
               }
             }
-          }
-          let redirectUrl = "https://acm.illinois.edu/404";
-          try {
-            const value = await kvs.get(path);
-            if (value) {
-              redirectUrl = value;
+            let redirectUrl = "https://acm.illinois.edu/404";
+            try {
+              const value = await kvs.get(path);
+              if (value) {
+                redirectUrl = value;
+              }
+            } catch (err) {
+              console.log(`KVS key lookup failed for $!{path}: $!{err}`);
             }
-          } catch (err) {
-            console.log('KVS key lookup failed');
+            var response = {
+              statusCode: 302,
+              statusDescription: 'Found',
+              headers: {
+                'location': { value: redirectUrl }
+              }
+            };
+            return response;
           }
-          var response = {
-            statusCode: 302,
-            statusDescription: 'Found',
-            headers: {
-              'location': { value: redirectUrl }
-            }
-          };
-          return response;
-        }
       AutoPublish: true
 
   AppLinkryCloudfrontDistribution:
@@ -1011,4 +712,4 @@ Outputs:
 
   SalesEmailQueueArn:
     Description: Sales Email Queue Arn
-    Value: !GetAtt AppSQSQueues.Outputs.SalesEmailQueueArn
+    Value: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:infra-core-api-sqs-sales"

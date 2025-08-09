@@ -74,7 +74,7 @@ Resources:
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-iam-grouproles
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-stripe-links
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-provisioning
-              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-external
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-external-v3
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests-status
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-linkry
@@ -88,6 +88,8 @@ Resources:
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests/index/*
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-room-requests-status/index/*
               - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-linkry/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-provisioning/index/*
+              - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/infra-core-api-membership-external-v3/index/*
 
           - Sid: DynamoDBCacheAccess
             Effect: Allow
@@ -154,15 +156,6 @@ Resources:
                 - lambda.amazonaws.com
 
       Policies:
-        - PolicyName: lambda-self-invoke
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Action:
-                  - lambda:invokeFunction
-                Effect: Allow
-                Resource:
-                  - Fn::Sub: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${LambdaFunctionName}:*"
         - PolicyName: lambda-generic
           PolicyDocument:
             Version: "2012-10-17"

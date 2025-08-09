@@ -1,20 +1,30 @@
-name: Deploy all resources to DEV
-run-name: DEV deploy - @${{ github.actor }}
+name: Deploy all resources to QA
+run-name: QA deploy - @${{ github.actor }}
 
 on:
   workflow_dispatch:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     name: Run Unit Tests
     steps:
       - uses: actions/checkout@v4
         env:
           HUSKY: "0"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.12.2
+
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -26,15 +36,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
-            yarn-modules-${{ runner.os }}-
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Run unit testing
         run: make test_unit
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
     name: Build Application
     steps:
       - uses: actions/checkout@v4
@@ -51,15 +62,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
-            yarn-modules-${{ runner.os }}-
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Run build
         run: make build
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
+          RunEnvironment: dev
 
       - name: Upload Build files
         uses: actions/upload-artifact@v4
@@ -73,14 +85,15 @@ jobs:
 
   deploy-test-dev:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       id-token: write
       contents: read
     concurrency:
       group: ${{ github.event.repository.name }}-dev-env
       cancel-in-progress: false
-    environment: "AWS DEV"
-    name: Deploy to DEV and Run Live Tests
+    environment: "AWS QA"
+    name: Deploy to QA and Run Live Tests
     needs:
       - test
       - build
@@ -95,13 +108,18 @@ jobs:
           node-version: 22.x
           cache: "yarn"
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.12.2
+
       - name: Restore Yarn Cache
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: yarn-modules-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
-            yarn-modules-${{ runner.os }}-
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Download Build files
         uses: actions/download-artifact@v4

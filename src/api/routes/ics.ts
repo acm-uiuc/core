@@ -22,7 +22,7 @@ import {
   FastifyZodOpenApiSchema,
   FastifyZodOpenApiTypeProvider,
 } from "fastify-zod-openapi";
-import { withTags } from "api/components/index.js";
+import { acmCoreOrganization, withTags } from "api/components/index.js";
 import * as z from "zod/v4";
 
 const repeatingIcalMap: Record<EventRepeatOptions, ICalEventJSONRepeatingData> =
@@ -52,9 +52,9 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
     {
       schema: withTags(["iCalendar Integration"], {
         params: z.object({
-          host: z
-            .optional(z.enum(CoreOrganizationList as [string, ...string[]]))
-            .meta({ description: "Host to get calendar for." }),
+          host: z.optional(acmCoreOrganization).meta({
+            description: "Organization to retrieve calendar for",
+          }),
         }),
         summary:
           "Retrieve the calendar for ACM @ UIUC or a specific sub-organization.",

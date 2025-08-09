@@ -9,15 +9,16 @@ function getPath() {
   return { pathname, dirname, basename };
 }
 // These are packages not bundled into the JS file by esbuild
+// These packages have native deps that break when bundled
 export const packagesToTransfer = [
   "moment-timezone",
   "passkit-generator",
-  "fastify",
-  "@fastify/swagger",
-  "@fastify/swagger-ui",
-  "zod",
   "argon2",
   "ioredis",
+  "fastify-zod-openapi",
+  "@fastify/swagger",
+  "zod-openapi",
+  "zod",
 ];
 const filePath = `${getPath().dirname}/package.json`;
 const writeFilePath = `${getPath().dirname}/package.lambda.json`;

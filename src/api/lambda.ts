@@ -1,6 +1,5 @@
-import awsLambdaFastify, { LambdaResponse } from "@fastify/aws-lambda";
-import init from "./index.js";
-import warmer from "lambda-warmer";
+import awsLambdaFastify from "@fastify/aws-lambda";
+import init, { instanceId } from "./index.js";
 import { type APIGatewayEvent, type Context } from "aws-lambda";
 import { InternalServerError, ValidationError } from "common/errors/index.js";
 
@@ -9,12 +8,17 @@ const realHandler = awsLambdaFastify(app, {
   decorateRequest: false,
   serializeLambdaArguments: true,
   callbackWaitsForEmptyEventLoop: false,
+  binaryMimeTypes: ["application/octet-stream", "application/vnd.apple.pkpass"],
 });
-const handler = async (event: APIGatewayEvent, context: Context) => {
-  // if a warming event
-  if (await warmer(event, { correlationId: context.awsRequestId }, context)) {
-    return "warmed";
+type WarmerEvent = { action: "warmer" };
+const handler = async (
+  event: APIGatewayEvent | WarmerEvent,
+  context: Context,
+) => {
+  if ("action" in event && event.action === "warmer") {
+    return { instanceId };
   }
+  event = event as APIGatewayEvent;
   if (process.env.ORIGIN_VERIFY_KEY) {
     // check that the request has the right header (coming from cloudfront)
     if (
@@ -34,6 +38,7 @@ const handler = async (event: APIGatewayEvent, context: Context) => {
         isBase64Encoded: false,
       };
     }
+    delete event.headers["x-origin-verify"];
   }
   // else proceed with handler logic
   return await realHandler(event, context).catch((e) => {

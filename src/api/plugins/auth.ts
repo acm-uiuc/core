@@ -1,4 +1,9 @@
-import { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
+import {
+  FastifyBaseLogger,
+  FastifyPluginAsync,
+  FastifyReply,
+  FastifyRequest,
+} from "fastify";
 import fp from "fastify-plugin";
 import jwksClient from "jwks-rsa";
 import jwt, { Algorithm, Jwt } from "jsonwebtoken";
@@ -21,6 +26,7 @@ import {
 import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
 import { getApiKeyData, getApiKeyParts } from "api/functions/apiKey.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
+import { Redis } from "api/types.js";
 
 export const AUTH_CACHE_PREFIX = `authCache:`;
 
@@ -105,6 +111,41 @@ export const getUserIdentifier = (request: FastifyRequest): string | null => {
     request.log.error("Failed to determine user identifier", e);
     return null;
   }
+};
+
+export const getJwksKey = async ({
+  redisClient,
+  kid,
+  logger,
+}: {
+  redisClient: Redis;
+  kid: string;
+  logger: FastifyBaseLogger;
+}) => {
+  let signingKey;
+  const cachedJwksSigningKey = await getKey<{ key: string }>({
+    redisClient,
+    key: `jwksKey:${kid}`,
+    logger,
+  });
+  if (cachedJwksSigningKey) {
+    signingKey = cachedJwksSigningKey.key;
+    logger.debug("Got JWKS signing key from cache.");
+  } else {
+    const client = jwksClient({
+      jwksUri: "https://login.microsoftonline.com/common/discovery/keys",
+    });
+    signingKey = (await client.getSigningKey(kid)).getPublicKey();
+    await setKey({
+      redisClient,
+      key: `jwksKey:${kid}`,
+      data: JSON.stringify({ key: signingKey }),
+      expiresIn: JWKS_CACHE_SECONDS,
+      logger,
+    });
+    logger.debug("Got JWKS signing key from server.");
+  }
+  return signingKey;
 };
 
 const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
@@ -230,31 +271,11 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
             audience: `api://${AadClientId}`,
           };
           const { redisClient } = fastify;
-          const cachedJwksSigningKey = await getKey<{ key: string }>({
+          signingKey = await getJwksKey({
             redisClient,
-            key: `jwksKey:${header.kid}`,
+            kid: header.kid,
             logger: request.log,
           });
-          if (cachedJwksSigningKey) {
-            signingKey = cachedJwksSigningKey.key;
-            request.log.debug("Got JWKS signing key from cache.");
-          } else {
-            const client = jwksClient({
-              jwksUri:
-                "https://login.microsoftonline.com/common/discovery/keys",
-            });
-            signingKey = (
-              await client.getSigningKey(header.kid)
-            ).getPublicKey();
-            await setKey({
-              redisClient,
-              key: `jwksKey:${header.kid}`,
-              data: JSON.stringify({ key: signingKey }),
-              expiresIn: JWKS_CACHE_SECONDS,
-              logger: request.log,
-            });
-            request.log.debug("Got JWKS signing key from server.");
-          }
         }
 
         const verifiedTokenData = jwt.verify(
@@ -265,11 +286,27 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         request.log.debug(
           `Start to verifying JWT took ${new Date().getTime() - startTime} ms.`,
         );
-        request.tokenPayload = verifiedTokenData;
-        request.username =
+        // check revocation list for token
+        const proposedUsername =
           verifiedTokenData.email ||
           verifiedTokenData.upn?.replace("acm.illinois.edu", "illinois.edu") ||
           verifiedTokenData.sub;
+        const { redisClient, log: logger } = fastify;
+        const revokedResult = await getKey<{ isInvalid: boolean }>({
+          redisClient,
+          key: `tokenRevocationList:${verifiedTokenData.uti}`,
+          logger,
+        });
+        if (revokedResult) {
+          fastify.log.info(
+            `Revoked token ${verifiedTokenData.uti} for ${proposedUsername} was attempted.`,
+          );
+          throw new UnauthenticatedError({
+            message: "Invalid token.",
+          });
+        }
+        request.tokenPayload = verifiedTokenData;
+        request.username = proposedUsername;
         const expectedRoles = new Set(validRoles);
         const cachedRoles = await getKey<string[]>({
           key: `${AUTH_CACHE_PREFIX}${request.username}:roles`,
