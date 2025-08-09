@@ -7,8 +7,9 @@ import { InternalServerError, ValidationError } from "common/errors/index.js";
 const app = await init();
 const proxy = awsLambdaFastify(app, {
   payloadAsStream: true,
-  decorateRequest: false, // from original code
-  serializeLambdaArguments: true, // from original code
+  decorateRequest: false,
+  callbackWaitsForEmptyEventLoop: false,
+  serializeLambdaArguments: true,
   binaryMimeTypes: ["application/octet-stream", "application/vnd.apple.pkpass"], // from original code
 });
 
@@ -79,20 +80,12 @@ export const handler = awslambda.streamifyResponse(
 
     // 3. If validation passes, proxy the request and stream the response
     try {
-      // The proxy returns a body stream and metadata
-      const { stream: fastifyResponseStream, ...meta } = await proxy(
-        event,
-        context,
-      );
-
-      // Use the helper to apply the status code/headers from Fastify
-      const httpResponseStream = awslambda.HttpResponseStream.from(
+      const { stream, meta } = await proxy(event, context);
+      responseStream = awslambda.HttpResponseStream.from(
         responseStream,
-        meta,
+        meta as any,
       );
-
-      // Pipe the response from Fastify to the Lambda output stream
-      await pipeline(fastifyResponseStream, httpResponseStream);
+      await pipeline(stream, responseStream);
     } catch (e) {
       console.error("Error during proxy or stream pipeline:", e);
       const error = new InternalServerError({
