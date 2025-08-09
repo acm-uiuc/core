@@ -10,7 +10,7 @@ import { getBaseEndpoint } from "./utils.js";
 import { environmentConfig, genericConfig } from "../../src/common/config.js";
 
 const baseEndpoint = getBaseEndpoint();
-test("getting groups", async () => {
+test("getting groups", { timeout: 10000 }, async () => {
   const token = await createJwt();
   const response = await fetch(`${baseEndpoint}/api/v1/iam/groups`, {
     method: "GET",
