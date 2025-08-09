@@ -418,12 +418,12 @@ resource "aws_lambda_function_url" "slow_api_lambda_function_url" {
 }
 
 module "lambda_warmer_main" {
-  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
+  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=2677e28b3a8d1b9c8699a2d9c8c36400c1ef9922"
   function_to_warm = local.core_api_lambda_name
 }
 
 module "lambda_warmer_slow" {
-  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
+  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=2677e28b3a8d1b9c8699a2d9c8c36400c1ef9922"
   function_to_warm = local.core_api_slow_lambda_name
 }
 
