@@ -37,7 +37,6 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.ROOM_REQUEST_UPDATE]: "Room Request Updater",
   [AppRoles.AUDIT_LOG_VIEWER]: "Audit Log Viewer",
   [AppRoles.SIGLEAD_MANAGER]: "SIG Lead Manager",
-  [AppRoles.MANAGE_ORG_API_KEYS]: "Org API Keys Manager"
   [AppRoles.MANAGE_ORG_API_KEYS]: "Org API Keys Manager",
   [AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Viewer",
   [AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Manager",
