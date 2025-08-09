@@ -79,35 +79,15 @@ export const handler = awslambda.streamifyResponse(
       delete event.headers["x-origin-verify"];
     }
 
-    // 3. If validation passes, proxy the request and stream the response
-    try {
-      const { stream, meta } = await proxy(event, context);
-      responseStream = awslambda.HttpResponseStream.from(
-        responseStream,
-        meta as any,
-      );
+    const { stream, meta } = await proxy(event, context);
+    // Fix issue with Lambda where streaming repsonses always require a body to be present
+    const body =
+      stream.readableLength > 0 ? stream : Readable.from(Buffer.from(""));
 
-      // Fix issue with Lambda where streaming repsonses always require a body to be present
-      const body =
-        stream.readableLength > 0 ? stream : Readable.from(Buffer.from(""));
-
-      await pipeline(body, responseStream);
-    } catch (e) {
-      console.error("Error during proxy or stream pipeline:", e);
-      const error = new InternalServerError({
-        message: "Failed to process request.",
-      });
-      const body = JSON.stringify(error.toJson());
-      const meta = {
-        statusCode: error.httpStatusCode,
-        headers: { "Content-Type": "application/json" },
-      };
-      const httpStream = awslambda.HttpResponseStream.from(
-        responseStream,
-        meta,
-      );
-      httpStream.write(body);
-      httpStream.end();
-    }
+    responseStream = awslambda.HttpResponseStream.from(
+      responseStream,
+      meta as any,
+    );
+    await pipeline(body, responseStream);
   },
 );
