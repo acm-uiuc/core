@@ -378,6 +378,7 @@ resource "aws_lambda_function" "sqs_lambda" {
 resource "aws_lambda_function_url" "api_lambda_function_url" {
   function_name      = aws_lambda_function.api_lambda.function_name
   authorization_type = "NONE"
+  invoke_mode        = "RESPONSE_STREAM"
 }
 
 // Slow lambda - used for monitoring purposes to avoid triggering lamdba latency alarms
@@ -413,6 +414,7 @@ resource "aws_lambda_function" "slow_lambda" {
 resource "aws_lambda_function_url" "slow_api_lambda_function_url" {
   function_name      = aws_lambda_function.slow_lambda.function_name
   authorization_type = "NONE"
+  invoke_mode        = "RESPONSE_STREAM"
 }
 
 module "lambda_warmer_main" {

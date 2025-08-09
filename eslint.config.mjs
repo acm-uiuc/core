@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
 import { FlatCompat } from "@eslint/eslintrc";
 import mantine from "eslint-config-mantine";
+import globals from 'globals';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,6 +74,15 @@ export default defineConfig([
   {
     files: ["src/api/build.js"],
     rules: { "import/extensions": "off" },
+  },
+  {
+    files: ["src/api/lambda.ts"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        'awslambda': 'readonly'
+      }
+    }
   },
   {
     files: ["src/ui/*", "src/ui/**/*"],
