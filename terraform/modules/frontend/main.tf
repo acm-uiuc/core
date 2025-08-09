@@ -157,9 +157,9 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   dynamic "ordered_cache_behavior" {
     for_each = local.api_cache_behaviors
     content {
-      path_pattern             = each.key
-      target_origin_id         = each.value.target_origin_id
-      cache_policy_id          = each.value.cache_policy_id
+      path_pattern             = ordered_cache_behavior.key
+      target_origin_id         = ordered_cache_behavior.value.target_origin_id
+      cache_policy_id          = ordered_cache_behavior.value.cache_policy_id
       viewer_protocol_policy   = "redirect-to-https"
       allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
       cached_methods           = ["GET", "HEAD"]
