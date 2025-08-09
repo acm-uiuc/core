@@ -81,11 +81,8 @@ export const handler = awslambda.streamifyResponse(
 
     const { stream, meta } = await proxy(event, context);
     // Fix issue with Lambda where streaming repsonses always require a body to be present
-    app.log.warn(`Streamable length: ${stream.readableLength}`);
-    app.log.warn(`meta: ${JSON.stringify(meta)}`);
     const body =
-      stream.readableLength > 0 ? stream : Readable.from(Buffer.from(""));
-    app.log.warn(`New streamable length: ${body.readableLength}`);
+      stream.readableLength > 0 ? stream : Readable.from(Buffer.from(" "));
     responseStream = awslambda.HttpResponseStream.from(
       responseStream,
       meta as any,
