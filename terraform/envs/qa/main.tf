@@ -46,43 +46,39 @@ locals {
   }
 }
 
-
-module "lambda_warmer" {
-  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
-  function_to_warm = module.lambdas.core_api_lambda_name
-}
 module "dynamo" {
   source    = "../../modules/dynamo"
   ProjectId = var.ProjectId
 }
 
-resource "random_password" "origin_verify_key" {
-  length  = 16
-  special = false
-  keepers = {
-    force_recreation = formatdate("DD-MMM-YYYY", plantimestamp())
-  }
+module "origin_verify" {
+  source    = "../../modules/origin_verify"
+  ProjectId = var.ProjectId
 }
+
 resource "aws_cloudfront_key_value_store" "linkry_kv" {
   name = "${var.ProjectId}-cloudfront-linkry-kv"
 }
 
 
 module "lambdas" {
-  source           = "../../modules/lambdas"
-  ProjectId        = var.ProjectId
-  RunEnvironment   = "dev"
-  LinkryKvArn      = aws_cloudfront_key_value_store.linkry_kv.arn
-  OriginVerifyKey  = random_password.origin_verify_key.result
-  LogRetentionDays = 30
-  EmailDomain      = var.EmailDomain
+  source                           = "../../modules/lambdas"
+  ProjectId                        = var.ProjectId
+  RunEnvironment                   = "dev"
+  LinkryKvArn                      = aws_cloudfront_key_value_store.linkry_kv.arn
+  CurrentOriginVerifyKey           = module.origin_verify.current_origin_verify_key
+  PreviousOriginVerifyKey          = module.origin_verify.previous_origin_verify_key
+  PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
+  LogRetentionDays                 = 30
+  EmailDomain                      = var.EmailDomain
 }
 
 module "frontend" {
   source             = "../../modules/frontend"
   BucketPrefix       = local.bucket_prefix
   CoreLambdaHost     = module.lambdas.core_function_url
-  OriginVerifyKey    = random_password.origin_verify_key.result
+  CoreSlowLambdaHost = module.lambdas.core_slow_function_url
+  OriginVerifyKey    = module.origin_verify.current_origin_verify_key
   ProjectId          = var.ProjectId
   CoreCertificateArn = var.CoreCertificateArn
   CorePublicDomain   = var.CorePublicDomain

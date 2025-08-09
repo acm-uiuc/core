@@ -18,6 +18,12 @@ variable "main_cloudfront_distribution_id" {
   description = "ID for the cloudfront distribution that serves the main application"
 }
 
-variable "main_lambda_function_name" {
-  type = string
+variable "all_lambdas" {
+  description = "All Lambda functions to monitor for errors."
+  type        = set(string)
+}
+
+variable "performance_noreq_lambdas" {
+  description = "All Lambda functions to monitor for performance/no requests."
+  type        = set(string)
 }
