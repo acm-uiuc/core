@@ -415,15 +415,15 @@ resource "aws_lambda_function_url" "slow_api_lambda_function_url" {
   authorization_type = "NONE"
 }
 
-module "lambda_warmer_main" {
-  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
-  function_to_warm = local.core_api_lambda_name
-}
+# module "lambda_warmer_main" {
+#   source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
+#   function_to_warm = local.core_api_lambda_name
+# }
 
-module "lambda_warmer_slow" {
-  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
-  function_to_warm = local.core_api_slow_lambda_name
-}
+# module "lambda_warmer_slow" {
+#   source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
+#   function_to_warm = local.core_api_slow_lambda_name
+# }
 
 
 // Outputs
