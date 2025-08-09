@@ -8,6 +8,11 @@ variable "CoreLambdaHost" {
   description = "Host for Lambda Function URL"
 }
 
+variable "CoreSlowLambdaHost" {
+  type        = string
+  description = "Host for Slow Lambda Function URL"
+}
+
 variable "CorePublicDomain" {
   type        = string
   description = "Core Public Host"

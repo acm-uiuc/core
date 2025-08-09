@@ -25,8 +25,9 @@ resource "aws_cloudwatch_metric_alarm" "app_dlq_messages_alarm" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_latency_alarm" {
-  alarm_name          = "${var.resource_prefix}-latency-high"
-  alarm_description   = "Trailing Mean - 95% API gateway latency is > 1.25s for 2 times in 4 minutes."
+  for_each            = var.performance_noreq_lambdas
+  alarm_name          = "${each.value}-latency-high"
+  alarm_description   = "${replace(each.value, var.resource_prefix, "")} Trailing Mean - 95% API gateway latency is > 1.25s for 2 times in 4 minutes."
   namespace           = "AWS/Lambda"
   metric_name         = "UrlRequestLatency"
   extended_statistic  = "tm95"
@@ -38,13 +39,14 @@ resource "aws_cloudwatch_metric_alarm" "app_latency_alarm" {
     var.standard_sns_arn
   ]
   dimensions = {
-    FunctionName = var.main_lambda_function_name
+    FunctionName = each.value
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_no_requests_alarm" {
-  alarm_name          = "${var.resource_prefix}-no-requests"
-  alarm_description   = "No requests have been received in the past 5 minutes."
+  for_each            = var.performance_noreq_lambdas
+  alarm_name          = "${each.value}-no-requests"
+  alarm_description   = "${replace(each.value, var.resource_prefix, "")}: no requests have been received in the past 5 minutes."
   namespace           = "AWS/Lambda"
   metric_name         = "UrlRequestCount"
   statistic           = "Sum"
@@ -56,13 +58,14 @@ resource "aws_cloudwatch_metric_alarm" "app_no_requests_alarm" {
     var.priority_sns_arn
   ]
   dimensions = {
-    FunctionName = var.main_lambda_function_name
+    FunctionName = each.value
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_invocation_error_alarm" {
-  alarm_name          = "${var.resource_prefix}-error-invocation"
-  alarm_description   = "Lambda threw an error, meaning the init of the application itself has encountered an error"
+  for_each            = var.all_lambdas
+  alarm_name          = "${each.value}-error-invocation"
+  alarm_description   = "${replace(each.value, var.resource_prefix, "")} lambda threw an error, meaning the init of the application itself has encountered an error"
   namespace           = "AWS/Lambda"
   metric_name         = "Errors"
   statistic           = "Sum"
@@ -74,7 +77,7 @@ resource "aws_cloudwatch_metric_alarm" "app_invocation_error_alarm" {
     var.priority_sns_arn
   ]
   dimensions = {
-    FunctionName = var.main_lambda_function_name
+    FunctionName = each.value
   }
 }
 

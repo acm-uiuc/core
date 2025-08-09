@@ -16,9 +16,18 @@ variable "RunEnvironment" {
   }
 }
 
-variable "OriginVerifyKey" {
+variable "CurrentOriginVerifyKey" {
   type      = string
   sensitive = true
+}
+
+variable "PreviousOriginVerifyKey" {
+  type      = string
+  sensitive = true
+}
+
+variable "PreviousOriginVerifyKeyExpiresAt" {
+  type = string
 }
 
 variable "LogRetentionDays" {
