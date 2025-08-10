@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useAuth } from "@ui/components/AuthContext";
 import { getRunEnvironmentConfig, ValidService } from "@ui/config";
 
-export const MAX_API_TIMEOUT_MS = 5000;
+export const MAX_API_TIMEOUT_MS = 10000;
 
 const createAxiosInstance = (baseURL: string) =>
   axios.create({

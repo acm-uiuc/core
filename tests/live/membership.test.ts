@@ -1,5 +1,6 @@
 import { expect, test, describe } from "vitest";
 import { createJwt, getBaseEndpoint } from "./utils.js";
+import { randomUUID } from "node:crypto";
 
 const baseEndpoint = getBaseEndpoint();
 const token = await createJwt();
@@ -231,4 +232,78 @@ describe("Membership API basic checks", async () => {
       expect(responseBody).not.toContain("acmtest3");
     },
   );
+});
+
+test("External Membership List lifecycle test", async () => {
+  const unixTimestampSeconds = Math.floor(Date.now() / 1000);
+  const listId = `livetest-${unixTimestampSeconds}`;
+  let response = await fetch(
+    `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
+    {
+      method: "PATCH",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        add: ["acmtest2"],
+        remove: [],
+      }),
+    },
+  );
+  expect(response.status).toBe(201);
+  response = await fetch(
+    `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
+    {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+    },
+  );
+  let responseJson = await response.json();
+  expect(responseJson).toStrictEqual(["acmtest2"]);
+  response = await fetch(
+    `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
+    {
+      method: "PATCH",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        add: ["acmtest3"],
+        remove: ["acmtest2"],
+      }),
+    },
+  );
+  expect(response.status).toEqual(201);
+  response = await fetch(
+    `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
+    {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+    },
+  );
+  responseJson = await response.json();
+  expect(responseJson).toStrictEqual(["acmtest3"]);
+  response = await fetch(
+    `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
+    {
+      method: "PATCH",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        remove: ["acmtest3"],
+        add: [],
+      }),
+    },
+  );
+  expect(response.status).toEqual(201);
 });
