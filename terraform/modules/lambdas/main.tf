@@ -332,7 +332,7 @@ resource "aws_lambda_function" "api_lambda" {
   handler          = "lambda.handler"
   runtime          = "nodejs22.x"
   filename         = data.archive_file.api_lambda_code.output_path
-  timeout          = 60
+  timeout          = 15
   memory_size      = 2048
   source_code_hash = data.archive_file.api_lambda_code.output_sha256
   environment {
@@ -378,6 +378,7 @@ resource "aws_lambda_function" "sqs_lambda" {
 resource "aws_lambda_function_url" "api_lambda_function_url" {
   function_name      = aws_lambda_function.api_lambda.function_name
   authorization_type = "NONE"
+  invoke_mode        = "RESPONSE_STREAM"
 }
 
 // Slow lambda - used for monitoring purposes to avoid triggering lamdba latency alarms
@@ -389,7 +390,7 @@ resource "aws_lambda_function" "slow_lambda" {
   handler          = "lambda.handler"
   runtime          = "nodejs22.x"
   filename         = data.archive_file.api_lambda_code.output_path
-  timeout          = 60
+  timeout          = 15
   memory_size      = 2048
   source_code_hash = data.archive_file.api_lambda_code.output_sha256
   logging_config {
@@ -413,16 +414,19 @@ resource "aws_lambda_function" "slow_lambda" {
 resource "aws_lambda_function_url" "slow_api_lambda_function_url" {
   function_name      = aws_lambda_function.slow_lambda.function_name
   authorization_type = "NONE"
+  invoke_mode        = "RESPONSE_STREAM"
 }
 
 module "lambda_warmer_main" {
-  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
-  function_to_warm = local.core_api_lambda_name
+  source              = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=b52f22e32c6c07af9b1b4750a226882aaccc769d"
+  function_to_warm    = local.core_api_lambda_name
+  is_streaming_lambda = true
 }
 
 module "lambda_warmer_slow" {
-  source           = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=v1.0.1"
-  function_to_warm = local.core_api_slow_lambda_name
+  source              = "github.com/acm-uiuc/terraform-modules/lambda-warmer?ref=b52f22e32c6c07af9b1b4750a226882aaccc769d"
+  function_to_warm    = local.core_api_slow_lambda_name
+  is_streaming_lambda = true
 }
 
 
