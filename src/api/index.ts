@@ -11,7 +11,6 @@ import {
   genericConfig,
   SecretConfig,
 } from "../common/config.js";
-import * as dotenv from "dotenv";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -68,8 +67,6 @@ export const instanceId = randomUUID();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-dotenv.config();
 
 const now = () => Date.now();
 const isRunningInLambda =
