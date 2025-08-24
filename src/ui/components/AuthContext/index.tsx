@@ -189,23 +189,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!checkRoute) {
         throw new Error("could not get user roles!");
       }
-      const accountsLocal = instance.getAllAccounts();
-      if (accountsLocal.length > 0) {
-        instance.setActiveAccount(accountsLocal[0]);
-        const api = useApi("core");
-        const result = await api.get(checkRoute);
-        await setCachedResponse("core", checkRoute, result.data);
-        setIsLoggedIn(true);
+
+      const accounts = instance.getAllAccounts();
+      const request = {
+        scopes: ["openid", "profile", "email"],
+        state: returnTo,
+      };
+
+      if (accounts.length > 0) {
+        instance.setActiveAccount(accounts[0]);
+        try {
+          await instance.acquireTokenSilent({
+            ...request,
+            account: accounts[0],
+          });
+          const api = useApi("core");
+          const result = await api.get(checkRoute);
+          await setCachedResponse("core", checkRoute, result.data);
+          setIsLoggedIn(true);
+        } catch (error) {
+          if (error instanceof InteractionRequiredAuthError) {
+            await instance.loginRedirect({
+              ...request,
+              redirectUri: `${window.location.origin}/auth/callback`,
+            });
+          } else {
+            throw error;
+          }
+        }
       } else {
         await instance.loginRedirect({
-          scopes: ["openid", "profile", "email"],
-          state: returnTo,
+          ...request,
           redirectUri: `${window.location.origin}/auth/callback`,
         });
       }
     },
-    [instance],
+    [instance, checkRoute, setIsLoggedIn, setCachedResponse],
   );
+
   const setLoginStatus = useCallback((val: boolean) => {
     setIsLoggedIn(val);
   }, []);
