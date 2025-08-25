@@ -83,3 +83,5 @@ export const entraProfilePatchRequest = z.object({
 });
 
 export type ProfilePatchRequest = z.infer<typeof entraProfilePatchRequest>;
+
+export type ProfilePatchWithUpnRequest = ProfilePatchRequest & { userPrincipalName?: string }

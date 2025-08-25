@@ -338,6 +338,7 @@ export async function setPaidMembership({
     displayName: `${firstName} ${lastName}`,
     givenName: firstName,
     surname: lastName,
+    userPrincipalName: `${netId}@acm.illinois.edu`,
   });
 
   return { updated: true };

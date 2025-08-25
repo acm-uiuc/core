@@ -25,6 +25,7 @@ import {
   EntraGroupMetadata,
   EntraInvitationResponse,
   ProfilePatchRequest,
+  ProfilePatchWithUpnRequest,
 } from "../../common/types/iam.js";
 import { UserProfileData } from "common/types/msGraphApi.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
@@ -431,7 +432,7 @@ export async function patchUserProfile(
   token: string,
   email: string,
   userId: string,
-  data: Partial<ProfilePatchRequest>,
+  data: Partial<ProfilePatchWithUpnRequest>,
 ): Promise<void> {
   try {
     const url = `https://graph.microsoft.com/v1.0/users/${userId}`;
