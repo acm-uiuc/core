@@ -38,12 +38,12 @@ import {
   metadataSchema,
 } from "@common/types/events";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
-import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
-import { X } from "vitest/dist/chunks/reporters.d.BFLkQcL6";
 
+import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
+
 const valueFormatter: DateFormatter = ({ type, date, locale, format }) => {
   if (type === "multiple" && Array.isArray(date)) {
     if (date.length === 1) {
