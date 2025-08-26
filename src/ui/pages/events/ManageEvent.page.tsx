@@ -38,12 +38,12 @@ import {
   metadataSchema,
 } from "@common/types/events";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
-import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
-import { X } from "vitest/dist/chunks/reporters.d.BFLkQcL6";
 
+import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
+
 const valueFormatter: DateFormatter = ({ type, date, locale, format }) => {
   if (type === "multiple" && Array.isArray(date)) {
     if (date.length === 1) {
@@ -85,7 +85,7 @@ const requestBodySchema = baseBodySchema
     start: z.coerce.date(),
     end: z.coerce.date(),
     repeats: z.optional(z.enum(repeatOptions)).nullable(),
-    repeatEnds: z.date().optional(),
+    repeatEnds: z.coerce.date().optional(),
     repeatExcludes: z.array(z.coerce.date()).max(100).optional(),
   })
   .refine((data) => (data.repeatEnds ? data.repeats !== undefined : true), {
@@ -222,7 +222,7 @@ export const ManageEventPage: React.FC = () => {
         repeatExcludes:
           values.repeatExcludes && values.repeatExcludes.length > 0
             ? values.repeatExcludes.map((x) => dayjs(x).format("YYYY-MM-DD"))
-            : [],
+            : undefined,
         repeats: values.repeats ? values.repeats : undefined,
         metadata:
           Object.keys(values.metadata || {}).length > 0
