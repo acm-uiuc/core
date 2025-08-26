@@ -25,7 +25,12 @@ import { useApi } from "@ui/util/api";
 import { AllOrganizationList as orgList } from "@acm-uiuc/js-shared";
 import { AppRoles } from "@common/roles";
 import { EVENT_CACHED_DURATION } from "@common/config";
-import { IconInfoCircle, IconPlus, IconTrash } from "@tabler/icons-react";
+import {
+  IconAlertCircle,
+  IconInfoCircle,
+  IconPlus,
+  IconTrash,
+} from "@tabler/icons-react";
 import {
   MAX_METADATA_KEYS,
   MAX_KEY_LENGTH,
@@ -33,6 +38,8 @@ import {
   metadataSchema,
 } from "@common/types/events";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
+import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import { X } from "vitest/dist/chunks/reporters.d.BFLkQcL6";
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -75,9 +82,11 @@ const baseBodySchema = z.object({
 
 const requestBodySchema = baseBodySchema
   .extend({
+    start: z.coerce.date(),
+    end: z.coerce.date(),
     repeats: z.optional(z.enum(repeatOptions)).nullable(),
     repeatEnds: z.date().optional(),
-    repeatExcludes: z.array(z.date()).max(100).optional(),
+    repeatExcludes: z.array(z.coerce.date()).max(100).optional(),
   })
   .refine((data) => (data.repeatEnds ? data.repeats !== undefined : true), {
     message: "Repeat frequency is required when Repeat End is specified.",
@@ -95,6 +104,7 @@ type EventPostRequest = z.infer<typeof requestBodySchema>;
 
 export const ManageEventPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const navigate = useNavigate();
   const api = useApi("core");
 
@@ -104,6 +114,7 @@ export const ManageEventPage: React.FC = () => {
 
   useEffect(() => {
     if (!isEditing) {
+      setIsLoading(false);
       return;
     }
     const getEvent = async () => {
@@ -136,10 +147,14 @@ export const ManageEventPage: React.FC = () => {
           metadata: eventData.metadata || {},
         };
         form.setValues(formValues);
+        setIsLoading(false);
       } catch (error) {
         console.error("Error fetching event data:", error);
         notifications.show({
-          message: "Failed to fetch event data, please try again.",
+          title: "Failed to fetch event data",
+          message: "Please try again or contact support.",
+          color: "red",
+          icon: <IconAlertCircle size={16} />,
         });
       }
     };
@@ -176,12 +191,21 @@ export const ManageEventPage: React.FC = () => {
     if (form.values.locationLink === "") {
       form.setFieldValue("locationLink", undefined);
     }
-    if (form.values.repeatExcludes?.length === 0) {
-      form.setFieldValue("repeatExcludes", undefined);
-    }
-  }, [form.values.locationLink, form.values.repeatExcludes]);
+  }, [form.values.locationLink]);
 
-  const handleSubmit = async (values: EventPostRequest) => {
+  const handleSubmit = async () => {
+    const result = form.validate();
+    if (result.hasErrors) {
+      console.warn(result.errors);
+      notifications.show({
+        title: "Validation failed",
+        message: "Please review the errors and try again.",
+        color: "red",
+        icon: <IconAlertCircle size={16} />,
+      });
+      return;
+    }
+    const values = form.values;
     try {
       setIsSubmitting(true);
 
@@ -195,9 +219,10 @@ export const ManageEventPage: React.FC = () => {
           values.repeatEnds && values.repeats
             ? dayjs(values.repeatEnds).format("YYYY-MM-DD[T]HH:mm:00")
             : undefined,
-        repeatExcludes: values.repeatExcludes
-          ? values.repeatExcludes.map((x) => dayjs(x).format("YYYY-MM-DD"))
-          : undefined,
+        repeatExcludes:
+          values.repeatExcludes && values.repeatExcludes.length > 0
+            ? values.repeatExcludes.map((x) => dayjs(x).format("YYYY-MM-DD"))
+            : [],
         repeats: values.repeats ? values.repeats : undefined,
         metadata:
           Object.keys(values.metadata || {}).length > 0
@@ -301,7 +326,9 @@ export const ManageEventPage: React.FC = () => {
 
     setMetadataKeys(newMetadataKeys);
   }, [Object.keys(form.values.metadata || {}).length]);
-
+  if (isLoading) {
+    return <FullScreenLoader />;
+  }
   return (
     <AuthGuard
       resourceDef={{ service: "core", validRoles: [AppRoles.EVENTS_MANAGER] }}
@@ -328,7 +355,7 @@ export const ManageEventPage: React.FC = () => {
           </Alert>
         )}
 
-        <form onSubmit={form.onSubmit(handleSubmit)}>
+        <form>
           <TextInput
             label="Event Title"
             withAsterisk
@@ -501,7 +528,12 @@ export const ManageEventPage: React.FC = () => {
             )}
           </Box>
 
-          <Button type="submit" mt="md">
+          <Button
+            mt="md"
+            onClick={() => {
+              handleSubmit();
+            }}
+          >
             {isSubmitting ? (
               <>
                 <Loader size={16} color="white" />

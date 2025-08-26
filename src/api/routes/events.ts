@@ -126,7 +126,7 @@ const baseSchema = z.object({
 const requestSchema = baseSchema.extend({
   repeats: z.optional(z.enum(repeatOptions)),
   repeatEnds: z.string().optional(),
-  repeatExcludes: z.array(z.string().date()).min(1).max(100).optional().meta({
+  repeatExcludes: z.array(z.string().date()).max(100).optional().meta({
     description:
       "Dates to exclude from recurrence rules (in the America/Chicago timezone).",
   }),
@@ -346,35 +346,36 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         throw new UnauthenticatedError({ message: "Username not found." });
       }
       try {
+        const updatableFields = Object.keys(postRequestSchema.shape);
         const entryUUID = request.params.id;
-        const updateData = {
-          ...request.body,
-          updatedAt: new Date().toISOString(),
-        };
+        const requestData = request.body;
 
-        Object.keys(updateData).forEach(
-          (key) =>
-            (updateData as Record<string, any>)[key] === undefined &&
-            delete (updateData as Record<string, any>)[key],
-        );
-
-        if (Object.keys(updateData).length === 0) {
-          throw new ValidationError({
-            message: "At least one field must be updated.",
-          });
-        }
-
-        const updateExpressionParts: string[] = [];
+        const setParts: string[] = [];
+        const removeParts: string[] = [];
         const expressionAttributeNames: Record<string, string> = {};
         const expressionAttributeValues: Record<string, any> = {};
 
-        for (const [key, value] of Object.entries(updateData)) {
-          updateExpressionParts.push(`#${key} = :${key}`);
-          expressionAttributeNames[`#${key}`] = key;
-          expressionAttributeValues[`:${key}`] = value;
-        }
+        setParts.push("#updatedAt = :updatedAt");
+        expressionAttributeNames["#updatedAt"] = "updatedAt";
+        expressionAttributeValues[":updatedAt"] = new Date().toISOString();
 
-        const updateExpression = `SET ${updateExpressionParts.join(", ")}`;
+        updatableFields.forEach((key) => {
+          if (Object.hasOwn(requestData, key)) {
+            setParts.push(`#${key} = :${key}`);
+            expressionAttributeNames[`#${key}`] = key;
+            expressionAttributeValues[`:${key}`] =
+              requestData[key as keyof typeof requestData];
+          } else {
+            removeParts.push(`#${key}`);
+            expressionAttributeNames[`#${key}`] = key;
+          }
+        });
+
+        // Construct the final UpdateExpression by combining SET and REMOVE
+        let updateExpression = `SET ${setParts.join(", ")}`;
+        if (removeParts.length > 0) {
+          updateExpression += ` REMOVE ${removeParts.join(", ")}`;
+        }
 
         const command = new UpdateItemCommand({
           TableName: genericConfig.EventsDynamoTableName,
@@ -400,7 +401,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           // we know updateData has no undefines because we filtered them out.
           updatedEntry = {
             ...oldEntry,
-            ...updateData,
+            ...requestData,
           } as unknown as IUpdateDiscord;
         } catch (e: unknown) {
           if (
