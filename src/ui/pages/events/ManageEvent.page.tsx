@@ -143,7 +143,7 @@ export const ManageEventPage: React.FC = () => {
               ? eventData.repeatExcludes.map((dateString: string) =>
                   moment.tz(dateString, "America/Chicago").toDate(),
                 )
-              : [],
+              : undefined,
           metadata: eventData.metadata || {},
         };
         form.setValues(formValues);
