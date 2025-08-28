@@ -1,0 +1,51 @@
+on:
+  pull_request:
+    types: [opened, synchronize, closed]
+  push:
+    branches:
+      - main
+
+env:
+  SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+jobs:
+  infracost-pull-request-checks:
+    name: Infracost Pull Request Checks
+    if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'synchronize')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # Required to post comments
+    steps:
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: '${{ github.event.pull_request.base.ref }}'
+
+      - name: Generate Infracost cost estimate baseline
+        run: |
+          infracost breakdown --path=. \
+                              --format=json \
+                              --out-file=/tmp/infracost-base.json
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - name: Generate Infracost diff
+        run: |
+          infracost diff --path=. \
+                          --format=json \
+                          --compare-to=/tmp/infracost-base.json \
+                          --out-file=/tmp/infracost.json
+
+      - name: Post Infracost comment
+        run: |
+            infracost comment github --path=/tmp/infracost.json \
+                                     --repo=$GITHUB_REPOSITORY \
+                                     --github-token=${{ github.token }} \
+                                     --pull-request=${{ github.event.pull_request.number }} \
+                                     --behavior=update
