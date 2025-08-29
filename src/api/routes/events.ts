@@ -318,7 +318,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       schema: withRoles(
         [AppRoles.EVENTS_MANAGER],
         withTags(["Events"], {
-          body: postRequestSchema.partial(),
+          body: postRequestSchema,
           params: z.object({
             id: z.string().min(1).meta({
               description: "Event ID to modify.",
@@ -327,12 +327,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           }),
           response: {
             201: {
-              description: "The event has been modified.",
-              content: {
-                "application/json": {
-                  schema: z.null(),
-                },
-              },
+              description: "The event has been modified successfully.",
             },
             404: notFoundError,
           },
@@ -345,64 +340,29 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       if (!request.username) {
         throw new UnauthenticatedError({ message: "Username not found." });
       }
+
       try {
-        const updatableFields = Object.keys(postRequestSchema.shape);
         const entryUUID = request.params.id;
-        const requestData = request.body;
+        const updatedItem = {
+          ...request.body,
+          id: entryUUID,
+          updatedAt: new Date().toISOString(),
+        };
 
-        const setParts: string[] = [];
-        const removeParts: string[] = [];
-        const expressionAttributeNames: Record<string, string> = {};
-        const expressionAttributeValues: Record<string, any> = {};
-
-        setParts.push("#updatedAt = :updatedAt");
-        expressionAttributeNames["#updatedAt"] = "updatedAt";
-        expressionAttributeValues[":updatedAt"] = new Date().toISOString();
-
-        updatableFields.forEach((key) => {
-          if (Object.hasOwn(requestData, key)) {
-            setParts.push(`#${key} = :${key}`);
-            expressionAttributeNames[`#${key}`] = key;
-            expressionAttributeValues[`:${key}`] =
-              requestData[key as keyof typeof requestData];
-          } else {
-            removeParts.push(`#${key}`);
-            expressionAttributeNames[`#${key}`] = key;
-          }
-        });
-
-        // Construct the final UpdateExpression by combining SET and REMOVE
-        let updateExpression = `SET ${setParts.join(", ")}`;
-        if (removeParts.length > 0) {
-          updateExpression += ` REMOVE ${removeParts.join(", ")}`;
-        }
-
-        const command = new UpdateItemCommand({
+        const command = new PutItemCommand({
           TableName: genericConfig.EventsDynamoTableName,
-          Key: { id: { S: entryUUID } },
-          UpdateExpression: updateExpression,
-          ExpressionAttributeNames: expressionAttributeNames,
+          Item: marshall(updatedItem),
           ConditionExpression: "attribute_exists(id)",
-          ExpressionAttributeValues: marshall(expressionAttributeValues),
           ReturnValues: "ALL_OLD",
         });
+
         let oldAttributes;
-        let updatedEntry;
         try {
-          oldAttributes = (await fastify.dynamoClient.send(command)).Attributes;
-
+          const result = await fastify.dynamoClient.send(command);
+          oldAttributes = result.Attributes;
           if (!oldAttributes) {
-            throw new DatabaseInsertError({
-              message: "Item not found or update failed.",
-            });
+            throw new NotFoundError({ endpointName: request.url });
           }
-
-          const oldEntry = oldAttributes ? unmarshall(oldAttributes) : null;
-          // we know updateData has no undefines because we filtered them out.
-          updatedEntry = {
-            ...oldEntry,
-            ...requestData,
-          } as unknown as IUpdateDiscord;
         } catch (e: unknown) {
           if (
             e instanceof Error &&
@@ -414,16 +374,24 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             throw e;
           }
           request.log.error(e);
-          throw new DiscordEventError({});
+          throw new DatabaseInsertError({
+            message: "Failed to update event in Dynamo table.",
+          });
         }
-        if (updatedEntry.featured && !updatedEntry.repeats) {
+
+        const updatedEntryForDiscord = updatedItem as unknown as IUpdateDiscord;
+
+        if (
+          updatedEntryForDiscord.featured &&
+          !updatedEntryForDiscord.repeats
+        ) {
           try {
             await updateDiscord(
               {
                 botToken: fastify.secretConfig.discord_bot_token,
                 guildId: fastify.environmentConfig.DiscordGuildId,
               },
-              updatedEntry,
+              updatedEntryForDiscord,
               request.username,
               false,
               request.log,
@@ -437,10 +405,11 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             );
 
             if (e instanceof Error) {
-              request.log.error(`Failed to publish event to Discord: ${e} `);
+              request.log.error(`Failed to publish event to Discord: ${e}`);
             }
           }
         }
+
         const postUpdatePromises = [
           atomicIncrementCacheCounter(
             fastify.dynamoClient,
@@ -466,14 +435,8 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           }),
         ];
         await Promise.all(postUpdatePromises);
-
-        reply
-          .status(201)
-          .header(
-            "Location",
-            `${fastify.environmentConfig.UserFacingUrl}/api/v1/events/${entryUUID}`,
-          )
-          .send();
+        reply.header("location", request.url);
+        reply.status(201).send();
       } catch (e: unknown) {
         if (e instanceof Error) {
           request.log.error(`Failed to update DynamoDB: ${e.toString()}`);
@@ -487,6 +450,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       }
     },
   );
+
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "",
     {
