@@ -1,3 +1,25 @@
+resource "null_resource" "onetime_events_expiration" {
+  provisioner "local-exec" {
+    command     = <<-EOT
+      set -e
+      python events-expiration.py
+    EOT
+    interpreter = ["bash", "-c"]
+    working_dir = "${path.module}/../../../onetime/"
+  }
+}
+
+resource "null_resource" "onetime_sl_expiration" {
+  provisioner "local-exec" {
+    command     = <<-EOT
+      set -e
+      python stripelink-expiration.py
+    EOT
+    interpreter = ["bash", "-c"]
+    working_dir = "${path.module}/../../../onetime/"
+  }
+}
+
 resource "aws_dynamodb_table" "app_audit_log" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-audit-log"
@@ -84,6 +106,8 @@ resource "aws_dynamodb_table" "room_requests" {
     attribute_name = "expiresAt"
     enabled        = true
   }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 
@@ -118,6 +142,8 @@ resource "aws_dynamodb_table" "room_requests_status" {
     attribute_name = "expiresAt"
     enabled        = true
   }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 
@@ -205,6 +231,10 @@ resource "aws_dynamodb_table" "events" {
     name            = "HostIndex"
     hash_key        = "host"
     projection_type = "ALL"
+  }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
   }
 }
 

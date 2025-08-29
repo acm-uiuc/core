@@ -1,6 +1,6 @@
 variable "LogRetentionDays" {
   type    = number
-  default = 7
+  default = 14
 }
 
 variable "ProjectId" {
