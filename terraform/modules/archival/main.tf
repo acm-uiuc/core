@@ -15,6 +15,42 @@ resource "aws_cloudwatch_log_group" "archive_logs" {
   retention_in_days = var.LogRetentionDays
 }
 
+resource "aws_s3_bucket" "this" {
+  bucket = "${var.BucketPrefix}-ddb-archive"
+}
+
+resource "aws_s3_bucket_versioning" "this" {
+  bucket = aws_s3_bucket.this.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "this" {
+  bucket = aws_s3_bucket.this.id
+
+  rule {
+    id     = "intelligent-tiering-transition"
+    status = "Enabled"
+
+    transition {
+      days          = 30
+      storage_class = "INTELLIGENT_TIERING"
+    }
+  }
+}
+
+resource "aws_s3_bucket_intelligent_tiering_configuration" "this" {
+  bucket = aws_s3_bucket.this.id
+  name   = "ArchiveAfterSixMonths"
+  status = "Enabled"
+  tiering {
+    access_tier = "ARCHIVE_ACCESS"
+    days        = 180
+  }
+}
+
+
 resource "aws_iam_role" "archive_role" {
   name = "${local.archive_lambda_name}-exec-role"
   assume_role_policy = jsonencode({
@@ -52,20 +88,40 @@ resource "aws_iam_role_policy_attachment" "archive_lambda_policy_attach" {
 
 resource "aws_iam_policy" "archive_policy" {
   name = "${local.archive_lambda_name}-ddb-stream-policy"
+
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      for table in var.MonitorTables : {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:DescribeStream",
-          "dynamodb:GetRecords",
-          "dynamodb:GetShardIterator",
-          "dynamodb:ListStreams"
-        ]
-        Resource = "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${table}/stream/*"
-      }
-    ]
+    Statement = concat(
+      [
+        for table in var.MonitorTables : {
+          Effect = "Allow"
+          Action = [
+            "dynamodb:DescribeStream",
+            "dynamodb:GetRecords",
+            "dynamodb:GetShardIterator",
+            "dynamodb:ListStreams"
+          ]
+          Resource = "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${table}/stream/*"
+        }
+      ],
+      [
+        {
+          Effect = "Allow"
+          Action = [
+            "s3:PutObject",
+            "s3:PutObjectAcl",
+            "s3:DeleteObject",
+            "s3:AbortMultipartUpload"
+          ]
+          Resource = "arn:aws:s3:::${aws_s3_bucket.this.id}/*"
+        },
+        {
+          Effect   = "Allow"
+          Action   = ["s3:ListBucketMultipartUploads"]
+          Resource = "arn:aws:s3:::${aws_s3_bucket.this.id}"
+        }
+      ]
+    )
   })
 }
 
@@ -88,7 +144,8 @@ resource "aws_lambda_function" "api_lambda" {
   description      = "DynamoDB stream reader to archive data."
   environment {
     variables = {
-      "RunEnvironment" = var.RunEnvironment
+      "RunEnvironment"     = var.RunEnvironment
+      "DESTINATION_BUCKET" = aws_s3_bucket.this.id
     }
   }
 }
