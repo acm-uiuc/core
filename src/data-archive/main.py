@@ -3,7 +3,7 @@ import os
 import json
 import logging
 from typing import Any, Callable, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -65,7 +65,7 @@ def lambda_handler(event, context):
             payload = {
                 "table": table_name,
                 "data": deserialized_data,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             if table_name in ARCHIVE_TIMESTAMP_MAPPER:
                 try:
