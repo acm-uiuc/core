@@ -250,6 +250,7 @@ resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
     role_arn           = aws_iam_role.firehose_role.arn
     buffering_interval = 60
     buffering_size     = 10
+    compression_format = "GZIP"
 
     dynamic_partitioning_configuration {
       enabled = true
