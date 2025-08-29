@@ -15,10 +15,10 @@ resource "aws_dynamodb_table" "app_audit_log" {
     name = "createdAt"
     type = "N"
   }
-  ttl {
-    attribute_name = "expireAt"
-    enabled        = true
-  }
+  # ttl {
+  #   attribute_name = "expireAt"
+  #   enabled        = true
+  # }
 }
 
 resource "aws_dynamodb_table" "membership_provisioning_log" {
