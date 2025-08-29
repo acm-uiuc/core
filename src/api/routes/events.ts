@@ -435,7 +435,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           }),
         ];
         await Promise.all(postUpdatePromises);
-
+        reply.header("location", request.url);
         reply.status(201).send();
       } catch (e: unknown) {
         if (e instanceof Error) {
