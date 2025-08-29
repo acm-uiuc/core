@@ -129,7 +129,14 @@ describe("Event lifecycle tests", async () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          description: "An event of all time THAT HAS BEEN MODIFIED",
+          title: "Modified Live Testing Event",
+          description: "An event of all time",
+          start: "2024-12-31T02:00:00",
+          end: "2024-12-31T03:30:00",
+          location: "ACM Room (Siebel 1104)",
+          host: "ACM",
+          featured: true,
+          repeats: "weekly",
         }),
       },
     );
