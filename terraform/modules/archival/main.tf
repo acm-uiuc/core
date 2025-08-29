@@ -91,71 +91,6 @@ resource "aws_iam_policy" "archive_lambda_policy" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "archive_lambda_policy_attach" {
-  role       = aws_iam_role.archive_role.name
-  policy_arn = aws_iam_policy.archive_lambda_policy.arn
-}
-
-resource "aws_iam_policy" "archive_policy" {
-  name = "${local.archive_lambda_name}-ddb-stream-policy"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = concat(
-      [
-        for table in var.MonitorTables : {
-          Effect = "Allow"
-          Action = [
-            "dynamodb:DescribeStream",
-            "dynamodb:GetRecords",
-            "dynamodb:GetShardIterator",
-            "dynamodb:ListStreams"
-          ]
-          Resource = "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${table}/stream/*"
-        }
-      ],
-      [
-        {
-          Effect = "Allow"
-          Action = [
-            "s3:AbortMultipartUpload",
-            "s3:GetBucketLocation",
-            "s3:GetObject",
-            "s3:ListBucket",
-            "s3:ListBucketMultipartUploads",
-            "s3:PutObject"
-          ]
-          Resource = ["arn:aws:s3:::${aws_s3_bucket.this.id}/*", "arn:aws:s3:::${aws_s3_bucket.this.id}"]
-        },
-      ]
-    )
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "archive_attach" {
-  role       = aws_iam_role.archive_role.name
-  policy_arn = aws_iam_policy.archive_policy.arn
-}
-
-resource "aws_lambda_function" "api_lambda" {
-  depends_on       = [aws_cloudwatch_log_group.archive_logs]
-  function_name    = local.archive_lambda_name
-  role             = aws_iam_role.archive_role.arn
-  architectures    = ["arm64"]
-  handler          = "lambda.handler"
-  runtime          = "python3.13"
-  filename         = data.archive_file.api_lambda_code.output_path
-  timeout          = 90
-  memory_size      = 512
-  source_code_hash = data.archive_file.api_lambda_code.output_sha256
-  description      = "DynamoDB stream reader to archive data."
-  environment {
-    variables = {
-      "RunEnvironment"       = var.RunEnvironment
-      "FIREHOSE_STREAM_NAME" = local.firehose_stream_name
-    }
-  }
-}
 
 data "aws_dynamodb_table" "existing_tables" {
   for_each = toset(var.MonitorTables)
@@ -262,7 +197,7 @@ resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
         type = "MetadataExtraction"
         parameters {
           parameter_name  = "MetadataExtractionQuery"
-          parameter_value = "{table:.table, event_ts:.timestamp}"
+          parameter_value = "{table: .table, year: (.timestamp | strftime(\"%Y\")), month: (.timestamp | strftime(\"%m\")), day: (.timestamp | strftime(\"%d\"))}"
         }
         parameters {
           parameter_name  = "JsonParsingEngine"
@@ -271,7 +206,80 @@ resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
       }
     }
 
-    prefix              = "table=!{partitionKeyFromQuery:table}/year=!{partitionKeyFromQueryAsTimestamp:event_ts:yyyy}/month=!{partitionKeyFromQueryAsTimestamp:event_ts:MM}/day=!{partitionKeyFromQueryAsTimestamp:event_ts:dd}/"
+    prefix              = "table=!{partitionKeyFromQuery:table}/year=!{partitionKeyFromQuery:year}/month=!{partitionKeyFromQuery:month}/day=!{partitionKeyFromQuery:day}/"
     error_output_prefix = "firehose-errors/!{firehose:error-output-type}/!{timestamp:yyyy/MM/dd}/"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "archive_lambda_policy_attach" {
+  role       = aws_iam_role.archive_role.name
+  policy_arn = aws_iam_policy.archive_lambda_policy.arn
+}
+
+resource "aws_iam_policy" "archive_policy" {
+  name = "${local.archive_lambda_name}-ddb-stream-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = concat(
+      [
+        for table in var.MonitorTables : {
+          Effect = "Allow"
+          Action = [
+            "dynamodb:DescribeStream",
+            "dynamodb:GetRecords",
+            "dynamodb:GetShardIterator",
+            "dynamodb:ListStreams"
+          ]
+          Resource = "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${table}/stream/*"
+        }
+      ],
+      [
+        {
+          Effect = "Allow"
+          Action = [
+            "s3:AbortMultipartUpload",
+            "s3:GetBucketLocation",
+            "s3:GetObject",
+            "s3:ListBucket",
+            "s3:ListBucketMultipartUploads",
+            "s3:PutObject"
+          ]
+          Resource = ["arn:aws:s3:::${aws_s3_bucket.this.id}/*", "arn:aws:s3:::${aws_s3_bucket.this.id}"]
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "firehose:PutRecordBatch",
+          ]
+          Resource = [aws_kinesis_firehose_delivery_stream.dynamic_stream.arn]
+        },
+      ]
+    )
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "archive_attach" {
+  role       = aws_iam_role.archive_role.name
+  policy_arn = aws_iam_policy.archive_policy.arn
+}
+
+resource "aws_lambda_function" "api_lambda" {
+  depends_on       = [aws_cloudwatch_log_group.archive_logs]
+  function_name    = local.archive_lambda_name
+  role             = aws_iam_role.archive_role.arn
+  architectures    = ["arm64"]
+  handler          = "main.lambda_handler"
+  runtime          = "python3.13"
+  filename         = data.archive_file.api_lambda_code.output_path
+  timeout          = 90
+  memory_size      = 512
+  source_code_hash = data.archive_file.api_lambda_code.output_sha256
+  description      = "DynamoDB stream reader to archive data."
+  environment {
+    variables = {
+      "RunEnvironment"       = var.RunEnvironment
+      "FIREHOSE_STREAM_NAME" = local.firehose_stream_name
+    }
   }
 }

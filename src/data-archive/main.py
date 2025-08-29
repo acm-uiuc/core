@@ -4,11 +4,21 @@ import json
 import logging
 from typing import Any, Callable, Dict
 from datetime import datetime, timezone
+from boto3.dynamodb.types import TypeDeserializer
+import decimal
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 firehose_client = boto3.client("firehose")
-deserializer = boto3.dynamodb.types.TypeDeserializer()
+deserializer = TypeDeserializer()
+
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, decimal.Decimal):
+            return str(o)
+        return super().default(o)
+
 
 try:
     FIREHOSE_STREAM_NAME = os.environ["FIREHOSE_STREAM_NAME"]
@@ -78,7 +88,7 @@ def lambda_handler(event, context):
                     )
 
             firehose_records_to_send.append(
-                {"Data": json.dumps(payload).encode("utf-8")}
+                {"Data": json.dumps(payload, cls=DecimalEncoder).encode("utf-8")}
             )
 
     # 6. **Send Records to Firehose**: If we found any TTL-expired records, send them.
