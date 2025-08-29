@@ -2,6 +2,8 @@ import boto3
 import os
 import json
 import logging
+from typing import Any, Callable, Dict
+from datetime import datetime
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -14,6 +16,12 @@ except KeyError:
     # Fail fast if essential configuration is missing
     logger.error("The 'FIREHOSE_STREAM_NAME' environment variable is not set.")
     raise
+
+TimestampMapper = Dict[str, Callable[[Dict[str, Any]], str]]
+
+ARCHIVE_TIMESTAMP_MAPPER: TimestampMapper = {
+    "infra-core-api-room-requests-status": lambda x: x["createdAt#status"].split("#")[0]
+}
 
 
 def deserialize_dynamodb_item(item):
@@ -53,12 +61,22 @@ def lambda_handler(event, context):
 
             deserialized_data = deserialize_dynamodb_item(old_image)
 
-            # 4. **Construct the Payload**: Create the specified {'table': ..., 'data': ...}
-            #    payload that will be sent to Firehose.
-            payload = {"table": table_name, "data": deserialized_data}
+            # 4. Construct the Payload
+            payload = {
+                "table": table_name,
+                "data": deserialized_data,
+                "timestamp": datetime.now().isoformat(),
+            }
+            if table_name in ARCHIVE_TIMESTAMP_MAPPER:
+                try:
+                    payload["timestamp"] = ARCHIVE_TIMESTAMP_MAPPER[table_name](
+                        deserialized_data
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to extract timestamp for record from {table_name}: {str(e)}. Using now as timestamp."
+                    )
 
-            # 5. **Format for Firehose**: The PutRecordBatch API expects each record
-            #    to have a 'Data' key with a byte-encoded string value.
             firehose_records_to_send.append(
                 {"Data": json.dumps(payload).encode("utf-8")}
             )

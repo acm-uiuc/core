@@ -249,7 +249,7 @@ resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
     bucket_arn         = aws_s3_bucket.this.arn
     role_arn           = aws_iam_role.firehose_role.arn
     buffering_interval = 60
-    buffering_size     = 10
+    buffering_size     = 64
     compression_format = "GZIP"
 
     dynamic_partitioning_configuration {
@@ -262,7 +262,7 @@ resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
         type = "MetadataExtraction"
         parameters {
           parameter_name  = "MetadataExtractionQuery"
-          parameter_value = "{table:.table}"
+          parameter_value = "{table:.table, event_ts:.timestamp}"
         }
         parameters {
           parameter_name  = "JsonParsingEngine"
@@ -271,7 +271,7 @@ resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
       }
     }
 
-    prefix              = "table=!{partitionKeyFromQuery:table}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/"
+    prefix              = "table=!{partitionKeyFromQuery:table}/year=!{partitionKeyFromQueryAsTimestamp:event_ts:yyyy}/month=!{partitionKeyFromQueryAsTimestamp:event_ts:MM}/day=!{partitionKeyFromQueryAsTimestamp:event_ts:dd}/"
     error_output_prefix = "firehose-errors/!{firehose:error-output-type}/!{timestamp:yyyy/MM/dd}/"
   }
 }
