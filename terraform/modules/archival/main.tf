@@ -30,6 +30,15 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
   bucket = aws_s3_bucket.this.id
 
   rule {
+    id     = "AbortIncompleteMultipartUploads"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 1
+    }
+  }
+
+  rule {
     id     = "intelligent-tiering-transition"
     status = "Enabled"
 
