@@ -498,9 +498,9 @@ describe("Event modification tests", async () => {
     const ourError = new Error("Nonexistent event.");
     ourError.name = "ConditionalCheckFailedException";
     ddbMock
-      .on(UpdateItemCommand, {
+      .on(PutItemCommand, {
         TableName: genericConfig.EventsDynamoTableName,
-        Key: { id: { S: eventUuid } },
+        Item: { id: { S: eventUuid } },
       })
       .rejects(ourError);
     const testJwt = createJwt();
@@ -509,7 +509,12 @@ describe("Event modification tests", async () => {
       .patch(`/api/v1/events/${eventUuid}`)
       .set("authorization", `Bearer ${testJwt}`)
       .send({
-        paidEventId: "sp24_semiformal_2",
+        description: "First test event",
+        host: "Social Committee",
+        location: "Siebel Center",
+        start: "2024-09-25T18:00:00",
+        title: "Event 1",
+        featured: false,
       });
 
     expect(response.statusCode).toBe(404);
@@ -531,9 +536,8 @@ describe("Event modification tests", async () => {
     };
     ddbMock.reset();
     ddbMock
-      .on(UpdateItemCommand, {
+      .on(PutItemCommand, {
         TableName: genericConfig.EventsDynamoTableName,
-        Key: { id: { S: eventUuid } },
       })
       .resolves({ Attributes: marshall(event) });
     const testJwt = createJwt();
@@ -541,9 +545,7 @@ describe("Event modification tests", async () => {
     const response = await supertest(app.server)
       .patch(`/api/v1/events/${eventUuid}`)
       .set("authorization", `Bearer ${testJwt}`)
-      .send({
-        paidEventId: "sp24_semiformal_2",
-      });
+      .send(event);
 
     expect(response.statusCode).toBe(201);
     expect(response.header["location"]).toBeDefined();
