@@ -210,6 +210,10 @@ resource "aws_dynamodb_table" "events" {
     hash_key        = "host"
     projection_type = "ALL"
   }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
 }
 
 resource "aws_dynamodb_table" "stripe_links" {

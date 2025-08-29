@@ -61,13 +61,18 @@ export async function atomicIncrementCacheCounter(
   key: string,
   amount: number,
   returnOld: boolean = false,
+  expiresAt?: number,
 ): Promise<number> {
   const response = await dynamoClient.send(
     new UpdateItemCommand({
       TableName: genericConfig.CacheDynamoTableName,
-      Key: marshall({
-        primaryKey: key,
-      }),
+      Key: marshall(
+        {
+          primaryKey: key,
+          expireAt: expiresAt,
+        },
+        { removeUndefinedValues: true },
+      ),
       UpdateExpression: "ADD #counterValue :increment",
       ExpressionAttributeNames: {
         "#counterValue": "counterValue",

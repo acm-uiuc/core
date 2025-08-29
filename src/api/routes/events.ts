@@ -47,6 +47,7 @@ import {
 } from "api/components/index.js";
 import { metadataSchema } from "common/types/events.js";
 import { evaluateAllRequestPolicies } from "api/plugins/evaluatePolicies.js";
+import { EVENTS_EXPIRY_AFTER_LAST_OCCURRENCE_DAYS } from "common/constants.js";
 
 const createProjectionParams = (includeMetadata: boolean = false) => {
   // Object mapping attribute names to their expression aliases
@@ -85,6 +86,31 @@ const createProjectionParams = (includeMetadata: boolean = false) => {
     // Return function to destructure results if needed
     getAttributes: <T>(item: any): T => item as T,
   };
+};
+
+const determineExpiresAt = (event: {
+  repeats?: string;
+  repeatEnds?: string | undefined;
+  end?: string | undefined;
+}) => {
+  if (event.repeats && !event.repeatEnds) {
+    return undefined;
+  }
+  const now = Math.floor(Date.now() / 1000);
+  const nowExpiry = now + 86400 * EVENTS_EXPIRY_AFTER_LAST_OCCURRENCE_DAYS;
+  const endAttr = event.repeats ? event.repeatEnds : event.end;
+  if (!endAttr) {
+    return nowExpiry;
+  }
+
+  const ends = new Date(endAttr);
+  if (isNaN(ends.getTime())) {
+    return nowExpiry;
+  }
+  const seconds =
+    Math.round(ends.getTime() / 1000) +
+    86400 * EVENTS_EXPIRY_AFTER_LAST_OCCURRENCE_DAYS;
+  return Math.max(seconds, nowExpiry);
 };
 
 const repeatOptions = ["weekly", "biweekly"] as const;
@@ -348,10 +374,10 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           id: entryUUID,
           updatedAt: new Date().toISOString(),
         };
-
+        const expiresAt = determineExpiresAt(updatedItem);
         const command = new PutItemCommand({
           TableName: genericConfig.EventsDynamoTableName,
-          Item: marshall(updatedItem),
+          Item: marshall({ ...updatedItem, expiresAt }),
           ConditionExpression: "attribute_exists(id)",
           ReturnValues: "ALL_OLD",
         });
@@ -416,6 +442,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             `events-etag-${entryUUID}`,
             1,
             false,
+            expiresAt,
           ),
           atomicIncrementCacheCounter(
             fastify.dynamoClient,
@@ -479,12 +506,14 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         throw new UnauthenticatedError({ message: "Username not found." });
       }
       try {
+        const expiresAt = determineExpiresAt(request.body);
         const entryUUID = randomUUID();
         const entry = {
           ...request.body,
           id: entryUUID,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          expiresAt,
         };
         await fastify.dynamoClient.send(
           new PutItemCommand({
@@ -529,12 +558,14 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             `events-etag-${entryUUID}`,
             1,
             false,
+            expiresAt,
           ),
           atomicIncrementCacheCounter(
             fastify.dynamoClient,
             "events-etag-all",
             1,
             false,
+            undefined,
           ),
           createAuditLogEntry({
             dynamoClient: fastify.dynamoClient,
@@ -639,6 +670,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             Key: marshall({ id }),
           }),
         );
+        await deleteCacheCounter(fastify.dynamoClient, `events-etag-${id}`);
         await updateDiscord(
           {
             botToken: fastify.secretConfig.discord_bot_token,
