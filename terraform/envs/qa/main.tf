@@ -56,6 +56,15 @@ module "origin_verify" {
   ProjectId = var.ProjectId
 }
 
+module "ttl_archiver" {
+  source           = "../../modules/archival"
+  ProjectId        = var.ProjectId
+  RunEnvironment   = "dev"
+  LogRetentionDays = var.LogRetentionDays
+  BucketPrefix     = local.bucket_prefix
+  MonitorTables    = ["${var.ProjectId}-room-requests", "${var.ProjectId}-room-requests-status"]
+}
+
 resource "aws_cloudfront_key_value_store" "linkry_kv" {
   name = "${var.ProjectId}-cloudfront-linkry-kv"
 }
@@ -69,7 +78,7 @@ module "lambdas" {
   CurrentOriginVerifyKey           = module.origin_verify.current_origin_verify_key
   PreviousOriginVerifyKey          = module.origin_verify.previous_origin_verify_key
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
-  LogRetentionDays                 = 30
+  LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
 }
 
