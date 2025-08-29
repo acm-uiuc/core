@@ -63,27 +63,30 @@ export async function atomicIncrementCacheCounter(
   returnOld: boolean = false,
   expiresAt?: number,
 ): Promise<number> {
-  const response = await dynamoClient.send(
-    new UpdateItemCommand({
-      TableName: genericConfig.CacheDynamoTableName,
-      Key: marshall(
-        {
-          primaryKey: key,
-          expireAt: expiresAt,
-        },
-        { removeUndefinedValues: true },
-      ),
-      UpdateExpression: "ADD #counterValue :increment",
-      ExpressionAttributeNames: {
-        "#counterValue": "counterValue",
-      },
-      ExpressionAttributeValues: marshall({
-        ":increment": amount,
-      }),
-      ReturnValues: returnOld ? "UPDATED_OLD" : "UPDATED_NEW",
-    }),
-  );
+  const updateExpressions: string[] = ["ADD #counterValue :increment"];
+  const expressionAttributeNames: { [key: string]: string } = {
+    "#counterValue": "counterValue",
+  };
+  const expressionAttributeValues: { [key: string]: any } = {
+    ":increment": amount,
+  };
+  if (expiresAt) {
+    updateExpressions.unshift("SET #expireAt = :expireAt");
+    expressionAttributeNames["#expireAt"] = "expireAt";
+    expressionAttributeValues[":expireAt"] = expiresAt.toString();
+  }
 
+  const command = new UpdateItemCommand({
+    TableName: genericConfig.CacheDynamoTableName,
+    Key: marshall({
+      primaryKey: key,
+    }),
+    UpdateExpression: updateExpressions.join(" "),
+    ExpressionAttributeNames: expressionAttributeNames,
+    ExpressionAttributeValues: marshall(expressionAttributeValues),
+    ReturnValues: returnOld ? "UPDATED_OLD" : "UPDATED_NEW",
+  });
+  const response = await dynamoClient.send(command);
   if (!response.Attributes) {
     return returnOld ? 0 : amount;
   }

@@ -56,15 +56,15 @@ module "origin_verify" {
   ProjectId = var.ProjectId
 }
 
-module "ttl_archiver" {
-  depends_on       = [module.dynamo]
-  source           = "../../modules/archival"
-  ProjectId        = var.ProjectId
-  RunEnvironment   = "dev"
-  LogRetentionDays = var.LogRetentionDays
-  BucketPrefix     = local.bucket_prefix
-  MonitorTables    = ["${var.ProjectId}-room-requests", "${var.ProjectId}-room-requests-status"]
-}
+# module "ttl_archiver" {
+#   depends_on       = [module.dynamo]
+#   source           = "../../modules/archival"
+#   ProjectId        = var.ProjectId
+#   RunEnvironment   = "dev"
+#   LogRetentionDays = var.LogRetentionDays
+#   BucketPrefix     = local.bucket_prefix
+#   MonitorTables    = ["${var.ProjectId}-room-requests", "${var.ProjectId}-room-requests-status"]
+# }
 
 resource "aws_cloudfront_key_value_store" "linkry_kv" {
   name = "${var.ProjectId}-cloudfront-linkry-kv"

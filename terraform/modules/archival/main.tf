@@ -117,18 +117,15 @@ resource "aws_iam_policy" "archive_policy" {
         {
           Effect = "Allow"
           Action = [
-            "s3:PutObject",
-            "s3:PutObjectAcl",
-            "s3:DeleteObject",
-            "s3:AbortMultipartUpload"
+            "s3:AbortMultipartUpload",
+            "s3:GetBucketLocation",
+            "s3:GetObject",
+            "s3:ListBucket",
+            "s3:ListBucketMultipartUploads",
+            "s3:PutObject"
           ]
-          Resource = "arn:aws:s3:::${aws_s3_bucket.this.id}/*"
+          Resource = ["arn:aws:s3:::${aws_s3_bucket.this.id}/*", "arn:aws:s3:::${aws_s3_bucket.this.id}"]
         },
-        {
-          Effect   = "Allow"
-          Action   = ["s3:ListBucketMultipartUploads"]
-          Resource = "arn:aws:s3:::${aws_s3_bucket.this.id}"
-        }
       ]
     )
   })
