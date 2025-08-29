@@ -16,7 +16,7 @@ type AuditLogParams = {
 function buildMarshalledAuditLogItem(entry: AuditLogEntry) {
   const baseNow = Date.now();
   const timestamp = Math.floor(baseNow / 1000);
-  const expiresAt =
+  const expireAt =
     timestamp +
     Math.floor((AUDIT_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000) / 1000);
 
@@ -24,7 +24,7 @@ function buildMarshalledAuditLogItem(entry: AuditLogEntry) {
     {
       ...entry,
       createdAt: timestamp,
-      expiresAt,
+      expireAt,
     },
     { removeUndefinedValues: true },
   );
