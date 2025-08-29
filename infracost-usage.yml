@@ -133,8 +133,8 @@ resource_type_default_usage:
   aws_dx_gateway_association:
     monthly_data_processed_gb: 250 # Monthly data processed by the DX gateway association per month in GB.
   aws_dynamodb_table:
-    monthly_write_request_units: 200 # Monthly write request units in (used for on-demand DynamoDB).
-    monthly_read_request_units: 100 # Monthly read request units in (used for on-demand DynamoDB).
+    monthly_write_request_units: 150 # Monthly write request units in (used for on-demand DynamoDB).
+    monthly_read_request_units: 300 # Monthly read request units in (used for on-demand DynamoDB).
     storage_gb: 5 # Total storage for tables in GB.
     pitr_backup_storage_gb: 10 # Total storage for Point-In-Time Recovery (PITR) backups in GB.
     on_demand_backup_storage_gb: 20 # Total storage for on-demand backups in GB.
