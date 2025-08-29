@@ -77,7 +77,7 @@ module "lambdas" {
   CurrentOriginVerifyKey           = module.origin_verify.current_origin_verify_key
   PreviousOriginVerifyKey          = module.origin_verify.previous_origin_verify_key
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
-  LogRetentionDays                 = 30
+  LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
 }
 
