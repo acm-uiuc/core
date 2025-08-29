@@ -146,7 +146,9 @@ export const StripeCurrentLinksPanel: React.FC<
       }
       if (result.success > 0) {
         notifications.show({
-          message: `Deactivated ${pluralize("link", result.success, true)}!`,
+          title: `Deactivated ${pluralize("link", result.success, true)}!`,
+          message:
+            "Links will be permanently removed from this page after 90 days.",
           color: "green",
         });
       }

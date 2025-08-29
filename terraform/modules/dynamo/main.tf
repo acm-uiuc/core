@@ -224,6 +224,10 @@ resource "aws_dynamodb_table" "stripe_links" {
     hash_key        = "linkId"
     projection_type = "ALL"
   }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
 }
 
 resource "aws_dynamodb_table" "linkry_records" {

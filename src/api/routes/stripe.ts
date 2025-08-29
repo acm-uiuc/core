@@ -249,6 +249,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Deactivated Stripe payment link",
         },
       });
+      // expire deleted links at 90 days
+      const expiresAt = Math.floor(Date.now() / 1000) + 86400 * 90;
       const dynamoCommand = new TransactWriteItemsCommand({
         TransactItems: [
           ...(logStatement ? [logStatement] : []),
@@ -259,11 +261,12 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 userId: { S: unmarshalledEntry.userId },
                 linkId: { S: linkId },
               },
-              UpdateExpression: "SET active = :new_val",
+              UpdateExpression: "SET active = :new_val, expiresAt = :ttl",
               ConditionExpression: "active = :old_val",
               ExpressionAttributeValues: {
                 ":new_val": { BOOL: false },
                 ":old_val": { BOOL: true },
+                ":ttl": { N: expiresAt.toString() },
               },
             },
           },
