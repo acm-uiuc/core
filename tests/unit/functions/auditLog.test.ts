@@ -53,7 +53,7 @@ describe("Audit Log Transaction tests", () => {
     vi.spyOn(Date, 'now').mockReturnValue(mockTimestamp);
 
     const timestamp = Math.floor(mockTimestamp / 1000);
-    const expireAt = timestamp + Math.floor((365 * 24 * 60 * 60 * 1000) / 1000);
+    const expiresAt = timestamp + Math.floor((365 * 24 * 60 * 60 * 1000) / 1000);
 
     // Create test payload
     const payload = {
@@ -68,7 +68,7 @@ describe("Audit Log Transaction tests", () => {
     const expectedItem = marshall({
       ...payload,
       createdAt: timestamp,
-      expireAt: expireAt
+      expiresAt: expiresAt
     });
 
     // Call the function being tested
@@ -90,7 +90,7 @@ describe("Audit Log Transaction tests", () => {
     vi.spyOn(Date, 'now').mockReturnValue(mockTimestamp);
 
     const timestamp = Math.floor(mockTimestamp / 1000);
-    const expireAt = timestamp + Math.floor((365 * 24 * 60 * 60 * 1000) / 1000);
+    const expiresAt = timestamp + Math.floor((365 * 24 * 60 * 60 * 1000) / 1000);
 
     // Create test payload with only required fields
     const payload = {
@@ -103,7 +103,7 @@ describe("Audit Log Transaction tests", () => {
     const expectedItem = marshall({
       ...payload,
       createdAt: timestamp,
-      expireAt: expireAt
+      expiresAt: expiresAt
     });
 
     // Call the function being tested
