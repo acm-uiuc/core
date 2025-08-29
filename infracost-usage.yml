@@ -40,8 +40,8 @@ resource_type_default_usage:
     monthly_duration_secs: 62500 # Monthly duration of non-free handler operations that go above 30 seconds, in seconds.
   aws_cloudfront_distribution:
     monthly_data_transfer_to_internet_gb: # Monthly regional data transfer out to internet from the following, in GB:
-      us: 60 # United States, Mexico, Canada
-      europe: 60 # Europe, Israel
+      us: 40 # United States, Mexico, Canada
+      europe: 20 # Europe, Israel
       south_africa: 0 # South Africa, Kenya, Middle East
       south_america: 0 # South America
       japan: 0 # Japan
@@ -49,8 +49,8 @@ resource_type_default_usage:
       asia_pacific: 0 # Hong Kong, Philippines, Singapore, South Korea, Taiwan, Thailand
       india: 0 # India
     monthly_data_transfer_to_origin_gb: # Monthly regional data transfer out to origin from the following, in GB:
-      us: 250 # United States, Mexico, Canada
-      europe: 250 # Europe, Israel
+      us: 40 # United States, Mexico, Canada
+      europe: 20 # Europe, Israel
       south_africa: 0 # South Africa, Kenya, Middle East
       south_america: 0 # South America
       japan: 0 # Japan
@@ -58,8 +58,8 @@ resource_type_default_usage:
       asia_pacific: 0 # Hong Kong, Philippines, Singapore, South Korea, Taiwan, Thailand
       india: 0 # India
     monthly_http_requests: # Monthly number of HTTP requests to:
-      us: 6750000 # United States, Mexico, Canada
-      europe: 5750000 # Europe, Israel
+      us: 100000 # United States, Mexico, Canada
+      europe: 20000 # Europe, Israel
       south_africa: 0 # South Africa, Kenya, Middle East
       south_america: 0 # South America
       japan: 0 # Japan
@@ -67,8 +67,8 @@ resource_type_default_usage:
       asia_pacific: 0 # Hong Kong, Philippines, Singapore, South Korea, Taiwan, Thailand
       india: 0 # India
     monthly_https_requests: # Monthly number of HTTPS requests to:
-      us: 5000000 # United States, Mexico, Canada
-      europe: 4250000 # Europe, Israel
+      us: 200000 # United States, Mexico, Canada
+      europe: 20000 # Europe, Israel
       south_africa: 0 # South Africa, Kenya, Middle East
       south_america: 0 # South America
       japan: 0 # Japan
@@ -76,8 +76,8 @@ resource_type_default_usage:
       asia_pacific: 0 # Hong Kong, Philippines, Singapore, South Korea, Taiwan, Thailand
       india: 0 # India
     monthly_shield_requests: # Monthly number of shield requests to:
-      us: 3125000 # United States
-      europe: 3125000 # Europe
+      us: 0 # United States
+      europe: 0 # Europe
       south_america: 0 # South America
       japan: 0 # Japan
       australia: 0 # Australia
@@ -85,8 +85,8 @@ resource_type_default_usage:
       south_korea: 0 # South Korea
       india: 0 # India
     monthly_invalidation_requests: 1250 # Monthly number of invalidation requests.
-    monthly_encryption_requests: 2500000 # Monthly number of field level encryption requests.
-    monthly_log_lines: 500000000 # Monthly number of real-time log lines.
+    monthly_encryption_requests: 0 # Monthly number of field level encryption requests.
+    monthly_log_lines: 0 # Monthly number of real-time log lines.
     custom_ssl_certificates: 0 # Number of dedicated IP custom SSL certificates.
   aws_cloudhsm_v2_hsm:
     monthly_hrs: 3.125 # Monthly number of hours the HSM ran for.
@@ -135,11 +135,11 @@ resource_type_default_usage:
   aws_dynamodb_table:
     monthly_write_request_units: 150 # Monthly write request units in (used for on-demand DynamoDB).
     monthly_read_request_units: 300 # Monthly read request units in (used for on-demand DynamoDB).
-    storage_gb: 5 # Total storage for tables in GB.
-    pitr_backup_storage_gb: 10 # Total storage for Point-In-Time Recovery (PITR) backups in GB.
-    on_demand_backup_storage_gb: 20 # Total storage for on-demand backups in GB.
-    monthly_data_restored_gb: 5 # Monthly size of restored data in GB.
-    monthly_streams_read_request_units: 250 # Monthly streams read request units.
+    storage_gb: 3 # Total storage for tables in GB.
+    pitr_backup_storage_gb: 6 # Total storage for Point-In-Time Recovery (PITR) backups in GB.
+    on_demand_backup_storage_gb: 6 # Total storage for on-demand backups in GB.
+    monthly_data_restored_gb: 3 # Monthly size of restored data in GB.
+    monthly_streams_read_request_units: 700 # Monthly streams read request units.
   aws_ebs_snapshot:
     monthly_list_block_requests: 8333333 # Monthly number of ListChangedBlocks and ListSnapshotBlocks requests.
     monthly_get_block_requests: 1666666 # Monthly number of GetSnapshotBlock requests (block size is 512KiB).
@@ -193,7 +193,7 @@ resource_type_default_usage:
     monthly_on_demand_extended_retention_gb: 50 # Monthly data stored by the stream in GB that exceeds the 24 hour retention period but is less than 7 days.
     monthly_on_demand_long_term_retention_gb: 217 # Monthly data stored by the stream in GB that exceeds the 7 day retention period.
     monthly_provisioned_put_units: 357142857 # Monthly provisioned put units for the stream.
-    monthly_provisioned_extended_retention_gb: 250 # Monthly data stored by the stream in GB that exceeds the 24 hour retention period but is less than 7 days.
+    monthly_provisioned_extended_retention_gb : 250 # Monthly data stored by the stream in GB that exceeds the 24 hour retention period but is less than 7 days.
     monthly_provisioned_long_term_retention_gb: 217 # Monthly data stored by the stream in GB that exceeds the 7 day retention period.
     monthly_provisioned_long_term_retrieval_gb: 238 # Monthly data retrieved by the stream in GB that exceeds the 7 day retention period.
     monthly_provisioned_efo_data_out_gb: 384 # Monthly data egressed by the stream in GB to EFO consumers.
@@ -260,13 +260,13 @@ resource_type_default_usage:
   aws_s3_bucket:
     object_tags: 5000000 # Total object tags. Only for AWS provider V3.
     standard: # Usages of S3 Standard:
-      storage_gb: 225 # Total storage in GB.
+      storage_gb: 20 # Total storage in GB.
       monthly_tier_1_requests: 1000000 # Monthly PUT, COPY, POST, LIST requests (Tier 1).
       monthly_tier_2_requests: 12500000 # Monthly GET, SELECT, and all other requests (Tier 2).
       monthly_select_data_scanned_gb: 2500 # Monthly data scanned by S3 Select in GB.
       monthly_select_data_returned_gb: 7250 # Monthly data returned by S3 Select in GB.
     intelligent_tiering: # Usages of S3 Intelligent - Tiering:
-      frequent_access_storage_gb: 0 # Total storage for Frequent Access Tier in GB.
+      frequent_access_storage_gb: 50 # Total storage for Frequent Access Tier in GB.
       infrequent_access_storage_gb: 0 # Total storage for Infrequent Access Tier in GB.
       monitored_objects: 0 # Total objects monitored by the Intelligent Tiering.
       monthly_tier_1_requests: 0 # Monthly PUT, COPY, POST, LIST requests (Tier 1).
@@ -335,8 +335,8 @@ resource_type_default_usage:
     sms_subscriptions: 0 # Number of SMS subscriptions
     sms_notification_price: 0.002 # Average price for each SMS notification
   aws_sqs_queue:
-    monthly_requests: 12500000 # Monthly requests to SQS.
-    request_size_kb: 16 # Size of requests to SQS, billed in 64KB chunks. So 1M requests at 128KB uses 2M requests.
+    monthly_requests: 50000 # Monthly requests to SQS.
+    request_size_kb: 64 # Size of requests to SQS, billed in 64KB chunks. So 1M requests at 128KB uses 2M requests.
   aws_ssm_activation:
     instances: 1 # Number of instances being managed.
   aws_ssm_parameter:
