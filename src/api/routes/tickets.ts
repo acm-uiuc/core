@@ -28,6 +28,7 @@ import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { withRoles, withTags } from "api/components/index.js";
+import { FULFILLED_PURCHASES_RETENTION_DAYS } from "common/constants.js";
 
 const postMerchSchema = z.object({
   type: z.literal("merch"),
@@ -372,6 +373,9 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not find username.",
         });
       }
+      const expiresAt =
+        Math.floor(Date.now() / 1000) +
+        86400 * FULFILLED_PURCHASES_RETENTION_DAYS;
       switch (request.body.type) {
         case "merch":
           ticketId = request.body.stripePi;
@@ -380,7 +384,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             Key: {
               stripe_pi: { S: ticketId },
             },
-            UpdateExpression: "SET fulfilled = :true_val",
+            UpdateExpression: "SET fulfilled = :true_val, expiresAt = :ttl",
             ConditionExpression:
               "#email = :email_val AND (attribute_not_exists(fulfilled) OR fulfilled = :false_val) AND (attribute_not_exists(refunded) OR refunded = :false_val)",
             ExpressionAttributeNames: {
@@ -390,6 +394,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               ":true_val": { BOOL: true },
               ":false_val": { BOOL: false },
               ":email_val": { S: request.body.email },
+              ":ttl": { N: expiresAt.toString() },
             },
             ReturnValuesOnConditionCheckFailure: "ALL_OLD",
             ReturnValues: "ALL_OLD",
@@ -402,7 +407,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             Key: {
               ticket_id: { S: ticketId },
             },
-            UpdateExpression: "SET #used = :trueValue",
+            UpdateExpression: "SET #used = :trueValue, expiresAt = :ttl",
             ConditionExpression:
               "(attribute_not_exists(#used) OR #used = :falseValue) AND (attribute_not_exists(refunded) OR refunded = :falseValue)",
             ExpressionAttributeNames: {
@@ -411,6 +416,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             ExpressionAttributeValues: {
               ":trueValue": { BOOL: true },
               ":falseValue": { BOOL: false },
+              ":ttl": { N: expiresAt.toString() },
             },
             ReturnValuesOnConditionCheckFailure: "ALL_OLD",
             ReturnValues: "ALL_OLD",
