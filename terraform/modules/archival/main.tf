@@ -197,7 +197,7 @@ resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
         type = "MetadataExtraction"
         parameters {
           parameter_name  = "MetadataExtractionQuery"
-          parameter_value = "{table: .table, year: (.timestamp | strftime(\"%Y\")), month: (.timestamp | strftime(\"%m\")), day: (.timestamp | strftime(\"%d\"))}"
+          parameter_value = "{table: .__infra_archive_table, year: (.__infra_archive_timestamp | fromdateiso8601 | strftime(\"%Y\")), month: (.__infra_archive_timestamp | fromdateiso8601 |  strftime(\"%m\")), day: (.__infra_archive_timestamp | fromdateiso8601 | strftime(\"%d\"))}"
         }
         parameters {
           parameter_name  = "JsonParsingEngine"
@@ -282,4 +282,12 @@ resource "aws_lambda_function" "api_lambda" {
       "FIREHOSE_STREAM_NAME" = local.firehose_stream_name
     }
   }
+}
+
+output "archival_lambda_name" {
+  value = local.archive_lambda_name
+}
+
+output "firehose_stream_name" {
+  value = local.firehose_stream_name
 }

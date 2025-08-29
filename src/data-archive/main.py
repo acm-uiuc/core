@@ -30,7 +30,13 @@ except KeyError:
 TimestampMapper = Dict[str, Callable[[Dict[str, Any]], str]]
 
 ARCHIVE_TIMESTAMP_MAPPER: TimestampMapper = {
-    "infra-core-api-room-requests-status": lambda x: x["createdAt#status"].split("#")[0]
+    "infra-core-api-room-requests-status": lambda x: x["createdAt#status"].split("#")[
+        0
+    ],
+    "infra-core-api-events": lambda x: x["createdAt"],
+    "infra-core-api-audit-log": lambda x: datetime.fromtimestamp(x["createdAt"])
+    .astimezone(timezone.utc)
+    .isoformat(),
 }
 
 
@@ -73,14 +79,22 @@ def lambda_handler(event, context):
 
             # 4. Construct the Payload
             payload = {
-                "table": table_name,
-                "data": deserialized_data,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                **deserialized_data,
+                "__infra_archive_table": table_name,
+                "__infra_archive_timestamp": datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ),
             }
             if table_name in ARCHIVE_TIMESTAMP_MAPPER:
                 try:
-                    payload["timestamp"] = ARCHIVE_TIMESTAMP_MAPPER[table_name](
-                        deserialized_data
+                    payload["__infra_archive_timestamp"] = (
+                        (
+                            datetime.fromisoformat(
+                                ARCHIVE_TIMESTAMP_MAPPER[table_name](deserialized_data)
+                            )
+                        )
+                        .astimezone(timezone.utc)
+                        .strftime("%Y-%m-%dT%H:%M:%SZ")
                     )
                 except Exception as e:
                     logger.error(

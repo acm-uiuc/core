@@ -63,7 +63,7 @@ module "ttl_archiver" {
   RunEnvironment   = "dev"
   LogRetentionDays = var.LogRetentionDays
   BucketPrefix     = local.bucket_prefix
-  MonitorTables    = ["${var.ProjectId}-room-requests", "${var.ProjectId}-room-requests-status"]
+  MonitorTables    = ["${var.ProjectId}-audit-log", "${var.ProjectId}-events", "${var.ProjectId}-room-requests", "${var.ProjectId}-room-requests-status"]
 }
 
 resource "aws_cloudfront_key_value_store" "linkry_kv" {
