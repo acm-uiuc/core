@@ -16,7 +16,7 @@ resource "aws_cloudwatch_log_group" "archive_logs" {
 }
 
 resource "aws_iam_role" "archive_role" {
-  name = "${local.archive_lambda_name}-role"
+  name = "${local.archive_lambda_name}-exec-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -32,7 +32,7 @@ resource "aws_iam_role" "archive_role" {
 }
 
 resource "aws_iam_policy" "archive_lambda_policy" {
-  name = "${local.archive_lambda_name}-policy"
+  name = "${local.archive_lambda_name}-logging-policy"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -51,7 +51,7 @@ resource "aws_iam_role_policy_attachment" "archive_lambda_policy_attach" {
 }
 
 resource "aws_iam_policy" "archive_policy" {
-  name = "${local.archive_lambda_name}-policy"
+  name = "${local.archive_lambda_name}-ddb-stream-policy"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -94,18 +94,19 @@ resource "aws_lambda_function" "api_lambda" {
 }
 
 data "aws_dynamodb_table" "existing_tables" {
-  for_each = var.MonitorTables
+  for_each = toset(var.MonitorTables)
   name     = each.key
 }
 
 resource "aws_lambda_event_source_mapping" "stream_mapping" {
-  for_each                = var.MonitorTables
+  for_each                = toset(var.MonitorTables)
   function_name           = aws_lambda_function.api_lambda.arn
   event_source_arn        = data.aws_dynamodb_table.existing_tables[each.key].stream_arn
   function_response_types = ["ReportBatchItemFailures"]
   batch_size              = 10
   enabled                 = true
   starting_position       = "LATEST"
+
   filter_criteria {
     filter {
       pattern = jsonencode({
@@ -116,5 +117,6 @@ resource "aws_lambda_event_source_mapping" "stream_mapping" {
       })
     }
   }
+
   depends_on = [aws_iam_policy.archive_policy]
 }

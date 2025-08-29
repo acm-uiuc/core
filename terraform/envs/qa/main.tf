@@ -57,6 +57,7 @@ module "origin_verify" {
 }
 
 module "ttl_archiver" {
+  depends_on       = [module.dynamo]
   source           = "../../modules/archival"
   ProjectId        = var.ProjectId
   RunEnvironment   = "dev"
