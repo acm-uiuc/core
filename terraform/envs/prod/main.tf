@@ -65,8 +65,12 @@ module "alarms" {
   resource_prefix                 = var.ProjectId
   main_cloudfront_distribution_id = module.frontend.main_cloudfront_distribution_id
   standard_sns_arn                = var.GeneralSNSAlertArn
-  all_lambdas                     = toset([module.lambdas.core_api_lambda_name, module.lambdas.core_api_slow_lambda_name, module.lambdas.core_sqs_consumer_lambda_name])
-  performance_noreq_lambdas       = toset([module.lambdas.core_api_lambda_name])
+  all_lambdas = toset([
+    module.lambdas.core_api_lambda_name,
+    module.lambdas.core_api_slow_lambda_name,
+    module.lambdas.core_sqs_consumer_lambda_name
+  ])
+  performance_noreq_lambdas = toset([module.lambdas.core_api_lambda_name])
 }
 
 module "lambdas" {

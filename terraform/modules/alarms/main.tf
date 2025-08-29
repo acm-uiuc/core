@@ -65,7 +65,7 @@ resource "aws_cloudwatch_metric_alarm" "app_no_requests_alarm" {
 resource "aws_cloudwatch_metric_alarm" "app_invocation_error_alarm" {
   for_each            = var.all_lambdas
   alarm_name          = "${each.value}-error-invocation"
-  alarm_description   = "${replace(each.value, var.resource_prefix, "")} lambda threw an error, meaning the init of the application itself has encountered an error"
+  alarm_description   = "${replace(each.value, var.resource_prefix, "")} lambda threw a critical error."
   namespace           = "AWS/Lambda"
   metric_name         = "Errors"
   statistic           = "Sum"
