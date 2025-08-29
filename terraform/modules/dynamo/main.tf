@@ -9,7 +9,7 @@ resource "null_resource" "onetime_events_expiration" {
   }
 }
 
-resource "null_resource" "onetime_events_expiration" {
+resource "null_resource" "onetime_sl_expiration" {
   provisioner "local-exec" {
     command     = <<-EOT
       set -e
