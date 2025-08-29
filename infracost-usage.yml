@@ -117,7 +117,7 @@ resource_type_default_usage:
     monthly_rule_evaluations: 5000 # Monthly config rule evaluations.
   aws_db_instance:
     additional_backup_storage_gb: 238 # Amount of backup storage used that is in excess of 100% of the storage size for all databases in GB.
-    monthly_standard_io_requests: 50000000 # Monthly number of input/output requests for database.
+    monthly_standard_io_requests: 50000000 # Monthly number of ∂tinput/output requests for database.
     monthly_additional_performance_insights_requests: 500000 # Monthly Performance Insights API requests above the 1000000 requests included in the free tier.
   aws_directory_service_directory:
     additional_domain_controllers: 0.135 # The number of domain controllers in the directory service provisioned in addition to the minimum 2 controllers
@@ -133,13 +133,13 @@ resource_type_default_usage:
   aws_dx_gateway_association:
     monthly_data_processed_gb: 250 # Monthly data processed by the DX gateway association per month in GB.
   aws_dynamodb_table:
-    monthly_write_request_units: 4000000 # Monthly write request units in (used for on-demand DynamoDB).
-    monthly_read_request_units: 20000000 # Monthly read request units in (used for on-demand DynamoDB).
-    storage_gb: 20 # Total storage for tables in GB.
-    pitr_backup_storage_gb: 25 # Total storage for Point-In-Time Recovery (PITR) backups in GB.
-    on_demand_backup_storage_gb: 50 # Total storage for on-demand backups in GB.
-    monthly_data_restored_gb: 33 # Monthly size of restored data in GB.
-    monthly_streams_read_request_units: 25000000 # Monthly streams read request units.
+    monthly_write_request_units: 200 # Monthly write request units in (used for on-demand DynamoDB).
+    monthly_read_request_units: 100 # Monthly read request units in (used for on-demand DynamoDB).
+    storage_gb: 5 # Total storage for tables in GB.
+    pitr_backup_storage_gb: 10 # Total storage for Point-In-Time Recovery (PITR) backups in GB.
+    on_demand_backup_storage_gb: 20 # Total storage for on-demand backups in GB.
+    monthly_data_restored_gb: 5 # Monthly size of restored data in GB.
+    monthly_streams_read_request_units: 250 # Monthly streams read request units.
   aws_ebs_snapshot:
     monthly_list_block_requests: 8333333 # Monthly number of ListChangedBlocks and ListSnapshotBlocks requests.
     monthly_get_block_requests: 1666666 # Monthly number of GetSnapshotBlock requests (block size is 512KiB).
