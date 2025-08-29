@@ -41,6 +41,8 @@ resource "aws_dynamodb_table" "app_audit_log" {
     attribute_name = "expireAt"
     enabled        = true
   }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "membership_provisioning_log" {
@@ -236,6 +238,8 @@ resource "aws_dynamodb_table" "events" {
     attribute_name = "expiresAt"
     enabled        = true
   }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "stripe_links" {
