@@ -5,7 +5,8 @@ data "archive_file" "api_lambda_code" {
 }
 
 locals {
-  archive_lambda_name = "${var.ProjectId}-ddb-archival"
+  archive_lambda_name  = "${var.ProjectId}-ddb-archival"
+  firehose_stream_name = "${var.ProjectId}-ddb-archival-stream"
 }
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
@@ -43,7 +44,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
     status = "Enabled"
 
     transition {
-      days          = 30
+      days          = 1
       storage_class = "INTELLIGENT_TIERING"
     }
   }
@@ -150,8 +151,8 @@ resource "aws_lambda_function" "api_lambda" {
   description      = "DynamoDB stream reader to archive data."
   environment {
     variables = {
-      "RunEnvironment"     = var.RunEnvironment
-      "DESTINATION_BUCKET" = aws_s3_bucket.this.id
+      "RunEnvironment"       = var.RunEnvironment
+      "FIREHOSE_STREAM_NAME" = local.firehose_stream_name
     }
   }
 }
@@ -182,4 +183,94 @@ resource "aws_lambda_event_source_mapping" "stream_mapping" {
   }
 
   depends_on = [aws_iam_policy.archive_policy]
+}
+
+// firehose
+
+resource "aws_iam_role" "firehose_role" {
+  name = "${local.firehose_stream_name}-exec-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "firehose.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "firehose_policy" {
+  name = "${local.firehose_stream_name}-s3-policy"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:AbortMultipartUpload",
+          "s3:GetBucketLocation",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:ListBucketMultipartUploads",
+          "s3:PutObject"
+        ]
+        Resource = [
+          aws_s3_bucket.this.arn,
+          "${aws_s3_bucket.this.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = ["arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${local.firehose_stream_name}:*"]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "firehose_attach" {
+  role       = aws_iam_role.firehose_role.name
+  policy_arn = aws_iam_policy.firehose_policy.arn
+}
+
+resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
+  name        = local.firehose_stream_name
+  destination = "extended_s3"
+
+  extended_s3_configuration {
+    bucket_arn         = aws_s3_bucket.this.arn
+    role_arn           = aws_iam_role.firehose_role.arn
+    buffering_interval = 60
+    buffering_size     = 10
+
+    dynamic_partitioning_configuration {
+      enabled = true
+    }
+
+    processing_configuration {
+      enabled = true
+      processors {
+        type = "MetadataExtraction"
+        parameters {
+          parameter_name  = "MetadataExtractionQuery"
+          parameter_value = "{table:.table}"
+        }
+        parameters {
+          parameter_name  = "JsonParsingEngine"
+          parameter_value = "JQ-1.6"
+        }
+      }
+    }
+
+    prefix              = "table=!{partitionKeyFromQuery:table}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/"
+    error_output_prefix = "firehose-errors/!{firehose:error-output-type}/!{timestamp:yyyy/MM/dd}/"
+  }
 }
