@@ -36,6 +36,7 @@ import {
   getDefaultFilteringQuerystring,
   nonEmptyCommaSeparatedStringSchema,
 } from "common/utils.js";
+import { ROOM_RESERVATION_RETENTION_DAYS } from "common/constants.js";
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -104,6 +105,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             semesterId,
             "createdAt#status": `${createdAt}#${request.body.status}`,
             createdBy: request.username,
+            expiresAt:
+              Math.floor(Date.now() / 1000) +
+              86400 * ROOM_RESERVATION_RETENTION_DAYS,
             ...request.body,
           },
           { removeUndefinedValues: true },
@@ -315,6 +319,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         userId: request.username,
         "userId#requestId": `${request.username}#${requestId}`,
         semesterId: request.body.semester,
+        expiresAt:
+          Math.floor(Date.now() / 1000) +
+          86400 * ROOM_RESERVATION_RETENTION_DAYS,
       };
       const logStatement = buildAuditLogTransactPut({
         entry: {
@@ -344,6 +351,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   "createdAt#status": `${createdAt}#${RoomRequestStatus.CREATED}`,
                   createdBy: request.username,
                   status: RoomRequestStatus.CREATED,
+                  expiresAt:
+                    Math.floor(Date.now() / 1000) +
+                    86400 * ROOM_RESERVATION_RETENTION_DAYS,
                   notes: "This request was created by the user.",
                 }),
               },

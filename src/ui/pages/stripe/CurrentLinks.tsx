@@ -18,6 +18,7 @@ import { notifications } from "@mantine/notifications";
 import { useAuth } from "@ui/components/AuthContext";
 import pluralize from "pluralize";
 import dayjs from "dayjs";
+import { STRIPE_LINK_RETENTION_DAYS } from "@common/constants";
 
 const HumanFriendlyDate = ({ date }: { date: string | Date }) => {
   return <Text size="sm">{dayjs(date).format("MMMM D, YYYY")}</Text>;
@@ -147,8 +148,7 @@ export const StripeCurrentLinksPanel: React.FC<
       if (result.success > 0) {
         notifications.show({
           title: `Deactivated ${pluralize("link", result.success, true)}!`,
-          message:
-            "Links will be permanently removed from this page after 90 days.",
+          message: `Links will be permanently removed from this page after ${STRIPE_LINK_RETENTION_DAYS} days.`,
           color: "green",
         });
       }
