@@ -9,6 +9,17 @@ resource "null_resource" "onetime_events_expiration" {
   }
 }
 
+resource "null_resource" "onetime_events_expiration" {
+  provisioner "local-exec" {
+    command     = <<-EOT
+      set -e
+      python stripelink-expiration.py
+    EOT
+    interpreter = ["bash", "-c"]
+    working_dir = "${path.module}/../../../onetime/"
+  }
+}
+
 resource "aws_dynamodb_table" "app_audit_log" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-audit-log"
