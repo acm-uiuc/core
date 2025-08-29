@@ -101,9 +101,9 @@ resource_type_default_usage:
     archive_storage_gb: 217 # Archive storage used for event replay in GB.
     monthly_schema_discovery_events: 50000000 # Monthly events ingested for schema discovery. Each 8 KB chunk of payload is billed as 1 event.
   aws_cloudwatch_log_group:
-    storage_gb: 166 # Total data stored by CloudWatch logs in GB.
-    monthly_data_ingested_gb: 10 # Monthly data ingested by CloudWatch logs in GB.
-    monthly_data_scanned_gb: 1000 # Monthly data scanned by CloudWatch logs insights in GB.
+    storage_gb: 2 # Total data stored by CloudWatch logs in GB.
+    monthly_data_ingested_gb: 0.5 # Monthly data ingested by CloudWatch logs in GB.
+    monthly_data_scanned_gb: 1 # Monthly data scanned by CloudWatch logs insights in GB.
   aws_codebuild_project:
     monthly_build_mins: 500 # Monthly total duration of builds in minutes. Each build is rounded up to the nearest minute.
   aws_config_config_rule:
