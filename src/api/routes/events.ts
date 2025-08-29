@@ -377,7 +377,10 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         const expiresAt = determineExpiresAt(updatedItem);
         const command = new PutItemCommand({
           TableName: genericConfig.EventsDynamoTableName,
-          Item: marshall({ ...updatedItem, expiresAt }),
+          Item: marshall(
+            { ...updatedItem, expiresAt },
+            { removeUndefinedValues: true },
+          ),
           ConditionExpression: "attribute_exists(id)",
           ReturnValues: "ALL_OLD",
         });
@@ -631,7 +634,10 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           const response = await fastify.dynamoClient.send(
             new GetItemCommand({
               TableName: genericConfig.EventsDynamoTableName,
-              Key: marshall({ id: request.params.id }),
+              Key: marshall(
+                { id: request.params.id },
+                { removeUndefinedValues: true },
+              ),
             }),
           );
           const item = response.Item ? unmarshall(response.Item) : null;
