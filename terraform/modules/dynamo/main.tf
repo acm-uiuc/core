@@ -16,8 +16,8 @@ resource "aws_dynamodb_table" "app_audit_log" {
     type = "N"
   }
   ttl {
-    attribute_name = "expiresAt"
-    enabled        = false
+    attribute_name = "expireAt"
+    enabled        = true
   }
 }
 
