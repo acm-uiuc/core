@@ -85,9 +85,7 @@ def process_inactive_records():
                     )
                     # --- END MODIFICATION ---
                     updated_count += 1
-                    logging.info(
-                        f"Updated item with userId: {partition_key}, linkId: {sort_key}"
-                    )
+                    logging.info(f"Updated item")
                 except ClientError as e:
                     logging.error(
                         f"Failed to update item ({partition_key}, {sort_key}): {e}"
