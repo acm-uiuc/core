@@ -17,7 +17,7 @@ resource "aws_dynamodb_table" "app_audit_log" {
   }
   ttl {
     attribute_name = "expiresAt"
-    enabled        = true
+    enabled        = false
   }
 }
 
@@ -80,6 +80,10 @@ resource "aws_dynamodb_table" "room_requests" {
     hash_key        = "requestId"
     projection_type = "ALL"
   }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
 }
 
 
@@ -109,6 +113,10 @@ resource "aws_dynamodb_table" "room_requests_status" {
     hash_key        = "semesterId"
     range_key       = "requestId"
     projection_type = "ALL"
+  }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
   }
 }
 
@@ -223,6 +231,10 @@ resource "aws_dynamodb_table" "stripe_links" {
     name            = "LinkIdIndex"
     hash_key        = "linkId"
     projection_type = "ALL"
+  }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
   }
 }
 

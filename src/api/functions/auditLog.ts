@@ -5,6 +5,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
+import { AUDIT_LOG_RETENTION_DAYS } from "common/constants.js";
 import { AuditLogEntry } from "common/types/logs.js";
 
 type AuditLogParams = {
@@ -12,13 +13,12 @@ type AuditLogParams = {
   entry: AuditLogEntry;
 };
 
-const RETENTION_DAYS = 365;
-
 function buildMarshalledAuditLogItem(entry: AuditLogEntry) {
   const baseNow = Date.now();
   const timestamp = Math.floor(baseNow / 1000);
   const expireAt =
-    timestamp + Math.floor((RETENTION_DAYS * 24 * 60 * 60 * 1000) / 1000);
+    timestamp +
+    Math.floor((AUDIT_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000) / 1000);
 
   return marshall(
     {
