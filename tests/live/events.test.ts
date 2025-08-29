@@ -161,9 +161,7 @@ describe("Event lifecycle tests", async () => {
     expect(response.status).toBe(200);
     expect(responseJson).toHaveProperty("id");
     expect(responseJson).toHaveProperty("description");
-    expect(responseJson["description"]).toStrictEqual(
-      "An event of all time THAT HAS BEEN MODIFIED",
-    );
+    expect(responseJson["title"]).toStrictEqual("Modified Live Testing Event");
   });
 
   test("deleting a previously-created event", { timeout: 30000 }, async () => {
