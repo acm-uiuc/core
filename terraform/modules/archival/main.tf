@@ -16,6 +16,12 @@ resource "aws_cloudwatch_log_group" "archive_logs" {
   retention_in_days = var.LogRetentionDays
 }
 
+resource "aws_cloudwatch_log_group" "firehose_logs" {
+  name              = "/aws/kinesisfirehose/${local.firehose_stream_name}"
+  retention_in_days = var.LogRetentionDays
+}
+
+
 resource "aws_s3_bucket" "this" {
   bucket = "${var.BucketPrefix}-ddb-archive"
 }
@@ -204,6 +210,9 @@ resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
           parameter_value = "JQ-1.6"
         }
       }
+    }
+    cloudwatch_logging_options {
+      enabled = true
     }
 
     prefix              = "table=!{partitionKeyFromQuery:table}/year=!{partitionKeyFromQuery:year}/month=!{partitionKeyFromQuery:month}/day=!{partitionKeyFromQuery:day}/"
