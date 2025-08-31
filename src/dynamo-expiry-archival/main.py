@@ -80,7 +80,7 @@ def lambda_handler(event, context):
             # 4. Construct the Payload
             payload = {
                 **deserialized_data,
-                "__infra_archive_table": table_name,
+                "__infra_archive_resource": table_name,
                 "__infra_archive_timestamp": datetime.now(timezone.utc).strftime(
                     "%Y-%m-%dT%H:%M:%SZ"
                 ),

@@ -65,13 +65,14 @@ module "alarms" {
   all_lambdas = toset([
     module.lambdas.core_api_lambda_name,
     module.lambdas.core_api_slow_lambda_name,
-    module.lambdas.core_sqs_consumer_lambda_name
+    module.lambdas.core_sqs_consumer_lambda_name,
+    module.data_archival.dynamo_archival_lambda_name
   ])
   performance_noreq_lambdas = toset([module.lambdas.core_api_lambda_name])
-  archival_firehose_stream  = module.ttl_archiver.firehose_stream_name
+  archival_firehose_stream  = module.data_archival.firehose_stream_name
 }
 
-module "ttl_archiver" {
+module "archival" {
   depends_on       = [module.dynamo]
   source           = "../../modules/archival"
   ProjectId        = var.ProjectId
