@@ -79,7 +79,13 @@ module "archival" {
   RunEnvironment   = "dev"
   LogRetentionDays = var.LogRetentionDays
   BucketPrefix     = local.bucket_prefix
-  MonitorTables    = ["${var.ProjectId}-audit-log", "${var.ProjectId}-events", "${var.ProjectId}-room-requests", "${var.ProjectId}-room-requests-status"]
+  MonitorTables    = ["${var.ProjectId}-audit-log", "${var.ProjectId}-events", "${var.ProjectId}-room-requests"]
+  TableDeletionDays = tomap({
+    "${var.ProjectId}-audit-log" : 15,
+    "${var.ProjectId}-room-requests" : 15
+    "${var.ProjectId}-events" : 15
+    // We delete pretty quickly in QA
+  })
 }
 
 resource "aws_cloudfront_key_value_store" "linkry_kv" {
