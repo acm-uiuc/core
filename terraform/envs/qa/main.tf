@@ -72,15 +72,6 @@ module "alarms" {
   archival_firehose_stream  = module.archival.firehose_stream_name
 }
 
-module "auditlogs" {
-  source             = "../../modules/auditlog"
-  LogRetentionDays   = var.LogRetentionDays
-  DataExpirationDays = var.AuditLogRetentionDays
-  BucketPrefix       = local.bucket_prefix
-  ProjectId          = var.ProjectId
-  RunEnvironment     = "dev"
-}
-
 module "archival" {
   depends_on       = [module.dynamo]
   source           = "../../modules/archival"
