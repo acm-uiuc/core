@@ -10,8 +10,12 @@ export default defineConfig({
     setupFiles: "./tests/unit/vitest.setup.ts",
     coverage: {
       provider: "istanbul",
-      include: ["src/api/**/*.ts", "src/common/**/*.ts"],
-      exclude: ["src/api/lambda.ts", "src/api/sqs/handlers/templates/*.ts"],
+      include: ["src/**/*.ts"],
+      exclude: [
+        "src/api/lambda.ts",
+        "src/api/sqs/handlers/templates/*.ts",
+        "src/ui/**/*.ts",
+      ],
       thresholds: {
         statements: 50,
         functions: 60,

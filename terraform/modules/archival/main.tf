@@ -1,7 +1,7 @@
 data "archive_file" "api_lambda_code" {
   type        = "zip"
-  source_dir  = "${path.module}/../../../src/dynamo-expiry-archival"
-  output_path = "${path.module}/../../../dist/terraform/dynamo-expiry-archival.zip"
+  source_dir  = "${path.module}/../../../dist/archival"
+  output_path = "${path.module}/../../../dist/terraform/archival.zip"
 }
 
 locals {
@@ -303,8 +303,8 @@ resource "aws_lambda_function" "api_lambda" {
   function_name    = local.dynamo_stream_reader_lambda_name
   role             = aws_iam_role.archive_role.arn
   architectures    = ["arm64"]
-  handler          = "main.lambda_handler"
-  runtime          = "python3.13"
+  handler          = "dynamoStream.handler"
+  runtime          = "nodejs22.x"
   filename         = data.archive_file.api_lambda_code.output_path
   timeout          = 90
   memory_size      = 512
