@@ -98,3 +98,22 @@ resource "aws_cloudwatch_metric_alarm" "app5xx_error_alarm" {
     DistributionId = var.main_cloudfront_distribution_id
   }
 }
+
+# firehose alarms
+resource "aws_cloudwatch_metric_alarm" "firehost_archival_data_freshness" {
+  alarm_name          = "${var.resource_prefix}-firehose-data-stale"
+  alarm_description   = "Delivery of archival records to S3 is taking longer than 5 minutes."
+  namespace           = "AWS/Firehose"
+  metric_name         = "DeliveryToS3.DataFreshness"
+  statistic           = "Maximum"
+  period              = "300"
+  evaluation_periods  = "1"
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = "300"
+  alarm_actions = [
+    var.priority_sns_arn
+  ]
+  dimensions = {
+    DeliveryStreamName = var.archival_firehose_stream
+  }
+}
