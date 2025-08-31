@@ -103,11 +103,6 @@ jobs:
       - build
     environment: "AWS PROD"
     steps:
-      - name: Set up Node for testing
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.x
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -131,5 +126,6 @@ jobs:
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: prod
+
       - name: Call the health check script
         run: make prod_health_check

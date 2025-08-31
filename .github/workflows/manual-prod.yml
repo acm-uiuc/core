@@ -101,11 +101,6 @@ jobs:
       - build
     environment: "AWS PROD"
     steps:
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.x
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -119,6 +114,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: build-prod
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::298118738376:role/GitHubActionsRole

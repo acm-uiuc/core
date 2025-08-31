@@ -45,5 +45,5 @@ variable "PrioritySNSAlertArn" {
 
 variable "AuditLogRetentionDays" {
   type    = number
-  default = 365
+  default = 90
 }

@@ -106,24 +106,10 @@ jobs:
         env:
           HUSKY: "0"
 
-      - name: Set up Node for testing
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.x
-          cache: "yarn"
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.12.2
-
-      - name: Restore Yarn Cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
-          restore-keys: |
-            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Download Build files
         uses: actions/download-artifact@v4
@@ -142,6 +128,20 @@ jobs:
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
+
+      - name: Set up Node for testing
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: "yarn"
+
+      - name: Restore Yarn Cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          restore-keys: |
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Run health check
         run: make dev_health_check

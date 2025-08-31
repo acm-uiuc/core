@@ -1,4 +1,14 @@
-# main.tf
+
+resource "null_resource" "onetime_auditlog" {
+  provisioner "local-exec" {
+    command     = <<-EOT
+      set -e
+      python auditlog-migration.py
+    EOT
+    interpreter = ["bash", "-c"]
+    working_dir = "${path.module}/../../../onetime/"
+  }
+}
 
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
@@ -98,10 +108,7 @@ resource "aws_glue_catalog_table" "this" {
       serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
       parameters            = { "serialization.format" = "1" }
     }
-    columns {
-      name = "module"
-      type = "string"
-    }
+
     columns {
       name = "createdAt"
       type = "bigint"
@@ -207,7 +214,7 @@ resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
     role_arn           = aws_iam_role.firehose_role.arn
     compression_format = "UNCOMPRESSED"
     buffering_interval = 60
-    buffering_size     = 64
+    buffering_size     = 128
 
     data_format_conversion_configuration {
       enabled = true
@@ -253,7 +260,6 @@ resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
       log_stream_name = aws_cloudwatch_log_stream.firehose_logs_stream.name
     }
 
-    # UPDATED: Added 'hour' to the S3 prefix to match the partition key
     prefix              = "module=!{partitionKeyFromQuery:module}/year=!{partitionKeyFromQuery:year}/month=!{partitionKeyFromQuery:month}/day=!{partitionKeyFromQuery:day}/hour=!{partitionKeyFromQuery:hour}/"
     error_output_prefix = "firehose-errors/!{firehose:error-output-type}/!{timestamp:yyyy/MM/dd}/"
   }
