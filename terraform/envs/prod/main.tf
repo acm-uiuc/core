@@ -69,10 +69,10 @@ module "alarms" {
     module.lambdas.core_api_lambda_name,
     module.lambdas.core_api_slow_lambda_name,
     module.lambdas.core_sqs_consumer_lambda_name,
-    module.data_archival.dynamo_archival_lambda_name
+    module.archival.dynamo_archival_lambda_name
   ])
   performance_noreq_lambdas = toset([module.lambdas.core_api_lambda_name])
-  archival_firehose_stream  = module.data_archival.firehose_stream_name
+  archival_firehose_stream  = module.archival.firehose_stream_name
 }
 
 module "archival" {
