@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import esbuild from "esbuild";
 import { resolve } from "path";
 import { copy } from "esbuild-plugin-copy";
