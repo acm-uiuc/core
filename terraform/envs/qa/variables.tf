@@ -42,3 +42,8 @@ variable "PrioritySNSAlertArn" {
   type    = string
   default = "arn:aws:sns:us-east-1:427040638965:infra-monitor-alerts"
 }
+
+variable "AuditLogRetentionDays" {
+  type    = number
+  default = 365
+}

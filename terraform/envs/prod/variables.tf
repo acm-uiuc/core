@@ -42,3 +42,8 @@ variable "IcalPublicDomain" {
   type    = string
   default = "ical.acm.illinois.edu"
 }
+
+variable "AuditLogRetentionDays" {
+  type    = number
+  default = 365
+}
