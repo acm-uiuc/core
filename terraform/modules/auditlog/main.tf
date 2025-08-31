@@ -184,6 +184,7 @@ resource "aws_iam_policy" "firehose_policy" {
         Effect = "Allow",
         Action = ["glue:GetTable", "glue:GetTableVersion", "glue:GetTableVersions"],
         Resource = [
+          "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:catalog",
           aws_glue_catalog_database.this.arn,
           aws_glue_catalog_table.this.arn
         ]
