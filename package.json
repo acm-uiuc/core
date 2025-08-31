@@ -5,13 +5,14 @@
   "type": "module",
   "workspaces": [
     "src/api",
-    "src/ui"
+    "src/ui",
+    "src/archival"
   ],
   "packageManager": "yarn@1.22.22",
   "scripts": {
     "postinstall": "npm run setup",
     "setup": "git config blame.ignoreRevsFile .git-blame-ignore-revs",
-    "build": "concurrently --names 'api,ui' 'yarn workspace infra-core-api run build' 'yarn workspace infra-core-ui run build'",
+    "build": "concurrently --names 'api,ui,archival' 'yarn workspace infra-core-api run build' 'yarn workspace infra-core-ui run build' 'yarn workspace infra-core-archival run build'",
     "postbuild": "node src/api/createLambdaPackage.js && yarn lockfile-manage",
     "dev": "cross-env DISABLE_AUDIT_LOG=true concurrently --names 'api,ui' 'yarn workspace infra-core-api run dev' 'yarn workspace infra-core-ui run dev'",
     "lockfile-manage": "synp --with-workspace --source-file yarn.lock",
@@ -38,6 +39,7 @@
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.33.0",
     "@playwright/test": "^1.54.2",
+    "@smithy/types": "^4.3.2",
     "@tsconfig/node22": "^22.0.1",
     "@types/ioredis-mock": "^8.2.5",
     "@types/node": "^24.3.0",

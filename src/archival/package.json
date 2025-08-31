@@ -1,0 +1,26 @@
+{
+  "name": "infra-core-archival",
+  "version": "1.0.0",
+  "description": "Archives DynamoDB TTL-deleted items to Firehose",
+  "type": "module",
+  "main": "index.js",
+  "author": "ACM@UIUC",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "tsc && node build.js",
+    "prettier": "prettier --check *.ts **/*.ts",
+    "lint": "eslint . --ext .ts --cache",
+    "prettier:write": "prettier --write *.ts **/*.ts"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.138",
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2",
+    "esbuild": "^0.25.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.585.0",
+    "@aws-sdk/client-firehose": "^3.585.0",
+    "@aws-sdk/util-dynamodb": "^3.585.0"
+  }
+}
