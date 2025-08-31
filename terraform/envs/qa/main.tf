@@ -56,6 +56,21 @@ module "origin_verify" {
   ProjectId = var.ProjectId
 }
 
+module "alarms" {
+  source                          = "../../modules/alarms"
+  priority_sns_arn                = var.PrioritySNSAlertArn
+  resource_prefix                 = var.ProjectId
+  main_cloudfront_distribution_id = module.frontend.main_cloudfront_distribution_id
+  standard_sns_arn                = var.GeneralSNSAlertArn
+  all_lambdas = toset([
+    module.lambdas.core_api_lambda_name,
+    module.lambdas.core_api_slow_lambda_name,
+    module.lambdas.core_sqs_consumer_lambda_name
+  ])
+  performance_noreq_lambdas = toset([module.lambdas.core_api_lambda_name])
+  archival_firehose_stream  = module.ttl_archiver.firehose_stream_name
+}
+
 module "ttl_archiver" {
   depends_on       = [module.dynamo]
   source           = "../../modules/archival"
