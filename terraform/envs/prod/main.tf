@@ -84,7 +84,7 @@ module "archival" {
   BucketPrefix     = local.bucket_prefix
   MonitorTables    = ["${var.ProjectId}-audit-log", "${var.ProjectId}-events", "${var.ProjectId}-room-requests"]
   TableDeletionDays = tomap({
-    "${var.ProjectId}-audit-log" : 730,
+    "${var.ProjectId}-audit-log" : 1460,
     "${var.ProjectId}-room-requests" : 730
     # events are held forever as a cool historical archive - if no one reads them it shouldn't cost us much.
   })
