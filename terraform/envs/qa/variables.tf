@@ -32,3 +32,13 @@ variable "EmailDomain" {
   type    = string
   default = "aws.qa.acmuiuc.org"
 }
+
+variable "GeneralSNSAlertArn" {
+  type    = string
+  default = "arn:aws:sns:us-east-1:427040638965:infra-monitor-alerts"
+}
+
+variable "PrioritySNSAlertArn" {
+  type    = string
+  default = "arn:aws:sns:us-east-1:427040638965:infra-monitor-alerts"
+}

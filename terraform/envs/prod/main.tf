@@ -65,8 +65,29 @@ module "alarms" {
   resource_prefix                 = var.ProjectId
   main_cloudfront_distribution_id = module.frontend.main_cloudfront_distribution_id
   standard_sns_arn                = var.GeneralSNSAlertArn
-  all_lambdas                     = toset([module.lambdas.core_api_lambda_name, module.lambdas.core_api_slow_lambda_name, module.lambdas.core_sqs_consumer_lambda_name])
-  performance_noreq_lambdas       = toset([module.lambdas.core_api_lambda_name])
+  all_lambdas = toset([
+    module.lambdas.core_api_lambda_name,
+    module.lambdas.core_api_slow_lambda_name,
+    module.lambdas.core_sqs_consumer_lambda_name,
+    module.archival.dynamo_archival_lambda_name
+  ])
+  performance_noreq_lambdas = toset([module.lambdas.core_api_lambda_name])
+  archival_firehose_stream  = module.archival.firehose_stream_name
+}
+
+module "archival" {
+  depends_on       = [module.dynamo]
+  source           = "../../modules/archival"
+  ProjectId        = var.ProjectId
+  RunEnvironment   = "dev"
+  LogRetentionDays = var.LogRetentionDays
+  BucketPrefix     = local.bucket_prefix
+  MonitorTables    = ["${var.ProjectId}-audit-log", "${var.ProjectId}-events", "${var.ProjectId}-room-requests"]
+  TableDeletionDays = tomap({
+    "${var.ProjectId}-audit-log" : 1460,
+    "${var.ProjectId}-room-requests" : 730
+    # events are held forever as a cool historical archive - if no one reads them it shouldn't cost us much.
+  })
 }
 
 module "lambdas" {

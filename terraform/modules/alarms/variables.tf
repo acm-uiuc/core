@@ -27,3 +27,9 @@ variable "performance_noreq_lambdas" {
   description = "All Lambda functions to monitor for performance/no requests."
   type        = set(string)
 }
+
+
+variable "archival_firehose_stream" {
+  description = "Firehose stream to monitor for data archival job."
+  type        = string
+}
