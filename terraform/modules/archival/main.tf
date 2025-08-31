@@ -49,9 +49,39 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
     id     = "intelligent-tiering-transition"
     status = "Enabled"
 
+    filter {}
+
     transition {
       days          = 1
       storage_class = "INTELLIGENT_TIERING"
+    }
+  }
+
+  rule {
+    id     = "ExpireNoncurrentVersions"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = 5
+    }
+  }
+
+  dynamic "rule" {
+    for_each = var.TableDeletionDays
+
+    content {
+      id     = "expire-${rule.key}"
+      status = "Enabled"
+
+      filter {
+        prefix = "resource=${rule.key}/"
+      }
+
+      expiration {
+        days = rule.value
+      }
     }
   }
 }
