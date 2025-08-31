@@ -26,6 +26,6 @@ variable "MonitorTables" {
 }
 
 variable "TableDeletionDays" {
-  type        = map(string, number)
+  type        = map(number)
   description = "Number of days for a given day to hold onto the records once it is put into the bucket."
 }
