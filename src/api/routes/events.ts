@@ -407,15 +407,18 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             message: "Failed to update event in Dynamo table.",
           });
         }
-
-        const updatedEntryForDiscord = updatedItem as unknown as IUpdateDiscord;
+        oldAttributes = unmarshall(oldAttributes);
+        const updatedEntryForDiscord = {
+          ...updatedItem,
+          discordEventId: oldAttributes.discordEventId,
+        } as unknown as IUpdateDiscord;
 
         if (
           updatedEntryForDiscord.featured &&
           !updatedEntryForDiscord.repeats
         ) {
           try {
-            await updateDiscord(
+            const discordEventId = await updateDiscord(
               {
                 botToken: fastify.secretConfig.discord_bot_token,
                 guildId: fastify.environmentConfig.DiscordGuildId,
@@ -425,6 +428,22 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               false,
               request.log,
             );
+
+            if (discordEventId) {
+              await fastify.dynamoClient.send(
+                new UpdateItemCommand({
+                  TableName: genericConfig.EventsDynamoTableName,
+                  Key: { id: { S: entryUUID } },
+                  UpdateExpression: "SET #discordEventId = :discordEventId",
+                  ExpressionAttributeNames: {
+                    "#discordEventId": "discordEventId",
+                  },
+                  ExpressionAttributeValues: {
+                    ":discordEventId": { S: discordEventId },
+                  },
+                }),
+              );
+            }
           } catch (e) {
             await fastify.dynamoClient.send(
               new PutItemCommand({
@@ -527,7 +546,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         );
         try {
           if (request.body.featured && !request.body.repeats) {
-            await updateDiscord(
+            const discordEventId = await updateDiscord(
               {
                 botToken: fastify.secretConfig.discord_bot_token,
                 guildId: fastify.environmentConfig.DiscordGuildId,
@@ -537,6 +556,21 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               false,
               request.log,
             );
+            if (discordEventId) {
+              await fastify.dynamoClient.send(
+                new UpdateItemCommand({
+                  TableName: genericConfig.EventsDynamoTableName,
+                  Key: { id: { S: entryUUID } },
+                  UpdateExpression: "SET #discordEventId = :discordEventId",
+                  ExpressionAttributeNames: {
+                    "#discordEventId": "discordEventId",
+                  },
+                  ExpressionAttributeValues: {
+                    ":discordEventId": { S: discordEventId },
+                  },
+                }),
+              );
+            }
           }
         } catch (e: unknown) {
           // restore original DB status if Discord fails.
@@ -670,23 +704,27 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         throw new UnauthenticatedError({ message: "Username not found." });
       }
       try {
-        await fastify.dynamoClient.send(
+        const result = await fastify.dynamoClient.send(
           new DeleteItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
             Key: marshall({ id }),
+            ReturnValues: "ALL_OLD",
           }),
         );
+        if (result.Attributes) {
+          const unmarshalledResult = unmarshall(result.Attributes);
+          await updateDiscord(
+            {
+              botToken: fastify.secretConfig.discord_bot_token,
+              guildId: fastify.environmentConfig.DiscordGuildId,
+            },
+            unmarshalledResult as IUpdateDiscord,
+            request.username,
+            true,
+            request.log,
+          );
+        }
         await deleteCacheCounter(fastify.dynamoClient, `events-etag-${id}`);
-        await updateDiscord(
-          {
-            botToken: fastify.secretConfig.discord_bot_token,
-            guildId: fastify.environmentConfig.DiscordGuildId,
-          },
-          { id } as IUpdateDiscord,
-          request.username,
-          true,
-          request.log,
-        );
         reply.status(204).send();
         await createAuditLogEntry({
           dynamoClient: fastify.dynamoClient,
