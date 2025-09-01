@@ -1,5 +1,6 @@
 import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
 import {
+  DeleteItemCommand,
   DynamoDBClient,
   GetItemCommand,
   PutItemCommand,
@@ -271,6 +272,7 @@ describe("ETag Lifecycle Tests", () => {
 
     // Mock successful DynamoDB operations
     ddbMock.on(PutItemCommand).resolves({});
+    ddbMock.on(DeleteItemCommand).resolves({});
     ddbMock.on(ScanCommand).resolves({
       Items: [],
     });

@@ -194,6 +194,9 @@ export const ManageEventPage: React.FC = () => {
   }, [form.values.locationLink]);
 
   const handleSubmit = async () => {
+    if (isSubmitting) {
+      return;
+    }
     const result = form.validate();
     if (result.hasErrors) {
       console.warn(result.errors);
@@ -530,6 +533,7 @@ export const ManageEventPage: React.FC = () => {
 
           <Button
             mt="md"
+            disabled={isSubmitting}
             onClick={() => {
               handleSubmit();
             }}
