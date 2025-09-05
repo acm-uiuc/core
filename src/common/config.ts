@@ -107,6 +107,7 @@ const environmentConfig: EnvironmentConfigType = {
       "https://merch-pwa.pages.dev",
       "https://core.aws.qa.acmuiuc.org",
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
+      /^https:\/\/(?:.*\.)?acmuiuc-digital-signage\.pages\.dev$/,
       /http:\/\/localhost:\d+$/,
     ],
     ConfigurationSecretIds: [genericConfig.TestingCredentialsSecret, genericConfig.ConfigSecretName, genericConfig.UinHashingSecret],
@@ -130,6 +131,7 @@ const environmentConfig: EnvironmentConfigType = {
     ConfigurationSecretIds: [genericConfig.ConfigSecretName, genericConfig.UinHashingSecret],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
+      /^https:\/\/(?:.*\.)?acmuiuc-digital-signage\.pages\.dev$/,
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
       /^https?:\/\/([a-zA-Z0-9-]+\.)*acm\.illinois\.edu$/,
       /http:\/\/localhost:\d+$/,
