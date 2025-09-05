@@ -109,6 +109,7 @@ async function init(prettyPrint: boolean = false, initClients: boolean = true) {
   app.runEnvironment = process.env.RunEnvironment as RunEnvironment;
   app.environmentConfig =
     environmentConfig[app.runEnvironment as RunEnvironment];
+  console.log(app.environmentConfig.ValidCorsOrigins);
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 

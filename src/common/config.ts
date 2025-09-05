@@ -134,6 +134,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https:\/\/(?:.*\.)?acmuiuc-digital-signage\.pages\.dev$/,
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
       /^https?:\/\/([a-zA-Z0-9-]+\.)*acm\.illinois\.edu$/,
+      /^https?:\/\/([a-zA-Z0-9-]+\.)*acmuiuc\.org$/,
       /http:\/\/localhost:\d+$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
