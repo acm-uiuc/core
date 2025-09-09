@@ -106,6 +106,34 @@ test("Sad path: Prevent specifying repeatEnds on non-repeating events", async ()
   });
 });
 
+test("Sad path: Description is too long", async () => {
+  ddbMock.on(PutItemCommand).resolves({});
+  const testJwt = createJwt();
+  await app.ready();
+  const response = await supertest(app.server)
+    .post("/api/v1/events")
+    .set("authorization", `Bearer ${testJwt}`)
+    .send({
+      description: "a".repeat(260),
+      end: "2024-09-25T19:00:00",
+      featured: false,
+      host: "Social Committee",
+      location: "Illini Union",
+      start: "2024-09-25T18:00:00",
+      title: "Fall Semiformal",
+      repeats: "weekly",
+      paidEventId: "sp24_semiformal",
+    });
+
+  expect(response.statusCode).toBe(400);
+  expect(response.body).toStrictEqual({
+    error: true,
+    name: "ValidationError",
+    id: 104,
+    message: `body/description Too big: expected string to have <=250 characters`,
+  });
+});
+
 test("Sad path: Prevent specifying unknown repeat frequencies", async () => {
   ddbMock.on(PutItemCommand).resolves({});
   const testJwt = createJwt();

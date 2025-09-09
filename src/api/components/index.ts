@@ -1,7 +1,7 @@
 import { AppRoleHumanMapper, AppRoles } from "common/roles.js";
 import { FastifyZodOpenApiSchema } from "fastify-zod-openapi";
 import * as z from "zod/v4";
-import { CoreOrganizationList } from "@acm-uiuc/js-shared";
+import { AllOrganizationList } from "@acm-uiuc/js-shared";
 export {
   illinoisSemesterId as semesterId,
   illinoisNetId,
@@ -21,7 +21,7 @@ export const groupId = z.string().min(1).meta({
 });
 
 export const acmCoreOrganization = z
-  .enum(CoreOrganizationList as [string, ...string[]])
+  .enum(AllOrganizationList as [string, ...string[]])
   .meta({
     description: "ACM Organization",
     id: "AcmOrganization",

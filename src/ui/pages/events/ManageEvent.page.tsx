@@ -84,6 +84,7 @@ const requestBodySchema = baseBodySchema
   .extend({
     start: z.coerce.date(),
     end: z.coerce.date(),
+    description: z.string().min(1).max(250),
     repeats: z.optional(z.enum(repeatOptions)).nullable(),
     repeatEnds: z.coerce.date().optional(),
     repeatExcludes: z.array(z.coerce.date()).max(100).optional(),
@@ -370,6 +371,7 @@ export const ManageEventPage: React.FC = () => {
             label="Event Description"
             withAsterisk
             placeholder="Event description"
+            description="Maximum 250 characters - be concise!"
             {...form.getInputProps("description")}
           />
 
