@@ -1,4 +1,4 @@
-import { FastifyPluginAsync, FastifyRequest } from "fastify";
+import { FastifyPluginAsync } from "fastify";
 import { AppRoles } from "../../common/roles.js";
 import * as z from "zod/v4";
 import {
@@ -141,7 +141,7 @@ const baseSchema = z.object({
   }),
   host: acmCoreOrganization,
   featured: z.boolean().default(false).meta({
-    ref: "acmOrganizationList",
+    ref: "featuredEventBool",
     description:
       "Whether or not the event should be shown on the ACM @ UIUC website home page (and added to Discord, as available).",
   }),
@@ -159,12 +159,16 @@ const requestSchema = baseSchema.extend({
 });
 
 const postRequestSchema = requestSchema
+  .extend({
+    description: z.string().min(1).max(250),
+  })
   .refine((data) => (data.repeatEnds ? data.repeats !== undefined : true), {
     message: "repeats is required when repeatEnds is defined",
   })
   .refine((data) => (data.repeatExcludes ? data.repeats !== undefined : true), {
     message: "repeats is required when repeatExcludes is defined",
   });
+
 export type EventPostRequest = z.infer<typeof postRequestSchema>;
 
 const getEventSchema = requestSchema.extend({
