@@ -55,7 +55,7 @@ export type GenericConfigType = {
   TestingCredentialsSecret: string;
   UinHashingSecret: string;
   UinExtendedAttributeName: string;
-  UinHashTable: string;
+  UserInfoTable: string;
 };
 
 type EnvironmentConfigType = {
@@ -96,7 +96,7 @@ const genericConfig: GenericConfigType = {
   TestingCredentialsSecret: "infra-core-api-testing-credentials",
   UinHashingSecret: "infra-core-api-uin-pepper",
   UinExtendedAttributeName: "extension_a70c2e1556954056a6a8edfb1f42f556_uiucEduUIN",
-  UinHashTable: "infra-core-api-uin-mapping",
+  UserInfoTable: "infra-core-api-user-info"
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {

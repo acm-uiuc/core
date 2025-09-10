@@ -22,7 +22,7 @@ import {
   withRoles,
   withTags,
 } from "api/components/index.js";
-import { verifyUiucAccessToken, saveHashedUserUin } from "api/functions/uin.js";
+import { verifyUiucAccessToken, getHashedUserUin } from "api/functions/uin.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
 import { getEntraIdToken } from "api/functions/entraId.js";
 import { genericConfig, roleArns } from "common/config.js";
@@ -31,6 +31,7 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { BatchGetItemCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { AppRoles } from "common/roles.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { syncFullProfile } from "api/functions/sync.js";
 
 const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -115,11 +116,16 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
         request.log.debug("Saving user hashed UIN!");
-        const saveHashPromise = saveHashedUserUin({
+        const uinHash = await getHashedUserUin({
           uiucAccessToken: accessToken,
           pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
-          dynamoClient: fastify.dynamoClient,
+        });
+        const savePromise = syncFullProfile({
+          uinHash,
+          firstName: givenName,
+          lastName: surname,
           netId,
+          dynamoClient: fastify.dynamoClient,
         });
         let isPaidMember = await checkPaidMembershipFromRedis(
           netId,
@@ -132,7 +138,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             fastify.dynamoClient,
           );
         }
-        await saveHashPromise;
+        await savePromise;
         request.log.debug("Saved user hashed UIN!");
         if (isPaidMember) {
           throw new ValidationError({

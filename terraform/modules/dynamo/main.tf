@@ -1,3 +1,15 @@
+resource "null_resource" "onetime_uin_migration" {
+  depends_on = [aws_dynamodb_table.user_info]
+  provisioner "local-exec" {
+    command     = <<-EOT
+      set -e
+      python uinHash-migration.py
+    EOT
+    interpreter = ["bash", "-c"]
+    working_dir = "${path.module}/../../../onetime/"
+  }
+}
+
 resource "aws_dynamodb_table" "app_audit_log" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-audit-log"
@@ -190,6 +202,28 @@ resource "aws_dynamodb_table" "iam_user_roles" {
   }
 }
 
+resource "aws_dynamodb_table" "user_info" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-user-info"
+  deletion_protection_enabled = true
+  hash_key                    = "id"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "id"
+    type = "S"
+  }
+  attribute {
+    name = "uinHash"
+    type = "S"
+  }
+  global_secondary_index {
+    name            = "UinHashIndex"
+    hash_key        = "uinHash"
+    projection_type = "KEYS_ONLY"
+  }
+}
 
 resource "aws_dynamodb_table" "events" {
   billing_mode                = "PAY_PER_REQUEST"
@@ -298,7 +332,7 @@ resource "aws_dynamodb_table" "cache" {
 resource "aws_dynamodb_table" "app_uin_records" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-uin-mapping"
-  deletion_protection_enabled = true
+  deletion_protection_enabled = false
   hash_key                    = "uinHash"
   point_in_time_recovery {
     enabled = true
