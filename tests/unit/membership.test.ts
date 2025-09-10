@@ -4,6 +4,7 @@ import { EventGetResponse } from "../../src/api/routes/events.js";
 import { afterEach, describe } from "node:test";
 import { setPaidMembershipInTable } from "../../src/api/functions/membership.js";
 import {
+  BatchGetItemCommand,
   BatchWriteItemCommand,
   DynamoDBClient,
   QueryCommand,
@@ -303,6 +304,32 @@ describe("Test membership routes", async () => {
       },
     });
     expect(response.statusCode).toBe(201);
+  });
+  test("Test getting members/non-members in batch.", async () => {
+    ddbMock.on(BatchGetItemCommand).resolvesOnce({
+      Responses: {
+        [genericConfig.MembershipTableName]: [
+          marshall({
+            email: "valid@illinois.edu",
+          }),
+        ],
+      },
+    });
+    const testJwt = createJwt();
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v2/membership/verifyBatchOfMembers",
+      headers: {
+        authorization: `Bearer ${testJwt}`,
+      },
+      body: ["valid", "invalid"],
+    });
+    expect(response.statusCode).toBe(200);
+    const responseDataJson = (await response.json()) as EventGetResponse;
+    expect(responseDataJson).toEqual({
+      members: ["valid"],
+      notMembers: ["invalid"],
+    });
   });
   afterEach(async () => {
     ddbMock.reset();
