@@ -9,24 +9,16 @@ describe("Internal Membership tests", () => {
     await becomeUser(page);
     await page.locator("a").filter({ hasText: "Membership Lists" }).click();
     await page
-      .getByRole("textbox", { name: "NetID", exact: true })
-      .fill("dsingh14");
-    await page
-      .getByRole("button", { name: "Query Membership", exact: true })
+      .getByRole("textbox", { name: "Enter NetIDs or Illinois" })
       .click();
-    await expect(page.getByText("dsingh14 is a paid member.")).toBeVisible();
-    await page.getByRole("textbox", { name: "NetID", exact: true }).fill("z");
     await page
-      .getByRole("button", { name: "Query Membership", exact: true })
-      .click();
-    await expect(page.getByText("z is not a paid member.")).toBeVisible();
-    await page
-      .getByRole("textbox", { name: "NetID", exact: true })
-      .fill("rjjones");
-    await page
-      .getByRole("button", { name: "Query Membership", exact: true })
-      .click();
-    await expect(page.getByText("rjjones is not a paid member.")).toBeVisible();
+      .getByRole("textbox", { name: "Enter NetIDs or Illinois" })
+      .fill("dsingh14;invalid");
+    await page.getByRole("button", { name: "Query Memberships" }).click();
+    await expect(page.locator("#root")).toContainText("Paid Members (1)");
+    await expect(page.locator("#root")).toContainText("Not Paid Members (1)");
+    await expect(page.locator("#root")).toContainText("dsingh14");
+    await expect(page.locator("#root")).toContainText("invalid");
   });
 });
 

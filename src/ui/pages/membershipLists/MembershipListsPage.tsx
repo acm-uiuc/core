@@ -1,20 +1,8 @@
 import { useState, useEffect } from "react";
-import {
-  Title,
-  Stack,
-  LoadingOverlay,
-  Container,
-  Grid, // Import Grid
-} from "@mantine/core";
+import { Title, Stack, Container, Grid } from "@mantine/core";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
-import {
-  EntraActionResponse,
-  GroupMemberGetResponse,
-  GroupGetResponse,
-} from "@common/types/iam";
-import { transformCommaSeperatedName } from "@common/utils";
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle } from "@tabler/icons-react";
 import ExternalMemberListManagement from "./ExternalMemberListManagement";
@@ -48,20 +36,17 @@ export const ManageExternalMembershipPage = () => {
     fetchLists();
   }, [api]);
 
-  const queryInternalMembership = async (netId: string) => {
+  const queryInternalMembership = async (netIds: string[]) => {
     try {
-      const result = await api.get<{ netId: string; isPaidMember: boolean }>(
-        `/api/v2/membership/${netId}`,
-      );
-      return result.data.isPaidMember;
+      const result = await api.post<{
+        members: string[];
+        notMembers: string[];
+      }>(`/api/v2/membership/verifyBatchOfMembers`, netIds);
+      return result.data;
     } catch (error: any) {
-      if (error instanceof AxiosError && error.status === 400) {
-        // Invalid NetID.
-        return false;
-      }
       console.error("Failed to check internal membership:", error);
       notifications.show({
-        title: "Failed to get query membership list.",
+        title: "Failed to query membership list.",
         message: "Please try again or contact support.",
         color: "red",
         icon: <IconAlertCircle size={16} />,
@@ -129,7 +114,7 @@ export const ManageExternalMembershipPage = () => {
             <Stack>
               <Title order={2}>Query ACM Paid Membership List</Title>
               <InternalMembershipQuery
-                queryInternalMembership={queryInternalMembership}
+                queryFunction={queryInternalMembership}
               />
             </Stack>
           </AuthGuard>

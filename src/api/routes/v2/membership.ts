@@ -28,8 +28,9 @@ import { getEntraIdToken } from "api/functions/entraId.js";
 import { genericConfig, roleArns } from "common/config.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { BatchGetItemCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { AppRoles } from "common/roles.js";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
 const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -160,6 +161,213 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
         );
       },
     );
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+      "/verifyBatchOfMembers",
+      {
+        schema: withRoles(
+          [
+            AppRoles.VIEW_INTERNAL_MEMBERSHIP_LIST,
+            AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST,
+          ],
+          withTags(["Membership"], {
+            body: z.array(illinoisNetId).nonempty().max(500),
+            querystring: z.object({
+              list: z.string().min(1).optional().meta({
+                example: "built",
+                description:
+                  "Membership list to check from (defaults to ACM Paid Member list).",
+              }),
+            }),
+            summary:
+              "Check a batch of NetIDs for ACM @ UIUC paid membership (or partner organization membership) status.",
+            response: {
+              200: {
+                description: "List membership status.",
+                content: {
+                  "application/json": {
+                    schema: z
+                      .object({
+                        members: z.array(illinoisNetId),
+                        notMembers: z.array(illinoisNetId),
+                        list: z.optional(z.string().min(1)),
+                      })
+                      .meta({
+                        example: {
+                          members: ["rjjones"],
+                          notMembers: ["isbell"],
+                          list: "built",
+                        },
+                      }),
+                  },
+                },
+              },
+            },
+          }),
+        ),
+        onRequest: async (request, reply) => {
+          await fastify.authorizeFromSchema(request, reply);
+          if (!request.userRoles) {
+            throw new InternalServerError({});
+          }
+          const list = request.query.list || "acmpaid";
+          if (
+            list === "acmpaid" &&
+            !request.userRoles.has(AppRoles.VIEW_INTERNAL_MEMBERSHIP_LIST)
+          ) {
+            throw new UnauthorizedError({});
+          }
+          if (
+            list !== "acmpaid" &&
+            !request.userRoles.has(AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST)
+          ) {
+            throw new UnauthorizedError({});
+          }
+        },
+      },
+      async (request, reply) => {
+        const list = request.query.list || "acmpaid";
+        let netIdsToCheck = [
+          ...new Set(request.body.map((id) => id.toLowerCase())),
+        ];
+
+        const members = new Set<string>();
+        const notMembers = new Set<string>();
+
+        const cacheKeys = netIdsToCheck.map((id) => `membership:${id}:${list}`);
+        if (cacheKeys.length > 0) {
+          const cachedResults = await fastify.redisClient.mget(cacheKeys);
+          const remainingNetIds: string[] = [];
+          cachedResults.forEach((result, index) => {
+            const netId = netIdsToCheck[index];
+            if (result) {
+              const { isMember } = JSON.parse(result) as { isMember: boolean };
+              if (isMember) {
+                members.add(netId);
+              } else {
+                notMembers.add(netId);
+              }
+            } else {
+              remainingNetIds.push(netId);
+            }
+          });
+          netIdsToCheck = remainingNetIds;
+        }
+
+        if (netIdsToCheck.length === 0) {
+          return reply.send({
+            members: [...members].sort(),
+            notMembers: [...notMembers].sort(),
+            list: list === "acmpaid" ? undefined : list,
+          });
+        }
+
+        const cachePipeline = fastify.redisClient.pipeline();
+
+        if (list !== "acmpaid") {
+          // can't do batch get on an index.
+          const checkPromises = netIdsToCheck.map(async (netId) => {
+            const isMember = await checkExternalMembership(
+              netId,
+              list,
+              fastify.dynamoClient,
+            );
+            if (isMember) {
+              members.add(netId);
+            } else {
+              notMembers.add(netId);
+            }
+            cachePipeline.set(
+              `membership:${netId}:${list}`,
+              JSON.stringify({ isMember }),
+              "EX",
+              MEMBER_CACHE_SECONDS,
+            );
+          });
+          await Promise.all(checkPromises);
+        } else {
+          const BATCH_SIZE = 100;
+          const foundInDynamo = new Set<string>();
+          for (let i = 0; i < netIdsToCheck.length; i += BATCH_SIZE) {
+            const batch = netIdsToCheck.slice(i, i + BATCH_SIZE);
+            const command = new BatchGetItemCommand({
+              RequestItems: {
+                [genericConfig.MembershipTableName]: {
+                  Keys: batch.map((netId) =>
+                    marshall({ email: `${netId}@illinois.edu` }),
+                  ),
+                },
+              },
+            });
+            const { Responses } = await fastify.dynamoClient.send(command);
+            const items = Responses?.[genericConfig.MembershipTableName] ?? [];
+            for (const item of items) {
+              const { email } = unmarshall(item);
+              const netId = email.split("@")[0];
+              members.add(netId);
+              foundInDynamo.add(netId);
+              cachePipeline.set(
+                `membership:${netId}:${list}`,
+                JSON.stringify({ isMember: true }),
+                "EX",
+                MEMBER_CACHE_SECONDS,
+              );
+            }
+          }
+
+          // 3. Fallback to Entra ID for remaining paid members
+          const netIdsForEntra = netIdsToCheck.filter(
+            (id) => !foundInDynamo.has(id),
+          );
+          if (netIdsForEntra.length > 0) {
+            const entraIdToken = await getEntraIdToken({
+              clients: await getAuthorizedClients(),
+              clientId: fastify.environmentConfig.AadValidClientId,
+              secretName: genericConfig.EntraSecretName,
+              logger: request.log,
+            });
+            const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
+            const entraCheckPromises = netIdsForEntra.map(async (netId) => {
+              const isMember = await checkPaidMembershipFromEntra(
+                netId,
+                entraIdToken,
+                paidMemberGroup,
+              );
+              if (isMember) {
+                members.add(netId);
+                // Fire-and-forget writeback to DynamoDB to warm it up
+                setPaidMembershipInTable(netId, fastify.dynamoClient).catch(
+                  (err) =>
+                    request.log.error(
+                      err,
+                      `Failed to write back Entra membership for ${netId}`,
+                    ),
+                );
+              } else {
+                notMembers.add(netId);
+              }
+              cachePipeline.set(
+                `membership:${netId}:${list}`,
+                JSON.stringify({ isMember }),
+                "EX",
+                MEMBER_CACHE_SECONDS,
+              );
+            });
+            await Promise.all(entraCheckPromises);
+          }
+        }
+
+        if (cachePipeline.length > 0) {
+          await cachePipeline.exec();
+        }
+
+        return reply.send({
+          members: [...members].sort(),
+          notMembers: [...notMembers].sort(),
+          list: list === "acmpaid" ? undefined : list,
+        });
+      },
+    );
+
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
       "/:netId",
       {
