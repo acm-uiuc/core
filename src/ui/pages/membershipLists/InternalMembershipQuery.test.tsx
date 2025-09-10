@@ -1,78 +1,101 @@
 import React from "react";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { MantineProvider } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
-import InternalMembershipQuery from "./InternalMembershipQuery";
-import { Modules, ModulesToHumanName } from "@common/modules";
-import { MemoryRouter } from "react-router-dom";
+import { MembershipListQuery } from "./InternalMembershipQuery";
 
-describe("InternalMembershipQuery Tests", () => {
-  const validNetIds = ["rjjones", "test2"];
-  const queryInternalMembershipMock = vi
+// Mock the useClipboard hook from @mantine/hooks
+vi.mock("@mantine/hooks", async (importOriginal) => {
+  const originalModule =
+    await importOriginal<typeof import("@mantine/hooks")>();
+  return {
+    ...originalModule,
+    useClipboard: vi.fn(() => ({
+      copy: vi.fn(),
+      copied: false,
+    })),
+  };
+});
+
+// Mock implementation for the clipboard API
+Object.assign(navigator, {
+  clipboard: {
+    writeText: vi.fn().mockResolvedValue(undefined),
+  },
+});
+
+describe("MembershipListQuery Tests", () => {
+  const queryFunctionMock = vi
     .fn()
-    .mockImplementation((netId) => validNetIds.includes(netId));
-  const renderComponent = async () => {
-    await act(async () => {
-      render(
-        <MemoryRouter>
-          <MantineProvider
-            withGlobalClasses
-            withCssVariables
-            forceColorScheme="light"
-          >
-            <InternalMembershipQuery
-              queryInternalMembership={queryInternalMembershipMock}
-            />
-          </MantineProvider>
-        </MemoryRouter>,
-      );
+    .mockImplementation(async (netIds: string[]) => {
+      const validNetIds = ["rjjones", "test2"];
+      const members = netIds.filter((id) => validNetIds.includes(id));
+      const nonMembers = netIds.filter((id) => !validNetIds.includes(id));
+      return { members, nonMembers };
     });
+
+  const renderComponent = () => {
+    render(
+      <MantineProvider>
+        <MembershipListQuery queryFunction={queryFunctionMock} />
+      </MantineProvider>,
+    );
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset notification spy
-    vi.spyOn(notifications, "show");
   });
 
-  it("renders the component correctly", async () => {
-    await renderComponent();
-
-    expect(screen.getByText("NetID")).toBeInTheDocument();
+  it("renders the component correctly", () => {
+    renderComponent();
     expect(
-      screen.getByRole("button", { name: /Query Membership/i }),
+      screen.getByLabelText(/Enter NetIDs or Illinois Emails/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Query Memberships/i }),
     ).toBeInTheDocument();
   });
 
-  it("disables query button when no NetID is provided", async () => {
-    await renderComponent();
+  it("disables the query button when the input is empty", () => {
+    renderComponent();
     expect(
-      screen.getByRole("button", { name: /Query Membership/i }),
+      screen.getByRole("button", { name: /Query Memberships/i }),
     ).toBeDisabled();
-    expect(queryInternalMembershipMock).not.toHaveBeenCalled();
   });
-  it("correctly renders members", async () => {
-    await renderComponent();
+
+  it("enables the query button when input is provided", async () => {
+    renderComponent();
     const user = userEvent.setup();
-    const textbox = screen.getByRole("textbox", { name: /NetID/i });
-    await user.type(textbox, "rjjones");
-    await user.click(screen.getByRole("button", { name: /Query Membership/i }));
-    expect(queryInternalMembershipMock).toHaveBeenCalledExactlyOnceWith(
+    const textarea = screen.getByLabelText(/Enter NetIDs or Illinois Emails/i);
+    await user.type(textarea, "test");
+    expect(
+      screen.getByRole("button", { name: /Query Memberships/i }),
+    ).toBeEnabled();
+  });
+
+  it("correctly processes input and displays members and non-members", async () => {
+    renderComponent();
+    const user = userEvent.setup();
+    const textarea = screen.getByLabelText(/Enter NetIDs or Illinois Emails/i);
+    const queryButton = screen.getByRole("button", {
+      name: /Query Memberships/i,
+    });
+    const inputText = "rjjones, invalid, TEST2@illinois.edu, rjjones";
+
+    await user.type(textarea, inputText);
+    await user.click(queryButton);
+
+    expect(queryFunctionMock).toHaveBeenCalledTimes(1);
+    expect(queryFunctionMock).toHaveBeenCalledWith([
       "rjjones",
-    );
-    expect(screen.getByText("is a paid member.")).toBeVisible();
-  });
-  it("correctly renders non-members", async () => {
-    await renderComponent();
-    const user = userEvent.setup();
-    const textbox = screen.getByRole("textbox", { name: /NetID/i });
-    await user.type(textbox, "invalid");
-    await user.click(screen.getByRole("button", { name: /Query Membership/i }));
-    expect(queryInternalMembershipMock).toHaveBeenCalledExactlyOnceWith(
       "invalid",
-    );
-    expect(screen.getByText("is not a paid member.")).toBeVisible();
+      "test2",
+    ]);
+
+    expect(await screen.findByText(/Paid Members \(2\)/i)).toBeVisible();
+
+    expect(screen.getByText("rjjones")).toBeVisible();
+    expect(screen.getByText("test2")).toBeVisible();
   });
 });
