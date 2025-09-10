@@ -178,6 +178,7 @@ export async function saveHashedUserUin({
       },
       ExpressionAttributeValues: {
         ":uinHash": { S: uinHash },
+        ":netId": { S: netId },
         ":updatedAt": { S: new Date().toISOString() },
       },
     }),

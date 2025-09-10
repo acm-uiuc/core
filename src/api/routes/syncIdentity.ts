@@ -8,7 +8,7 @@ import rateLimiter from "api/plugins/rateLimiter.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import { notAuthenticatedError, withTags } from "api/components/index.js";
-import { verifyUiucAccessToken, saveHashedUserUin } from "api/functions/uin.js";
+import { verifyUiucAccessToken, getHashedUserUin } from "api/functions/uin.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { genericConfig, roleArns } from "common/config.js";
@@ -18,6 +18,7 @@ import {
   patchUserProfile,
   resolveEmailToOid,
 } from "api/functions/entraId.js";
+import { syncFullProfile } from "api/functions/sync.js";
 
 const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -98,11 +99,16 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
             message: "ID token could not be parsed.",
           });
         }
-        await saveHashedUserUin({
+        const uinHash = await getHashedUserUin({
           uiucAccessToken: accessToken,
           pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
-          dynamoClient: fastify.dynamoClient,
+        });
+        await syncFullProfile({
+          uinHash,
+          firstName: givenName,
+          lastName: surname,
           netId,
+          dynamoClient: fastify.dynamoClient,
         });
         let isPaidMember = await checkPaidMembershipFromRedis(
           netId,

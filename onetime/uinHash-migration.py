@@ -48,8 +48,8 @@ def migrate_uin_hashes():
 
                 # Construct the primary key and update parameters for the destination table
                 destination_pk_id = f"{net_id}{DESTINATION_ID_SUFFIX}"
-                update_expression = "SET uinHash = :uh"
-                expression_attribute_values = {":uh": uin_hash}
+                update_expression = "SET uinHash = :uh, netId = :ne"
+                expression_attribute_values = {":uh": uin_hash, ":ne": net_id}
 
                 # Update the item in the destination DynamoDB table
                 try:
