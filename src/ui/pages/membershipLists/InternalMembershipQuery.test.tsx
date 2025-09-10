@@ -81,7 +81,8 @@ describe("MembershipListQuery Tests", () => {
     const queryButton = screen.getByRole("button", {
       name: /Query Memberships/i,
     });
-    const inputText = "rjjones, invalid, TEST2@illinois.edu, rjjones";
+    const inputText =
+      "rjjones, invalid, TEST2@illinois.edu, rjjones, someone@gmail.com";
 
     await user.type(textarea, inputText);
     await user.click(queryButton);
@@ -94,8 +95,7 @@ describe("MembershipListQuery Tests", () => {
     ]);
 
     expect(await screen.findByText(/Paid Members \(2\)/i)).toBeVisible();
-
-    expect(screen.getByText("rjjones")).toBeVisible();
-    expect(screen.getByText("test2")).toBeVisible();
+    expect(await screen.findByText(/Not Paid Members \(1\)/i)).toBeVisible();
+    expect(await screen.findByText(/Invalid Entries \(1\)/i)).toBeVisible();
   });
 });
