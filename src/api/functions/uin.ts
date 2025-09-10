@@ -1,4 +1,8 @@
-import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBClient,
+  PutItemCommand,
+  UpdateItemCommand,
+} from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { argon2id, hash } from "argon2";
 import { genericConfig } from "common/config.js";
@@ -160,13 +164,23 @@ export async function saveHashedUserUin({
 }: SaveHashedUserUin) {
   const uinHash = await getHashedUserUin({ uiucAccessToken, pepper });
   await dynamoClient.send(
-    new PutItemCommand({
-      TableName: genericConfig.UinHashTable,
-      Item: marshall({
-        uinHash,
-        netId,
-        updatedAt: new Date().toISOString(),
-      }),
+    new UpdateItemCommand({
+      TableName: genericConfig.UserInfoTable,
+      Key: {
+        id: { S: `${netId}@illinois.edu` },
+      },
+      UpdateExpression:
+        "SET #uinHash = :uinHash, #netId = :netId, #updatedAt = :updatedAt",
+      ExpressionAttributeNames: {
+        "#uinHash": "uinHash",
+        "#netId": "netId",
+        "#updatedAt": "updatedAt",
+      },
+      ExpressionAttributeValues: {
+        ":uinHash": { S: uinHash },
+        ":netId": { S: netId },
+        ":updatedAt": { S: new Date().toISOString() },
+      },
     }),
   );
 }

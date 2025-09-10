@@ -268,16 +268,17 @@ resource "aws_iam_policy" "shared_iam_policy" {
         ]
       },
       {
-        Sid    = "DynamoDBUINAccess",
+        Sid    = "DynamoDBUserInfoAccess",
         Effect = "Allow",
         Action = [
           "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
           "dynamodb:DescribeTable",
           "dynamodb:Query",
         ],
         Resource = [
-          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-uin-mapping",
-          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-uin-mapping/index/*",
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-user-info",
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-user-info/index/*",
         ]
       },
       {
