@@ -9,6 +9,7 @@ import {
   Code,
   ActionIcon,
   Tooltip,
+  Collapse,
 } from "@mantine/core";
 import { useClipboard } from "@mantine/hooks";
 import {
@@ -17,12 +18,16 @@ import {
   IconCopy,
   IconCheck,
   IconMail,
+  IconAlertTriangle,
+  IconChevronDown,
+  IconChevronUp,
 } from "@tabler/icons-react";
+import { illinoisNetId } from "@common/types/generic";
 
 interface ResultSectionProps {
   title: string;
   items: string[];
-  color: "green" | "red";
+  color: "green" | "red" | "yellow";
   icon: React.ReactNode;
   domain?: string;
 }
@@ -34,6 +39,7 @@ const ResultSection = ({
   icon,
   domain,
 }: ResultSectionProps) => {
+  const [isOpen, setIsOpen] = useState(false);
   const clipboardIds = useClipboard({ timeout: 1000 });
   const clipboardEmails = useClipboard({ timeout: 1000 });
 
@@ -56,6 +62,18 @@ const ResultSection = ({
     >
       <Group justify="space-between" mb="xs">
         <Group gap="xs">
+          <ActionIcon
+            variant="transparent"
+            color="white"
+            onClick={() => setIsOpen((o) => !o)}
+            aria-label={isOpen ? "Collapse section" : "Expand section"}
+          >
+            {isOpen ? (
+              <IconChevronUp size={20} />
+            ) : (
+              <IconChevronDown size={20} />
+            )}
+          </ActionIcon>
           {icon}
           <Title order={5} c="white">
             {title} ({items.length})
@@ -92,22 +110,24 @@ const ResultSection = ({
           )}
         </Group>
       </Group>
-      <Box>
-        {items.map((item) => (
-          <Code
-            key={item}
-            mr={5}
-            mb={5}
-            style={{
-              display: "inline-block",
-              color: "white",
-              backgroundColor: "rgba(0, 0, 0, 0.25)",
-            }}
-          >
-            {item}
-          </Code>
-        ))}
-      </Box>
+      <Collapse in={isOpen}>
+        <Box pt="xs" pl="xl">
+          {items.map((item, index) => (
+            <Code
+              key={`${item}-${index}`}
+              mr={5}
+              mb={5}
+              style={{
+                display: "inline-block",
+                color: "white",
+                backgroundColor: "rgba(0, 0, 0, 0.25)",
+              }}
+            >
+              {item}
+            </Code>
+          ))}
+        </Box>
+      </Collapse>
     </Box>
   );
 };
@@ -117,7 +137,6 @@ interface MembershipListQueryProps {
     members: string[];
     notMembers: string[];
   }>;
-
   domain?: string;
   inputLabel?: string;
   inputDescription?: string;
@@ -139,33 +158,93 @@ export const MembershipListQuery = ({
     members: string[];
     notMembers: string[];
   } | null>(null);
+  const [invalidEntries, setInvalidEntries] = useState<string[]>([]);
 
   const handleQuery = async () => {
-    // Input processing logic remains the same
-    const domainRegex = domain ? new RegExp(`@${domain}$`, "i") : null;
-    const processedItems = input
-      .split(/[;,\s\n]+/)
-      .map((item) => {
-        let cleanItem = item.trim().toLowerCase();
-        if (domainRegex) {
-          cleanItem = cleanItem.replace(domainRegex, "");
-        }
-        return cleanItem;
-      })
-      .filter(Boolean);
+    setIsLoading(true);
+    setResult(null);
+    setInvalidEntries([]);
 
-    const uniqueItems = [...new Set(processedItems)];
-    if (uniqueItems.length === 0) {
+    const rawItems = input.split(/[;,\s\n]+/).filter(Boolean);
+    const validItemsForQuery = new Set<string>();
+
+    const allProcessedItems = rawItems.map((item) => {
+      const trimmedItem = item.trim();
+      let potentialNetId = trimmedItem.toLowerCase();
+      let isValid = false;
+      let cleanedNetId = "";
+
+      if (potentialNetId.includes("@")) {
+        if (domain && potentialNetId.endsWith(`@${domain}`)) {
+          potentialNetId = potentialNetId.replace(`@${domain}`, "");
+          if (illinoisNetId.safeParse(potentialNetId).success) {
+            isValid = true;
+            cleanedNetId = potentialNetId;
+          }
+        }
+      } else if (illinoisNetId.safeParse(potentialNetId).success) {
+        isValid = true;
+        cleanedNetId = potentialNetId;
+      }
+
+      if (isValid) {
+        validItemsForQuery.add(cleanedNetId);
+      }
+
+      return {
+        original: trimmedItem,
+        isValid,
+        cleaned: cleanedNetId,
+      };
+    });
+
+    if (validItemsForQuery.size === 0) {
+      const invalidItems = allProcessedItems
+        .filter((p) => !p.isValid)
+        .map((p) => p.original);
+      setInvalidEntries(
+        invalidItems.filter(
+          (item, index) => invalidItems.indexOf(item) === index,
+        ),
+      );
+      setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
-    setResult(null);
-
     try {
-      const queryResult = await queryFunction(uniqueItems);
+      const queryResult = await queryFunction([...validItemsForQuery]);
+      const memberSet = new Set(queryResult.members);
+      const orderedMembers: string[] = [];
+      const orderedNotMembers: string[] = [];
+      const orderedInvalid: string[] = [];
 
-      setResult(queryResult);
+      allProcessedItems.forEach((item) => {
+        if (!item.isValid) {
+          orderedInvalid.push(item.original);
+        } else if (memberSet.has(item.cleaned)) {
+          orderedMembers.push(item.cleaned);
+        } else {
+          orderedNotMembers.push(item.cleaned);
+        }
+      });
+
+      // --- THIS IS THE CORRECTED DEDUPLICATION LOGIC ---
+      // For each list, keep only the first occurrence of each item.
+      const uniqueMembers = orderedMembers.filter(
+        (item, index) => orderedMembers.indexOf(item) === index,
+      );
+      const uniqueNotMembers = orderedNotMembers.filter(
+        (item, index) => orderedNotMembers.indexOf(item) === index,
+      );
+      const uniqueInvalid = orderedInvalid.filter(
+        (item, index) => orderedInvalid.indexOf(item) === index,
+      );
+
+      setResult({
+        members: uniqueMembers,
+        notMembers: uniqueNotMembers,
+      });
+      setInvalidEntries(uniqueInvalid);
     } catch (error) {
       console.error("An error occurred during the query:", error);
     } finally {
@@ -193,30 +272,46 @@ export const MembershipListQuery = ({
         {ctaText}
       </Button>
 
-      {result && (
-        <Stack gap="md" mt="sm">
+      <Stack gap="md" mt="sm">
+        {result && (
+          <>
+            <ResultSection
+              title="Paid Members"
+              items={result.members}
+              color="green"
+              icon={
+                <IconCircleCheck
+                  style={{ color: "var(--mantine-color-white)" }}
+                />
+              }
+              domain={domain}
+            />
+            {/* --- THIS LINE IS NOW FIXED --- */}
+            <ResultSection
+              title="Not Paid Members"
+              items={result.notMembers}
+              color="red"
+              icon={
+                <IconCircleX style={{ color: "var(--mantine-color-white)" }} />
+              }
+              domain={domain}
+            />
+          </>
+        )}
+
+        {invalidEntries.length > 0 && (
           <ResultSection
-            title="Paid Members"
-            items={result.members}
-            color="green"
+            title="Invalid Entries"
+            items={invalidEntries}
+            color="yellow"
             icon={
-              <IconCircleCheck
+              <IconAlertTriangle
                 style={{ color: "var(--mantine-color-white)" }}
               />
             }
-            domain={domain}
           />
-          <ResultSection
-            title="Not Paid Members"
-            items={result.notMembers}
-            color="red"
-            icon={
-              <IconCircleX style={{ color: "var(--mantine-color-white)" }} />
-            }
-            domain={domain}
-          />
-        </Stack>
-      )}
+        )}
+      </Stack>
     </Stack>
   );
 };
