@@ -120,7 +120,7 @@ const environmentConfig: EnvironmentConfigType = {
     SqsQueueUrl:
       "https://sqs.us-east-1.amazonaws.com/427040638965/infra-core-api-sqs",
     PaidMemberGroupId: "9222451f-b354-4e64-ba28-c0f367a277c2",
-    PaidMemberPriceId: "price_1R4TcTDGHrJxx3mKI6XF9cNG",
+    PaidMemberPriceId: "price_1S5eAqDGHrJxx3mKZYGoulj3",
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
     LinkryCloudfrontKvArn: "arn:aws:cloudfront::427040638965:key-value-store/0c2c02fd-7c47-4029-975d-bc5d0376bba1",
     DiscordGuildId: "1278798685706391664",
