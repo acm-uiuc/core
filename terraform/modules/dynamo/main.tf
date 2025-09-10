@@ -190,6 +190,28 @@ resource "aws_dynamodb_table" "iam_user_roles" {
   }
 }
 
+resource "aws_dynamodb_table" "user_info" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-user-info"
+  deletion_protection_enabled = true
+  hash_key                    = "id"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "id"
+    type = "S"
+  }
+  attribute {
+    name = "uinHash"
+    type = "S"
+  }
+  global_secondary_index {
+    name            = "UinHashIndex"
+    hash_key        = "uinHash"
+    projection_type = "KEYS_ONLY"
+  }
+}
 
 resource "aws_dynamodb_table" "events" {
   billing_mode                = "PAY_PER_REQUEST"
