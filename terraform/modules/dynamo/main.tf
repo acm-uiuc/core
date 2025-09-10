@@ -1,4 +1,5 @@
-resource "null_resource" "onetime_sl_expiration" {
+resource "null_resource" "onetime_uin_migration" {
+  depends_on = [aws_dynamodb_table.user_info]
   provisioner "local-exec" {
     command     = <<-EOT
       set -e
