@@ -79,7 +79,8 @@ export const entraProfilePatchRequest = z.object({
   displayName: z.string().min(1),
   givenName: z.string().min(1),
   surname: z.string().min(1),
-  mail: z.email()
+  mail: z.email(),
+  discordUsername: z.optional(z.string().min(1))
 });
 
 export type ProfilePatchRequest = z.infer<typeof entraProfilePatchRequest>;

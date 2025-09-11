@@ -17,8 +17,13 @@ import {
   EntraInvitationError,
   InternalServerError,
   NotFoundError,
+  ValidationError,
 } from "../../common/errors/index.js";
-import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBClient,
+  PutItemCommand,
+  UpdateItemCommand,
+} from "@aws-sdk/client-dynamodb";
 import {
   GENERIC_CACHE_SECONDS,
   genericConfig,
@@ -96,6 +101,15 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not find token payload and/or username.",
         });
       }
+      const netId = request.username.replace("@illinois.edu", "");
+      if (netId.includes("@")) {
+        request.log.error(
+          `Found username ${request.username} which cannot be turned into NetID via simple replacement.`,
+        );
+        throw new ValidationError({
+          message: "Username could not be parsed.",
+        });
+      }
       const userOid = request.tokenPayload.oid;
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
@@ -103,12 +117,43 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
-      await patchUserProfile(
+      const { discordUsername } = request.body;
+      const ddbUpdateCommand = fastify.dynamoClient.send(
+        new UpdateItemCommand({
+          TableName: genericConfig.UserInfoTable,
+          Key: {
+            id: {
+              S: request.username,
+            },
+          },
+          UpdateExpression: `SET #netId = :netId, #updatedAt = :updatedAt, #firstName = :firstName, #lastName = :lastName ${discordUsername ? ", #discordUsername = :discordUsername" : ""}`,
+          ExpressionAttributeNames: {
+            "#netId": "netId",
+            "#updatedAt": "updatedAt",
+            "#firstName": "firstName",
+            "#lastName": "lastName",
+            ...(discordUsername
+              ? { "#discordUsername": "discordUsername" }
+              : {}),
+          },
+          ExpressionAttributeValues: {
+            ":netId": { S: netId },
+            ":firstName": { S: request.body.givenName },
+            ":lastName": { S: request.body.surname },
+            ":updatedAt": { S: new Date().toISOString() },
+            ...(discordUsername
+              ? { ":discordUsername": { S: discordUsername } }
+              : {}),
+          },
+        }),
+      );
+      const entraUpdateCommand = patchUserProfile(
         entraIdToken,
         request.username,
         userOid,
         request.body,
       );
+      await Promise.all([ddbUpdateCommand, entraUpdateCommand]);
       reply.status(201).send();
     },
   );
@@ -170,7 +215,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
         const groupMembers = listGroupMembers(entraIdToken, groupId);
         const command = new PutItemCommand({
-          TableName: `${genericConfig.IAMTablePrefix}-grouproles`,
+          TableName: `${genericConfig.IAMTablePrefix} - grouproles`,
           Item: marshall({
             groupUuid: groupId,
             roles: request.body.roles,
@@ -190,7 +235,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         await fastify.dynamoClient.send(command);
         await logPromise;
         fastify.nodeCache.set(
-          `grouproles-${groupId}`,
+          `grouproles - ${groupId}`,
           request.body.roles,
           GENERIC_CACHE_SECONDS,
         );
@@ -202,7 +247,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
         reply.send({ message: "OK" });
       } catch (e: unknown) {
-        fastify.nodeCache.del(`grouproles-${groupId}`);
+        fastify.nodeCache.del(`grouproles - ${groupId}`);
         if (e instanceof BaseError) {
           throw e;
         }
@@ -462,7 +507,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
               content: `
 Hello,
 
-We're letting you know that you have been added to the "${groupMetadata.displayName}" access group by ${request.username}. Changes may take up to 2 hours to reflect in all systems.
+          We're letting you know that you have been added to the "${groupMetadata.displayName}" access group by ${request.username}. Changes may take up to 2 hours to reflect in all systems.
 
 No action is required from you at this time.
           `,
@@ -484,7 +529,7 @@ No action is required from you at this time.
               content: `
 Hello,
 
-We're letting you know that you have been removed from the "${groupMetadata.displayName}" access group by ${request.username}.
+          We're letting you know that you have been removed from the "${groupMetadata.displayName}" access group by ${request.username}.
 
 No action is required from you at this time.
           `,

@@ -149,13 +149,14 @@ vi.mock(
 );
 
 ddbMock.on(QueryCommand).callsFake((command) => {
-  if (command.input.TableName === genericConfig.MembershipTableName) {
+  if (command.input.TableName === genericConfig.UserInfoTable) {
     const requestedEmail = command.input.ExpressionAttributeValues[":pk"].S;
     const mockMembershipData = {
       "valid@illinois.edu": {
-        email: "valid@illinois.edu",
-        inserted_at: "2025-03-08T20:46:36.517561",
-        inserted_by: "core-api-provisioned",
+        id: "valid@illinois.edu",
+        netId: "valid",
+        isPaidMember: true,
+        updatedAt: "2025-03-08T20:46:36.517561",
       },
     };
 

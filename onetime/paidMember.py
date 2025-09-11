@@ -2,16 +2,18 @@ import json
 import boto3
 import logging
 from botocore.exceptions import ClientError
+from datetime import datetime, timezone
+
 
 # --- Configuration ---
-SOURCE_TABLE_NAME = "infra-core-api-uin-mapping"
+SOURCE_TABLE_NAME = "infra-core-api-membership-provisioning"
 DESTINATION_TABLE_NAME = "infra-core-api-user-info"
-DESTINATION_ID_SUFFIX = "@illinois.edu"
 
 # --- Logging Setup ---
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+utc_iso_timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def migrate_uin_hashes():
@@ -36,25 +38,27 @@ def migrate_uin_hashes():
         for page in page_iterator:
             for item in page.get("Items", []):
                 scanned_count += 1
-                net_id = item.get("netId")
-                uin_hash = item.get("uinHash")
+                email = item.get("email")
 
-                # Validate that the necessary fields exist
-                if not net_id or not uin_hash:
-                    logging.warning(
-                        f"Skipping item with missing 'netId' or 'uinHash': {item}"
-                    )
+                if not email:
+                    logging.warning(f"Skipping item with missing 'email': {item}")
                     continue
 
                 # Construct the primary key and update parameters for the destination table
-                destination_pk_id = f"{net_id}{DESTINATION_ID_SUFFIX}"
-                update_expression = "SET uinHash = :uh, netId = :ne"
-                expression_attribute_values = {":uh": uin_hash, ":ne": net_id}
+                netId = email.replace("@illinois.edu", "")
+                update_expression = (
+                    "SET isPaidMember = :uh, netId = :ne, updatedAt = :up"
+                )
+                expression_attribute_values = {
+                    ":uh": True,
+                    ":ne": netId,
+                    ":up": utc_iso_timestamp,
+                }
 
                 # Update the item in the destination DynamoDB table
                 try:
                     destination_table.update_item(
-                        Key={"id": destination_pk_id},
+                        Key={"id": email},
                         UpdateExpression=update_expression,
                         ExpressionAttributeValues=expression_attribute_values,
                     )
@@ -64,9 +68,7 @@ def migrate_uin_hashes():
                             f"Scanned {scanned_count} items, updated {updated_count} so far..."
                         )
                 except ClientError as e:
-                    logging.error(
-                        f"Failed to update item with id '{destination_pk_id}': {e}"
-                    )
+                    logging.error(f"Failed to update item with id '{email}': {e}")
 
         logging.info("--- Script Finished ---")
         logging.info(f"Total items scanned from source: {scanned_count}")
