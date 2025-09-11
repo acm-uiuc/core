@@ -174,35 +174,6 @@ resource "aws_dynamodb_table" "iam_assignments" {
   }
 }
 
-
-resource "aws_dynamodb_table" "iam_group_roles" {
-  billing_mode                = "PAY_PER_REQUEST"
-  name                        = "${var.ProjectId}-iam-grouproles"
-  deletion_protection_enabled = false
-  hash_key                    = "groupUuid"
-  point_in_time_recovery {
-    enabled = true
-  }
-  attribute {
-    name = "groupUuid"
-    type = "S"
-  }
-}
-
-resource "aws_dynamodb_table" "iam_user_roles" {
-  billing_mode                = "PAY_PER_REQUEST"
-  name                        = "${var.ProjectId}-iam-userroles"
-  deletion_protection_enabled = false
-  hash_key                    = "userEmail"
-  point_in_time_recovery {
-    enabled = true
-  }
-  attribute {
-    name = "userEmail"
-    type = "S"
-  }
-}
-
 resource "aws_dynamodb_table" "user_info" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-user-info"
