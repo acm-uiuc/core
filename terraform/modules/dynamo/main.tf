@@ -1,3 +1,15 @@
+resource "null_resource" "onetime_paid_migration" {
+  depends_on = [aws_dynamodb_table.user_info]
+  provisioner "local-exec" {
+    command     = <<-EOT
+      set -e
+      python paidMember.py
+    EOT
+    interpreter = ["bash", "-c"]
+    working_dir = "${path.module}/../../../onetime/"
+  }
+}
+
 resource "aws_dynamodb_table" "app_audit_log" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-audit-log"
@@ -26,7 +38,7 @@ resource "aws_dynamodb_table" "app_audit_log" {
 resource "aws_dynamodb_table" "membership_provisioning_log" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-membership-provisioning"
-  deletion_protection_enabled = true
+  deletion_protection_enabled = false
   hash_key                    = "email"
   point_in_time_recovery {
     enabled = true

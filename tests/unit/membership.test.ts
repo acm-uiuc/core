@@ -308,9 +308,10 @@ describe("Test membership routes", async () => {
   test("Test getting members/non-members in batch.", async () => {
     ddbMock.on(BatchGetItemCommand).resolvesOnce({
       Responses: {
-        [genericConfig.MembershipTableName]: [
+        [genericConfig.UserInfoTable]: [
           marshall({
-            email: "valid@illinois.edu",
+            id: "valid@illinois.edu",
+            isPaidMember: true,
           }),
         ],
       },

@@ -225,8 +225,6 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-grouproles",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links/index/*",
-          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-provisioning",
-          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-provisioning/index/*",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-external-v3",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-external-v3/index/*",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests",
@@ -274,6 +272,7 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
           "dynamodb:DescribeTable",
+          "dynamodb:BatchGetItem",
           "dynamodb:Query",
         ],
         Resource = [

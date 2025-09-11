@@ -4,6 +4,7 @@ import {
   DynamoDBClient,
   PutItemCommand,
   QueryCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
@@ -218,10 +219,10 @@ export async function checkPaidMembershipFromTable(
 ): Promise<boolean> {
   const { Items } = await dynamoClient.send(
     new QueryCommand({
-      TableName: genericConfig.MembershipTableName,
+      TableName: genericConfig.UserInfoTable,
       KeyConditionExpression: "#pk = :pk",
       ExpressionAttributeNames: {
-        "#pk": "email",
+        "#pk": "id",
       },
       ExpressionAttributeValues: marshall({
         ":pk": `${netId}@illinois.edu`,
@@ -229,6 +230,10 @@ export async function checkPaidMembershipFromTable(
     }),
   );
   if (!Items || Items.length === 0) {
+    return false;
+  }
+  const item = unmarshall(Items[0]);
+  if (!item.isPaidMember) {
     return false;
   }
   return true;
@@ -256,20 +261,29 @@ export async function checkPaidMembershipFromEntra(
 export async function setPaidMembershipInTable(
   netId: string,
   dynamoClient: DynamoDBClient,
-  actor: string = "core-api-queried",
 ): Promise<{ updated: boolean }> {
-  const obj = {
-    email: `${netId}@illinois.edu`,
-    inserted_at: new Date().toISOString(),
-    inserted_by: actor,
-  };
-
+  const email = `${netId}@illinois.edu`;
   try {
     await dynamoClient.send(
-      new PutItemCommand({
-        TableName: genericConfig.MembershipTableName,
-        Item: marshall(obj),
-        ConditionExpression: "attribute_not_exists(email)",
+      new UpdateItemCommand({
+        TableName: genericConfig.UserInfoTable,
+        Key: {
+          id: {
+            S: email,
+          },
+        },
+        UpdateExpression: `SET #netId = :netId, #updatedAt = :updatedAt, #isPaidMember = :isPaidMember`,
+        ConditionExpression: `#isPaidMember <> :isPaidMember`,
+        ExpressionAttributeNames: {
+          "#netId": "netId",
+          "#updatedAt": "updatedAt",
+          "#isPaidMember": "isPaidMember",
+        },
+        ExpressionAttributeValues: {
+          ":netId": { S: netId },
+          ":isPaidMember": { BOOL: true },
+          ":updatedAt": { S: new Date().toISOString() },
+        },
       }),
     );
     return { updated: true };
@@ -302,11 +316,7 @@ export async function setPaidMembership({
   firstName,
   lastName,
 }: SetPaidMembershipInput): Promise<SetPaidMembershipOutput> {
-  const dynamoResult = await setPaidMembershipInTable(
-    netId,
-    dynamoClient,
-    "core-api-provisioned",
-  );
+  const dynamoResult = await setPaidMembershipInTable(netId, dynamoClient);
   if (!dynamoResult.updated) {
     const inEntra = await checkPaidMembershipFromEntra(
       netId,

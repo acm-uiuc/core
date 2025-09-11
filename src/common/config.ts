@@ -41,7 +41,6 @@ export type GenericConfigType = {
   MerchStorePurchasesTableName: string;
   TicketPurchasesTableName: string;
   TicketMetadataTableName: string;
-  MembershipTableName: string;
   ExternalMembershipTableName: string;
   MerchStoreMetadataTableName: string;
   IAMTablePrefix: string;
@@ -86,7 +85,6 @@ const genericConfig: GenericConfigType = {
   TicketMetadataTableName: "infra-events-ticketing-metadata",
   IAMTablePrefix: "infra-core-api-iam",
   ProtectedEntraIDGroups: [infraChairsGroupId, officersGroupId],
-  MembershipTableName: "infra-core-api-membership-provisioning",
   ExternalMembershipTableName: "infra-core-api-membership-external-v3",
   RoomRequestsTableName: "infra-core-api-room-requests",
   RoomRequestsStatusTableName: "infra-core-api-room-requests-status",
