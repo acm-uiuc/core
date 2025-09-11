@@ -2,7 +2,6 @@ import {
   BatchWriteItemCommand,
   ConditionalCheckFailedException,
   DynamoDBClient,
-  PutItemCommand,
   QueryCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";

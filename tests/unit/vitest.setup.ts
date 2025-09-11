@@ -19,7 +19,7 @@ import {
 } from "../../src/common/errors/index.js";
 
 const ddbMock = mockClient(DynamoDBClient);
-const smMock = mockClient(Se);
+const smMock = mockClient(SecretsManagerClient);
 vi.mock(
   import("../../src/api/functions/rateLimit.js"),
   async (importOriginal) => {
