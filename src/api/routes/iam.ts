@@ -215,9 +215,9 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
         const groupMembers = listGroupMembers(entraIdToken, groupId);
         const command = new PutItemCommand({
-          TableName: `${genericConfig.IAMTablePrefix} - grouproles`,
+          TableName: `${genericConfig.IAMTablePrefix}-grouproles`,
           Item: marshall({
-            groupUuid: groupId,
+            id: `GROUP#${groupId}`,
             roles: request.body.roles,
             createdAt: timestamp,
           }),
@@ -235,7 +235,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         await fastify.dynamoClient.send(command);
         await logPromise;
         fastify.nodeCache.set(
-          `grouproles - ${groupId}`,
+          `grouproles-${groupId}`,
           request.body.roles,
           GENERIC_CACHE_SECONDS,
         );
