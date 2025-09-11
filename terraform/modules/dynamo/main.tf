@@ -35,21 +35,6 @@ resource "aws_dynamodb_table" "app_audit_log" {
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
-resource "aws_dynamodb_table" "membership_provisioning_log" {
-  billing_mode                = "PAY_PER_REQUEST"
-  name                        = "${var.ProjectId}-membership-provisioning"
-  deletion_protection_enabled = false
-  hash_key                    = "email"
-  point_in_time_recovery {
-    enabled = true
-  }
-  attribute {
-    name = "email"
-    type = "S"
-  }
-}
-
-
 resource "aws_dynamodb_table" "api_keys" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-keys"
