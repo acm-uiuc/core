@@ -239,6 +239,7 @@ export async function checkPaidMembershipFromTable(
   return true;
 }
 
+/** This check is slow!! Don't use it unless you have a really good reason. Membership data is replicated to DynamoDB on provision. */
 export async function checkPaidMembershipFromEntra(
   netId: string,
   entraToken: string,
