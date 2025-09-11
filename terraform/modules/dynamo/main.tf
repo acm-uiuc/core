@@ -164,7 +164,7 @@ resource "aws_dynamodb_table" "iam_assignments" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-iam-assignments"
   deletion_protection_enabled = true
-  hash_key                    = "groupUuid"
+  hash_key                    = "id"
   point_in_time_recovery {
     enabled = true
   }
