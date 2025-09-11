@@ -55,7 +55,7 @@ describe("Membership API basic checks", async () => {
         isPaidMember: true,
       });
 
-      const wasCached = (value: string | null) => value && value !== "aad";
+      const wasCached = (value: string | null) => value && value !== "dynamo";
 
       expect(wasCached(response.headers.get("x-acm-data-source"))).toBe(true);
     },
