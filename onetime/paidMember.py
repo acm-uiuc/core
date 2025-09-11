@@ -2,6 +2,8 @@ import json
 import boto3
 import logging
 from botocore.exceptions import ClientError
+from datetime import datetime, timezone
+
 
 # --- Configuration ---
 SOURCE_TABLE_NAME = "infra-core-api-membership-provisioning"
@@ -11,6 +13,7 @@ DESTINATION_TABLE_NAME = "infra-core-api-user-info"
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+utc_iso_timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def migrate_uin_hashes():
@@ -43,8 +46,14 @@ def migrate_uin_hashes():
 
                 # Construct the primary key and update parameters for the destination table
                 netId = email.replace("@illinois.edu", "")
-                update_expression = "SET isPaidMember = :uh, netId = :ne"
-                expression_attribute_values = {":uh": True, ":ne": netId}
+                update_expression = (
+                    "SET isPaidMember = :uh, netId = :ne, updatedAt = :up"
+                )
+                expression_attribute_values = {
+                    ":uh": True,
+                    ":ne": netId,
+                    ":up": utc_iso_timestamp,
+                }
 
                 # Update the item in the destination DynamoDB table
                 try:
