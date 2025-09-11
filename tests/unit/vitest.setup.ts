@@ -19,7 +19,7 @@ import {
 } from "../../src/common/errors/index.js";
 
 const ddbMock = mockClient(DynamoDBClient);
-const smMock = mockClient(SecretsManagerClient);
+const smMock = mockClient(Se);
 vi.mock(
   import("../../src/api/functions/rateLimit.js"),
   async (importOriginal) => {
@@ -132,18 +132,6 @@ vi.mock(
             return false;
         }
       }),
-      checkPaidMembershipFromEntra: vi.fn(
-        async (netId, _entraToken, _paidMemberGroup) => {
-          switch (netId) {
-            case "valid":
-              return true;
-            case "eadon2":
-              return true;
-            default:
-              return false;
-          }
-        },
-      ),
     };
   },
 );
