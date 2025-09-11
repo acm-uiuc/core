@@ -297,30 +297,34 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             const batch = netIdsToCheck.slice(i, i + BATCH_SIZE);
             const command = new BatchGetItemCommand({
               RequestItems: {
-                [genericConfig.MembershipTableName]: {
+                [genericConfig.UserInfoTable]: {
                   Keys: batch.map((netId) =>
-                    marshall({ email: `${netId}@illinois.edu` }),
+                    marshall({ id: `${netId}@illinois.edu` }),
                   ),
+                  AttributesToGet: ["id", "isPaidMember"],
                 },
               },
             });
+
             const { Responses } = await fastify.dynamoClient.send(command);
-            const items = Responses?.[genericConfig.MembershipTableName] ?? [];
+            const items = Responses?.[genericConfig.UserInfoTable] ?? [];
             for (const item of items) {
-              const { email } = unmarshall(item);
-              const netId = email.split("@")[0];
-              members.add(netId);
+              const { id, isPaidMember } = unmarshall(item);
+              console.log(id, isPaidMember);
+              const netId = id.split("@")[0];
               foundInDynamo.add(netId);
-              cachePipeline.set(
-                `membership:${netId}:${list}`,
-                JSON.stringify({ isMember: true }),
-                "EX",
-                MEMBER_CACHE_SECONDS,
-              );
+              if (isPaidMember === true) {
+                members.add(netId);
+                cachePipeline.set(
+                  `membership:${netId}:${list}`,
+                  JSON.stringify({ isMember: true }),
+                  "EX",
+                  MEMBER_CACHE_SECONDS,
+                );
+              }
             }
           }
 
-          // 3. Fallback to Entra ID for remaining paid members
           const netIdsForEntra = netIdsToCheck.filter(
             (id) => !foundInDynamo.has(id),
           );
@@ -340,7 +344,6 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
               );
               if (isMember) {
                 members.add(netId);
-                // Fire-and-forget writeback to DynamoDB to warm it up
                 setPaidMembershipInTable(netId, fastify.dynamoClient).catch(
                   (err) =>
                     request.log.error(
