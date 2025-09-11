@@ -178,7 +178,7 @@ resource "aws_dynamodb_table" "iam_assignments" {
 resource "aws_dynamodb_table" "iam_group_roles" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-iam-grouproles"
-  deletion_protection_enabled = true
+  deletion_protection_enabled = false
   hash_key                    = "groupUuid"
   point_in_time_recovery {
     enabled = true
@@ -192,7 +192,7 @@ resource "aws_dynamodb_table" "iam_group_roles" {
 resource "aws_dynamodb_table" "iam_user_roles" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-iam-userroles"
-  deletion_protection_enabled = true
+  deletion_protection_enabled = false
   hash_key                    = "userEmail"
   point_in_time_recovery {
     enabled = true
