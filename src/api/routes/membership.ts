@@ -1,6 +1,5 @@
 import {
   checkExternalMembership,
-  checkPaidMembershipFromEntra,
   checkPaidMembershipFromTable,
   setPaidMembershipInTable,
   MEMBER_CACHE_SECONDS,
@@ -188,41 +187,8 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             .header("X-ACM-Data-Source", "dynamo")
             .send({ givenName, surname, netId, isPaidMember: true });
         }
-        const entraIdToken = await getEntraIdToken({
-          clients: await getAuthorizedClients(),
-          clientId: fastify.environmentConfig.AadValidClientId,
-          secretName: genericConfig.EntraSecretName,
-          logger: request.log,
-        });
-        const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
-        const isAadMember = await checkPaidMembershipFromEntra(
-          netId,
-          entraIdToken,
-          paidMemberGroup,
-        );
-        if (isAadMember) {
-          await setKey({
-            redisClient: fastify.redisClient,
-            key: cacheKey,
-            data: JSON.stringify({ isMember: true }),
-            expiresIn: MEMBER_CACHE_SECONDS,
-            logger: request.log,
-          });
-          reply
-            .header("X-ACM-Data-Source", "aad")
-            .send({ givenName, surname, netId, isPaidMember: true });
-          await setPaidMembershipInTable(netId, fastify.dynamoClient);
-          return;
-        }
-        await setKey({
-          redisClient: fastify.redisClient,
-          key: cacheKey,
-          data: JSON.stringify({ isMember: false }),
-          expiresIn: MEMBER_CACHE_SECONDS,
-          logger: request.log,
-        });
         return reply
-          .header("X-ACM-Data-Source", "aad")
+          .header("X-ACM-Data-Source", "dynamo")
           .send({ givenName, surname, netId, isPaidMember: false });
       },
     );

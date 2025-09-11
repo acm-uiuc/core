@@ -3,7 +3,6 @@ import {
   checkPaidMembershipFromRedis,
   checkExternalMembership,
   MEMBER_CACHE_SECONDS,
-  checkPaidMembershipFromEntra,
   setPaidMembershipInTable,
 } from "api/functions/membership.js";
 import { FastifyPluginAsync } from "fastify";
@@ -321,47 +320,10 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
                   "EX",
                   MEMBER_CACHE_SECONDS,
                 );
-              }
-            }
-          }
-
-          const netIdsForEntra = netIdsToCheck.filter(
-            (id) => !foundInDynamo.has(id),
-          );
-          if (netIdsForEntra.length > 0) {
-            const entraIdToken = await getEntraIdToken({
-              clients: await getAuthorizedClients(),
-              clientId: fastify.environmentConfig.AadValidClientId,
-              secretName: genericConfig.EntraSecretName,
-              logger: request.log,
-            });
-            const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
-            const entraCheckPromises = netIdsForEntra.map(async (netId) => {
-              const isMember = await checkPaidMembershipFromEntra(
-                netId,
-                entraIdToken,
-                paidMemberGroup,
-              );
-              if (isMember) {
-                members.add(netId);
-                setPaidMembershipInTable(netId, fastify.dynamoClient).catch(
-                  (err) =>
-                    request.log.error(
-                      err,
-                      `Failed to write back Entra membership for ${netId}`,
-                    ),
-                );
               } else {
                 notMembers.add(netId);
               }
-              cachePipeline.set(
-                `membership:${netId}:${list}`,
-                JSON.stringify({ isMember }),
-                "EX",
-                MEMBER_CACHE_SECONDS,
-              );
-            });
-            await Promise.all(entraCheckPromises);
+            }
           }
         }
 
@@ -491,32 +453,6 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             .header("X-ACM-Data-Source", "dynamo")
             .send({ netId, isPaidMember: true });
         }
-        const entraIdToken = await getEntraIdToken({
-          clients: await getAuthorizedClients(),
-          clientId: fastify.environmentConfig.AadValidClientId,
-          secretName: genericConfig.EntraSecretName,
-          logger: request.log,
-        });
-        const paidMemberGroup = fastify.environmentConfig.PaidMemberGroupId;
-        const isAadMember = await checkPaidMembershipFromEntra(
-          netId,
-          entraIdToken,
-          paidMemberGroup,
-        );
-        if (isAadMember) {
-          await setKey({
-            redisClient: fastify.redisClient,
-            key: cacheKey,
-            data: JSON.stringify({ isMember: true }),
-            expiresIn: MEMBER_CACHE_SECONDS,
-            logger: request.log,
-          });
-          reply
-            .header("X-ACM-Data-Source", "aad")
-            .send({ netId, isPaidMember: true });
-          await setPaidMembershipInTable(netId, fastify.dynamoClient);
-          return;
-        }
         await setKey({
           redisClient: fastify.redisClient,
           key: cacheKey,
@@ -525,7 +461,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           logger: request.log,
         });
         return reply
-          .header("X-ACM-Data-Source", "aad")
+          .header("X-ACM-Data-Source", "dynamo")
           .send({ netId, isPaidMember: false });
       },
     );

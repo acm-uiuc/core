@@ -46,7 +46,7 @@ describe("Test membership routes", async () => {
     expect(response.statusCode).toBe(200);
     const responseDataJson = (await response.json()) as EventGetResponse;
     expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("aad");
+    expect(response.headers["x-acm-data-source"]).toEqual("dynamo");
     expect(responseDataJson).toEqual({
       givenName: "Infra",
       surname: "Testing",
@@ -87,42 +87,10 @@ describe("Test membership routes", async () => {
     expect(response.statusCode).toBe(200);
     const responseDataJson = (await response.json()) as EventGetResponse;
     expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("aad");
+    expect(response.headers["x-acm-data-source"]).toEqual("dynamo");
     expect(responseDataJson).toEqual({ netId: "invalid", isPaidMember: false });
   });
 
-  test("Entra-only members are added to Dynamo", async () => {
-    const testJwt = createJwt();
-    let response = await app.inject({
-      method: "GET",
-      url: "/api/v2/membership/eadon2",
-      headers: {
-        authorization: `Bearer ${testJwt}`,
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-    let responseDataJson = (await response.json()) as EventGetResponse;
-    expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("aad");
-    expect(responseDataJson).toEqual({ netId: "eadon2", isPaidMember: true });
-    expect(spySetPaidMembership).toHaveBeenCalledWith(
-      "eadon2",
-      expect.any(Object),
-    );
-    response = await app.inject({
-      method: "GET",
-      url: "/api/v2/membership/eadon2",
-      headers: {
-        authorization: `Bearer ${testJwt}`,
-      },
-    });
-    expect(response.statusCode).toBe(200);
-    responseDataJson = (await response.json()) as EventGetResponse;
-    expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("cache");
-    expect(responseDataJson).toEqual({ netId: "eadon2", isPaidMember: true });
-  });
   test("External list members are correctly found", async () => {
     ddbMock.on(QueryCommand).callsFake((command) => {
       if (
