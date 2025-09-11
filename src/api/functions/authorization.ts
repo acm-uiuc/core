@@ -12,11 +12,11 @@ export async function getUserRoles(
   dynamoClient: DynamoDBClient,
   userId: string,
 ): Promise<AppRoles[]> {
-  const tableName = `${genericConfig.IAMTablePrefix}-userroles`;
+  const tableName = `${genericConfig.IAMTablePrefix}-assignments`;
   const command = new GetItemCommand({
     TableName: tableName,
     Key: {
-      userEmail: { S: userId },
+      id: { S: `USER#${userId}` },
     },
   });
   const response = await dynamoClient.send(command);
@@ -42,11 +42,11 @@ export async function getGroupRoles(
   dynamoClient: DynamoDBClient,
   groupId: string,
 ) {
-  const tableName = `${genericConfig.IAMTablePrefix}-grouproles`;
+  const tableName = `${genericConfig.IAMTablePrefix}-assignments`;
   const command = new GetItemCommand({
     TableName: tableName,
     Key: {
-      groupUuid: { S: groupId },
+      id: { S: `GROUP#${groupId}` },
     },
   });
   const response = await dynamoClient.send(command);
