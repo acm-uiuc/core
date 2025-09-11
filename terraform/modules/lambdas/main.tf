@@ -274,6 +274,7 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
           "dynamodb:DescribeTable",
+          "dynamodb:BatchGetItem",
           "dynamodb:Query",
         ],
         Resource = [
