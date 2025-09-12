@@ -16,6 +16,7 @@ import {
   EntraInvitationError,
   EntraPatchError,
   InternalServerError,
+  ValidationError,
 } from "../../common/errors/index.js";
 import { getSecretValue } from "../plugins/auth.js";
 import { ConfidentialClientApplication } from "@azure/msal-node";
@@ -251,9 +252,8 @@ export async function modifyGroup(
     const netId = safeEmail.split("@")[0];
     const isPaidMember = checkPaidMembershipFromTable(netId, dynamoClient); // we assume users have been provisioned into the table.
     if (!isPaidMember) {
-      throw new EntraGroupError({
+      throw new ValidationError({
         message: `${netId} is not a paid member. This group requires that all members are paid members.`,
-        group,
       });
     }
   }
