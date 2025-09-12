@@ -106,7 +106,7 @@ describe("Exec Group Management Panel tests", () => {
     await renderComponent(fetchMembers, updateMembers);
 
     // Input the email
-    const emailInput = screen.getByPlaceholderText("Enter email");
+    const emailInput = screen.getByPlaceholderText("Enter email to add");
     await user.type(emailInput, "member@illinois.edu");
 
     // Click Add Member button
@@ -199,7 +199,7 @@ describe("Exec Group Management Panel tests", () => {
     await renderComponent(fetchMembers, updateMembers);
 
     // Add a member that will fail
-    const emailInput = screen.getByPlaceholderText("Enter email");
+    const emailInput = screen.getByPlaceholderText("Enter email to add");
     await user.type(emailInput, "member@illinois.edu");
     await user.click(screen.getByRole("button", { name: "Add Member" }));
 
