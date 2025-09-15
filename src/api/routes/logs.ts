@@ -45,7 +45,7 @@ const logsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             }),
           params: z.object({
             module: z
-              .nativeEnum(Modules)
+              .enum(Modules)
               .meta({ description: "Module to get audit logs for." }),
           }),
           summary: "Retrieve audit logs for a module.",
