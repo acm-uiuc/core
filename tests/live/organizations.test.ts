@@ -10,9 +10,7 @@ test("getting organizations", async () => {
   expect(responseJson.length).greaterThan(0);
 });
 
-test("getting organizations", async () => {
-  const response = await fetch(`${baseEndpoint}/api/v1/organizations`);
+test("getting ACM organization info", async () => {
+  const response = await fetch(`${baseEndpoint}/api/v1/organizations/ACM`);
   expect(response.status).toBe(200);
-  const responseJson = (await response.json()) as string[];
-  expect(responseJson.length).greaterThan(0);
 });
