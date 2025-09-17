@@ -300,3 +300,17 @@ resource "aws_dynamodb_table" "cache" {
     enabled        = true
   }
 }
+
+resource "aws_dynamodb_table" "cache" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-sigs"
+  deletion_protection_enabled = true
+  hash_key                    = "primaryKey"
+  point_in_time_recovery {
+    enabled = false
+  }
+  attribute {
+    name = "primaryKey"
+    type = "S"
+  }
+}
