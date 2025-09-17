@@ -1,9 +1,5 @@
 import { AllOrganizationList } from "@acm-uiuc/js-shared";
-import {
-  GetItemCommand,
-  QueryCommand,
-  type DynamoDBClient,
-} from "@aws-sdk/client-dynamodb";
+import { QueryCommand, type DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
 import {
@@ -34,22 +30,25 @@ export async function getOrgInfo({
   dynamoClient,
   logger,
 }: GetOrgInfoInputs) {
-  const query = new GetItemCommand({
+  const query = new QueryCommand({
     TableName: genericConfig.SigInfoTableName,
-    Key: { primaryKey: { S: `DEFINE#${id}` } },
+    KeyConditionExpression: `primaryKey = :definitionId`,
+    ExpressionAttributeValues: {
+      ":definitionId": { S: `DEFINE#${id}` },
+    },
   });
   let response = { leads: [] } as {
     leads: { name: string; username: string; title: string | undefined }[];
   };
   try {
     const responseMarshall = await dynamoClient.send(query);
-    if (!responseMarshall.Item) {
+    if (!responseMarshall.Items || responseMarshall.Items.length === 0) {
       logger.debug(
         `Could not find SIG information for ${id}, returning default.`,
       );
       return { id };
     }
-    const temp = unmarshall(responseMarshall.Item);
+    const temp = unmarshall(responseMarshall.Items[0]);
     temp.id = temp.primaryKey.replace("DEFINE#", "");
     delete temp.primaryKey;
     response = { ...temp, ...response };

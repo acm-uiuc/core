@@ -1,35 +1,27 @@
 import { FastifyPluginAsync } from "fastify";
 import { AllOrganizationList } from "@acm-uiuc/js-shared";
-import fastifyCaching from "@fastify/caching";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { withTags } from "api/components/index.js";
 import { z } from "zod/v4";
 import { getOrganizationInfoResponse } from "common/types/organizations.js";
-import {
-  GetItemCommand,
-  QueryCommand,
-  ReplicaAlreadyExistsException,
-} from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "common/config.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
-import {
-  BaseError,
-  DatabaseFetchError,
-  NotFoundError,
-} from "common/errors/index.js";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { BaseError, DatabaseFetchError } from "common/errors/index.js";
 import { getOrgInfo } from "api/functions/organizations.js";
 
+export const ORG_DATA_CACHED_DURATION = 300;
+export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${Math.floor(ORG_DATA_CACHED_DURATION * 1.1)}, stale-if-error=3600`;
+
 const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
-  fastify.register(fastifyCaching, {
-    privacy: fastifyCaching.privacy.PUBLIC,
-    serverExpiresIn: 60 * 60 * 4,
-    expiresIn: 60 * 60 * 4,
-  });
   fastify.register(rateLimiter, {
     limit: 60,
     duration: 60,
     rateLimitIdentifier: "organizations",
+  });
+  fastify.addHook("onSend", async (request, reply, payload) => {
+    if (request.method === "GET") {
+      reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
+    }
+    return payload;
   });
   fastify.get(
     "",

@@ -35,12 +35,15 @@ describe("Organization info tests", async () => {
   });
   test("Test getting info about an org succeeds", async () => {
     ddbMock
-      .on(GetItemCommand, {
+      .on(QueryCommand, {
         TableName: genericConfig.SigInfoTableName,
-        Key: { primaryKey: { S: "DEFINE#ACM" } },
+        KeyConditionExpression: "primaryKey = :definitionId",
+        ExpressionAttributeValues: {
+          ":definitionId": { S: "DEFINE#ACM" },
+        },
       })
       .resolves({
-        Item: marshall(acmMeta),
+        Items: [marshall(acmMeta)],
       });
     ddbMock
       .on(QueryCommand, {
@@ -86,12 +89,15 @@ describe("Organization info tests", async () => {
   });
   test("Test getting info about an unknown valid org returns just the ID", async () => {
     ddbMock
-      .on(GetItemCommand, {
+      .on(QueryCommand, {
         TableName: genericConfig.SigInfoTableName,
-        Key: { primaryKey: { S: "DEFINE#ACM" } },
+        KeyConditionExpression: "primaryKey = :definitionId",
+        ExpressionAttributeValues: {
+          ":definitionId": { S: "DEFINE#ACM" },
+        },
       })
       .resolves({
-        Item: undefined,
+        Items: undefined,
       });
     ddbMock
       .on(QueryCommand, {
@@ -101,7 +107,7 @@ describe("Organization info tests", async () => {
           ":leadName": { S: "LEAD#ACM" },
         },
       })
-      .rejects();
+      .resolves({ Items: [] });
     const response = await app.inject({
       method: "GET",
       url: "/api/v1/organizations/ACM",
@@ -114,12 +120,15 @@ describe("Organization info tests", async () => {
   });
   test("Test that getting org with no leads succeeds", async () => {
     ddbMock
-      .on(GetItemCommand, {
+      .on(QueryCommand, {
         TableName: genericConfig.SigInfoTableName,
-        Key: { primaryKey: { S: "DEFINE#ACM" } },
+        KeyConditionExpression: "primaryKey = :definitionId",
+        ExpressionAttributeValues: {
+          ":definitionId": { S: "DEFINE#ACM" },
+        },
       })
       .resolves({
-        Item: marshall(acmMeta),
+        Items: [marshall(acmMeta)],
       });
     ddbMock
       .on(QueryCommand, {

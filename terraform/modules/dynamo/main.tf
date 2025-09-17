@@ -301,27 +301,31 @@ resource "aws_dynamodb_table" "cache" {
   }
 }
 
-# resource "aws_dynamodb_table" "sig_info" {
-#   billing_mode                = "PAY_PER_REQUEST"
-#   name                        = "${var.ProjectId}-sigs"
-#   deletion_protection_enabled = true
-#   hash_key                    = "primaryKey"
-#   range_key                   = "entryId"
-#   point_in_time_recovery {
-#     enabled = false
-#   }
-#   attribute {
-#     name = "primaryKey"
-#     type = "S"
-#   }
-#   attribute {
-#     name = "username"
-#     type = "S"
-#   }
-#   global_secondary_index {
-#     name            = "UsernameIndex"
-#     hash_key        = "username"
-#     range_key       = "primaryKey"
-#     projection_type = "KEYS_ONLY"
-#   }
-# }
+resource "aws_dynamodb_table" "sig_info" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-sigs"
+  deletion_protection_enabled = true
+  hash_key                    = "primaryKey"
+  range_key                   = "entryId"
+  point_in_time_recovery {
+    enabled = false
+  }
+  attribute {
+    name = "primaryKey"
+    type = "S"
+  }
+  attribute {
+    name = "entryId"
+    type = "S"
+  }
+  attribute {
+    name = "username"
+    type = "S"
+  }
+  global_secondary_index {
+    name            = "UsernameIndex"
+    hash_key        = "username"
+    range_key       = "primaryKey"
+    projection_type = "KEYS_ONLY"
+  }
+}
