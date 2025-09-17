@@ -301,7 +301,7 @@ resource "aws_dynamodb_table" "cache" {
   }
 }
 
-resource "aws_dynamodb_table" "cache" {
+resource "aws_dynamodb_table" "sig_info" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-sigs"
   deletion_protection_enabled = true
