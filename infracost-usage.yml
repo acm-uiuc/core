@@ -286,9 +286,9 @@ resource_type_default_usage:
     spectrum_data_scanned_tb: 1
     backup_storage_gb: 217
   aws_route53_record:
-    monthly_standard_queries: 12500000 # Monthly number of Standard queries.
-    monthly_latency_based_queries: 8333333 # Monthly number of Latency Based Routing queries.
-    monthly_geo_queries: 7142857 # Monthly number of Geo DNS and Geoproximity queries.
+    monthly_standard_queries: 1250000 # Monthly number of Standard queries.
+    monthly_latency_based_queries: 0 # Monthly number of Latency Based Routing queries.
+    monthly_geo_queries: 0 # Monthly number of Geo DNS and Geoproximity queries.
   aws_route53_resolver_endpoint:
     monthly_queries: 12500000 # Monthly number of DNS queries processed through the endpoints.
   aws_s3_bucket_analytics_configuration:
