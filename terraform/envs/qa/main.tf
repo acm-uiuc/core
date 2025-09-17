@@ -118,7 +118,26 @@ module "frontend" {
   LinkryPublicDomain = var.LinkryPublicDomain
   LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
 }
+
+module "assets" {
+  source             = "../../modules/assets"
+  BucketPrefix       = local.bucket_prefix
+  AssetsPublicDomain = var.AssetsPublicDomain
+  ProjectId          = var.ProjectId
+  CoreCertificateArn = var.CoreCertificateArn
+}
 // QA only - setup Route 53 records
+resource "aws_route53_record" "assets" {
+  for_each = toset(["A", "AAAA"])
+  zone_id  = "Z04502822NVIA85WM2SML"
+  type     = each.key
+  name     = var.AssetsPublicDomain
+  alias {
+    name                   = module.assets.main_cloudfront_domain_name
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
+}
 resource "aws_route53_record" "frontend" {
   for_each = toset(["A", "AAAA"])
   zone_id  = "Z04502822NVIA85WM2SML"
