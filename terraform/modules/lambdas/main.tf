@@ -233,6 +233,8 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry/index/*",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-keys",
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs",
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs/index/*",
         ]
       },
       {

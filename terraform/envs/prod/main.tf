@@ -116,6 +116,14 @@ module "frontend" {
   LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
 }
 
+module "assets" {
+  source             = "../../modules/assets"
+  BucketPrefix       = local.bucket_prefix
+  AssetsPublicDomain = var.AssetsPublicDomain
+  ProjectId          = var.ProjectId
+  CoreCertificateArn = var.CoreCertificateArn
+}
+
 resource "aws_lambda_event_source_mapping" "queue_consumer" {
   depends_on              = [module.lambdas, module.sqs_queues]
   for_each                = local.queue_arns
