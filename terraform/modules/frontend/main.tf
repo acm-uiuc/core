@@ -200,7 +200,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
     }
   }
   ordered_cache_behavior {
-    path_pattern             = "/api/v1/organizations"
+    path_pattern             = "/api/v1/organizations*"
     target_origin_id         = "LambdaFunction"
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
