@@ -44,37 +44,6 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
     global: false,
     runFirst: true,
   });
-  const getAuthorizedClients = async () => {
-    if (roleArns.Entra) {
-      fastify.log.info(
-        `Attempting to assume Entra role ${roleArns.Entra} to get the Entra token...`,
-      );
-      const credentials = await getRoleCredentials(roleArns.Entra);
-      const clients = {
-        smClient: new SecretsManagerClient({
-          region: genericConfig.AwsRegion,
-          credentials,
-        }),
-        dynamoClient: new DynamoDBClient({
-          region: genericConfig.AwsRegion,
-          credentials,
-        }),
-        redisClient: fastify.redisClient,
-      };
-      fastify.log.info(
-        `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
-      );
-      return clients;
-    }
-    fastify.log.debug(
-      "Did not assume Entra role as no env variable was present",
-    );
-    return {
-      smClient: fastify.secretsManagerClient,
-      dynamoClient: fastify.dynamoClient,
-      redisClient: fastify.redisClient,
-    };
-  };
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     await fastify.register(rateLimiter, {
       limit: 20,

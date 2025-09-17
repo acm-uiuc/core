@@ -17,8 +17,10 @@ export enum AppRoles {
   MANAGE_ORG_API_KEYS = "manage:orgApiKey",
   VIEW_INTERNAL_MEMBERSHIP_LIST = "view:internalMembershipList",
   VIEW_EXTERNAL_MEMBERSHIP_LIST = "view:externalMembershipList",
-  MANAGE_EXTERNAL_MEMBERSHIP_LIST = "manage:externalMembershipList"
+  MANAGE_EXTERNAL_MEMBERSHIP_LIST = "manage:externalMembershipList",
+  SIG_MANAGER = "manage:sigs"
 }
+
 export const allAppRoles = Object.values(AppRoles).filter(
   (value) => typeof value === "string",
 );
@@ -40,4 +42,5 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.VIEW_INTERNAL_MEMBERSHIP_LIST]: "Internal Membership List Viewer",
   [AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Viewer",
   [AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Manager",
+  [AppRoles.SIG_MANAGER]: "SIG Manager",
 }
