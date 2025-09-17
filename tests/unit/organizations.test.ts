@@ -84,7 +84,7 @@ describe("Organization info tests", async () => {
       ],
     });
   });
-  test("Test getting info about an unknown org returns a ValidationError", async () => {
+  test("Test getting info about an unknown valid org returns just the ID", async () => {
     ddbMock
       .on(GetItemCommand, {
         TableName: genericConfig.SigInfoTableName,
@@ -106,7 +106,11 @@ describe("Organization info tests", async () => {
       method: "GET",
       url: "/api/v1/organizations/ACM",
     });
-    expect(response.statusCode).toBe(400);
+    expect(response.statusCode).toBe(200);
+    const responseJson = await response.json();
+    expect(responseJson).toStrictEqual({
+      id: "ACM",
+    });
   });
   test("Test that getting org with no leads succeeds", async () => {
     ddbMock

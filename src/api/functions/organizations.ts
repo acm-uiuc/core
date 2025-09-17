@@ -44,9 +44,10 @@ export async function getOrgInfo({
   try {
     const responseMarshall = await dynamoClient.send(query);
     if (!responseMarshall.Item) {
-      throw new ValidationError({
-        message: "No information found for this organization.",
-      });
+      logger.debug(
+        `Could not find SIG information for ${id}, returning default.`,
+      );
+      return { id };
     }
     const temp = unmarshall(responseMarshall.Item);
     temp.id = temp.primaryKey.replace("DEFINE#", "");

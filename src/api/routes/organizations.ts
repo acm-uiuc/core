@@ -35,23 +35,47 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     "",
     {
       schema: withTags(["Organizations"], {
-        summary: "Get a list of ACM @ UIUC sub-organizations.",
+        summary: "Get info for all of ACM @ UIUC's sub-organizations.",
         response: {
           200: {
-            description: "List of ACM @ UIUC sub-organizations.",
+            description: "List of ACM @ UIUC sub-organizations and info.",
             content: {
               "application/json": {
-                schema: z
-                  .array(z.enum(AllOrganizationList))
-                  .default(AllOrganizationList),
+                schema: z.array(getOrganizationInfoResponse),
               },
             },
           },
         },
       }),
     },
-    async (_request, reply) => {
-      reply.send(AllOrganizationList);
+    async (request, reply) => {
+      const promises = AllOrganizationList.map((x) =>
+        getOrgInfo({
+          id: x,
+          dynamoClient: fastify.dynamoClient,
+          logger: request.log,
+        }),
+      );
+      try {
+        const data = await Promise.allSettled(promises);
+        const successOnly = data
+          .filter((x) => x.status === "fulfilled")
+          .map((x) => x.value);
+        // return just the ID for anything not in the DB.
+        const successIds = successOnly.map((x) => x.id);
+        const unknownIds = AllOrganizationList.filter(
+          (x) => !successIds.includes(x),
+        ).map((x) => ({ id: x }));
+        return reply.send([...successOnly, ...unknownIds]);
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        request.log.error(e);
+        throw new DatabaseFetchError({
+          message: "Failed to get org information.",
+        });
+      }
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
