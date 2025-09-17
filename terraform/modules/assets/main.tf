@@ -113,5 +113,5 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
 }
 
 output "main_cloudfront_domain_name" {
-  value = aws_cloudfront_distribution.app_cloudfront_distribution.domain_name
+  value = aws_cloudfront_distribution.this.domain_name
 }
