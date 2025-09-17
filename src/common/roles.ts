@@ -1,3 +1,5 @@
+import { AllOrganizationList } from "@acm-uiuc/js-shared";
+
 /* eslint-disable import/prefer-default-export */
 export const runEnvironments = ["dev", "prod"] as const;
 export type RunEnvironment = (typeof runEnvironments)[number];
@@ -18,7 +20,13 @@ export enum AppRoles {
   VIEW_INTERNAL_MEMBERSHIP_LIST = "view:internalMembershipList",
   VIEW_EXTERNAL_MEMBERSHIP_LIST = "view:externalMembershipList",
   MANAGE_EXTERNAL_MEMBERSHIP_LIST = "manage:externalMembershipList",
-  SIG_MANAGER = "manage:sigs"
+  ALL_ORG_MANAGER = "manage:orgDefinitions"
+}
+export const orgRoles = ["LEAD", "MEMBER"] as const;
+export type OrgRole = typeof orgRoles[number];
+export type OrgRoleDefinition = {
+  org: typeof AllOrganizationList[number],
+  role: OrgRole
 }
 
 export const allAppRoles = Object.values(AppRoles).filter(
@@ -42,5 +50,5 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.VIEW_INTERNAL_MEMBERSHIP_LIST]: "Internal Membership List Viewer",
   [AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Viewer",
   [AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Manager",
-  [AppRoles.SIG_MANAGER]: "SIG Manager",
+  [AppRoles.ALL_ORG_MANAGER]: "Organization Definition Manager",
 }

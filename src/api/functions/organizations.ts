@@ -1,3 +1,4 @@
+import { AllOrganizationList } from "@acm-uiuc/js-shared";
 import {
   GetItemCommand,
   QueryCommand,
@@ -10,6 +11,7 @@ import {
   DatabaseFetchError,
   ValidationError,
 } from "common/errors/index.js";
+import { OrgRole, orgRoles } from "common/roles.js";
 import { getOrganizationInfoResponse } from "common/types/organizations.js";
 import { type FastifyBaseLogger } from "fastify";
 import pino from "pino";
@@ -17,6 +19,12 @@ import z from "zod";
 
 export interface GetOrgInfoInputs {
   id: string;
+  dynamoClient: DynamoDBClient;
+  logger: FastifyBaseLogger | pino.Logger;
+}
+
+export interface GetUserOrgRolesInputs {
+  username: string;
   dynamoClient: DynamoDBClient;
   logger: FastifyBaseLogger | pino.Logger;
 }
@@ -86,4 +94,62 @@ export async function getOrgInfo({
     });
   }
   return response as z.infer<typeof getOrganizationInfoResponse>;
+}
+
+export async function getUserOrgRoles({
+  username,
+  dynamoClient,
+  logger,
+}: GetUserOrgRolesInputs) {
+  const query = new QueryCommand({
+    TableName: genericConfig.SigInfoTableName,
+    IndexName: "UsernameIndex",
+    KeyConditionExpression: `username = :username`,
+    ExpressionAttributeValues: {
+      ":username": { S: username },
+    },
+  });
+  try {
+    const response = await dynamoClient.send(query);
+    if (!response.Items) {
+      return [];
+    }
+    const unmarshalled = response.Items.map((x) => unmarshall(x)).map(
+      (x) =>
+        ({ username: x.username, rawRole: x.primaryKey }) as {
+          username: string;
+          rawRole: string;
+        },
+    );
+    const cleanedRoles = [];
+    for (const item of unmarshalled) {
+      const splits = item.rawRole.split("#");
+      if (splits.length !== 2) {
+        logger.warn(`Invalid PK in role definition: ${JSON.stringify(item)}`);
+        continue;
+      }
+      const [role, org] = splits;
+      if (!orgRoles.includes(role as OrgRole)) {
+        logger.warn(`Invalid role in role definition: ${JSON.stringify(item)}`);
+        continue;
+      }
+      if (!AllOrganizationList.includes(org)) {
+        logger.warn(`Invalid org in role definition: ${JSON.stringify(item)}`);
+        continue;
+      }
+      cleanedRoles.push({
+        org,
+        role,
+      } as { org: (typeof AllOrganizationList)[number]; role: OrgRole });
+    }
+    return cleanedRoles;
+  } catch (e) {
+    if (e instanceof BaseError) {
+      throw e;
+    }
+    logger.error(e);
+    throw new DatabaseFetchError({
+      message: "Could not get roles for user.",
+    });
+  }
 }
