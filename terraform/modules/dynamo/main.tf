@@ -313,4 +313,14 @@ resource "aws_dynamodb_table" "sig_info" {
     name = "primaryKey"
     type = "S"
   }
+  attribute {
+    name = "username"
+    type = "S"
+  }
+  global_secondary_index {
+    name            = "UsernameIndex"
+    hash_key        = "username"
+    range_key       = "primaryKey"
+    projection_type = "KEYS_ONLY"
+  }
 }
