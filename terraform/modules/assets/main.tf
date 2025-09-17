@@ -94,19 +94,6 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
           }
         }
       },
-      {
-        Effect = "Allow",
-        Principal = {
-          Service = "cloudfront.amazonaws.com"
-        },
-        Action   = "s3:ListBucket",
-        Resource = aws_s3_bucket.this.arn
-        Condition = {
-          StringEquals = {
-            "AWS:SourceArn" = aws_cloudfront_distribution.this.arn
-          }
-        }
-      }
     ]
 
   }))
