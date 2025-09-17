@@ -37,7 +37,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
 }
 
 
-resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
+resource "aws_cloudfront_distribution" "this" {
   http_version = "http2and3"
   origin {
     origin_id                = "S3Bucket"
@@ -100,7 +100,7 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
           Service = "cloudfront.amazonaws.com"
         },
         Action   = "s3:ListBucket",
-        Resource = aws_s3_bucket.frontend.arn
+        Resource = aws_s3_bucket.this.arn
         Condition = {
           StringEquals = {
             "AWS:SourceArn" = aws_cloudfront_distribution.this.arn
