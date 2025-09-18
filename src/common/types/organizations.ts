@@ -15,6 +15,7 @@ export const orgLinkEntry = z.object({
   url: z.url()
 })
 
+
 export const getOrganizationInfoResponse = z.object({
   id: z.enum(AllOrganizationList),
   description: z.optional(z.string()),
@@ -22,3 +23,5 @@ export const getOrganizationInfoResponse = z.object({
   leads: z.optional(z.array(orgLeadEntry)),
   links: z.optional(z.array(orgLinkEntry))
 })
+
+export const setOrganizationMetaBody = getOrganizationInfoResponse.omit({ id: true, leads: true });

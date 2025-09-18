@@ -1,12 +1,26 @@
 import { FastifyPluginAsync } from "fastify";
 import { AllOrganizationList } from "@acm-uiuc/js-shared";
 import rateLimiter from "api/plugins/rateLimiter.js";
-import { withTags } from "api/components/index.js";
+import { withRoles, withTags } from "api/components/index.js";
 import { z } from "zod/v4";
-import { getOrganizationInfoResponse } from "common/types/organizations.js";
+import {
+  getOrganizationInfoResponse,
+  setOrganizationMetaBody,
+} from "common/types/organizations.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
-import { BaseError, DatabaseFetchError } from "common/errors/index.js";
+import {
+  BaseError,
+  DatabaseFetchError,
+  DatabaseInsertError,
+} from "common/errors/index.js";
 import { getOrgInfo } from "api/functions/organizations.js";
+import { AppRoles } from "common/roles.js";
+import {
+  PutItemCommand,
+  TransactWriteItemsCommand,
+} from "@aws-sdk/client-dynamodb";
+import { genericConfig } from "common/config.js";
+import { marshall } from "@aws-sdk/util-dynamodb";
 
 export const ORG_DATA_CACHED_DURATION = 300;
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${Math.floor(ORG_DATA_CACHED_DURATION * 1.1)}, stale-if-error=3600`;
@@ -23,7 +37,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     }
     return payload;
   });
-  fastify.get(
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "",
     {
       schema: withTags(["Organizations"], {
@@ -100,6 +114,52 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         logger: request.log,
       });
       return reply.send(response);
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/:id/meta",
+    {
+      schema: withRoles(
+        [AppRoles.ALL_ORG_MANAGER],
+        withTags(["Organizations"], {
+          summary: "Set metadata for an ACM @ UIUC sub-organization.",
+          params: z.object({
+            id: z
+              .enum(AllOrganizationList)
+              .meta({ description: "ACM @ UIUC organization to modify." }),
+          }),
+          body: setOrganizationMetaBody,
+          response: {
+            201: {
+              description: "The information was saved.",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      try {
+        const command = new PutItemCommand({
+          TableName: genericConfig.SigInfoTableName,
+          Item: marshall(request.body, { removeUndefinedValues: true }),
+        });
+        await fastify.dynamoClient.send(command);
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        request.log.error(e);
+        throw new DatabaseInsertError({
+          message: "Failed to set org information.",
+        });
+      }
+      reply.status(201).send();
     },
   );
 };
