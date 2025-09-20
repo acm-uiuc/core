@@ -16,6 +16,8 @@ export const orgLinkEntry = z.object({
   url: z.url()
 })
 
+export const enforcedOrgLeadEntry = orgLeadEntry.extend({ name: z.string().min(1), title: z.string().min(1) })
+
 
 export const getOrganizationInfoResponse = z.object({
   id: z.enum(AllOrganizationList),
@@ -27,3 +29,7 @@ export const getOrganizationInfoResponse = z.object({
 })
 
 export const setOrganizationMetaBody = getOrganizationInfoResponse.omit({ id: true, leads: true });
+export const patchOrganizationLeadsBody = z.object({
+  add: z.array(enforcedOrgLeadEntry),
+  remove: z.array(z.string())
+});

@@ -5,6 +5,7 @@ import { withRoles, withTags } from "api/components/index.js";
 import { z } from "zod/v4";
 import {
   getOrganizationInfoResponse,
+  patchOrganizationLeadsBody,
   setOrganizationMetaBody,
 } from "common/types/organizations.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
@@ -13,17 +14,37 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   InternalServerError,
+  ValidationError,
 } from "common/errors/index.js";
-import { getOrgInfo, getUserOrgRoles } from "api/functions/organizations.js";
+import {
+  addLead,
+  getOrgInfo,
+  removeLead,
+  SQSMessage,
+} from "api/functions/organizations.js";
 import { AppRoles } from "common/roles.js";
 import {
-  PutItemCommand,
+  DynamoDBClient,
+  GetItemCommand,
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "common/config.js";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import {
+  execCouncilGroupId,
+  execCouncilTestingGroupId,
+  genericConfig,
+  notificationRecipients,
+  roleArns,
+} from "common/config.js";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
+import { authorizeByOrgRoleOrSchema } from "api/functions/authorization.js";
+import { checkPaidMembership } from "api/functions/membership.js";
+import { getEntraIdToken } from "api/functions/entraId.js";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { getRoleCredentials } from "api/functions/sts.js";
+import { SQSClient } from "@aws-sdk/client-sqs";
+import { sendSqsMessagesInBatches } from "api/functions/sqs.js";
 
 export const ORG_DATA_CACHED_DURATION = 300;
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${Math.floor(ORG_DATA_CACHED_DURATION * 1.1)}, stale-if-error=3600`;
@@ -34,12 +55,47 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     duration: 60,
     rateLimitIdentifier: "organizations",
   });
+
   fastify.addHook("onSend", async (request, reply, payload) => {
     if (request.method === "GET") {
       reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
     }
     return payload;
   });
+
+  const getAuthorizedClients = async () => {
+    if (roleArns.Entra) {
+      fastify.log.info(
+        `Attempting to assume Entra role ${roleArns.Entra} to get the Entra token...`,
+      );
+      const credentials = await getRoleCredentials(roleArns.Entra);
+      const clients = {
+        smClient: new SecretsManagerClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
+        dynamoClient: new DynamoDBClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
+        redisClient: fastify.redisClient,
+      };
+      fastify.log.info(
+        `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
+      );
+      return clients;
+    }
+    fastify.log.debug(
+      "Did not assume Entra role as no env variable was present",
+    );
+    return {
+      smClient: fastify.secretsManagerClient,
+      dynamoClient: fastify.dynamoClient,
+      redisClient: fastify.redisClient,
+    };
+  };
+
+  // Omitting GET and POST routes for brevity as they are unchanged...
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "",
     {
@@ -58,6 +114,20 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }),
     },
     async (request, reply) => {
+      let isAuthenticated = false;
+      if (request.headers.authorization) {
+        try {
+          await fastify.authorize(
+            request,
+            reply,
+            [AppRoles.ALL_ORG_MANAGER],
+            false,
+          );
+          isAuthenticated = true;
+        } catch (e) {
+          isAuthenticated = false;
+        }
+      }
       const promises = AllOrganizationList.map((x) =>
         getOrgInfo({
           id: x,
@@ -67,11 +137,17 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       );
       try {
         const data = await Promise.allSettled(promises);
-        const successOnly = data
+        let successOnly = data
           .filter((x) => x.status === "fulfilled")
           .map((x) => x.value);
         // return just the ID for anything not in the DB.
         const successIds = successOnly.map((x) => x.id);
+        if (!isAuthenticated) {
+          successOnly = successOnly.map((x) => ({
+            ...x,
+            leadsEntraGroupId: undefined,
+          }));
+        }
         const unknownIds = AllOrganizationList.filter(
           (x) => !successIds.includes(x),
         ).map((x) => ({ id: x }));
@@ -88,13 +164,13 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/:id",
+    "/:orgId",
     {
       schema: withTags(["Organizations"], {
         summary:
           "Get information about a specific ACM @ UIUC sub-organization.",
         params: z.object({
-          id: z
+          orgId: z
             .enum(AllOrganizationList)
             .meta({ description: "ACM @ UIUC organization to query." }),
         }),
@@ -126,25 +202,25 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         }
       }
       const response = await getOrgInfo({
-        id: request.params.id,
+        id: request.params.orgId,
         dynamoClient: fastify.dynamoClient,
         logger: request.log,
       });
       if (!isAuthenticated) {
-        delete response.leadsEntraGroupId;
+        return reply.send({ ...response, leadsEntraGroupId: undefined });
       }
       return reply.send(response);
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
-    "/:id/meta",
+    "/:orgId/meta",
     {
       schema: withRoles(
         [AppRoles.ALL_ORG_MANAGER],
         withTags(["Organizations"], {
           summary: "Set metadata for an ACM @ UIUC sub-organization.",
           params: z.object({
-            id: z
+            orgId: z
               .enum(AllOrganizationList)
               .meta({ description: "ACM @ UIUC organization to modify." }),
           }),
@@ -167,34 +243,9 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         },
       ),
       onRequest: async (request, reply) => {
-        // here we check for if you lead the org right now
-        let originalError = new InternalServerError({
-          message: "Failed to authenticate.",
+        authorizeByOrgRoleOrSchema(fastify, request, reply, {
+          validRoles: [{ org: request.params.orgId, role: "LEAD" }],
         });
-        try {
-          await fastify.authorizeFromSchema(request, reply);
-          return;
-        } catch (e) {
-          if (e instanceof BaseError) {
-            originalError = e;
-          } else {
-            throw e;
-          }
-        }
-        if (!request.username) {
-          throw originalError;
-        }
-        const userRoles = await getUserOrgRoles({
-          username: request.username,
-          dynamoClient: fastify.dynamoClient,
-          logger: request.log,
-        });
-        for (const role of userRoles) {
-          if (role.org === request.params.id && role.role === "LEAD") {
-            return;
-          }
-        }
-        throw originalError;
       },
     },
     async (request, reply) => {
@@ -204,7 +255,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             module: Modules.ORG_INFO,
             message: "Updated organization metadata.",
             actor: request.username!,
-            target: request.params.id,
+            target: request.params.orgId,
           },
         });
         const commandTransaction = new TransactWriteItemsCommand({
@@ -216,8 +267,9 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 Item: marshall(
                   {
                     ...request.body,
-                    primaryKey: `DEFINE#${request.params.id}`,
+                    primaryKey: `DEFINE#${request.params.orgId}`,
                     entryId: "0",
+                    updatedAt: new Date().toISOString(),
                   },
                   { removeUndefinedValues: true },
                 ),
@@ -235,6 +287,171 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           message: "Failed to set org information.",
         });
       }
+      return reply.status(201).send();
+    },
+  );
+
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
+    "/:orgId/leads",
+    {
+      schema: withRoles(
+        [AppRoles.ALL_ORG_MANAGER],
+        withTags(["Organizations"], {
+          summary: "Set leads for an ACM @ UIUC sub-organization.",
+          params: z.object({
+            orgId: z
+              .enum(AllOrganizationList)
+              .meta({ description: "ACM @ UIUC organization to modify." }),
+          }),
+          body: patchOrganizationLeadsBody,
+          response: {
+            201: {
+              description: "The information was saved.",
+              content: { "application/json": { schema: z.null() } },
+            },
+          },
+        }),
+        {
+          disableApiKeyAuth: false,
+          notes:
+            "Authenticated leads of the organization without the appropriate role may also perform this action.",
+        },
+      ),
+      onRequest: async (request, reply) => {
+        authorizeByOrgRoleOrSchema(fastify, request, reply, {
+          validRoles: [{ org: request.params.orgId, role: "LEAD" }],
+        });
+      },
+    },
+    async (request, reply) => {
+      const { add, remove } = request.body;
+      const allUsernames = [...add.map((u) => u.username), ...remove];
+      const execGroupId =
+        fastify.runEnvironment === "dev"
+          ? execCouncilTestingGroupId
+          : execCouncilGroupId;
+      const officersEmail =
+        notificationRecipients[fastify.runEnvironment].OfficerBoard;
+
+      if (new Set(allUsernames).size !== allUsernames.length) {
+        throw new ValidationError({
+          message: "Each user can only be specified once.",
+        });
+      }
+
+      // Check paid membership for all potential new members before proceeding.
+      if (add.length > 0) {
+        try {
+          const paidMemberships = await Promise.all(
+            add.map((u) =>
+              checkPaidMembership({
+                netId: u.username.replace("@illinois.edu", ""),
+                logger: request.log,
+                dynamoClient: fastify.dynamoClient,
+                redisClient: fastify.redisClient,
+              }),
+            ),
+          );
+          if (paidMemberships.some((p) => !p)) {
+            throw new ValidationError({
+              message:
+                "One or more of the requested users to add are not ACM paid members.",
+            });
+          }
+        } catch (e) {
+          if (e instanceof BaseError) {
+            throw e;
+          }
+          request.log.error(e);
+          throw new InternalServerError({
+            message: "Failed to check paid membership status.",
+          });
+        }
+      }
+
+      const getMetadataCommand = new GetItemCommand({
+        TableName: genericConfig.SigInfoTableName,
+        Key: marshall({
+          primaryKey: `DEFINE#${request.params.orgId}`,
+          entryId: "0",
+        }),
+        AttributesToGet: ["leadsEntraGroupId"],
+      });
+
+      const [metadataResponse, clients] = await Promise.all([
+        fastify.dynamoClient.send(getMetadataCommand),
+        getAuthorizedClients(),
+      ]);
+
+      const entraGroupId = metadataResponse.Item
+        ? unmarshall(metadataResponse.Item).leadsEntraGroupId
+        : undefined;
+      const entraIdToken = await getEntraIdToken({
+        clients,
+        clientId: fastify.environmentConfig.AadValidClientId,
+        secretName: genericConfig.EntraSecretName,
+        logger: request.log,
+      });
+
+      const commonArgs = {
+        orgId: request.params.orgId,
+        actorUsername: request.username!,
+        reqId: request.id,
+        entraGroupId,
+        entraIdToken,
+        dynamoClient: fastify.dynamoClient,
+        logger: request.log,
+        execGroupId,
+        officersEmail,
+      };
+
+      // Attempt to add and remove all users specified in the request body.
+      const addPromises = add.map((user) => addLead({ ...commonArgs, user }));
+      const removePromises = remove.map((username) =>
+        removeLead({ ...commonArgs, username }),
+      );
+
+      const results = await Promise.allSettled([
+        ...addPromises,
+        ...removePromises,
+      ]);
+
+      const failures = results.filter((r) => r.status === "rejected");
+      if (failures.length > 0) {
+        failures.forEach((f) =>
+          request.log.error(
+            (f as PromiseRejectedResult).reason,
+            "Failed to update an org lead.",
+          ),
+        );
+        throw new InternalServerError({
+          message:
+            "A partial failure occurred while updating organization leads.",
+        });
+      }
+
+      const sqsPayloads = results
+        .filter(
+          (r): r is PromiseFulfilledResult<SQSMessage | null> =>
+            r.status === "fulfilled",
+        )
+        .map((r) => r.value)
+        .filter((p): p is SQSMessage => p !== null);
+
+      if (sqsPayloads.length > 0) {
+        if (!fastify.sqsClient) {
+          fastify.sqsClient = new SQSClient({
+            region: genericConfig.AwsRegion,
+          });
+        }
+        await sendSqsMessagesInBatches({
+          sqsClient: fastify.sqsClient,
+          queueUrl: fastify.environmentConfig.SqsQueueUrl,
+          logger: request.log,
+          sqsPayloads,
+        });
+      }
+
       return reply.status(201).send();
     },
   );
