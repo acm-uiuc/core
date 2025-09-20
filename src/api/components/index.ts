@@ -36,6 +36,7 @@ export type RoleSchema = {
 
 type RolesConfig = {
   disableApiKeyAuth: boolean;
+  notes?: string;
 };
 
 export function getCorrectJsonSchema<T, U>({
@@ -193,7 +194,7 @@ export const validationError = getCorrectJsonSchema({
 export function withRoles<T extends FastifyZodOpenApiSchema>(
   roles: AppRoles[],
   schema: T,
-  { disableApiKeyAuth }: RolesConfig = { disableApiKeyAuth: false },
+  { disableApiKeyAuth, notes }: RolesConfig = { disableApiKeyAuth: false },
 ): T & RoleSchema {
   const security = [{ httpBearer: [] }] as any;
   if (!disableApiKeyAuth) {
@@ -231,6 +232,8 @@ ${schema.description}
 #### Authorization
 <hr />
 ${roles.length > 0 ? `Requires any of the following roles:\n\n${roles.map((item) => `* ${AppRoleHumanMapper[item]} (<code>${item}</code>)`).join("\n")}` : "Requires valid authentication but no specific authorization."}
+
+${notes ? `${notes}\n` : ""}
   `,
     ...schema,
     response: responses,

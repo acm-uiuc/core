@@ -11,6 +11,7 @@ export enum Modules {
   API_KEY = "apiKey",
   ROOM_RESERVATIONS = "roomReservations",
   EXTERNAL_MEMBERSHIP = "externalMembership",
+  ORG_INFO = "orgInfo"
 }
 
 
@@ -27,4 +28,5 @@ export const ModulesToHumanName: Record<Modules, string> = {
   [Modules.API_KEY]: "API Keys",
   [Modules.ROOM_RESERVATIONS]: "Room Reservations",
   [Modules.EXTERNAL_MEMBERSHIP]: "External Membership",
+  [Modules.ORG_INFO]: "Organization Info & Leads",
 }
