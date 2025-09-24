@@ -15,7 +15,6 @@ import {
 import { createJwt } from "./auth.test.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
-import { UnauthenticatedError } from "../../src/common/errors/index.js";
 
 const app = await init();
 const ddbMock = mockClient(DynamoDBClient);
