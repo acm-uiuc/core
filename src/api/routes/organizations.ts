@@ -243,7 +243,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         },
       ),
       onRequest: async (request, reply) => {
-        authorizeByOrgRoleOrSchema(fastify, request, reply, {
+        await authorizeByOrgRoleOrSchema(fastify, request, reply, {
           validRoles: [{ org: request.params.orgId, role: "LEAD" }],
         });
       },
@@ -318,7 +318,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         },
       ),
       onRequest: async (request, reply) => {
-        authorizeByOrgRoleOrSchema(fastify, request, reply, {
+        await authorizeByOrgRoleOrSchema(fastify, request, reply, {
           validRoles: [{ org: request.params.orgId, role: "LEAD" }],
         });
       },
