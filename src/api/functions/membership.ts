@@ -355,3 +355,46 @@ export async function setPaidMembership({
 
   return { updated: true };
 }
+
+export async function checkPaidMembership({
+  netId,
+  redisClient,
+  dynamoClient,
+  logger,
+}: {
+  netId: string;
+  redisClient: Redis.Redis;
+  dynamoClient: DynamoDBClient;
+  logger: FastifyBaseLogger;
+}): Promise<boolean> {
+  // 1. Check Redis cache
+  const isMemberInCache = await checkPaidMembershipFromRedis(
+    netId,
+    redisClient,
+    logger,
+  );
+
+  if (isMemberInCache === true) {
+    return true;
+  }
+
+  // 2. If cache missed or was negative, query DynamoDB
+  const isMemberInDB = await checkPaidMembershipFromTable(netId, dynamoClient);
+
+  // 3. If membership is confirmed, update the cache
+  if (isMemberInDB) {
+    const cacheKey = `membership:${netId}:acmpaid`;
+    try {
+      await redisClient.set(
+        cacheKey,
+        JSON.stringify({ isMember: true }),
+        "EX",
+        MEMBER_CACHE_SECONDS,
+      );
+    } catch (error) {
+      logger.error({ err: error, netId }, "Failed to update membership cache");
+    }
+  }
+
+  return isMemberInDB;
+}

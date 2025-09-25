@@ -1,12 +1,26 @@
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../common/config.js";
-import { DatabaseFetchError } from "../../common/errors/index.js";
-import { allAppRoles, AppRoles } from "../../common/roles.js";
+import {
+  BaseError,
+  DatabaseFetchError,
+  InternalServerError,
+} from "../../common/errors/index.js";
+import {
+  allAppRoles,
+  AppRoles,
+  OrgRoleDefinition,
+} from "../../common/roles.js";
 import type Redis from "ioredis";
 import { AUTH_CACHE_PREFIX } from "api/plugins/auth.js";
 import type pino from "pino";
-import { type FastifyBaseLogger } from "fastify";
+import {
+  FastifyInstance,
+  FastifyReply,
+  FastifyRequest,
+  type FastifyBaseLogger,
+} from "fastify";
+import { getUserOrgRoles } from "./organizations.js";
 
 export async function getUserRoles(
   dynamoClient: DynamoDBClient,
@@ -90,4 +104,60 @@ export async function clearAuthCache({
   const result = await redisClient.del(keys);
   logger.debug(`Cleared ${result} auth cache keys.`);
   return result;
+}
+
+type AuthConfig = {
+  validRoles: OrgRoleDefinition[];
+};
+
+/**
+ * Authorizes a request by checking if the user has at least one of the specified organization roles.
+ * This function can be used as a preHandler in Fastify routes.
+ *
+ * @param fastify The Fastify instance.
+ * @param request The Fastify request object.
+ * @param reply The Fastify reply object.
+ * @param config An object containing an array of valid OrgRoleDefinition instances.
+ */
+export async function authorizeByOrgRoleOrSchema(
+  fastify: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply,
+  config: AuthConfig,
+) {
+  let originalError = new InternalServerError({
+    message: "You do not have permission to perform this action.",
+  });
+
+  try {
+    await fastify.authorizeFromSchema(request, reply);
+    return;
+  } catch (e) {
+    if (e instanceof BaseError) {
+      originalError = e;
+    } else {
+      throw e;
+    }
+  }
+
+  if (!request.username) {
+    throw originalError;
+  }
+
+  const userRoles = await getUserOrgRoles({
+    username: request.username,
+    dynamoClient: fastify.dynamoClient,
+    logger: request.log,
+  });
+
+  const isAuthorized = userRoles.some((userRole) =>
+    config.validRoles.some(
+      (validRole) =>
+        userRole.org === validRole.org && userRole.role === validRole.role,
+    ),
+  );
+
+  if (!isAuthorized) {
+    throw originalError;
+  }
 }

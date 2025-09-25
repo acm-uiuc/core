@@ -308,7 +308,7 @@ resource "aws_dynamodb_table" "sig_info" {
   hash_key                    = "primaryKey"
   range_key                   = "entryId"
   point_in_time_recovery {
-    enabled = false
+    enabled = true
   }
   attribute {
     name = "primaryKey"
