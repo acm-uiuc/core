@@ -292,6 +292,14 @@ export async function modifyGroup(
       ) {
         return true;
       }
+      if (
+        action === EntraGroupActions.REMOVE &&
+        errorData?.error?.message?.includes(
+          "one of its queried reference-property objects are not present.",
+        )
+      ) {
+        return true;
+      }
       throw new EntraGroupError({
         message: errorData?.error?.message ?? response.statusText,
         group,

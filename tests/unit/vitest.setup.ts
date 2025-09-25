@@ -132,6 +132,16 @@ vi.mock(
             return false;
         }
       }),
+      checkPaidMembership: vi.fn(async (obj) => {
+        switch (obj.netId) {
+          case "valid":
+          case "oldlead":
+          case "newlead":
+            return true;
+          default:
+            return false;
+        }
+      }),
     };
   },
 );
