@@ -1,3 +1,4 @@
+import { MembershipPriceIdStripe } from "@acm-uiuc/js-shared";
 import { AppRoles, RunEnvironment } from "./roles.js";
 import { OriginFunction } from "@fastify/cors";
 
@@ -147,7 +148,7 @@ const environmentConfig: EnvironmentConfigType = {
     SqsQueueUrl:
       "https://sqs.us-east-1.amazonaws.com/298118738376/infra-core-api-sqs",
     PaidMemberGroupId: "172fd9ee-69f0-4384-9786-41ff1a43cf8e",
-    PaidMemberPriceId: "price_1MUGIRDiGOXU9RuSChPYK6wZ",
+    PaidMemberPriceId: MembershipPriceIdStripe,
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
     DiscordGuildId: "718945436332720229",
     EntraServicePrincipalId: "88c76504-9856-4325-bb0a-99f977e3607f"
