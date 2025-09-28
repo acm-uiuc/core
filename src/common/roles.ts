@@ -21,7 +21,7 @@ export enum AppRoles {
   VIEW_EXTERNAL_MEMBERSHIP_LIST = "view:externalMembershipList",
   MANAGE_EXTERNAL_MEMBERSHIP_LIST = "manage:externalMembershipList",
   ALL_ORG_MANAGER = "manage:orgDefinitions",
-  AT_LEAST_ONE_ORG_MANAGER = "manage:someOrg"
+  AT_LEAST_ONE_ORG_MANAGER = "manage:someOrg" // THIS IS A FAKE ROLE - DO NOT ASSIGN IT MANUALLY
 }
 export const orgRoles = ["LEAD", "MEMBER"] as const;
 export type OrgRole = typeof orgRoles[number];
