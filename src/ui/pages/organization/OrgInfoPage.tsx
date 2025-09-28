@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Title, Stack, Container, Grid } from "@mantine/core";
+import { Title, Stack, Container, Grid, Select } from "@mantine/core";
 import { AuthGuard, getUserRoles } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
@@ -16,6 +16,7 @@ export const OrgInfoPage = () => {
   const api = useApi("core");
   const { orgRoles } = useAuth();
   const [manageableOrgs, setManagableOrgs] = useState<AcmOrg[] | null>(null);
+  const [selectedOrg, setSelectedOrg] = useState<AcmOrg | null>(null);
 
   const getCurrentInformation = async (org: AcmOrg) => {
     try {
@@ -78,6 +79,13 @@ export const OrgInfoPage = () => {
             <Stack>
               <Title order={2}>Manage Organization Info</Title>
             </Stack>
+            <Select
+              label="Select an organization you have access to"
+              placeholder="Select organization"
+              data={manageableOrgs}
+              value={selectedOrg}
+              onChange={setSelectedOrg}
+            />
           </AuthGuard>
         </Grid.Col>
       </Grid>
