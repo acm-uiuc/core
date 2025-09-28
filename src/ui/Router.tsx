@@ -29,6 +29,7 @@ import { ViewLogsPage } from "./pages/logs/ViewLogs.page";
 import { TermsOfService } from "./pages/tos/TermsOfService.page";
 import { ManageApiKeysPage } from "./pages/apiKeys/ManageKeys.page";
 import { ManageExternalMembershipPage } from "./pages/membershipLists/MembershipListsPage";
+import { OrgInfoPage } from "./pages/organization/OrgInfoPage";
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -207,6 +208,10 @@ const authenticatedRouter = createBrowserRouter([
   {
     path: "/apiKeys",
     element: <ManageApiKeysPage />,
+  },
+  {
+    path: "/orgInfo",
+    element: <OrgInfoPage />,
   },
   // Catch-all route for authenticated users shows 404 page
   {

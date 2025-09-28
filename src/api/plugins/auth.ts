@@ -352,6 +352,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
               const userAuth = await getUserRoles(
                 fastify.dynamoClient,
                 request.username,
+                request.log,
               );
               for (const role of userAuth) {
                 userRoles.add(role);

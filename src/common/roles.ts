@@ -20,7 +20,8 @@ export enum AppRoles {
   VIEW_INTERNAL_MEMBERSHIP_LIST = "view:internalMembershipList",
   VIEW_EXTERNAL_MEMBERSHIP_LIST = "view:externalMembershipList",
   MANAGE_EXTERNAL_MEMBERSHIP_LIST = "manage:externalMembershipList",
-  ALL_ORG_MANAGER = "manage:orgDefinitions"
+  ALL_ORG_MANAGER = "manage:orgDefinitions",
+  AT_LEAST_ONE_ORG_MANAGER = "manage:someOrg"
 }
 export const orgRoles = ["LEAD", "MEMBER"] as const;
 export type OrgRole = typeof orgRoles[number];
@@ -51,4 +52,5 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Viewer",
   [AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Manager",
   [AppRoles.ALL_ORG_MANAGER]: "Organization Definition Manager",
+  [AppRoles.AT_LEAST_ONE_ORG_MANAGER]: "Manager of at least one org",
 }
