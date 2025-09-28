@@ -27,7 +27,7 @@ export const getOrganizationInfoResponse = z.object({
   leadsEntraGroupId: z.optional(z.string().min(1)).meta({ description: `Only returned for users with the ${AppRoleHumanMapper[AppRoles.ALL_ORG_MANAGER]} role.` })
 })
 
-export const setOrganizationMetaBody = getOrganizationInfoResponse.omit({ id: true, leads: true });
+export const setOrganizationMetaBody = getOrganizationInfoResponse.omit({ id: true, leads: true, leadsEntraGroupId: true });
 export const patchOrganizationLeadsBody = z.object({
   add: z.array(enforcedOrgLeadEntry),
   remove: z.array(z.string())
