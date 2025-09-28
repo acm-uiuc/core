@@ -14,23 +14,30 @@ import React, {
   useCallback,
 } from "react";
 
-import { CACHE_KEY_PREFIX, setCachedResponse } from "../AuthGuard/index.js";
+import {
+  CACHE_KEY_PREFIX,
+  setCachedResponse,
+  getCachedResponse,
+} from "../AuthGuard/index.js";
 
 import FullScreenLoader from "./LoadingScreen.js";
 
 import { getRunEnvironmentConfig, ValidServices } from "@ui/config.js";
 import { transformCommaSeperatedName } from "@common/utils.js";
 import { useApi } from "@ui/util/api.js";
+import { OrgRoleDefinition } from "@common/roles.js";
 
 interface AuthContextDataWrapper {
   isLoggedIn: boolean;
   userData: AuthContextData | null;
+  orgRoles: OrgRoleDefinition[];
   loginMsal: CallableFunction;
   logout: CallableFunction;
   getToken: CallableFunction;
   logoutCallback: CallableFunction;
   getApiToken: CallableFunction;
   setLoginStatus: CallableFunction;
+  refreshOrgRoles: () => Promise<void>;
 }
 
 export type AuthContextData = {
@@ -54,27 +61,66 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { instance, inProgress, accounts } = useMsal();
   const [userData, setUserData] = useState<AuthContextData | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [orgRoles, setOrgRoles] = useState<OrgRoleDefinition[]>([]);
   const checkRoute =
     getRunEnvironmentConfig().ServiceConfiguration.core.authCheckRoute;
   if (!checkRoute) {
     throw new Error("no check route found!");
   }
 
+  const api = useApi("core");
+
   const navigate = (path: string) => {
     window.location.href = path;
   };
+
+  // Function to fetch and update org roles
+  const fetchOrgRoles = useCallback(async () => {
+    try {
+      // Check cache first
+      const cachedData = await getCachedResponse("core", checkRoute);
+      if (cachedData?.data?.orgRoles) {
+        setOrgRoles(cachedData.data.orgRoles || []);
+        return cachedData.data.orgRoles;
+      }
+
+      // Fetch fresh data if not in cache
+      const result = await api.get(checkRoute);
+      await setCachedResponse("core", checkRoute, result.data);
+
+      if (result.data?.orgRoles) {
+        setOrgRoles(result.data.orgRoles || []);
+        return result.data.orgRoles;
+      }
+
+      return [];
+    } catch (error) {
+      console.error("Failed to fetch org roles:", error);
+      return [];
+    }
+  }, [api, checkRoute]);
+
+  // Refresh org roles on demand
+  const refreshOrgRoles = useCallback(async () => {
+    // Clear cache to force fresh fetch
+    const cacheKey = `${CACHE_KEY_PREFIX}core_${checkRoute}`;
+    sessionStorage.removeItem(cacheKey);
+    await fetchOrgRoles();
+  }, [checkRoute, fetchOrgRoles]);
 
   useEffect(() => {
     const handleRedirect = async () => {
       const response = await instance.handleRedirectPromise();
       if (response) {
-        handleMsalResponse(response);
+        await handleMsalResponse(response);
       } else if (accounts.length > 0) {
         setUserData({
           email: accounts[0].username,
           name: transformCommaSeperatedName(accounts[0].name || ""),
         });
         setIsLoggedIn(true);
+        // Fetch org roles when user is already logged in
+        await fetchOrgRoles();
       }
     };
 
@@ -84,7 +130,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [inProgress, accounts, instance]);
 
   const handleMsalResponse = useCallback(
-    (response: AuthenticationResult) => {
+    async (response: AuthenticationResult) => {
       if (response?.account) {
         if (!accounts.length) {
           // If accounts array is empty, try silent authentication
@@ -99,9 +145,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   email: accounts[0].username,
                   name: transformCommaSeperatedName(accounts[0].name || ""),
                 });
-                const api = useApi("core");
+
+                // Fetch and cache auth data including orgRoles
                 const result = await api.get(checkRoute);
                 await setCachedResponse("core", checkRoute, result.data);
+
+                if (result.data?.orgRoles) {
+                  setOrgRoles(result.data.orgRoles || []);
+                }
+
                 setIsLoggedIn(true);
               }
             })
@@ -112,10 +164,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: accounts[0].username,
           name: transformCommaSeperatedName(accounts[0].name || ""),
         });
+
+        // Fetch org roles after successful authentication
+        await fetchOrgRoles();
         setIsLoggedIn(true);
       }
     },
-    [accounts, instance],
+    [accounts, instance, api, checkRoute, fetchOrgRoles],
   );
 
   const getApiToken = useCallback(
@@ -203,9 +258,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             ...request,
             account: accounts[0],
           });
-          const api = useApi("core");
+
+          // Fetch and cache auth data including orgRoles
           const result = await api.get(checkRoute);
           await setCachedResponse("core", checkRoute, result.data);
+
+          if (result.data?.orgRoles) {
+            setOrgRoles(result.data.orgRoles || []);
+          }
+
           setIsLoggedIn(true);
         } catch (error) {
           if (error instanceof InteractionRequiredAuthError) {
@@ -224,7 +285,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
       }
     },
-    [instance, checkRoute, setIsLoggedIn, setCachedResponse],
+    [instance, checkRoute, api],
   );
 
   const setLoginStatus = useCallback((val: boolean) => {
@@ -234,26 +295,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = useCallback(async () => {
     try {
       clearAuthCache();
+      setOrgRoles([]); // Clear org roles on logout
       await instance.logoutRedirect();
     } catch (error) {
       console.error("Logout failed:", error);
     }
-  }, [instance, userData]);
-  const logoutCallback = () => {
+  }, [instance]);
+
+  const logoutCallback = useCallback(() => {
     setIsLoggedIn(false);
     setUserData(null);
-  };
+    setOrgRoles([]); // Clear org roles on logout callback
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
         isLoggedIn,
         userData,
+        orgRoles,
         setLoginStatus,
         loginMsal,
         logout,
         getToken,
         logoutCallback,
         getApiToken,
+        refreshOrgRoles,
       }}
     >
       {inProgress !== InteractionStatus.None ? (
