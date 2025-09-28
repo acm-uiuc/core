@@ -21,8 +21,9 @@ export enum AppRoles {
   VIEW_EXTERNAL_MEMBERSHIP_LIST = "view:externalMembershipList",
   MANAGE_EXTERNAL_MEMBERSHIP_LIST = "manage:externalMembershipList",
   ALL_ORG_MANAGER = "manage:orgDefinitions",
-  AT_LEAST_ONE_ORG_MANAGER = "manage:someOrg" // THIS IS A FAKE ROLE - DO NOT ASSIGN IT MANUALLY
+  AT_LEAST_ONE_ORG_MANAGER = "manage:someOrg" // THIS IS A FAKE ROLE - DO NOT ASSIGN IT MANUALLY - only used for permissioning
 }
+export const PSUEDO_ROLES = [AppRoles.AT_LEAST_ONE_ORG_MANAGER]
 export const orgRoles = ["LEAD", "MEMBER"] as const;
 export type OrgRole = typeof orgRoles[number];
 export type OrgRoleDefinition = {
@@ -32,7 +33,7 @@ export type OrgRoleDefinition = {
 
 export const allAppRoles = Object.values(AppRoles).filter(
   (value) => typeof value === "string",
-);
+).filter(value => !PSUEDO_ROLES.includes(value)); // don't assign psuedo roles by default
 
 export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.EVENTS_MANAGER]: "Events Manager",
