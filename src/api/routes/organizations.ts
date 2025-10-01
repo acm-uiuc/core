@@ -46,6 +46,7 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SQSClient } from "@aws-sdk/client-sqs";
 import { sendSqsMessagesInBatches } from "api/functions/sqs.js";
+import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${Math.floor(ORG_DATA_CACHED_DURATION * 1.1)}, stale-if-error=3600`;
 
@@ -95,7 +96,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     };
   };
 
-  // Omitting GET and POST routes for brevity as they are unchanged...
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "",
     {
@@ -140,7 +140,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         let successOnly = data
           .filter((x) => x.status === "fulfilled")
           .map((x) => x.value);
-        // return just the ID for anything not in the DB.
         const successIds = successOnly.map((x) => x.id);
         if (!isAuthenticated) {
           successOnly = successOnly.map((x) => ({
@@ -163,6 +162,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
+
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:orgId",
     {
@@ -212,6 +212,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       return reply.send(response);
     },
   );
+
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/:orgId/meta",
     {
@@ -249,15 +250,17 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       },
     },
     async (request, reply) => {
-      try {
-        const logStatement = buildAuditLogTransactPut({
-          entry: {
-            module: Modules.ORG_INFO,
-            message: "Updated organization metadata.",
-            actor: request.username!,
-            target: request.params.orgId,
-          },
-        });
+      const timestamp = new Date().toISOString();
+      const logStatement = buildAuditLogTransactPut({
+        entry: {
+          module: Modules.ORG_INFO,
+          message: "Updated organization metadata.",
+          actor: request.username!,
+          target: request.params.orgId,
+        },
+      });
+
+      const metadataOperation = async () => {
         const commandTransaction = new TransactWriteItemsCommand({
           TransactItems: [
             ...(logStatement ? [logStatement] : []),
@@ -269,7 +272,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
                     ...request.body,
                     primaryKey: `DEFINE#${request.params.orgId}`,
                     entryId: "0",
-                    updatedAt: new Date().toISOString(),
+                    updatedAt: timestamp,
                   },
                   { removeUndefinedValues: true },
                 ),
@@ -277,7 +280,15 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             },
           ],
         });
-        await fastify.dynamoClient.send(commandTransaction);
+        return await fastify.dynamoClient.send(commandTransaction);
+      };
+
+      try {
+        await retryDynamoTransactionWithBackoff(
+          metadataOperation,
+          request.log,
+          `Update metadata for ${request.params.orgId}`,
+        );
       } catch (e) {
         if (e instanceof BaseError) {
           throw e;
@@ -339,7 +350,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
 
-      // Check paid membership for all potential new members before proceeding.
       if (add.length > 0) {
         try {
           const paidMemberships = await Promise.all(
@@ -376,6 +386,8 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           entryId: "0",
         }),
         AttributesToGet: ["leadsEntraGroupId"],
+        // Use consistent read to ensure we get the latest metadata
+        ConsistentRead: true,
       });
 
       const [metadataResponse, clients] = await Promise.all([
@@ -405,7 +417,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         officersEmail,
       };
 
-      // Attempt to add and remove all users specified in the request body.
       const addPromises = add.map((user) => addLead({ ...commonArgs, user }));
       const removePromises = remove.map((username) =>
         removeLead({ ...commonArgs, username }),
