@@ -32,3 +32,5 @@ export const patchOrganizationLeadsBody = z.object({
   add: z.array(enforcedOrgLeadEntry),
   remove: z.array(z.string())
 });
+
+export const ORG_DATA_CACHED_DURATION = 300;

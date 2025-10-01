@@ -29,7 +29,7 @@ import { ViewLogsPage } from "./pages/logs/ViewLogs.page";
 import { TermsOfService } from "./pages/tos/TermsOfService.page";
 import { ManageApiKeysPage } from "./pages/apiKeys/ManageKeys.page";
 import { ManageExternalMembershipPage } from "./pages/membershipLists/MembershipListsPage";
-import { OrgInfoPage } from "./pages/organization/OrgInfoPage";
+import { OrgInfoPage } from "./pages/organization/OrgInfo.page";
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
