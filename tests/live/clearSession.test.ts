@@ -19,6 +19,7 @@ describe("Session clearing tests", { timeout: 30000 }, async () => {
     expect(responseBody).toStrictEqual({
       username: "infra@acm.illinois.edu",
       roles: allAppRoles,
+      orgRoles: [],
     });
     // user logs out
     const clearResponse = await fetch(`${baseEndpoint}/api/v1/clearSession`, {
