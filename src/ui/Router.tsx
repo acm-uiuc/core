@@ -127,7 +127,7 @@ const authenticatedRouter = createBrowserRouter([
   ...commonRoutes,
   {
     path: "/",
-    element: <AcmAppShell>{null}</AcmAppShell>,
+    element: <Navigate to="/home" replace />,
   },
   {
     path: "/login",
