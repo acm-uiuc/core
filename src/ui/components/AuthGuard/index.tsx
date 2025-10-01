@@ -84,6 +84,27 @@ export const clearAuthCache = () => {
   }
 };
 
+/**
+ * Retrieves the user's roles from the session cache for a specific service.
+ * @param service The service to check the cache for.
+ * @param route The authentication check route.
+ * @returns A promise that resolves to an array of roles, or null if not found in cache.
+ */
+export const getUserRoles = async (
+  service: ValidService,
+): Promise<string[] | null> => {
+  const { authCheckRoute } =
+    getRunEnvironmentConfig().ServiceConfiguration[service];
+  if (!authCheckRoute) {
+    throw new Error("no auth check route");
+  }
+  const cachedData = await getCachedResponse(service, authCheckRoute);
+  if (cachedData?.data?.roles && Array.isArray(cachedData.data.roles)) {
+    return cachedData.data.roles;
+  }
+  return null;
+};
+
 export const AuthGuard: React.FC<
   {
     resourceDef: ResourceDefinition;

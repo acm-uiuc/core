@@ -19,6 +19,7 @@ describe("Session clearing tests", { timeout: 30000 }, async () => {
     expect(responseBody).toStrictEqual({
       username: "infra@acm.illinois.edu",
       roles: allAppRoles,
+      orgRoles: [],
     });
     // user logs out
     const clearResponse = await fetch(`${baseEndpoint}/api/v1/clearSession`, {
@@ -30,7 +31,7 @@ describe("Session clearing tests", { timeout: 30000 }, async () => {
     expect(clearResponse.status).toBe(201);
     // token should be revoked
     // add a sleep because delay shouldn't fail the pipeline
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 2000));
     const responseFail = await fetch(`${baseEndpoint}/api/v1/protected`, {
       method: "GET",
       headers: {

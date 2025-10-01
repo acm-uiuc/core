@@ -57,7 +57,11 @@ export async function getOrgInfo({
   };
   try {
     const responseMarshall = await dynamoClient.send(query);
-    if (!responseMarshall.Items || responseMarshall.Items.length === 0) {
+    if (
+      !responseMarshall ||
+      !responseMarshall.Items ||
+      responseMarshall.Items.length === 0
+    ) {
       logger.debug(
         `Could not find SIG information for ${id}, returning default.`,
       );
@@ -126,7 +130,7 @@ export async function getUserOrgRoles({
   });
   try {
     const response = await dynamoClient.send(query);
-    if (!response.Items) {
+    if (!response || !response.Items) {
       return [];
     }
     const unmarshalled = response.Items.map((x) => unmarshall(x)).map(

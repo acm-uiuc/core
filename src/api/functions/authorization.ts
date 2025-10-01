@@ -25,6 +25,7 @@ import { getUserOrgRoles } from "./organizations.js";
 export async function getUserRoles(
   dynamoClient: DynamoDBClient,
   userId: string,
+  logger: FastifyBaseLogger,
 ): Promise<AppRoles[]> {
   const tableName = `${genericConfig.IAMTablePrefix}-assignments`;
   const command = new GetItemCommand({
@@ -39,17 +40,33 @@ export async function getUserRoles(
       message: "Could not get user roles",
     });
   }
+  // get user org roles and return if they lead at least one org
+  let baseRoles: AppRoles[];
+  try {
+    const orgRoles = await getUserOrgRoles({
+      username: userId,
+      dynamoClient,
+      logger,
+    });
+    const leadsOneOrg = orgRoles.filter((x) => x.role === "LEAD").length > 0;
+    baseRoles = leadsOneOrg ? [AppRoles.AT_LEAST_ONE_ORG_MANAGER] : [];
+  } catch (e) {
+    logger.error(e);
+    baseRoles = [];
+  }
+
   if (!response.Item) {
-    return [];
+    return baseRoles;
   }
   const items = unmarshall(response.Item) as { roles: AppRoles[] | ["all"] };
   if (!("roles" in items)) {
-    return [];
+    return baseRoles;
   }
   if (items.roles[0] === "all") {
     return allAppRoles;
   }
-  return items.roles as AppRoles[];
+
+  return [...new Set([...baseRoles, ...items.roles])] as AppRoles[];
 }
 
 export async function getGroupRoles(
