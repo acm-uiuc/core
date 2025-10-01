@@ -7,7 +7,7 @@ describe("Internal Membership tests", () => {
   test("A user can query internal membership", async ({ page, becomeUser }) => {
     const uuid = `e2e-${randomUUID()}`;
     await becomeUser(page);
-    await page.locator("a").filter({ hasText: "Membership Lists" }).click();
+    await page.locator("a").filter({ hasText: "Membership" }).click();
     await page
       .getByRole("textbox", { name: "Enter NetIDs or Illinois" })
       .click();
@@ -29,7 +29,7 @@ describe("External Membership tests", () => {
   }) => {
     const uuid = `e2e-${randomUUID()}`;
     await becomeUser(page);
-    await page.locator("a").filter({ hasText: "Membership Lists" }).click();
+    await page.locator("a").filter({ hasText: "Membership" }).click();
     await page.getByRole("button", { name: "New List" }).click();
     await page.getByRole("textbox", { name: "New List ID" }).fill(uuid);
     await page.getByRole("textbox", { name: "Initial Member NetID" }).click();
