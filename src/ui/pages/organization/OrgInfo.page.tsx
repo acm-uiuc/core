@@ -10,6 +10,7 @@ import { AllOrganizationList } from "@acm-uiuc/js-shared";
 import { useAuth } from "@ui/components/AuthContext";
 import { ManageOrganizationForm } from "./ManageOrganizationForm";
 import {
+  LeadEntry,
   ORG_DATA_CACHED_DURATION,
   setOrganizationMetaBody,
 } from "@common/types/organizations";
@@ -76,7 +77,35 @@ export const OrgInfoPage = () => {
       throw error;
     }
   };
+  const updateLeads = async (
+    org: AcmOrg,
+    toAdd: LeadEntry[],
+    toRemove: string[],
+  ): Promise<void> => {
+    try {
+      await api.patch(`/api/v1/organizations/${org}/leads`, {
+        add: toAdd,
+        remove: toRemove,
+      });
+      notifications.show({
+        title: `${org} leads updated`,
+        message: `Changes may take up to ${ORG_DATA_CACHED_DURATION / 60} minutes to reflect to all users.`,
+        color: "green",
+      });
+    } catch (error: any) {
+      console.error("Failed to update org leads:", error);
+      const errorMessage =
+        error.response?.data?.message || "Please try again or contact support.";
 
+      notifications.show({
+        title: `Failed to update leads for ${org}.`,
+        message: errorMessage,
+        color: "red",
+        icon: <IconAlertCircle size={16} />,
+      });
+      throw error;
+    }
+  };
   useEffect(() => {
     (async () => {
       const appRoles = await getUserRoles("core");
@@ -165,6 +194,9 @@ export const OrgInfoPage = () => {
               getOrganizationData={getOrganizationData}
               updateOrganizationData={(data) =>
                 updateOrganizationData(selectedOrg, data)
+              }
+              updateLeads={(toAdd, toRemove) =>
+                updateLeads(selectedOrg, toAdd, toRemove)
               }
             />
           )}

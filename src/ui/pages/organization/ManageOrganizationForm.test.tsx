@@ -388,3 +388,429 @@ describe("ManageOrganizationForm Tests", () => {
     expect(submitButton).toBeDisabled();
   });
 });
+
+describe("ManageOrganizationForm - Lead Management Tests", () => {
+  const getOrganizationDataMock = vi.fn();
+  const updateOrganizationDataMock = vi.fn();
+  const updateLeadsMock = vi.fn();
+
+  const mockOrgDataWithLeads = {
+    description: "Test organization",
+    website: "https://test.com",
+    links: [],
+    leads: [
+      {
+        name: "John Doe",
+        username: "jdoe@illinois.edu",
+        title: "Chair",
+      },
+      {
+        name: "Jane Smith",
+        username: "jsmith@illinois.edu",
+        title: "Vice Chair",
+      },
+    ],
+  };
+
+  const renderComponent = async (props = {}) => {
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MantineProvider
+            withGlobalClasses
+            withCssVariables
+            forceColorScheme="light"
+          >
+            <ManageOrganizationForm
+              organizationId="ACM"
+              getOrganizationData={getOrganizationDataMock}
+              updateOrganizationData={updateOrganizationDataMock}
+              updateLeads={updateLeadsMock}
+              {...props}
+            />
+          </MantineProvider>
+        </MemoryRouter>,
+      );
+    });
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("displays existing leads", async () => {
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getByText("jdoe@illinois.edu")).toBeInTheDocument();
+      expect(screen.getByText("Chair")).toBeInTheDocument();
+      expect(screen.getByText("Jane Smith")).toBeInTheDocument();
+      expect(screen.getByText("jsmith@illinois.edu")).toBeInTheDocument();
+      expect(screen.getByText("Vice Chair")).toBeInTheDocument();
+    });
+  });
+
+  it("shows 'No leads found' when there are no leads", async () => {
+    getOrganizationDataMock.mockResolvedValue({
+      description: "Test",
+      website: "https://test.com",
+      links: [],
+      leads: [],
+    });
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("No leads found.")).toBeInTheDocument();
+    });
+  });
+
+  it("adds a new lead to the queue", async () => {
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    const user = userEvent.setup();
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+
+    // Fill in new lead form
+    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
+    await user.type(
+      screen.getByLabelText("Lead Email"),
+      "bwilson@illinois.edu",
+    );
+    await user.type(screen.getByLabelText("Lead Title"), "Treasurer");
+
+    // Click Add Lead button
+    const addButton = screen.getByRole("button", { name: "Add Lead" });
+    await user.click(addButton);
+
+    // Check that the lead is queued
+    await waitFor(() => {
+      expect(screen.getByText("Bob Wilson")).toBeInTheDocument();
+      expect(screen.getByText("bwilson@illinois.edu")).toBeInTheDocument();
+      expect(screen.getByText("Treasurer")).toBeInTheDocument();
+      expect(screen.getByText("Queued for addition")).toBeInTheDocument();
+    });
+  });
+
+  it("validates email format when adding lead", async () => {
+    const notificationsMock = vi.spyOn(notifications, "show");
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    const user = userEvent.setup();
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+
+    // Fill in form with invalid email
+    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
+    await user.type(screen.getByLabelText("Lead Email"), "invalid-email");
+    await user.type(screen.getByLabelText("Lead Title"), "Treasurer");
+
+    const addButton = screen.getByRole("button", { name: "Add Lead" });
+    await user.click(addButton);
+
+    await waitFor(() => {
+      expect(notificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Invalid Email",
+          message: "Please enter a valid email address.",
+          color: "orange",
+        }),
+      );
+    });
+
+    notificationsMock.mockRestore();
+  });
+
+  it("prevents adding duplicate leads", async () => {
+    const notificationsMock = vi.spyOn(notifications, "show");
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    const user = userEvent.setup();
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+
+    // Try to add existing lead
+    await user.type(screen.getByLabelText("Lead Name"), "John Doe");
+    await user.type(screen.getByLabelText("Lead Email"), "jdoe@illinois.edu");
+    await user.type(screen.getByLabelText("Lead Title"), "Member");
+
+    const addButton = screen.getByRole("button", { name: "Add Lead" });
+    await user.click(addButton);
+
+    await waitFor(() => {
+      expect(notificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Duplicate Lead",
+          message: "This user is already a lead or queued for addition.",
+          color: "orange",
+        }),
+      );
+    });
+
+    notificationsMock.mockRestore();
+  });
+
+  it("queues a lead for removal", async () => {
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    const user = userEvent.setup();
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+
+    // Find and click the Remove button for John Doe
+    const removeButtons = screen.getAllByRole("button", { name: "Remove" });
+    await user.click(removeButtons[0]);
+
+    // Check that the lead is queued for removal
+    await waitFor(() => {
+      expect(screen.getByText("Queued for removal")).toBeInTheDocument();
+    });
+  });
+
+  it("cancels a queued removal", async () => {
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    const user = userEvent.setup();
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+
+    // Queue for removal
+    const removeButtons = screen.getAllByRole("button", { name: "Remove" });
+    await user.click(removeButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText("Queued for removal")).toBeInTheDocument();
+    });
+
+    // Cancel the removal
+    const cancelButton = screen.getByRole("button", { name: "Cancel" });
+    await user.click(cancelButton);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Queued for removal")).not.toBeInTheDocument();
+      expect(screen.getAllByText("Active").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("cancels a queued addition", async () => {
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    const user = userEvent.setup();
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+
+    // Add a new lead
+    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
+    await user.type(
+      screen.getByLabelText("Lead Email"),
+      "bwilson@illinois.edu",
+    );
+    await user.type(screen.getByLabelText("Lead Title"), "Treasurer");
+    await user.click(screen.getByRole("button", { name: "Add Lead" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob Wilson")).toBeInTheDocument();
+    });
+
+    // Cancel the addition
+    const cancelAddButton = screen.getByRole("button", { name: "Cancel Add" });
+    await user.click(cancelAddButton);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Bob Wilson")).not.toBeInTheDocument();
+    });
+  });
+
+  it("opens confirmation modal when saving lead changes", async () => {
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    const user = userEvent.setup();
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+
+    // Add a new lead
+    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
+    await user.type(
+      screen.getByLabelText("Lead Email"),
+      "bwilson@illinois.edu",
+    );
+    await user.type(screen.getByLabelText("Lead Title"), "Treasurer");
+    await user.click(screen.getByRole("button", { name: "Add Lead" }));
+
+    // Click save lead changes
+    const saveButton = screen.getByRole("button", {
+      name: /Save Lead Changes/,
+    });
+    await user.click(saveButton);
+
+    // Check modal appears
+    await waitFor(() => {
+      expect(screen.getByText("Confirm Changes")).toBeInTheDocument();
+      expect(screen.getByText("Leads to Add:")).toBeInTheDocument();
+    });
+  });
+
+  it("saves lead changes when confirmed", async () => {
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    updateLeadsMock.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+
+    // Add a new lead
+    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
+    await user.type(
+      screen.getByLabelText("Lead Email"),
+      "bwilson@illinois.edu",
+    );
+    await user.type(screen.getByLabelText("Lead Title"), "Treasurer");
+    await user.click(screen.getByRole("button", { name: "Add Lead" }));
+
+    // Queue a removal
+    const removeButtons = screen.getAllByRole("button", { name: "Remove" });
+    await user.click(removeButtons[0]);
+
+    // Open modal and confirm
+    const saveButton = screen.getByRole("button", {
+      name: /Save Lead Changes/,
+    });
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Confirm Changes")).toBeInTheDocument();
+    });
+
+    const confirmButton = screen.getByRole("button", {
+      name: "Confirm and Save",
+    });
+    await user.click(confirmButton);
+
+    // Verify the update function was called correctly
+    await waitFor(() => {
+      expect(updateLeadsMock).toHaveBeenCalledWith(
+        [
+          {
+            name: "Bob Wilson",
+            username: "bwilson@illinois.edu",
+            title: "Treasurer",
+          },
+        ],
+        ["jdoe@illinois.edu"],
+      );
+    });
+  });
+
+  it("disables save button when no changes are queued", async () => {
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+
+    const saveButton = screen.getByRole("button", {
+      name: /Save Lead Changes/,
+    });
+    expect(saveButton).toBeDisabled();
+  });
+
+  it("clears form fields after adding a lead", async () => {
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    const user = userEvent.setup();
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+
+    // Fill in and submit form
+    const nameInput = screen.getByLabelText("Lead Name");
+    const emailInput = screen.getByLabelText("Lead Email");
+    const titleInput = screen.getByLabelText("Lead Title");
+
+    await user.type(nameInput, "Bob Wilson");
+    await user.type(emailInput, "bwilson@illinois.edu");
+    await user.type(titleInput, "Treasurer");
+    await user.click(screen.getByRole("button", { name: "Add Lead" }));
+
+    // Check that fields are cleared
+    await waitFor(() => {
+      expect(nameInput).toHaveValue("");
+      expect(emailInput).toHaveValue("");
+      expect(titleInput).toHaveValue("");
+    });
+  });
+
+  it("shows error notification when all fields are not filled", async () => {
+    const notificationsMock = vi.spyOn(notifications, "show");
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    const user = userEvent.setup();
+    await renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+
+    // Try to add without filling all fields
+    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
+    await user.click(screen.getByRole("button", { name: "Add Lead" }));
+
+    await waitFor(() => {
+      expect(notificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Invalid Input",
+          message: "All fields are required to add a lead.",
+          color: "orange",
+        }),
+      );
+    });
+
+    notificationsMock.mockRestore();
+  });
+
+  it("does not show lead management section when updateLeads is not provided", async () => {
+    getOrganizationDataMock.mockResolvedValue(mockOrgDataWithLeads);
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MantineProvider
+            withGlobalClasses
+            withCssVariables
+            forceColorScheme="light"
+          >
+            <ManageOrganizationForm
+              organizationId="ACM"
+              getOrganizationData={getOrganizationDataMock}
+              updateOrganizationData={updateOrganizationDataMock}
+            />
+          </MantineProvider>
+        </MemoryRouter>,
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("org-loading")).not.toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Organization Leads")).not.toBeInTheDocument();
+  });
+});
