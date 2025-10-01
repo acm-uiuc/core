@@ -115,7 +115,7 @@ export const navItems = [
     name: "Organization Info",
     icon: IconInfoCircle,
     description: null,
-    validRoles: [AppRoles.AT_LEAST_ONE_ORG_MANAGER],
+    validRoles: [AppRoles.ALL_ORG_MANAGER, AppRoles.AT_LEAST_ONE_ORG_MANAGER],
   },
 ];
 
