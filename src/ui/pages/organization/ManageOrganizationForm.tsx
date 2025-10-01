@@ -18,12 +18,16 @@ import {
   Avatar,
   Modal,
   Divider,
+  Combobox,
+  useCombobox,
+  InputBase,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPlus, IconTrash, IconUserPlus } from "@tabler/icons-react";
 import {
   LeadEntry,
+  leadTitleSuggestions,
   MAX_ORG_DESCRIPTION_CHARS,
   setOrganizationMetaBody,
   validOrgLinkTypes,
@@ -64,6 +68,15 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
   const [newLeadName, setNewLeadName] = useState("");
   const [newLeadEmail, setNewLeadEmail] = useState("");
   const [newLeadTitle, setNewLeadTitle] = useState("");
+
+  // Combobox for title suggestions
+  const combobox = useCombobox({
+    onDropdownClose: () => combobox.resetSelectedOption(),
+  });
+
+  const filteredTitles = leadTitleSuggestions.filter((title) =>
+    title.toLowerCase().includes(newLeadTitle.toLowerCase()),
+  );
 
   const form = useForm({
     validate: zodResolver(setOrganizationMetaBody),
@@ -348,7 +361,9 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
                 Organization Leads
               </Title>
               <Text size="sm" c="dimmed" mb="md">
-                Manage who has leadership permissions for this organization
+                These users will be your Executive Council representatives and
+                will be given management permissions for your org. These users
+                must be paid members.
               </Text>
 
               <Table verticalSpacing="sm" highlightOnHover>
@@ -460,12 +475,45 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
                   value={newLeadEmail}
                   onChange={(e) => setNewLeadEmail(e.currentTarget.value)}
                 />
-                <TextInput
-                  label="Lead Title"
-                  placeholder="Chair"
-                  value={newLeadTitle}
-                  onChange={(e) => setNewLeadTitle(e.currentTarget.value)}
-                />
+                <Combobox
+                  store={combobox}
+                  onOptionSubmit={(val) => {
+                    setNewLeadTitle(val);
+                    combobox.closeDropdown();
+                  }}
+                >
+                  <Combobox.Target>
+                    <InputBase
+                      label="Lead Title"
+                      placeholder="Chair"
+                      value={newLeadTitle}
+                      onChange={(e) => {
+                        setNewLeadTitle(e.currentTarget.value);
+                        combobox.openDropdown();
+                        combobox.updateSelectedOptionIndex();
+                      }}
+                      onClick={() => combobox.openDropdown()}
+                      onFocus={() => combobox.openDropdown()}
+                      onBlur={() => combobox.closeDropdown()}
+                      rightSection={<Combobox.Chevron />}
+                      rightSectionPointerEvents="none"
+                    />
+                  </Combobox.Target>
+
+                  <Combobox.Dropdown>
+                    <Combobox.Options>
+                      {filteredTitles.length > 0 ? (
+                        filteredTitles.map((title) => (
+                          <Combobox.Option value={title} key={title}>
+                            {title}
+                          </Combobox.Option>
+                        ))
+                      ) : (
+                        <Combobox.Empty>No matches found</Combobox.Empty>
+                      )}
+                    </Combobox.Options>
+                  </Combobox.Dropdown>
+                </Combobox>
               </Stack>
 
               <Button
