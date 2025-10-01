@@ -14,7 +14,7 @@ export const orgLeadEntry = z.object({
 
 export const leadTitleSuggestions = ["Chair", "Co-chair", "Admin", "Lead", "Helper"];
 
-export const MAX_ORG_DESCRIPTION_CHARS = 125;
+export const MAX_ORG_DESCRIPTION_CHARS = 200;
 export type LeadEntry = z.infer<typeof orgLeadEntry>;
 
 export const validOrgLinkTypes = ["DISCORD", "CAMPUSWIRE", "SLACK", "NOTION", "MATRIX", "INSTAGRAM", "OTHER"] as const as [string, ...string[]];
