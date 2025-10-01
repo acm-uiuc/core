@@ -34,7 +34,7 @@ export const getOrganizationInfoResponse = z.object({
 
 export const setOrganizationMetaBody = getOrganizationInfoResponse.omit({ id: true, leads: true, leadsEntraGroupId: true });
 export const patchOrganizationLeadsBody = z.object({
-  add: z.array(enforcedOrgLeadEntry),
+  add: z.array(enforcedOrgLeadEntry).max(3),
   remove: z.array(z.string())
 });
 

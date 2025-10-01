@@ -6,11 +6,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
-import {
-  BaseError,
-  DatabaseFetchError,
-  ValidationError,
-} from "common/errors/index.js";
+import { BaseError, DatabaseFetchError } from "common/errors/index.js";
 import { OrgRole, orgRoles } from "common/roles.js";
 import {
   enforcedOrgLeadEntry,
@@ -25,6 +21,7 @@ import { modifyGroup } from "./entraId.js";
 import { EntraGroupActions } from "common/types/iam.js";
 import { buildAuditLogTransactPut } from "./auditLog.js";
 import { Modules } from "common/modules.js";
+import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 
 export interface GetOrgInfoInputs {
   id: string;
@@ -51,6 +48,7 @@ export async function getOrgInfo({
     ExpressionAttributeValues: {
       ":definitionId": { S: `DEFINE#${id}` },
     },
+    ConsistentRead: true,
   });
   let response = { leads: [] } as {
     leads: { name: string; username: string; title: string | undefined }[];
@@ -80,13 +78,14 @@ export async function getOrgInfo({
       message: "Failed to get org metadata.",
     });
   }
-  // Get leads
+
   const leadsQuery = new QueryCommand({
     TableName: genericConfig.SigInfoTableName,
     KeyConditionExpression: "primaryKey = :leadName",
     ExpressionAttributeValues: {
       ":leadName": { S: `LEAD#${id}` },
     },
+    ConsistentRead: true,
   });
   try {
     const responseMarshall = await dynamoClient.send(leadsQuery);
@@ -173,11 +172,6 @@ export async function getUserOrgRoles({
   }
 }
 
-/**
- * Adds a user as a lead, handling DB, Entra sync, and returning an email payload.
- * It will only succeed if the user is not already a lead, preventing race conditions.
- * @returns SQSMessage payload for email notification, or null if the user is already a lead.
- */
 export const addLead = async ({
   user,
   orgId,
@@ -203,36 +197,43 @@ export const addLead = async ({
 }): Promise<SQSMessage | null> => {
   const { username } = user;
 
-  const addTransaction = new TransactWriteItemsCommand({
-    TransactItems: [
-      buildAuditLogTransactPut({
-        entry: {
-          module: Modules.ORG_INFO,
-          actor: actorUsername,
-          target: username,
-          message: `Added target as a lead of ${orgId}.`,
+  const addOperation = async () => {
+    const addTransaction = new TransactWriteItemsCommand({
+      TransactItems: [
+        buildAuditLogTransactPut({
+          entry: {
+            module: Modules.ORG_INFO,
+            actor: actorUsername,
+            target: username,
+            message: `Added target as a lead of ${orgId}.`,
+          },
+        })!,
+        {
+          Put: {
+            TableName: genericConfig.SigInfoTableName,
+            Item: marshall({
+              ...user,
+              primaryKey: `LEAD#${orgId}`,
+              entryId: username,
+              updatedAt: new Date().toISOString(),
+            }),
+            ConditionExpression:
+              "attribute_not_exists(primaryKey) AND attribute_not_exists(entryId)",
+          },
         },
-      })!,
-      {
-        Put: {
-          TableName: genericConfig.SigInfoTableName,
-          Item: marshall({
-            ...user,
-            primaryKey: `LEAD#${orgId}`,
-            entryId: username,
-            updatedAt: new Date().toISOString(),
-          }),
-          // This condition ensures the Put operation fails if an item with this primary key already exists.
-          ConditionExpression: "attribute_not_exists(primaryKey)",
-        },
-      },
-    ],
-  });
+      ],
+    });
+
+    return await dynamoClient.send(addTransaction);
+  };
 
   try {
-    await dynamoClient.send(addTransaction);
+    await retryDynamoTransactionWithBackoff(
+      addOperation,
+      logger,
+      `Add lead ${username} to ${orgId}`,
+    );
   } catch (e: any) {
-    // This specific error is thrown when a ConditionExpression fails.
     if (
       e.name === "TransactionCanceledException" &&
       e.message.includes("ConditionalCheckFailed")
@@ -240,9 +241,9 @@ export const addLead = async ({
       logger.info(
         `User ${username} is already a lead for ${orgId}. Skipping add operation.`,
       );
-      return null; // Gracefully exit without erroring.
+      return null;
     }
-    throw e; // Re-throw any other type of error.
+    throw e;
   }
 
   logger.info(
@@ -290,11 +291,6 @@ export const addLead = async ({
   };
 };
 
-/**
- * Removes a user as a lead, handling DB, Entra sync, and returning an email payload.
- * It will only succeed if the user is currently a lead, and attempts to avoid race conditions in Exec group management.
- * @returns SQSMessage payload for email notification, or null if the user was not a lead.
- */
 export const removeLead = async ({
   username,
   orgId,
@@ -318,44 +314,41 @@ export const removeLead = async ({
   execGroupId: string;
   officersEmail: string;
 }): Promise<SQSMessage | null> => {
-  const getDelayed = async () => {
-    // HACK: wait up to 30ms in an attempt to de-sync the threads on checking leads.
-    // Yes, I know this is bad. But because of a lack of consistent reads on Dynamo GSIs,
-    // we're going to have to run with it for now.
-    const sleepMs = Math.random() * 30;
-    logger.info(`Sleeping for ${sleepMs}ms before checking.`);
-    await new Promise((resolve) => setTimeout(resolve, sleepMs));
-    return getUserOrgRoles({ username, dynamoClient, logger });
+  const removeOperation = async () => {
+    const removeTransaction = new TransactWriteItemsCommand({
+      TransactItems: [
+        buildAuditLogTransactPut({
+          entry: {
+            module: Modules.ORG_INFO,
+            actor: actorUsername,
+            target: username,
+            message: `Removed target from lead of ${orgId}.`,
+          },
+        })!,
+        {
+          Delete: {
+            TableName: genericConfig.SigInfoTableName,
+            Key: marshall({
+              primaryKey: `LEAD#${orgId}`,
+              entryId: username,
+            }),
+            ConditionExpression:
+              "attribute_exists(primaryKey) AND attribute_exists(entryId)",
+          },
+        },
+      ],
+    });
+
+    return await dynamoClient.send(removeTransaction);
   };
-  const userRolesPromise = getDelayed();
-  const removeTransaction = new TransactWriteItemsCommand({
-    TransactItems: [
-      buildAuditLogTransactPut({
-        entry: {
-          module: Modules.ORG_INFO,
-          actor: actorUsername,
-          target: username,
-          message: `Removed target from lead of ${orgId}.`,
-        },
-      })!,
-      {
-        Delete: {
-          TableName: genericConfig.SigInfoTableName,
-          Key: marshall({
-            primaryKey: `LEAD#${orgId}`,
-            entryId: username,
-          }),
-          // Idempotent
-          ConditionExpression: "attribute_exists(primaryKey)",
-        },
-      },
-    ],
-  });
 
   try {
-    await dynamoClient.send(removeTransaction);
+    await retryDynamoTransactionWithBackoff(
+      removeOperation,
+      logger,
+      `Remove lead ${username} from ${orgId}`,
+    );
   } catch (e: any) {
-    // This specific error is thrown when a ConditionExpression fails, meaning we do nothing.
     if (
       e.name === "TransactionCanceledException" &&
       e.message.includes("ConditionalCheckFailed")
@@ -385,11 +378,12 @@ export const removeLead = async ({
     );
   }
 
-  const userRoles = await userRolesPromise;
-  // Since the read is eventually consistent, don't count the role we just removed if it still gets returned.
+  // Use consistent read to check if user has other lead roles
+  const userRoles = await getUserOrgRoles({ username, dynamoClient, logger });
   const otherLeadRoles = userRoles
     .filter((x) => x.role === "LEAD")
     .filter((x) => x.org !== orgId);
+
   if (otherLeadRoles.length === 0) {
     await modifyGroup(
       entraIdToken,
