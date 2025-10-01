@@ -147,7 +147,12 @@ vi.mock(
 );
 
 ddbMock.on(QueryCommand).callsFake((command) => {
-  if (command.input.TableName === genericConfig.UserInfoTable) {
+  if (command.TableName === genericConfig.SigInfoTableName) {
+    return Promise.resolve({
+      Items: [],
+    });
+  }
+  if (command.TableName === genericConfig.UserInfoTable) {
     const requestedEmail = command.input.ExpressionAttributeValues[":pk"].S;
     const mockMembershipData = {
       "valid@illinois.edu": {

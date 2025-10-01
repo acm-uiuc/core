@@ -59,6 +59,7 @@ describe("Test authentication", () => {
     expect(jsonBody).toEqual({
       username: "infra-unit-test@acm.illinois.edu",
       roles: allAppRoles,
+      orgRoles: [],
     });
   });
 
@@ -75,6 +76,7 @@ describe("Test authentication", () => {
     expect(jsonBody).toEqual({
       username: "infra-unit-test-nogrp@acm.illinois.edu",
       roles: [AppRoles.TICKETS_SCANNER],
+      orgRoles: [],
     });
   });
 

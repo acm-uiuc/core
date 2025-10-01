@@ -29,6 +29,7 @@ describe("Role checking live API tests", async () => {
     expect(responseBody).toStrictEqual({
       username: "infra@acm.illinois.edu",
       roles: allAppRoles,
+      orgRoles: [],
     });
   });
 });

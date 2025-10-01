@@ -5,11 +5,16 @@ import { z } from "zod/v4";
 
 export const orgLeadEntry = z.object({
   name: z.optional(z.string()),
-  username: z.email(),
+  username: z.email().refine(
+    (email) => email.endsWith('@illinois.edu'),
+    { message: 'Email must be from the @illinois.edu domain' }
+  ),
   title: z.optional(z.string())
 })
 
-export const validOrgLinkTypes = ["DISCORD", "CAMPUSWIRE", "SLACK", "NOTION", "MATRIX", "OTHER"] as const as [string, ...string[]];
+export type LeadEntry = z.infer<typeof orgLeadEntry>;
+
+export const validOrgLinkTypes = ["DISCORD", "CAMPUSWIRE", "SLACK", "NOTION", "MATRIX", "INSTAGRAM", "OTHER"] as const as [string, ...string[]];
 
 export const orgLinkEntry = z.object({
   type: z.enum(validOrgLinkTypes),
@@ -17,7 +22,6 @@ export const orgLinkEntry = z.object({
 })
 
 export const enforcedOrgLeadEntry = orgLeadEntry.extend({ name: z.string().min(1), title: z.string().min(1) })
-
 
 export const getOrganizationInfoResponse = z.object({
   id: z.enum(AllOrganizationList),
@@ -28,8 +32,10 @@ export const getOrganizationInfoResponse = z.object({
   leadsEntraGroupId: z.optional(z.string().min(1)).meta({ description: `Only returned for users with the ${AppRoleHumanMapper[AppRoles.ALL_ORG_MANAGER]} role.` })
 })
 
-export const setOrganizationMetaBody = getOrganizationInfoResponse.omit({ id: true, leads: true });
+export const setOrganizationMetaBody = getOrganizationInfoResponse.omit({ id: true, leads: true, leadsEntraGroupId: true });
 export const patchOrganizationLeadsBody = z.object({
   add: z.array(enforcedOrgLeadEntry),
   remove: z.array(z.string())
 });
+
+export const ORG_DATA_CACHED_DURATION = 300;

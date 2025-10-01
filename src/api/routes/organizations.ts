@@ -5,6 +5,7 @@ import { withRoles, withTags } from "api/components/index.js";
 import { z } from "zod/v4";
 import {
   getOrganizationInfoResponse,
+  ORG_DATA_CACHED_DURATION,
   patchOrganizationLeadsBody,
   setOrganizationMetaBody,
 } from "common/types/organizations.js";
@@ -46,7 +47,6 @@ import { getRoleCredentials } from "api/functions/sts.js";
 import { SQSClient } from "@aws-sdk/client-sqs";
 import { sendSqsMessagesInBatches } from "api/functions/sqs.js";
 
-export const ORG_DATA_CACHED_DURATION = 300;
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${Math.floor(ORG_DATA_CACHED_DURATION * 1.1)}, stale-if-error=3600`;
 
 const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
