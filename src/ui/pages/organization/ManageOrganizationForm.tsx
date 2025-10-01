@@ -24,6 +24,7 @@ import { notifications } from "@mantine/notifications";
 import { IconPlus, IconTrash, IconUserPlus } from "@tabler/icons-react";
 import {
   LeadEntry,
+  MAX_ORG_DESCRIPTION_CHARS,
   setOrganizationMetaBody,
   validOrgLinkTypes,
 } from "@common/types/organizations";
@@ -254,12 +255,12 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
         >
           <Textarea
             label="Description"
-            description="A brief description of your organization"
+            description={`A brief description of your organization. Maximum ${MAX_ORG_DESCRIPTION_CHARS} characters.`}
             placeholder="We are a student organization focused on..."
             {...form.getInputProps("description")}
             autosize
-            minRows={3}
-            maxRows={6}
+            minRows={1}
+            maxRows={3}
             mb="md"
           />
 

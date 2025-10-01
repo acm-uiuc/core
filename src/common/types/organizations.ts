@@ -12,6 +12,7 @@ export const orgLeadEntry = z.object({
   title: z.optional(z.string())
 })
 
+export const MAX_ORG_DESCRIPTION_CHARS = 125;
 export type LeadEntry = z.infer<typeof orgLeadEntry>;
 
 export const validOrgLinkTypes = ["DISCORD", "CAMPUSWIRE", "SLACK", "NOTION", "MATRIX", "INSTAGRAM", "OTHER"] as const as [string, ...string[]];
@@ -32,7 +33,9 @@ export const getOrganizationInfoResponse = z.object({
   leadsEntraGroupId: z.optional(z.string().min(1)).meta({ description: `Only returned for users with the ${AppRoleHumanMapper[AppRoles.ALL_ORG_MANAGER]} role.` })
 })
 
-export const setOrganizationMetaBody = getOrganizationInfoResponse.omit({ id: true, leads: true, leadsEntraGroupId: true });
+export const setOrganizationMetaBody = getOrganizationInfoResponse.omit({ id: true, leads: true, leadsEntraGroupId: true }).extend({
+  description: z.optional(z.string().max(MAX_ORG_DESCRIPTION_CHARS)),
+});
 export const patchOrganizationLeadsBody = z.object({
   add: z.array(enforcedOrgLeadEntry).max(3),
   remove: z.array(z.string())
