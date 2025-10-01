@@ -445,11 +445,16 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await waitFor(() => {
       expect(screen.getByText("John Doe")).toBeInTheDocument();
       expect(screen.getByText("jdoe@illinois.edu")).toBeInTheDocument();
-      expect(screen.getByText("Chair")).toBeInTheDocument();
       expect(screen.getByText("Jane Smith")).toBeInTheDocument();
       expect(screen.getByText("jsmith@illinois.edu")).toBeInTheDocument();
       expect(screen.getByText("Vice Chair")).toBeInTheDocument();
     });
+
+    const table = screen.getByRole("table");
+    expect(table).toHaveTextContent("John Doe");
+    expect(table).toHaveTextContent("Chair");
+    expect(table).toHaveTextContent("Jane Smith");
+    expect(table).toHaveTextContent("Vice Chair");
   });
 
   it("shows 'No leads found' when there are no leads", async () => {

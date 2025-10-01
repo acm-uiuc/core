@@ -12,6 +12,8 @@ export const orgLeadEntry = z.object({
   title: z.optional(z.string())
 })
 
+export const leadTitleSuggestions = ["Chair", "Co-chair", "Admin", "Lead", "Helper"];
+
 export const MAX_ORG_DESCRIPTION_CHARS = 125;
 export type LeadEntry = z.infer<typeof orgLeadEntry>;
 
