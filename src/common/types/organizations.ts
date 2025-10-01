@@ -6,8 +6,8 @@ import { z } from "zod/v4";
 export const orgLeadEntry = z.object({
   name: z.optional(z.string()),
   username: z.email().refine(
-    (email) => email.endsWith('@illinois.edu'),
-    { message: 'Email must be from the @illinois.edu domain' }
+    (email) => email.endsWith('@illinois.edu') || email.endsWith('@acm.illinois.edu'),
+    { message: 'Email must be from the @illinois.edu or @acm.illinois.edu domain' }
   ),
   title: z.optional(z.string())
 })

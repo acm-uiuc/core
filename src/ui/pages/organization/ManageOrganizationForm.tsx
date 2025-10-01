@@ -455,8 +455,8 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
                 />
                 <TextInput
                   label="Lead Email"
-                  description="Please use their Illinois email!"
-                  placeholder="email@illinois.edu"
+                  description="You must use an @illinois.edu or @acm.illinois.edu email"
+                  placeholder="user@illinois.edu"
                   value={newLeadEmail}
                   onChange={(e) => setNewLeadEmail(e.currentTarget.value)}
                 />
