@@ -28,6 +28,8 @@ export type ConfigType = {
   LinkryCloudfrontKvArn?: string;
   ConfigurationSecretIds: string[];
   DiscordGuildId: string;
+  GroupSuffix: string;
+  GroupEmailSuffix: string;
 };
 
 export type GenericConfigType = {
@@ -57,6 +59,7 @@ export type GenericConfigType = {
   UinExtendedAttributeName: string;
   UserInfoTable: string;
   SigInfoTableName: string;
+  EntraHostedDomainName: string;
 };
 
 type EnvironmentConfigType = {
@@ -97,7 +100,8 @@ const genericConfig: GenericConfigType = {
   UinHashingSecret: "infra-core-api-uin-pepper",
   UinExtendedAttributeName: "extension_a70c2e1556954056a6a8edfb1f42f556_uiucEduUIN",
   UserInfoTable: "infra-core-api-user-info",
-  SigInfoTableName: "infra-core-api-sigs"
+  SigInfoTableName: "infra-core-api-sigs",
+  EntraHostedDomainName: "acmillinois.onmicrosoft.com"
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
@@ -125,7 +129,9 @@ const environmentConfig: EnvironmentConfigType = {
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
     LinkryCloudfrontKvArn: "arn:aws:cloudfront::427040638965:key-value-store/0c2c02fd-7c47-4029-975d-bc5d0376bba1",
     DiscordGuildId: "1278798685706391664",
-    EntraServicePrincipalId: "8c26ff11-fb86-42f2-858b-9011c9f0708d"
+    EntraServicePrincipalId: "8c26ff11-fb86-42f2-858b-9011c9f0708d",
+    GroupSuffix: "[NonProd]",
+    GroupEmailSuffix: "nonprod"
   },
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
@@ -151,7 +157,9 @@ const environmentConfig: EnvironmentConfigType = {
     PaidMemberPriceId: MembershipPriceIdStripe,
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
     DiscordGuildId: "718945436332720229",
-    EntraServicePrincipalId: "88c76504-9856-4325-bb0a-99f977e3607f"
+    EntraServicePrincipalId: "88c76504-9856-4325-bb0a-99f977e3607f",
+    GroupSuffix: "",
+    GroupEmailSuffix: ""
   },
 };
 

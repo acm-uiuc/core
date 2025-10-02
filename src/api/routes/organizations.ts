@@ -41,7 +41,7 @@ import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { authorizeByOrgRoleOrSchema } from "api/functions/authorization.js";
 import { checkPaidMembership } from "api/functions/membership.js";
-import { getEntraIdToken } from "api/functions/entraId.js";
+import { createM365Group, getEntraIdToken } from "api/functions/entraId.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SQSClient } from "@aws-sdk/client-sqs";
@@ -337,10 +337,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const { add, remove } = request.body;
       const allUsernames = [...add.map((u) => u.username), ...remove];
-      const execGroupId =
-        fastify.runEnvironment === "dev"
-          ? execCouncilTestingGroupId
-          : execCouncilGroupId;
       const officersEmail =
         notificationRecipients[fastify.runEnvironment].OfficerBoard;
 
@@ -386,7 +382,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           entryId: "0",
         }),
         AttributesToGet: ["leadsEntraGroupId"],
-        // Use consistent read to ensure we get the latest metadata
         ConsistentRead: true,
       });
 
@@ -395,15 +390,88 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         getAuthorizedClients(),
       ]);
 
-      const entraGroupId = metadataResponse.Item
+      let entraGroupId = metadataResponse.Item
         ? unmarshall(metadataResponse.Item).leadsEntraGroupId
         : undefined;
+
       const entraIdToken = await getEntraIdToken({
         clients,
         clientId: fastify.environmentConfig.AadValidClientId,
         secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
+
+      // Create Entra group if it doesn't exist and we're adding leads
+      if (!entraGroupId && add.length > 0) {
+        request.log.info(
+          `No Entra group exists for ${request.params.orgId}. Creating new group...`,
+        );
+
+        try {
+          const displayName = `${request.params.orgId} Admin List`;
+          const mailNickname = `${request.params.orgId.toLowerCase()}-adm`;
+          const memberUpns = add.map((u) =>
+            u.username.replace("@illinois.edu", "@acm.illinois.edu"),
+          );
+
+          entraGroupId = await createM365Group(
+            entraIdToken,
+            displayName,
+            mailNickname,
+            memberUpns,
+            fastify.runEnvironment,
+          );
+
+          request.log.info(
+            `Created Entra group ${entraGroupId} for ${request.params.orgId}`,
+          );
+
+          // Store the new group ID in DynamoDB
+          const timestamp = new Date().toISOString();
+          const logStatement = buildAuditLogTransactPut({
+            entry: {
+              module: Modules.ORG_INFO,
+              message: "Created Entra group for organization leads.",
+              actor: request.username!,
+              target: request.params.orgId,
+            },
+          });
+
+          const storeGroupIdOperation = async () => {
+            const commandTransaction = new TransactWriteItemsCommand({
+              TransactItems: [
+                ...(logStatement ? [logStatement] : []),
+                {
+                  Put: {
+                    TableName: genericConfig.SigInfoTableName,
+                    Item: marshall(
+                      {
+                        primaryKey: `DEFINE#${request.params.orgId}`,
+                        entryId: "0",
+                        leadsEntraGroupId: entraGroupId,
+                        updatedAt: timestamp,
+                      },
+                      { removeUndefinedValues: true },
+                    ),
+                  },
+                },
+              ],
+            });
+            return await clients.dynamoClient.send(commandTransaction);
+          };
+
+          await retryDynamoTransactionWithBackoff(
+            storeGroupIdOperation,
+            request.log,
+            `Store Entra group ID for ${request.params.orgId}`,
+          );
+        } catch (e) {
+          request.log.error(e, "Failed to create Entra group");
+          throw new InternalServerError({
+            message: "Failed to create Entra group for organization leads.",
+          });
+        }
+      }
 
       const commonArgs = {
         orgId: request.params.orgId,
@@ -413,7 +481,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         entraIdToken,
         dynamoClient: fastify.dynamoClient,
         logger: request.log,
-        execGroupId,
         officersEmail,
       };
 

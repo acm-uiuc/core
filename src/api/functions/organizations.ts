@@ -181,7 +181,6 @@ export const addLead = async ({
   entraIdToken,
   dynamoClient,
   logger,
-  execGroupId,
   officersEmail,
 }: {
   user: z.infer<typeof enforcedOrgLeadEntry>;
@@ -192,7 +191,6 @@ export const addLead = async ({
   entraIdToken: string;
   dynamoClient: DynamoDBClient;
   logger: FastifyBaseLogger;
-  execGroupId: string;
   officersEmail: string;
 }): Promise<SQSMessage | null> => {
   const { username } = user;
@@ -250,32 +248,14 @@ export const addLead = async ({
     `Successfully added ${username} as lead for ${orgId} in DynamoDB.`,
   );
 
-  const promises = [
-    modifyGroup(
+  if (entraGroupId) {
+    await modifyGroup(
       entraIdToken,
       username,
-      execGroupId,
+      entraGroupId,
       EntraGroupActions.ADD,
       dynamoClient,
-    ),
-  ];
-
-  if (entraGroupId) {
-    promises.push(
-      modifyGroup(
-        entraIdToken,
-        username,
-        entraGroupId,
-        EntraGroupActions.ADD,
-        dynamoClient,
-      ),
     );
-  }
-
-  await Promise.all(promises);
-
-  logger.info(`Successfully added ${username} to ACM Exec Entra group.`);
-  if (entraGroupId) {
     logger.info(`Successfully added ${username} to Entra group for ${orgId}.`);
   }
 
@@ -300,7 +280,6 @@ export const removeLead = async ({
   entraIdToken,
   dynamoClient,
   logger,
-  execGroupId,
   officersEmail,
 }: {
   username: string;
@@ -311,7 +290,6 @@ export const removeLead = async ({
   entraIdToken: string;
   dynamoClient: DynamoDBClient;
   logger: FastifyBaseLogger;
-  execGroupId: string;
   officersEmail: string;
 }): Promise<SQSMessage | null> => {
   const removeOperation = async () => {
@@ -375,27 +353,6 @@ export const removeLead = async ({
     );
     logger.info(
       `Successfully removed ${username} from Entra group for ${orgId}.`,
-    );
-  }
-
-  // Use consistent read to check if user has other lead roles
-  const userRoles = await getUserOrgRoles({ username, dynamoClient, logger });
-  const otherLeadRoles = userRoles
-    .filter((x) => x.role === "LEAD")
-    .filter((x) => x.org !== orgId);
-
-  if (otherLeadRoles.length === 0) {
-    await modifyGroup(
-      entraIdToken,
-      username,
-      execGroupId,
-      EntraGroupActions.REMOVE,
-      dynamoClient,
-    );
-    logger.info(`Successfully removed ${username} from ACM Exec Entra group.`);
-  } else {
-    logger.info(
-      `Keeping ${username} in ACM Exec Entra group as they lead: ${JSON.stringify(otherLeadRoles.map((x) => x.org))}.`,
     );
   }
 
