@@ -1,10 +1,8 @@
 import { ValidLoggers } from "api/types.js";
 import { sleep } from "api/utils.js";
-import { genericConfig } from "common/config.js";
 import { BaseError, GithubError } from "common/errors/index.js";
-import { FastifyBaseLogger } from "fastify";
 import { Octokit } from "octokit";
-import pino from "pino";
+
 export interface CreateGithubTeamInputs {
   githubToken: string;
   orgId: string;

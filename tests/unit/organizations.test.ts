@@ -16,6 +16,7 @@ import { createJwt } from "./auth.test.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
 import { randomUUID } from "node:crypto";
+import { createGithubTeam } from "../../src/api/functions/github.js";
 
 const app = await init();
 const ddbMock = mockClient(DynamoDBClient);
@@ -42,6 +43,17 @@ vi.mock("../../src/api/functions/entraId.js", () => {
     }),
     createM365Group: vi.fn().mockImplementation(async () => {
       return randomUUID();
+    }),
+  };
+});
+vi.mock("../../src/api/functions/github.js", () => {
+  return {
+    ...vi.importActual("../../src/api/functions/github.js"),
+    createGithubTeam: vi.fn().mockImplementation(async () => {
+      return randomUUID();
+    }),
+    assignIdpGroupsToTeam: vi.fn().mockImplementation(async () => {
+      return;
     }),
   };
 });
@@ -343,7 +355,7 @@ describe("Organization info tests - Extended Coverage", () => {
       expect(response.json().message).toContain("not ACM paid members");
     });
 
-    test("Successfully adds and removes leads with Entra integration", async () => {
+    test("Successfully adds and removes leads with Entra + GitHub integration", async () => {
       const testJwt = createJwt();
 
       // Mock GetItemCommand for org metadata
@@ -403,6 +415,16 @@ describe("Organization info tests - Extended Coverage", () => {
       expect(
         ddbMock.commandCalls(TransactWriteItemsCommand).length,
       ).toBeGreaterThan(0);
+      expect(createGithubTeam).toHaveBeenCalledOnce();
+      expect(createGithubTeam).toHaveBeenCalledWith(
+        expect.objectContaining({
+          githubToken: "abc123testing",
+          orgId: "acm-uiuc-testing",
+          name: "acm-adm-nonprod",
+          description: "ACM Admin",
+          parentTeamId: 14420860,
+        }),
+      );
     });
 
     test("Organization lead can manage other leads", async () => {
