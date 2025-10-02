@@ -211,12 +211,15 @@ export const addLead = async ({
         {
           Put: {
             TableName: genericConfig.SigInfoTableName,
-            Item: marshall({
-              ...user,
-              primaryKey: `LEAD#${orgId}`,
-              entryId: username,
-              updatedAt: new Date().toISOString(),
-            }),
+            Item: marshall(
+              {
+                ...user,
+                primaryKey: `LEAD#${orgId}`,
+                entryId: username,
+                updatedAt: new Date().toISOString(),
+              },
+              { removeUndefinedValues: true },
+            ),
             ConditionExpression:
               "attribute_not_exists(primaryKey) AND attribute_not_exists(entryId)",
           },
