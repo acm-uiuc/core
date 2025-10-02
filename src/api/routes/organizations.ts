@@ -546,13 +546,12 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             region: genericConfig.AwsRegion,
           });
         }
-        // Removed while we set up the initial groups
-        // await sendSqsMessagesInBatches({
-        //   sqsClient: fastify.sqsClient,
-        //   queueUrl: fastify.environmentConfig.SqsQueueUrl,
-        //   logger: request.log,
-        //   sqsPayloads,
-        // });
+        await sendSqsMessagesInBatches({
+          sqsClient: fastify.sqsClient,
+          queueUrl: fastify.environmentConfig.SqsQueueUrl,
+          logger: request.log,
+          sqsPayloads,
+        });
       }
 
       return reply.status(201).send();
