@@ -33,6 +33,7 @@ export type ConfigType = {
   GithubOrgName: string;
   ExecGithubTeam: number;
   GithubIdpSyncEnabled: boolean
+  GithubOrgId: number;
 };
 
 export type GenericConfigType = {
@@ -136,6 +137,7 @@ const environmentConfig: EnvironmentConfigType = {
     GroupSuffix: "[NonProd]",
     GroupEmailSuffix: "nonprod",
     GithubOrgName: "acm-uiuc-testing",
+    GithubOrgId: 235748315,
     ExecGithubTeam: 14420860,
     GithubIdpSyncEnabled: false
   },
@@ -167,6 +169,7 @@ const environmentConfig: EnvironmentConfigType = {
     GroupSuffix: "",
     GroupEmailSuffix: "",
     GithubOrgName: "acm-uiuc",
+    GithubOrgId: 425738,
     ExecGithubTeam: 12025214,
     GithubIdpSyncEnabled: true
   },
