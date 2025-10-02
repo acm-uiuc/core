@@ -1,6 +1,7 @@
 import { AllOrganizationList } from "@acm-uiuc/js-shared";
 import {
   QueryCommand,
+  ScanCommand,
   TransactWriteItemsCommand,
   type DynamoDBClient,
 } from "@aws-sdk/client-dynamodb";
@@ -367,3 +368,44 @@ export const removeLead = async ({
     },
   };
 };
+
+/**
+ * Returns the Microsoft 365 Dynamic User query to return all members of all lead groups.
+ * Currently used to setup the Exec member list.
+ * @param dynamoClient A DynamoDB client.
+ * @param includeGroupIds Used to ensure that a specific group ID is included (Scan could be eventually consistent.)
+ */
+export async function getLeadsM365DynamicQuery({
+  dynamoClient,
+  includeGroupIds,
+}: {
+  dynamoClient: DynamoDBClient;
+  includeGroupIds?: string[];
+}): Promise<string | null> {
+  const command = new ScanCommand({
+    TableName: genericConfig.SigInfoTableName,
+    IndexName: "LeadsGroupIdIndex",
+  });
+  const results = await dynamoClient.send(command);
+  if (!results || !results.Items || results.Items.length === 0) {
+    return null;
+  }
+  const entries = results.Items.map((x) => unmarshall(x)) as {
+    primaryKey: string;
+    leadsEntraGroupId: string;
+  }[];
+  const groupIds = entries
+    .filter((x) => x.primaryKey.startsWith("DEFINE#"))
+    .map((x) => x.leadsEntraGroupId);
+
+  if (groupIds.length === 0) {
+    return null;
+  }
+
+  const formattedGroupIds = [
+    ...new Set([...(includeGroupIds || []), ...groupIds]),
+  ]
+    .map((id) => `'${id}'`)
+    .join(", ");
+  return `user.memberOf -any (group.objectId -in [${formattedGroupIds}])`;
+}
