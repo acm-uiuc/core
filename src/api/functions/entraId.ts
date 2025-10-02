@@ -755,8 +755,8 @@ export async function createM365Group(
   const groupName = `${displayName} ${groupSuffix}`;
 
   try {
-    // First, check if a group with this mail nickname already exists
-    const checkUrl = `https://graph.microsoft.com/v1.0/groups?$filter=displayName eq '${encodeURIComponent(groupName)}'`;
+    // Check if a group with this mail nickname already exists
+    const checkUrl = `https://graph.microsoft.com/v1.0/groups?$filter=mailNickname eq '${encodeURIComponent(safeMailNickname)}'`;
     const checkResponse = await fetch(checkUrl, {
       method: "GET",
       headers: {
@@ -787,7 +787,7 @@ export async function createM365Group(
         return existingGroup.id;
       }
       throw new EntraGroupError({
-        message: `A group with name '${groupName}' already exists but is not a Microsoft 365 group.`,
+        message: `A group with mailNickname '${safeMailNickname}' already exists but is not a Microsoft 365 group.`,
         group: groupName,
       });
     }
