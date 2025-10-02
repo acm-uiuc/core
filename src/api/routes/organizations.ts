@@ -462,17 +462,18 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               TransactItems: [
                 ...(logStatement ? [logStatement] : []),
                 {
-                  Put: {
+                  Update: {
                     TableName: genericConfig.SigInfoTableName,
-                    Item: marshall(
-                      {
-                        primaryKey: `DEFINE#${request.params.orgId}`,
-                        entryId: "0",
-                        leadsEntraGroupId: entraGroupId,
-                        updatedAt: new Date().toISOString(),
-                      },
-                      { removeUndefinedValues: true },
-                    ),
+                    Key: marshall({
+                      primaryKey: `DEFINE#${request.params.orgId}`,
+                      entryId: "0",
+                    }),
+                    UpdateExpression:
+                      "SET leadsEntraGroupId = :entraGroupId, updatedAt = :updatedAt",
+                    ExpressionAttributeValues: marshall({
+                      ":entraGroupId": entraGroupId,
+                      ":updatedAt": new Date().toISOString(),
+                    }),
                   },
                 },
               ],
@@ -542,17 +543,18 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             TransactItems: [
               ...(logStatement ? [logStatement] : []),
               {
-                Put: {
+                Update: {
                   TableName: genericConfig.SigInfoTableName,
-                  Item: marshall(
-                    {
-                      primaryKey: `DEFINE#${request.params.orgId}`,
-                      entryId: "0",
-                      leadsGithubTeamId: githubTeamId,
-                      updatedAt: new Date().toISOString(),
-                    },
-                    { removeUndefinedValues: true },
-                  ),
+                  Key: marshall({
+                    primaryKey: `DEFINE#${request.params.orgId}`,
+                    entryId: "0",
+                  }),
+                  UpdateExpression:
+                    "SET leadsGithubTeamId = :githubTeamId, updatedAt = :updatedAt",
+                  ExpressionAttributeValues: marshall({
+                    ":githubTeamId": githubTeamId,
+                    ":updatedAt": new Date().toISOString(),
+                  }),
                 },
               },
             ],
