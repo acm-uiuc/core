@@ -1,6 +1,7 @@
 import {
   commChairsGroupId,
   commChairsTestingGroupId,
+  environmentConfig,
   execCouncilGroupId,
   execCouncilTestingGroupId,
   genericConfig,
@@ -34,6 +35,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { checkPaidMembershipFromTable } from "./membership.js";
 import type pino from "pino";
 import { type FastifyBaseLogger } from "fastify";
+import { RunEnvironment } from "common/roles.js";
 
 function validateGroupId(groupId: string): boolean {
   const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
@@ -207,6 +209,40 @@ export async function resolveEmailToOid(
 
   if (!data.value || data.value.length === 0) {
     throw new Error(`No user found with email: ${safeEmail}`);
+  }
+
+  return data.value[0].id;
+}
+
+export async function resolveUpnToOid(
+  token: string,
+  upn: string,
+): Promise<string> {
+  const safeUpn = upn.toLowerCase().replace(/\s/g, "");
+
+  const url = `https://graph.microsoft.com/v1.0/users?$filter=userPrincipalName eq '${safeUpn}'`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = (await response.json()) as {
+      error?: { message?: string };
+    };
+    throw new Error(errorData?.error?.message ?? response.statusText);
+  }
+
+  const data = (await response.json()) as {
+    value: { id: string }[];
+  };
+
+  if (!data.value || data.value.length === 0) {
+    throw new Error(`No user found with UPN: ${safeUpn}`);
   }
 
   return data.value[0].id;
@@ -671,6 +707,194 @@ export async function getGroupMetadata(
     throw new EntraGroupError({
       message: error instanceof Error ? error.message : String(error),
       group: groupId,
+    });
+  }
+}
+
+/**
+ * Creates a Microsoft 365 group with the given name, email, initial members, and sets the service principal as owner.
+ * @param token - Entra ID token authorized to take this action.
+ * @param displayName - The display name for the group.
+ * @param mailNickname - The mail nickname (email prefix) for the group.
+ * @param memberUpns - Array of user principal names (emails) to add as initial members.
+ * @throws {EntraGroupError} If the group creation fails or if a group with the same name exists as a different type.
+ * @returns {Promise<string>} The ID of the created or existing Microsoft 365 group.
+ */
+export async function createM365Group(
+  token: string,
+  displayName: string,
+  mailNickname: string,
+  memberUpns: string[] = [],
+  runEnvironment: RunEnvironment,
+): Promise<string> {
+  const groupSuffix = environmentConfig[runEnvironment].GroupSuffix;
+  const groupEmailSuffix = environmentConfig[runEnvironment].GroupEmailSuffix;
+  const [localPart, _] = groupEmailSuffix.split("@");
+  const safeMailNickname = `${mailNickname.toLowerCase().replace(/\s/g, "")}-${localPart}`;
+  const groupName = `${displayName} ${groupSuffix}`;
+
+  try {
+    // First, check if a group with this mail nickname already exists
+    const checkUrl = `https://graph.microsoft.com/v1.0/groups?$filter=displayName eq '${encodeURIComponent(groupName)}'`;
+    const checkResponse = await fetch(checkUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!checkResponse.ok) {
+      const errorData = (await checkResponse.json()) as {
+        error?: { message?: string };
+      };
+      throw new EntraGroupError({
+        message: errorData?.error?.message ?? checkResponse.statusText,
+        group: groupName,
+      });
+    }
+
+    const checkData = (await checkResponse.json()) as {
+      value: Array<{ id: string; groupTypes: string[] }>;
+    };
+
+    if (checkData.value && checkData.value.length > 0) {
+      const existingGroup = checkData.value[0];
+      const isM365Group = existingGroup.groupTypes?.includes("Unified");
+
+      if (isM365Group) {
+        return existingGroup.id;
+      }
+      throw new EntraGroupError({
+        message: `A group with name '${groupName}' already exists but is not a Microsoft 365 group.`,
+        group: groupName,
+      });
+    }
+
+    // Extract principal ID from token
+    const tokenParts = token.split(".");
+    if (tokenParts.length !== 3) {
+      throw new EntraGroupError({
+        message: "Invalid token format",
+        group: safeMailNickname,
+      });
+    }
+
+    const payload = JSON.parse(Buffer.from(tokenParts[1], "base64").toString());
+    const currentPrincipalId = payload.oid;
+    if (!currentPrincipalId) {
+      throw new EntraGroupError({
+        message: "Could not extract object ID from token",
+        group: safeMailNickname,
+      });
+    }
+
+    // Resolve member UPNs to OIDs
+    const memberOidPromises = memberUpns.map(async (upn) => {
+      const safeUpn = upn.toLowerCase().replace(/\s/g, "");
+      try {
+        return await resolveUpnToOid(token, safeUpn);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new EntraGroupError({
+          message: `Failed to resolve member UPN ${safeUpn}: ${message}`,
+          group: safeMailNickname,
+        });
+      }
+    });
+
+    const memberOids = await Promise.all(memberOidPromises);
+
+    // Create the group body - service principals cannot be set as owners during creation
+    const createUrl = "https://graph.microsoft.com/v1.0/groups";
+    const body: {
+      displayName: string;
+      mailNickname: string;
+      mailEnabled: boolean;
+      securityEnabled: boolean;
+      groupTypes: string[];
+      "members@odata.bind"?: string[];
+    } = {
+      displayName: groupName,
+      mailNickname: safeMailNickname,
+      mailEnabled: true,
+      securityEnabled: false,
+      groupTypes: ["Unified"],
+    };
+
+    // Add members if provided
+    if (memberOids.length > 0) {
+      body["members@odata.bind"] = memberOids.map(
+        (oid) => `https://graph.microsoft.com/v1.0/users/${oid}`,
+      );
+    }
+
+    console.log(createUrl, body);
+    const createResponse = await fetch(createUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!createResponse.ok) {
+      const errorData = (await createResponse.json()) as {
+        error?: { message?: string };
+      };
+      throw new EntraGroupError({
+        message: errorData?.error?.message ?? createResponse.statusText,
+        group: safeMailNickname,
+      });
+    }
+
+    const createData = (await createResponse.json()) as { id: string };
+    const groupId = createData.id;
+
+    // Add the service principal as an owner after group creation
+    try {
+      const addOwnerUrl = `https://graph.microsoft.com/v1.0/groups/${groupId}/owners/$ref`;
+      const addOwnerResponse = await fetch(addOwnerUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          "@odata.id": `https://graph.microsoft.com/v1.0/servicePrincipals/${currentPrincipalId}`,
+        }),
+      });
+
+      if (!addOwnerResponse.ok) {
+        const errorData = (await addOwnerResponse.json()) as {
+          error?: { message?: string };
+        };
+        console.warn(
+          `Failed to add service principal as owner: ${errorData?.error?.message ?? addOwnerResponse.statusText}`,
+        );
+        // Don't throw here - group was created successfully, owner addition is non-critical
+      }
+    } catch (ownerError) {
+      console.warn(`Failed to add service principal as owner:`, ownerError);
+      // Don't throw - group was created successfully
+    }
+
+    return groupId;
+  } catch (error) {
+    if (error instanceof EntraGroupError) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    if (message) {
+      throw new EntraGroupError({
+        message,
+        group: safeMailNickname,
+      });
+    }
+    throw new EntraGroupError({
+      message: "Unknown error occurred while creating Microsoft 365 group",
+      group: safeMailNickname,
     });
   }
 }
