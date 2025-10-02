@@ -21,10 +21,16 @@ import {
   Combobox,
   useCombobox,
   InputBase,
+  Checkbox,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { IconPlus, IconTrash, IconUserPlus } from "@tabler/icons-react";
+import {
+  IconPlus,
+  IconTrash,
+  IconUserPlus,
+  IconAlertTriangle,
+} from "@tabler/icons-react";
 import {
   LeadEntry,
   leadTitleSuggestions,
@@ -68,6 +74,7 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
   const [newLeadName, setNewLeadName] = useState("");
   const [newLeadEmail, setNewLeadEmail] = useState("");
   const [newLeadTitle, setNewLeadTitle] = useState("");
+  const [newLeadNonVoting, setNewLeadNonVoting] = useState(false);
 
   // Combobox for title suggestions
   const combobox = useCombobox({
@@ -126,6 +133,7 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
     setNewLeadName("");
     setNewLeadEmail("");
     setNewLeadTitle("");
+    setNewLeadNonVoting(false);
 
     // Fetch new organization data
     fetchOrganizationData();
@@ -169,12 +177,14 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
         name: newLeadName.trim(),
         username: newLeadEmail.trim(),
         title: newLeadTitle.trim(),
+        nonVotingMember: newLeadNonVoting,
       },
     ]);
 
     setNewLeadName("");
     setNewLeadEmail("");
     setNewLeadTitle("");
+    setNewLeadNonVoting(false);
   };
 
   const handleQueueRemove = (email: string) => {
@@ -361,9 +371,9 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
                 Organization Leads
               </Title>
               <Text size="sm" c="dimmed" mb="md">
-                These users will be your Executive Council representatives and
-                will be given management permissions for your org. These users
-                must be paid members.
+                These users will be given management permissions for your org.
+                Voting members must be paid members and will be your org's
+                represenatives at Executive Council meetings.
               </Text>
 
               <Table verticalSpacing="sm" highlightOnHover>
@@ -395,9 +405,20 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
                             <Group gap="sm">
                               <Avatar name={lead.name} color="initials" />
                               <div>
-                                <Text fz="sm" fw={500}>
-                                  {lead.name}
-                                </Text>
+                                <Group gap="xs">
+                                  <Text fz="sm" fw={500}>
+                                    {lead.name}
+                                  </Text>
+                                  {lead.nonVotingMember && (
+                                    <Badge
+                                      color="gray"
+                                      variant="light"
+                                      size="sm"
+                                    >
+                                      Non-Voting
+                                    </Badge>
+                                  )}
+                                </Group>
                                 <Text fz="xs" c="dimmed">
                                   {lead.username}
                                 </Text>
@@ -514,6 +535,31 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
                     </Combobox.Options>
                   </Combobox.Dropdown>
                 </Combobox>
+
+                <Checkbox
+                  label="Non-voting member"
+                  description="Check this if the lead should not have voting rights in Executive Council"
+                  checked={newLeadNonVoting}
+                  onChange={(e) => setNewLeadNonVoting(e.currentTarget.checked)}
+                />
+
+                {newLeadNonVoting && (
+                  <Alert
+                    icon={<IconAlertTriangle size={16} />}
+                    color="yellow"
+                    variant="light"
+                    mt="xs"
+                  >
+                    <Text size="sm" fw={500} mb={4}>
+                      Warning: Non-voting member
+                    </Text>
+                    <Text size="sm">
+                      This lead will have management permissions but will not
+                      have voting rights in Executive Council meetings. Use this
+                      designation carefully.
+                    </Text>
+                  </Alert>
+                )}
               </Stack>
 
               <Button
@@ -552,6 +598,11 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
                   {toAdd.map((lead) => (
                     <Text key={lead.username} fz="sm">
                       - {lead.name} ({lead.username}) - {lead.title}
+                      {lead.nonVotingMember && (
+                        <Badge color="gray" variant="light" size="sm" ml="xs">
+                          Non-Voting
+                        </Badge>
+                      )}
                     </Text>
                   ))}
                 </Box>
