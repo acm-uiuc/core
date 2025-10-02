@@ -424,114 +424,43 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       const grpDisplayName = `${request.params.orgId} Admin`;
       const grpShortName = `${OrganizationShortIdentifierMapping[request.params.orgId as keyof typeof OrganizationShortIdentifierMapping]}-adm`;
 
-      // Create external groups
-      if (shouldCreateNewEntraGroup || !githubTeamId) {
-        const timestamp = new Date().toISOString();
-        const updates: Record<string, any> = { updatedAt: timestamp };
-        const logStatements: TransactWriteItem[] = [];
+      // Create Entra group if needed
+      if (shouldCreateNewEntraGroup) {
+        request.log.info(
+          `No Entra group exists for ${request.params.orgId}. Creating new group...`,
+        );
 
-        // Create Entra group if needed
-        if (shouldCreateNewEntraGroup) {
-          request.log.info(
-            `No Entra group exists for ${request.params.orgId}. Creating new group...`,
+        try {
+          const memberUpns = add.map((u) =>
+            u.username.replace("@illinois.edu", "@acm.illinois.edu"),
           );
 
-          try {
-            const memberUpns = add.map((u) =>
-              u.username.replace("@illinois.edu", "@acm.illinois.edu"),
-            );
-
-            entraGroupId = await createM365Group(
-              entraIdToken,
-              grpDisplayName,
-              grpShortName,
-              memberUpns,
-              fastify.runEnvironment,
-            );
-
-            request.log.info(
-              `Created Entra group ${entraGroupId} for ${request.params.orgId}`,
-            );
-
-            updates.leadsEntraGroupId = entraGroupId;
-            const logStatement = buildAuditLogTransactPut({
-              entry: {
-                module: Modules.ORG_INFO,
-                message: "Created Entra group for organization leads.",
-                actor: request.username!,
-                target: request.params.orgId,
-              },
-            });
-            if (logStatement) {
-              logStatements.push(logStatement);
-            }
-
-            // Update dynamic membership query
-            const newQuery = await getLeadsM365DynamicQuery({
-              dynamoClient: fastify.dynamoClient,
-              includeGroupIds: [entraGroupId],
-            });
-            if (newQuery) {
-              const groupToUpdate =
-                fastify.runEnvironment === "prod"
-                  ? execCouncilGroupId
-                  : execCouncilTestingGroupId;
-              request.log.info(
-                "Changing Exec group membership dynamic query...",
-              );
-              await setGroupMembershipRule(
-                entraIdToken,
-                groupToUpdate,
-                newQuery,
-              );
-              request.log.info("Changed Exec group membership dynamic query!");
-            }
-          } catch (e) {
-            request.log.error(e, "Failed to create Entra group");
-            throw new InternalServerError({
-              message: "Failed to create Entra group for organization leads.",
-            });
-          }
-        }
-
-        // Create GitHub team if needed
-        if (!githubTeamId) {
-          request.log.info(
-            `No GitHub team exists for ${request.params.orgId}. Creating new team...`,
+          entraGroupId = await createM365Group(
+            entraIdToken,
+            grpDisplayName,
+            grpShortName,
+            memberUpns,
+            fastify.runEnvironment,
           );
-          const suffix = fastify.environmentConfig.GroupEmailSuffix;
-          githubTeamId = await createGithubTeam({
-            orgId: fastify.environmentConfig.GithubOrgName,
-            githubToken: fastify.secretConfig.github_pat,
-            parentTeamId: fastify.environmentConfig.ExecGithubTeam,
-            name: `${grpShortName}${suffix === "" ? "" : `-${suffix}`}`,
-            description: grpDisplayName,
-            logger: request.log,
-          });
+
           request.log.info(
-            `Created GitHub team "${githubTeamId}" for ${request.params.orgId} leads.`,
+            `Created Entra group ${entraGroupId} for ${request.params.orgId}`,
           );
-          createdGithubTeam = true;
-          updates.leadsGithubTeamId = githubTeamId;
+
+          // Store Entra group ID immediately
           const logStatement = buildAuditLogTransactPut({
             entry: {
               module: Modules.ORG_INFO,
-              message: `Created GitHub team "${githubTeamId}" for organization leads.`,
+              message: "Created Entra group for organization leads.",
               actor: request.username!,
               target: request.params.orgId,
             },
           });
-          if (logStatement) {
-            logStatements.push(logStatement);
-          }
-        }
 
-        // Store external group IDs if they were created
-        if (Object.keys(updates).length > 0) {
-          const storeIdsOperation = async () => {
+          const storeEntraIdOperation = async () => {
             const commandTransaction = new TransactWriteItemsCommand({
               TransactItems: [
-                ...logStatements,
+                ...(logStatement ? [logStatement] : []),
                 {
                   Put: {
                     TableName: genericConfig.SigInfoTableName,
@@ -539,7 +468,8 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
                       {
                         primaryKey: `DEFINE#${request.params.orgId}`,
                         entryId: "0",
-                        ...updates,
+                        leadsEntraGroupId: entraGroupId,
+                        updatedAt: new Date().toISOString(),
                       },
                       { removeUndefinedValues: true },
                     ),
@@ -551,11 +481,90 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           };
 
           await retryDynamoTransactionWithBackoff(
-            storeIdsOperation,
+            storeEntraIdOperation,
             request.log,
-            `Store group IDs for ${request.params.orgId}`,
+            `Store Entra group ID for ${request.params.orgId}`,
           );
+
+          // Update dynamic membership query
+          const newQuery = await getLeadsM365DynamicQuery({
+            dynamoClient: fastify.dynamoClient,
+            includeGroupIds: [entraGroupId],
+          });
+          if (newQuery) {
+            const groupToUpdate =
+              fastify.runEnvironment === "prod"
+                ? execCouncilGroupId
+                : execCouncilTestingGroupId;
+            request.log.info("Changing Exec group membership dynamic query...");
+            await setGroupMembershipRule(entraIdToken, groupToUpdate, newQuery);
+            request.log.info("Changed Exec group membership dynamic query!");
+          }
+        } catch (e) {
+          request.log.error(e, "Failed to create Entra group");
+          throw new InternalServerError({
+            message: "Failed to create Entra group for organization leads.",
+          });
         }
+      }
+
+      // Create GitHub team if needed
+      if (!githubTeamId) {
+        request.log.info(
+          `No GitHub team exists for ${request.params.orgId}. Creating new team...`,
+        );
+        const suffix = fastify.environmentConfig.GroupEmailSuffix;
+        githubTeamId = await createGithubTeam({
+          orgId: fastify.environmentConfig.GithubOrgName,
+          githubToken: fastify.secretConfig.github_pat,
+          parentTeamId: fastify.environmentConfig.ExecGithubTeam,
+          name: `${grpShortName}${suffix === "" ? "" : `-${suffix}`}`,
+          description: grpDisplayName,
+          logger: request.log,
+        });
+        request.log.info(
+          `Created GitHub team "${githubTeamId}" for ${request.params.orgId} leads.`,
+        );
+        createdGithubTeam = true;
+
+        // Store GitHub team ID immediately
+        const logStatement = buildAuditLogTransactPut({
+          entry: {
+            module: Modules.ORG_INFO,
+            message: `Created GitHub team "${githubTeamId}" for organization leads.`,
+            actor: request.username!,
+            target: request.params.orgId,
+          },
+        });
+
+        const storeGithubIdOperation = async () => {
+          const commandTransaction = new TransactWriteItemsCommand({
+            TransactItems: [
+              ...(logStatement ? [logStatement] : []),
+              {
+                Put: {
+                  TableName: genericConfig.SigInfoTableName,
+                  Item: marshall(
+                    {
+                      primaryKey: `DEFINE#${request.params.orgId}`,
+                      entryId: "0",
+                      leadsGithubTeamId: githubTeamId,
+                      updatedAt: new Date().toISOString(),
+                    },
+                    { removeUndefinedValues: true },
+                  ),
+                },
+              },
+            ],
+          });
+          return await clients.dynamoClient.send(commandTransaction);
+        };
+
+        await retryDynamoTransactionWithBackoff(
+          storeGithubIdOperation,
+          request.log,
+          `Store GitHub team ID for ${request.params.orgId}`,
+        );
       }
 
       const commonArgs = {
@@ -574,26 +583,10 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         removeLead({ ...commonArgs, username }),
       );
 
-      // Execute all add/remove operations sequentially to avoid transaction conflicts
-      const results: PromiseSettledResult<SQSMessage | null>[] = [];
-
-      // Process adds
-      for (const promise of addPromises) {
-        const result = await promise.then(
-          (value) => ({ status: "fulfilled" as const, value }),
-          (reason) => ({ status: "rejected" as const, reason }),
-        );
-        results.push(result);
-      }
-
-      // Process removes
-      for (const promise of removePromises) {
-        const result = await promise.then(
-          (value) => ({ status: "fulfilled" as const, value }),
-          (reason) => ({ status: "rejected" as const, reason }),
-        );
-        results.push(result);
-      }
+      const results = await Promise.allSettled([
+        ...addPromises,
+        ...removePromises,
+      ]);
 
       const failures = results.filter((r) => r.status === "rejected");
       if (failures.length > 0) {
