@@ -234,20 +234,13 @@ export async function assignIdpGroupsToTeam({
       return;
     }
 
-    const teamSlug = await resolveTeamIdToSlug({
-      octokit,
-      orgId,
-      teamId,
-      logger,
-    });
-
     try {
-      logger.info(`Checking team sync availability for team ${teamSlug}`);
+      logger.info(`Checking team sync availability for team ${teamId}`);
       await octokit.request(
-        "GET /orgs/{org}/teams/{team_slug}/team-sync/group-mappings",
+        "GET /organizations/{org}/team/{team_id}/team-sync/group-mappings",
         {
           org: orgId,
-          team_slug: teamSlug,
+          team_id: teamId,
           headers: {
             "X-GitHub-Api-Version": "2022-11-28",
           },
@@ -257,7 +250,7 @@ export async function assignIdpGroupsToTeam({
     } catch (checkError: any) {
       if (checkError.status === 404) {
         logger.warn(
-          `Team sync is not available for team ${teamSlug}. This could mean:
+          `Team sync is not available for team ${teamId}. This could mean:
           1. The organization doesn't have SAML SSO properly configured
           2. Team sync feature is not enabled for this organization
           3. The team was just created and sync isn't ready yet`,
@@ -289,12 +282,12 @@ export async function assignIdpGroupsToTeam({
       idpGroups.push(idpGroup);
     }
 
-    logger.info(`Mapping ${idpGroups.length} IdP group(s) to team ${teamSlug}`);
+    logger.info(`Mapping ${idpGroups.length} IdP group(s) to team ${teamId}`);
     await octokit.request(
-      "PATCH /orgs/{org}/teams/{team_slug}/team-sync/group-mappings",
+      "PATCH /organizations/{org}/team/{team_id}/team-sync/group-mappings",
       {
         org: orgId,
-        team_slug: teamSlug,
+        team_id: teamId,
         groups: idpGroups,
         headers: {
           "X-GitHub-Api-Version": "2022-11-28",
@@ -302,7 +295,7 @@ export async function assignIdpGroupsToTeam({
       },
     );
 
-    logger.info(`Successfully mapped IdP groups to team ${teamSlug}`);
+    logger.info(`Successfully mapped IdP groups to team ${teamId}`);
   } catch (e: any) {
     if (e instanceof BaseError) {
       throw e;
