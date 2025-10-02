@@ -751,7 +751,7 @@ export async function createM365Group(
   const groupSuffix = environmentConfig[runEnvironment].GroupSuffix;
   const groupEmailSuffix = environmentConfig[runEnvironment].GroupEmailSuffix;
   const [localPart, _] = groupEmailSuffix.split("@");
-  const safeMailNickname = `${mailNickname.toLowerCase().replace(/\s/g, "")}-${localPart}`;
+  const safeMailNickname = `${mailNickname.toLowerCase().replace(/\s/g, "")}${localPart}`;
   const groupName = `${displayName} ${groupSuffix}`;
 
   try {
