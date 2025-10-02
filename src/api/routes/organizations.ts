@@ -1,5 +1,9 @@
 import { FastifyPluginAsync } from "fastify";
-import { AllOrganizationList } from "@acm-uiuc/js-shared";
+import {
+  ACMOrganization,
+  AllOrganizationList,
+  OrganizationShortIdentifierMapping,
+} from "@acm-uiuc/js-shared";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { withRoles, withTags } from "api/components/index.js";
 import { z } from "zod/v4";
@@ -415,7 +419,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
 
         try {
           const displayName = `${request.params.orgId} Admin`;
-          const mailNickname = `${request.params.orgId.toLowerCase()}-adm`;
+          const mailNickname = `${OrganizationShortIdentifierMapping[request.params.orgId as keyof typeof OrganizationShortIdentifierMapping]}-adm`;
           const memberUpns = add.map((u) =>
             u.username.replace("@illinois.edu", "@acm.illinois.edu"),
           );
