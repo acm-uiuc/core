@@ -61,7 +61,6 @@ import {
   assignIdpGroupsToTeam,
   createGithubTeam,
 } from "api/functions/github.js";
-import { requestFormReset } from "react-dom";
 
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${Math.floor(ORG_DATA_CACHED_DURATION * 1.1)}, stale-if-error=3600`;
 
@@ -396,7 +395,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           primaryKey: `DEFINE#${request.params.orgId}`,
           entryId: "0",
         }),
-        AttributesToGet: ["leadsEntraGroupId"],
+        AttributesToGet: ["leadsEntraGroupId", "leadsGithubTeamId"],
         ConsistentRead: true,
       });
 
@@ -527,33 +526,36 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
 
-        const storeIdsOperation = async () => {
-          const commandTransaction = new TransactWriteItemsCommand({
-            TransactItems: [
-              ...logStatements,
-              {
-                Put: {
-                  TableName: genericConfig.SigInfoTableName,
-                  Item: marshall(
-                    {
-                      primaryKey: `DEFINE#${request.params.orgId}`,
-                      entryId: "0",
-                      ...updates,
-                    },
-                    { removeUndefinedValues: true },
-                  ),
+        // Store external group IDs if they were created
+        if (Object.keys(updates).length > 0) {
+          const storeIdsOperation = async () => {
+            const commandTransaction = new TransactWriteItemsCommand({
+              TransactItems: [
+                ...logStatements,
+                {
+                  Put: {
+                    TableName: genericConfig.SigInfoTableName,
+                    Item: marshall(
+                      {
+                        primaryKey: `DEFINE#${request.params.orgId}`,
+                        entryId: "0",
+                        ...updates,
+                      },
+                      { removeUndefinedValues: true },
+                    ),
+                  },
                 },
-              },
-            ],
-          });
-          return await clients.dynamoClient.send(commandTransaction);
-        };
+              ],
+            });
+            return await clients.dynamoClient.send(commandTransaction);
+          };
 
-        await retryDynamoTransactionWithBackoff(
-          storeIdsOperation,
-          request.log,
-          `Store group IDs for ${request.params.orgId}`,
-        );
+          await retryDynamoTransactionWithBackoff(
+            storeIdsOperation,
+            request.log,
+            `Store group IDs for ${request.params.orgId}`,
+          );
+        }
       }
 
       const commonArgs = {
@@ -572,10 +574,26 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         removeLead({ ...commonArgs, username }),
       );
 
-      const results = await Promise.allSettled([
-        ...addPromises,
-        ...removePromises,
-      ]);
+      // Execute all add/remove operations sequentially to avoid transaction conflicts
+      const results: PromiseSettledResult<SQSMessage | null>[] = [];
+
+      // Process adds
+      for (const promise of addPromises) {
+        const result = await promise.then(
+          (value) => ({ status: "fulfilled" as const, value }),
+          (reason) => ({ status: "rejected" as const, reason }),
+        );
+        results.push(result);
+      }
+
+      // Process removes
+      for (const promise of removePromises) {
+        const result = await promise.then(
+          (value) => ({ status: "fulfilled" as const, value }),
+          (reason) => ({ status: "rejected" as const, reason }),
+        );
+        results.push(result);
+      }
 
       const failures = results.filter((r) => r.status === "rejected");
       if (failures.length > 0) {
