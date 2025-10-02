@@ -107,13 +107,16 @@ async function resolveTeamIdToSlug({
 }): Promise<string> {
   try {
     logger.info(`Resolving team ID ${teamId} to slug`);
-    const response = await octokit.request("GET /orgs/{org}/teams/{team_id}", {
-      org: orgId,
-      team_id: teamId,
-      headers: {
-        "X-GitHub-Api-Version": "2022-11-28",
+    const response = await octokit.request(
+      "GET /organizations/{org}/team/{team_id}",
+      {
+        org: orgId,
+        team_id: teamId,
+        headers: {
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
       },
-    });
+    );
     const slug = response.data.slug;
     logger.info(`Resolved team ID ${teamId} to slug: ${slug}`);
     return slug;
