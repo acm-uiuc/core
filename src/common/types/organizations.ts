@@ -9,7 +9,8 @@ export const orgLeadEntry = z.object({
     (email) => email.endsWith('@illinois.edu'),
     { message: 'Email must be from the @illinois.edu domain' }
   ),
-  title: z.optional(z.string())
+  title: z.optional(z.string()),
+  nonVotingMember: z.optional(z.boolean()).default(false)
 })
 
 export const leadTitleSuggestions = ["Chair", "Co-chair", "Admin", "Lead", "Helper"];
