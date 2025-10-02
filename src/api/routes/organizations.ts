@@ -1,4 +1,4 @@
-import { FastifyPluginAsync } from "fastify";
+import { FastifyError, FastifyPluginAsync } from "fastify";
 import {
   ACMOrganization,
   AllOrganizationList,
@@ -32,6 +32,7 @@ import { AppRoles } from "common/roles.js";
 import {
   DynamoDBClient,
   GetItemCommand,
+  TransactWriteItem,
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import {
@@ -56,6 +57,11 @@ import { getRoleCredentials } from "api/functions/sts.js";
 import { SQSClient } from "@aws-sdk/client-sqs";
 import { sendSqsMessagesInBatches } from "api/functions/sqs.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
+import {
+  assignIdpGroupsToTeam,
+  createGithubTeam,
+} from "api/functions/github.js";
+import { requestFormReset } from "react-dom";
 
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${Math.floor(ORG_DATA_CACHED_DURATION * 1.1)}, stale-if-error=3600`;
 
@@ -398,10 +404,15 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         fastify.dynamoClient.send(getMetadataCommand),
         getAuthorizedClients(),
       ]);
-
       let entraGroupId = metadataResponse.Item
-        ? unmarshall(metadataResponse.Item).leadsEntraGroupId
+        ? (unmarshall(metadataResponse.Item).leadsEntraGroupId as string)
         : undefined;
+
+      let githubTeamId = metadataResponse.Item
+        ? (unmarshall(metadataResponse.Item).githubTeamId as number)
+        : undefined;
+
+      let createdGithubTeam = false;
 
       const entraIdToken = await getEntraIdToken({
         clients,
@@ -410,91 +421,139 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         logger: request.log,
       });
 
-      // Create Entra group if it doesn't exist and we're adding leads
-      const shouldCreateNewEntraGroup = !entraGroupId && add.length > 0;
-      if (shouldCreateNewEntraGroup) {
-        request.log.info(
-          `No Entra group exists for ${request.params.orgId}. Creating new group...`,
-        );
+      const shouldCreateNewEntraGroup = !entraGroupId;
+      const grpDisplayName = `${request.params.orgId} Admin`;
+      const grpShortName = `${OrganizationShortIdentifierMapping[request.params.orgId as keyof typeof OrganizationShortIdentifierMapping]}-adm`;
 
-        try {
-          const displayName = `${request.params.orgId} Admin`;
-          const mailNickname = `${OrganizationShortIdentifierMapping[request.params.orgId as keyof typeof OrganizationShortIdentifierMapping]}-adm`;
-          const memberUpns = add.map((u) =>
-            u.username.replace("@illinois.edu", "@acm.illinois.edu"),
-          );
+      // Create external groups
+      if (shouldCreateNewEntraGroup || !githubTeamId) {
+        const timestamp = new Date().toISOString();
+        const updates: Record<string, any> = { updatedAt: timestamp };
+        const logStatements: TransactWriteItem[] = [];
 
-          entraGroupId = await createM365Group(
-            entraIdToken,
-            displayName,
-            mailNickname,
-            memberUpns,
-            fastify.runEnvironment,
-          );
-
+        // Create Entra group if needed
+        if (shouldCreateNewEntraGroup) {
           request.log.info(
-            `Created Entra group ${entraGroupId} for ${request.params.orgId}`,
+            `No Entra group exists for ${request.params.orgId}. Creating new group...`,
           );
 
-          // Store the new group ID in DynamoDB
-          const timestamp = new Date().toISOString();
+          try {
+            const memberUpns = add.map((u) =>
+              u.username.replace("@illinois.edu", "@acm.illinois.edu"),
+            );
+
+            entraGroupId = await createM365Group(
+              entraIdToken,
+              grpDisplayName,
+              grpShortName,
+              memberUpns,
+              fastify.runEnvironment,
+            );
+
+            request.log.info(
+              `Created Entra group ${entraGroupId} for ${request.params.orgId}`,
+            );
+
+            updates.leadsEntraGroupId = entraGroupId;
+            const logStatement = buildAuditLogTransactPut({
+              entry: {
+                module: Modules.ORG_INFO,
+                message: "Created Entra group for organization leads.",
+                actor: request.username!,
+                target: request.params.orgId,
+              },
+            });
+            if (logStatement) {
+              logStatements.push(logStatement);
+            }
+
+            // Update dynamic membership query
+            const newQuery = await getLeadsM365DynamicQuery({
+              dynamoClient: fastify.dynamoClient,
+              includeGroupIds: [entraGroupId],
+            });
+            if (newQuery) {
+              const groupToUpdate =
+                fastify.runEnvironment === "prod"
+                  ? execCouncilGroupId
+                  : execCouncilTestingGroupId;
+              request.log.info(
+                "Changing Exec group membership dynamic query...",
+              );
+              await setGroupMembershipRule(
+                entraIdToken,
+                groupToUpdate,
+                newQuery,
+              );
+              request.log.info("Changed Exec group membership dynamic query!");
+            }
+          } catch (e) {
+            request.log.error(e, "Failed to create Entra group");
+            throw new InternalServerError({
+              message: "Failed to create Entra group for organization leads.",
+            });
+          }
+        }
+
+        // Create GitHub team if needed
+        if (!githubTeamId) {
+          request.log.info(
+            `No GitHub team exists for ${request.params.orgId}. Creating new team...`,
+          );
+          const suffix = fastify.environmentConfig.GroupEmailSuffix;
+          githubTeamId = await createGithubTeam({
+            orgId: fastify.environmentConfig.GithubOrgName,
+            githubToken: fastify.secretConfig.github_pat,
+            parentTeamId: fastify.environmentConfig.ExecGithubTeam,
+            name: `${grpShortName}${suffix === "" ? "" : `-${suffix}`}`,
+            description: grpDisplayName,
+            logger: request.log,
+          });
+          request.log.info(
+            `Created GitHub team "${githubTeamId}" for ${request.params.orgId} leads.`,
+          );
+          createdGithubTeam = true;
+          updates.leadsGithubTeamId = githubTeamId;
           const logStatement = buildAuditLogTransactPut({
             entry: {
               module: Modules.ORG_INFO,
-              message: "Created Entra group for organization leads.",
+              message: `Created GitHub team "${githubTeamId}" for organization leads.`,
               actor: request.username!,
               target: request.params.orgId,
             },
           });
+          if (logStatement) {
+            logStatements.push(logStatement);
+          }
+        }
 
-          const storeGroupIdOperation = async () => {
-            const commandTransaction = new TransactWriteItemsCommand({
-              TransactItems: [
-                ...(logStatement ? [logStatement] : []),
-                {
-                  Put: {
-                    TableName: genericConfig.SigInfoTableName,
-                    Item: marshall(
-                      {
-                        primaryKey: `DEFINE#${request.params.orgId}`,
-                        entryId: "0",
-                        leadsEntraGroupId: entraGroupId,
-                        updatedAt: timestamp,
-                      },
-                      { removeUndefinedValues: true },
-                    ),
-                  },
+        const storeIdsOperation = async () => {
+          const commandTransaction = new TransactWriteItemsCommand({
+            TransactItems: [
+              ...logStatements,
+              {
+                Put: {
+                  TableName: genericConfig.SigInfoTableName,
+                  Item: marshall(
+                    {
+                      primaryKey: `DEFINE#${request.params.orgId}`,
+                      entryId: "0",
+                      ...updates,
+                    },
+                    { removeUndefinedValues: true },
+                  ),
                 },
-              ],
-            });
-            return await clients.dynamoClient.send(commandTransaction);
-          };
-
-          await retryDynamoTransactionWithBackoff(
-            storeGroupIdOperation,
-            request.log,
-            `Store Entra group ID for ${request.params.orgId}`,
-          );
-        } catch (e) {
-          request.log.error(e, "Failed to create Entra group");
-          throw new InternalServerError({
-            message: "Failed to create Entra group for organization leads.",
+              },
+            ],
           });
-        }
-        // get the new dynamic membership query
-        const newQuery = await getLeadsM365DynamicQuery({
-          dynamoClient: fastify.dynamoClient,
-          includeGroupIds: [entraGroupId],
-        });
-        if (newQuery) {
-          const groupToUpdate =
-            fastify.runEnvironment === "prod"
-              ? execCouncilGroupId
-              : execCouncilTestingGroupId;
-          request.log.info("Changing Exec group membership dynamic query...");
-          await setGroupMembershipRule(entraIdToken, groupToUpdate, newQuery);
-          request.log.info("Changed Exec group membership dynamic query!");
-        }
+          return await clients.dynamoClient.send(commandTransaction);
+        };
+
+        await retryDynamoTransactionWithBackoff(
+          storeIdsOperation,
+          request.log,
+          `Store group IDs for ${request.params.orgId}`,
+        );
       }
 
       const commonArgs = {
@@ -552,6 +611,21 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           logger: request.log,
           sqsPayloads,
         });
+      }
+
+      if (createdGithubTeam && fastify.environmentConfig.GithubIdpSyncEnabled) {
+        request.log.info("Setting up IDP sync for Github team!");
+        await assignIdpGroupsToTeam({
+          githubToken: fastify.secretConfig.github_pat,
+          teamId: githubTeamId,
+          logger: request.log,
+          groupsToSync: [entraGroupId].filter((x): x is string => !!x),
+          orgId: fastify.environmentConfig.GithubOrgName,
+        });
+      } else {
+        request.log.info(
+          "IDP sync is disabled in this environment - the newly created group will have no members!",
+        );
       }
 
       return reply.status(201).send();

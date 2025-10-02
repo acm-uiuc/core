@@ -12,6 +12,7 @@ const secretObject = {
   acm_passkit_signerKey_base64: "",
   apple_signing_cert_base64: "",
   redis_url: "",
+  github_pat: "abc123testing",
 } as SecretConfig;
 
 const testSecretObject = {

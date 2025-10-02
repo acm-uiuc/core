@@ -308,3 +308,13 @@ export class DecryptionError extends InternalError<"DecryptionError"> {
     });
   }
 }
+
+export class GithubError extends InternalError<"GithubError"> {
+  constructor({ message }: { message?: string; }) {
+    super({
+      name: "GithubError",
+      id: 701,
+      message: message || "Could not update Github state.",
+    });
+  }
+}

@@ -1,15 +1,17 @@
 import { FastifyBaseLogger } from "fastify";
 import pino from "pino";
+import { ValidLoggers } from "./types.js";
 
 const MAX_RETRIES = 3;
 
 const BASE_RETRY_DELAY = 100;
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function retryDynamoTransactionWithBackoff<T>(
   operation: () => Promise<T>,
-  logger: FastifyBaseLogger | pino.Logger,
+  logger: ValidLoggers,
   operationName: string,
 ): Promise<T> {
   let lastError: Error | undefined;
