@@ -450,7 +450,7 @@ describe("assignIdpGroupsToTeam", () => {
     });
 
     expect(mockOctokit.request).toHaveBeenCalledWith(
-      "GET /orgs/{org}/teams/{team_id}",
+      "GET /organizations/{org}/team/{team_id}",
       {
         org: "test-org",
         team_id: 123,
