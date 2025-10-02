@@ -19,6 +19,7 @@ import {
 } from "common/errors/index.js";
 import {
   addLead,
+  getLeadsM365DynamicQuery,
   getOrgInfo,
   removeLead,
   SQSMessage,
@@ -41,7 +42,11 @@ import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { authorizeByOrgRoleOrSchema } from "api/functions/authorization.js";
 import { checkPaidMembership } from "api/functions/membership.js";
-import { createM365Group, getEntraIdToken } from "api/functions/entraId.js";
+import {
+  createM365Group,
+  getEntraIdToken,
+  setGroupMembershipRule,
+} from "api/functions/entraId.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SQSClient } from "@aws-sdk/client-sqs";
@@ -402,13 +407,14 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       });
 
       // Create Entra group if it doesn't exist and we're adding leads
-      if (!entraGroupId && add.length > 0) {
+      const shouldCreateNewEntraGroup = !entraGroupId && add.length > 0;
+      if (shouldCreateNewEntraGroup) {
         request.log.info(
           `No Entra group exists for ${request.params.orgId}. Creating new group...`,
         );
 
         try {
-          const displayName = `${request.params.orgId} Admin List`;
+          const displayName = `${request.params.orgId} Admin`;
           const mailNickname = `${request.params.orgId.toLowerCase()}-adm`;
           const memberUpns = add.map((u) =>
             u.username.replace("@illinois.edu", "@acm.illinois.edu"),
@@ -470,6 +476,20 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           throw new InternalServerError({
             message: "Failed to create Entra group for organization leads.",
           });
+        }
+        // get the new dynamic membership query
+        const newQuery = await getLeadsM365DynamicQuery({
+          dynamoClient: fastify.dynamoClient,
+          includeGroupIds: [entraGroupId],
+        });
+        if (newQuery) {
+          const groupToUpdate =
+            fastify.runEnvironment === "prod"
+              ? execCouncilGroupId
+              : execCouncilTestingGroupId;
+          request.log.info("Changing Exec group membership dynamic query...");
+          await setGroupMembershipRule(entraIdToken, groupToUpdate, newQuery);
+          request.log.info("Changed Exec group membership dynamic query!");
         }
       }
 
