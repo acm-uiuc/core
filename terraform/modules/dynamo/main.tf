@@ -319,12 +319,22 @@ resource "aws_dynamodb_table" "sig_info" {
     type = "S"
   }
   attribute {
+    name = "leadsEntraGroupId"
+    type = "S"
+  }
+  attribute {
     name = "username"
     type = "S"
   }
   global_secondary_index {
     name            = "UsernameIndex"
     hash_key        = "username"
+    range_key       = "primaryKey"
+    projection_type = "KEYS_ONLY"
+  }
+  global_secondary_index {
+    name            = "LeadsGroupIdIndex"
+    hash_key        = "leadsEntraGroupId"
     range_key       = "primaryKey"
     projection_type = "KEYS_ONLY"
   }

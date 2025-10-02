@@ -663,11 +663,12 @@ No action is required from you at this time.
         secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
-      // get groups, but don't show protected groups as manageable
+      // get groups, but don't show protected groups and app managed groups manageable
       const freshData = (
         await getServicePrincipalOwnedGroups(
           entraIdToken,
           fastify.environmentConfig.EntraServicePrincipalId,
+          false,
         )
       ).filter(
         (x) =>

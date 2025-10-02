@@ -1,10 +1,3 @@
-import {
-  commChairsGroupId,
-  commChairsTestingGroupId,
-  execCouncilGroupId,
-  execCouncilTestingGroupId,
-} from "@common/config";
-
 export const runEnvironments = ["dev", "prod", "local-dev"] as const;
 // local dev should be used when you want to test against a local instance of the API
 

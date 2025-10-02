@@ -10,7 +10,6 @@ import {
 } from "../../common/config.js";
 import {
   BaseError,
-  DecryptionError,
   EntraFetchError,
   EntraGroupError,
   EntraGroupsFromEmailError,
@@ -574,10 +573,15 @@ export async function isUserInGroup(
 export async function getServicePrincipalOwnedGroups(
   token: string,
   servicePrincipal: string,
+  includeDynamicGroups: boolean,
 ): Promise<{ id: string; displayName: string }[]> {
   try {
-    // Selects only group objects and retrieves just their id and displayName
-    const url = `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipal}/ownedObjects/microsoft.graph.group?$select=id,displayName`;
+    // Include groupTypes in selection to filter dynamic groups if needed
+    const selectFields = includeDynamicGroups
+      ? "id,displayName,description"
+      : "id,displayName,description,groupTypes";
+
+    const url = `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipal}/ownedObjects/microsoft.graph.group?$select=${selectFields}`;
 
     const response = await fetch(url, {
       method: "GET",
@@ -589,9 +593,26 @@ export async function getServicePrincipalOwnedGroups(
 
     if (response.ok) {
       const data = (await response.json()) as {
-        value: { id: string; displayName: string }[];
+        value: {
+          id: string;
+          displayName: string;
+          groupTypes?: string[];
+          description?: string;
+        }[];
       };
-      return data.value;
+
+      // Filter out dynamic groups and admin lists if includeDynamicGroups is false
+      const groups = includeDynamicGroups
+        ? data.value
+        : data.value
+            .filter((group) => !group.groupTypes?.includes("DynamicMembership"))
+            .filter(
+              (group) =>
+                !group.description?.startsWith("[Managed by Core API]"),
+            );
+
+      // Return only id and displayName (strip groupTypes if it was included)
+      return groups.map(({ id, displayName }) => ({ id, displayName }));
     }
 
     const errorData = (await response.json()) as {
@@ -813,9 +834,11 @@ export async function createM365Group(
       mailEnabled: boolean;
       securityEnabled: boolean;
       groupTypes: string[];
+      description: string;
       "members@odata.bind"?: string[];
     } = {
       displayName: groupName,
+      description: "[Managed by Core API]",
       mailNickname: safeMailNickname,
       mailEnabled: true,
       securityEnabled: false,
@@ -895,6 +918,69 @@ export async function createM365Group(
     throw new EntraGroupError({
       message: "Unknown error occurred while creating Microsoft 365 group",
       group: safeMailNickname,
+    });
+  }
+}
+
+/**
+ * Sets the dynamic membership rule for an Entra ID group.
+ * @param token - Entra ID token authorized to take this action.
+ * @param groupId - The group ID to update.
+ * @param membershipRule - The dynamic membership rule expression.
+ * @throws {EntraGroupError} If setting the membership rule fails.
+ * @returns {Promise<void>}
+ */
+export async function setGroupMembershipRule(
+  token: string,
+  groupId: string,
+  membershipRule: string,
+): Promise<void> {
+  if (!validateGroupId(groupId)) {
+    throw new EntraGroupError({
+      message: "Invalid group ID format",
+      group: groupId,
+    });
+  }
+
+  if (!membershipRule || membershipRule.trim().length === 0) {
+    throw new EntraGroupError({
+      message: "Membership rule cannot be empty",
+      group: groupId,
+    });
+  }
+
+  try {
+    const url = `https://graph.microsoft.com/v1.0/groups/${groupId}`;
+    const response = await fetch(url, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        membershipRule,
+        membershipRuleProcessingState: "On",
+        groupTypes: ["DynamicMembership"],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as {
+        error?: { message?: string };
+      };
+      throw new EntraGroupError({
+        message: errorData?.error?.message ?? response.statusText,
+        group: groupId,
+      });
+    }
+  } catch (error) {
+    if (error instanceof EntraGroupError) {
+      throw error;
+    }
+
+    throw new EntraGroupError({
+      message: error instanceof Error ? error.message : String(error),
+      group: groupId,
     });
   }
 }
