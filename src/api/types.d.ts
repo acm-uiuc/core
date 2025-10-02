@@ -10,7 +10,8 @@ import { SQSClient } from "@aws-sdk/client-sqs";
 import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
 import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
 import type RedisModule from "ioredis";
-type Redis = RedisModule.default;
+export type Redis = RedisModule.default;
+export type ValidLoggers = FastifyBaseLogger | pino.Logger;
 
 interface CloudfrontLocation {
   country: string | undefined;

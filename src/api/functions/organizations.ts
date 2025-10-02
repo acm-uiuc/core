@@ -23,17 +23,18 @@ import { EntraGroupActions } from "common/types/iam.js";
 import { buildAuditLogTransactPut } from "./auditLog.js";
 import { Modules } from "common/modules.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
+import { ValidLoggers } from "api/types.js";
 
 export interface GetOrgInfoInputs {
   id: string;
   dynamoClient: DynamoDBClient;
-  logger: FastifyBaseLogger | pino.Logger;
+  logger: ValidLoggers;
 }
 
 export interface GetUserOrgRolesInputs {
   username: string;
   dynamoClient: DynamoDBClient;
-  logger: FastifyBaseLogger | pino.Logger;
+  logger: ValidLoggers;
 }
 
 export type SQSMessage = Record<any, any>;

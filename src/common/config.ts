@@ -30,6 +30,9 @@ export type ConfigType = {
   DiscordGuildId: string;
   GroupSuffix: string;
   GroupEmailSuffix: string;
+  GithubOrgName: string;
+  ExecGithubTeam: number;
+  GithubIdpSyncEnabled: boolean
 };
 
 export type GenericConfigType = {
@@ -101,7 +104,7 @@ const genericConfig: GenericConfigType = {
   UinExtendedAttributeName: "extension_a70c2e1556954056a6a8edfb1f42f556_uiucEduUIN",
   UserInfoTable: "infra-core-api-user-info",
   SigInfoTableName: "infra-core-api-sigs",
-  EntraHostedDomainName: "acmillinois.onmicrosoft.com"
+  EntraHostedDomainName: "acmillinois.onmicrosoft.com",
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
@@ -131,7 +134,10 @@ const environmentConfig: EnvironmentConfigType = {
     DiscordGuildId: "1278798685706391664",
     EntraServicePrincipalId: "8c26ff11-fb86-42f2-858b-9011c9f0708d",
     GroupSuffix: "[NonProd]",
-    GroupEmailSuffix: "nonprod"
+    GroupEmailSuffix: "nonprod",
+    GithubOrgName: "acm-uiuc-testing",
+    ExecGithubTeam: 14420860,
+    GithubIdpSyncEnabled: false
   },
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
@@ -159,7 +165,10 @@ const environmentConfig: EnvironmentConfigType = {
     DiscordGuildId: "718945436332720229",
     EntraServicePrincipalId: "88c76504-9856-4325-bb0a-99f977e3607f",
     GroupSuffix: "",
-    GroupEmailSuffix: ""
+    GroupEmailSuffix: "",
+    GithubOrgName: "acm-uiuc",
+    ExecGithubTeam: 12025214,
+    GithubIdpSyncEnabled: true
   },
 };
 
@@ -176,6 +185,7 @@ export type SecretConfig = {
   redis_url: string;
   encryption_key: string;
   UIN_HASHING_SECRET_PEPPER: string;
+  github_pat: string;
 };
 
 export type SecretTesting = {
