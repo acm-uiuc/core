@@ -15,6 +15,7 @@ import {
 import { createJwt } from "./auth.test.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
+import { randomUUID } from "node:crypto";
 
 const app = await init();
 const ddbMock = mockClient(DynamoDBClient);
@@ -38,6 +39,9 @@ vi.mock("../../src/api/functions/entraId.js", () => {
     }),
     getGroupMetadata: vi.fn().mockImplementation(async () => {
       return { id: "abc123", displayName: "thing" };
+    }),
+    createM365Group: vi.fn().mockImplementation(async () => {
+      return randomUUID();
     }),
   };
 });
