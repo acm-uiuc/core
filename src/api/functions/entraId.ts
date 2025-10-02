@@ -852,7 +852,6 @@ export async function createM365Group(
       );
     }
 
-    console.log(createUrl, body);
     const createResponse = await fetch(createUrl, {
       method: "POST",
       headers: {
