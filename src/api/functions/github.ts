@@ -109,6 +109,19 @@ export async function createGithubTeam({
     const octokit = new Octokit({
       auth: githubToken,
     });
+    logger.info(`Checking if GitHub team "${name}" exists`);
+    const teamsResponse = await octokit.request("GET /orgs/{org}/teams", {
+      org: orgId,
+    });
+
+    const existingTeam = teamsResponse.data.find(
+      (team: { name: string; id: number }) => team.name === name,
+    );
+
+    if (existingTeam) {
+      logger.info(`Team "${name}" already exists with id: ${existingTeam.id}`);
+      return existingTeam.id;
+    }
     logger.info(`Creating GitHub team "${name}"`);
     const response = await octokit.request("POST /orgs/{org}/teams", {
       org: orgId,
