@@ -631,7 +631,8 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           teamId: githubTeamId,
           logger: request.log,
           groupsToSync: [entraGroupId].filter((x): x is string => !!x),
-          orgId: fastify.environmentConfig.GithubOrgName,
+          orgId: fastify.environmentConfig.GithubOrgId,
+          orgName: fastify.environmentConfig.GithubOrgName,
         });
       } else {
         request.log.info(

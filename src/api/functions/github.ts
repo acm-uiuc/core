@@ -101,7 +101,7 @@ async function resolveTeamIdToSlug({
   logger,
 }: {
   octokit: Octokit;
-  orgId: string;
+  orgId: number;
   teamId: number;
   logger: ValidLoggers;
 }): Promise<string> {
@@ -212,12 +212,14 @@ export async function assignIdpGroupsToTeam({
   groupsToSync,
   logger,
   orgId,
+  orgName,
 }: {
   githubToken: string;
   teamId: number;
   groupsToSync: string[];
   logger: ValidLoggers;
-  orgId: string;
+  orgId: number;
+  orgName: string;
 }) {
   try {
     const octokit = new Octokit({
@@ -267,7 +269,7 @@ export async function assignIdpGroupsToTeam({
     for (const groupId of groupsToSync) {
       const idpGroup = await findIdpGroupWithRetry({
         octokit,
-        orgId,
+        orgId: orgName,
         groupId,
         logger,
         maxRetries: 5,
