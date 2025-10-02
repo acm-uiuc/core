@@ -363,14 +363,16 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       if (add.length > 0) {
         try {
           const paidMemberships = await Promise.all(
-            add.map((u) =>
-              checkPaidMembership({
-                netId: u.username.replace("@illinois.edu", ""),
-                logger: request.log,
-                dynamoClient: fastify.dynamoClient,
-                redisClient: fastify.redisClient,
-              }),
-            ),
+            add
+              .filter((x) => !x.nonVotingMember)
+              .map((u) =>
+                checkPaidMembership({
+                  netId: u.username.replace("@illinois.edu", ""),
+                  logger: request.log,
+                  dynamoClient: fastify.dynamoClient,
+                  redisClient: fastify.redisClient,
+                }),
+              ),
           );
           if (paidMemberships.some((p) => !p)) {
             throw new ValidationError({
