@@ -959,7 +959,6 @@ export async function setGroupMembershipRule(
       body: JSON.stringify({
         membershipRule,
         membershipRuleProcessingState: "On",
-        groupTypes: ["DynamicMembership"],
       }),
     });
 
