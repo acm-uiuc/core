@@ -204,7 +204,8 @@ describe("assignIdpGroupsToTeam", () => {
     teamId: 123,
     groupsToSync: ["group-1", "group-2"],
     logger: mockLogger,
-    orgId: "test-org",
+    orgId: 456,
+    orgName: "test-org",
   };
 
   let mockOctokit: any;
@@ -256,11 +257,6 @@ describe("assignIdpGroupsToTeam", () => {
       },
     ];
 
-    // Mock team ID to slug resolution
-    mockOctokit.request.mockResolvedValueOnce({
-      data: { slug: "test-team" },
-    });
-
     // Mock team sync availability check
     mockOctokit.request.mockResolvedValueOnce({});
 
@@ -279,10 +275,10 @@ describe("assignIdpGroupsToTeam", () => {
     await assignIdpGroupsToTeam(defaultInputs);
 
     expect(mockOctokit.request).toHaveBeenCalledWith(
-      "PATCH /orgs/{org}/teams/{team_slug}/team-sync/group-mappings",
+      "PATCH /organizations/{org}/team/{team_id}/team-sync/group-mappings",
       {
-        org: "test-org",
-        team_slug: "test-team",
+        org: 456,
+        team_id: 123,
         groups: mockGroups,
         headers: {
           "X-GitHub-Api-Version": "2022-11-28",
@@ -290,7 +286,7 @@ describe("assignIdpGroupsToTeam", () => {
       }
     );
     expect(mockLogger.info).toHaveBeenCalledWith(
-      "Successfully mapped IdP groups to team test-team"
+      "Successfully mapped IdP groups to team 123"
     );
   });
 
@@ -300,11 +296,6 @@ describe("assignIdpGroupsToTeam", () => {
       group_name: "Group One",
       group_description: "First group",
     };
-
-    // Mock team ID to slug resolution
-    mockOctokit.request.mockResolvedValueOnce({
-      data: { slug: "test-team" },
-    });
 
     // Mock team sync availability check
     mockOctokit.request.mockResolvedValueOnce({});
@@ -328,11 +319,6 @@ describe("assignIdpGroupsToTeam", () => {
   });
 
   it("should throw GithubError if IdP group not found after max retries", async () => {
-    // Mock team ID to slug resolution
-    mockOctokit.request.mockResolvedValueOnce({
-      data: { slug: "test-team" },
-    });
-
     // Mock team sync availability check
     mockOctokit.request.mockResolvedValueOnce({});
 
@@ -345,7 +331,7 @@ describe("assignIdpGroupsToTeam", () => {
     expect(mockLogger.error).toHaveBeenCalledWith(
       "Failed to find IdP group with ID group-1 after 5 retries"
     );
-    expect(mockOctokit.request).toHaveBeenCalledTimes(7); // 1 for slug resolution + 1 for sync check + 5 retries for first group
+    expect(mockOctokit.request).toHaveBeenCalledTimes(6); // 1 for sync check + 5 retries for first group
   });
 
   it("should handle IdP groups without description", async () => {
@@ -354,11 +340,6 @@ describe("assignIdpGroupsToTeam", () => {
       group_name: "Group One",
       group_description: undefined,
     };
-
-    // Mock team ID to slug resolution
-    mockOctokit.request.mockResolvedValueOnce({
-      data: { slug: "test-team" },
-    });
 
     // Mock team sync availability check
     mockOctokit.request.mockResolvedValueOnce({});
@@ -373,7 +354,7 @@ describe("assignIdpGroupsToTeam", () => {
     });
 
     expect(mockOctokit.request).toHaveBeenCalledWith(
-      "PATCH /orgs/{org}/teams/{team_slug}/team-sync/group-mappings",
+      "PATCH /organizations/{org}/team/{team_id}/team-sync/group-mappings",
       expect.objectContaining({
         groups: [
           {
@@ -396,11 +377,6 @@ describe("assignIdpGroupsToTeam", () => {
   });
 
   it("should wrap non-BaseError exceptions in GithubError", async () => {
-    // Mock team ID to slug resolution
-    mockOctokit.request.mockResolvedValueOnce({
-      data: { slug: "test-team" },
-    });
-
     // Mock team sync availability check
     mockOctokit.request.mockResolvedValueOnce({});
 
@@ -421,68 +397,7 @@ describe("assignIdpGroupsToTeam", () => {
     );
   });
 
-  it("should resolve team ID to slug", async () => {
-    const mockGroup = {
-      group_id: "group-1",
-      group_name: "Group One",
-      group_description: "First group",
-    };
-
-    // Mock team ID to slug resolution
-    mockOctokit.request.mockResolvedValueOnce({
-      data: { slug: "my-team-slug" },
-    });
-
-    // Mock team sync availability check
-    mockOctokit.request.mockResolvedValueOnce({});
-
-    // Mock IdP group search
-    mockOctokit.request.mockResolvedValueOnce({
-      data: { groups: [mockGroup] },
-    });
-
-    // Mock PATCH request
-    mockOctokit.request.mockResolvedValueOnce({});
-
-    await assignIdpGroupsToTeam({
-      ...defaultInputs,
-      groupsToSync: ["group-1"],
-    });
-
-    expect(mockOctokit.request).toHaveBeenCalledWith(
-      "GET /organizations/{org}/team/{team_id}",
-      {
-        org: "test-org",
-        team_id: 123,
-        headers: {
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      }
-    );
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      "Resolved team ID 123 to slug: my-team-slug"
-    );
-  });
-
-  it("should throw GithubError if team slug resolution fails", async () => {
-    // Mock team ID to slug resolution failure
-    mockOctokit.request.mockRejectedValueOnce(new Error("Team not found"));
-
-    await expect(assignIdpGroupsToTeam(defaultInputs)).rejects.toThrow(
-      GithubError
-    );
-    expect(mockLogger.error).toHaveBeenCalledWith(
-      "Failed to resolve team ID 123 to slug:",
-      expect.any(Error)
-    );
-  });
-
   it("should exit gracefully if team sync is not available (404)", async () => {
-    // Mock team ID to slug resolution
-    mockOctokit.request.mockResolvedValueOnce({
-      data: { slug: "test-team" },
-    });
-
     // Mock team sync availability check returning 404
     mockOctokit.request.mockRejectedValueOnce({
       status: 404,
@@ -492,11 +407,11 @@ describe("assignIdpGroupsToTeam", () => {
     await assignIdpGroupsToTeam(defaultInputs);
 
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("Team sync is not available for team test-team")
+      expect.stringContaining("Team sync is not available for team 123")
     );
     expect(mockLogger.warn).toHaveBeenCalledWith("Skipping IdP group assignment");
     // Should not attempt to search for groups or patch
-    expect(mockOctokit.request).toHaveBeenCalledTimes(2); // Only slug resolution and sync check
+    expect(mockOctokit.request).toHaveBeenCalledTimes(1); // Only sync check
   });
 
   it("should exit gracefully if PATCH returns 404", async () => {
@@ -505,11 +420,6 @@ describe("assignIdpGroupsToTeam", () => {
       group_name: "Group One",
       group_description: "First group",
     };
-
-    // Mock team ID to slug resolution
-    mockOctokit.request.mockResolvedValueOnce({
-      data: { slug: "test-team" },
-    });
 
     // Mock team sync availability check
     mockOctokit.request.mockResolvedValueOnce({});
