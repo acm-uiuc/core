@@ -715,6 +715,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
         [
           {
             name: "Bob Wilson",
+            nonVotingMember: false,
             username: "bwilson@illinois.edu",
             title: "Treasurer",
           },
