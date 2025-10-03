@@ -1,5 +1,5 @@
 import { Client } from "@microsoft/microsoft-graph-client";
-import { ClientSecretCredential } from "@azure/identity";
+import { ClientCertificateCredential } from "@azure/identity";
 import { parseDisplayName } from "../common/utils.js";
 
 export interface EntraUser {
@@ -24,13 +24,14 @@ interface GraphUser {
 export const createEntraClient = (
   tenantId: string,
   clientId: string,
-  clientSecret: string,
+  clientCertificate: string, // Base64 encoded PFX or PEM certificate
 ): Client => {
-  const credential = new ClientSecretCredential(
-    tenantId,
-    clientId,
-    clientSecret,
-  );
+  // Decode the certificate from base64
+  const certificateBuffer = Buffer.from(clientCertificate, "base64");
+
+  const credential = new ClientCertificateCredential(tenantId, clientId, {
+    certificate: certificateBuffer.toString("utf-8"), // For PEM format
+  });
 
   return Client.initWithMiddleware({
     authProvider: {

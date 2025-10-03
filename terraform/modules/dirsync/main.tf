@@ -43,7 +43,7 @@ resource "aws_iam_policy" "this" {
         Action = ["secretsmanager:GetSecretValue"],
         Effect = "Allow",
         Resource = [
-          "arn:aws:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-gsuite-dirsync*",
+          "arn:aws:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-gsuite-dirsync-config*",
         ]
       },
     ]

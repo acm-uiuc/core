@@ -4,18 +4,20 @@ import {
 } from "@aws-sdk/client-secrets-manager";
 import { z } from "zod";
 
-export const CONFIG_SECRET = "infra-core-api-gsuite-dirsync";
+export const CONFIG_SECRET = "infra-core-api-gsuite-dirsync-config";
 
 const SecretsConfigSchema = z.object({
   entraTenantId: z.string().min(1, "entraTenantId is required"),
   entraClientId: z.string().min(1, "entraClientId is required"),
-  entraClientSecret: z.string().min(1, "entraClientSecret is required"),
-  googleDelegatedUser: z
+  entraClientCertificate: z
     .string()
-    .email("googleDelegatedUser must be a valid email"),
-  googleServiceAccountJson: z
-    .string()
-    .min(1, "googleServiceAccountJson is required"),
+    .min(1, "entraClientCertificate is required"),
+  // googleDelegatedUser: z
+  //   .string()
+  //   .email("googleDelegatedUser must be a valid email"),
+  // googleServiceAccountJson: z
+  //   .string()
+  //   .min(1, "googleServiceAccountJson is required"),
   deleteRemovedContacts: z.boolean().default(false),
 });
 
