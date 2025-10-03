@@ -10,14 +10,12 @@ export const handler = async (
   _context: Context,
 ): Promise<any> => {
   logger.info("Started the sync lambda handler!");
-  logger.info("Creating the Entra ID client");
   const entraClient = createEntraClient(
     secretConfig.entraTenantId,
     secretConfig.entraClientId,
     secretConfig.entraClientCertificate,
   );
   const entraUsers = await getAllEntraUsers(entraClient);
-  logger.info(`Retrieved ${entraUsers.length} users from Entra ID.`);
   return {
     statusCode: 200,
     body: JSON.stringify("Done!"),
