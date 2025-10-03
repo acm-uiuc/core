@@ -1,6 +1,7 @@
 import { Client } from "@microsoft/microsoft-graph-client";
 import { ClientCertificateCredential } from "@azure/identity";
 import { parseDisplayName } from "../common/utils.js";
+import { logger } from "./logging.js";
 
 export interface EntraUser {
   email: string;
@@ -24,13 +25,14 @@ interface GraphUser {
 export const createEntraClient = (
   tenantId: string,
   clientId: string,
-  clientCertificate: string, // Base64 encoded PFX or PEM certificate
+  clientCertificate: string,
 ): Client => {
-  // Decode the certificate from base64
-  const certificateBuffer = Buffer.from(clientCertificate, "base64");
-
+  logger.info("Creating the Entra ID client");
+  const certificatePem = Buffer.from(clientCertificate, "base64").toString(
+    "utf-8",
+  );
   const credential = new ClientCertificateCredential(tenantId, clientId, {
-    certificate: certificateBuffer.toString("utf-8"), // For PEM format
+    certificate: certificatePem,
   });
 
   return Client.initWithMiddleware({
@@ -51,7 +53,7 @@ export const createEntraClient = (
 export const getAllEntraUsers = async (
   client: Client,
 ): Promise<EntraUser[]> => {
-  console.log("Fetching users from Entra ID...");
+  logger.info("Fetching users from Entra ID...");
   const users: EntraUser[] = [];
 
   try {
@@ -104,7 +106,7 @@ export const getAllEntraUsers = async (
       }
     }
 
-    console.log(`Fetched ${users.length} users from Entra ID`);
+    logger.info(`Fetched ${users.length} users from Entra ID`);
     return users;
   } catch (error) {
     console.error("Error fetching Entra ID users:", error);
