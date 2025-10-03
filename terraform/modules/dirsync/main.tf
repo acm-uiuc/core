@@ -37,7 +37,7 @@ resource "aws_iam_policy" "this" {
       {
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Effect   = "Allow",
-        Resource = ["${aws_cloudwatch_log_group.archive_logs.arn}:*"]
+        Resource = ["${aws_cloudwatch_log_group.this.arn}:*"]
       },
       {
         Action = ["secretsmanager:GetSecretValue"],
