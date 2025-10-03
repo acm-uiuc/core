@@ -88,7 +88,7 @@ module "archival" {
   })
 }
 
-module "archival" {
+module "dirsync" {
   source           = "../../modules/dirsync"
   ProjectId        = var.ProjectId
   RunEnvironment   = "dev"
