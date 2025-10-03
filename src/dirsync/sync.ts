@@ -14,7 +14,7 @@ export const handler = async (
   const entraClient = createEntraClient(
     secretConfig.entraTenantId,
     secretConfig.entraClientId,
-    secretConfig.entraClientSecret,
+    secretConfig.entraClientCertificate,
   );
   const entraUsers = await getAllEntraUsers(entraClient);
   logger.info(`Retrieved ${entraUsers.length} users from Entra ID.`);
