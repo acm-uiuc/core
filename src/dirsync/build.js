@@ -30,13 +30,11 @@ const commonParams = {
 esbuild
   .build({
     ...commonParams,
-    entryPoints: ["dirsync/sync.js"],
-    outdir: "../../dist/dirsync/",
+    entryPoints: ["archival/dynamoStream.js"],
+    outdir: "../../dist/archival/",
   })
-  .then(() =>
-    console.log("Directory sync lambda build completed successfully!"),
-  )
+  .then(() => console.log("Archival lambda build completed successfully!"))
   .catch((error) => {
-    console.error("Directory sync lambda build failed:", error);
+    console.error("Archival lambda build failed:", error);
     process.exit(1);
   });
