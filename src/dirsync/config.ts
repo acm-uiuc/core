@@ -3,6 +3,7 @@ import {
   SecretsManagerClient,
 } from "@aws-sdk/client-secrets-manager";
 import { z } from "zod";
+import { logger } from "./logging";
 
 export const CONFIG_SECRET = "infra-core-api-gsuite-dirsync-config";
 
@@ -62,8 +63,8 @@ export const getConfig = async (): Promise<Config> => {
     environment,
   };
 
-  console.log(
-    `Configuration loaded successfully for environment: ${config.environment}`,
+  logger.info(
+    `Configuration loaded successfully for "${config.environment}" environment`,
   );
 
   return config;
