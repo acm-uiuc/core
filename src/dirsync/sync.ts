@@ -17,6 +17,7 @@ export const handler = async (
     secretConfig.entraClientSecret,
   );
   const entraUsers = await getAllEntraUsers(entraClient);
+  logger.info(`Retrieved ${entraUsers.length} users from Entra ID.`);
   return {
     statusCode: 200,
     body: JSON.stringify("Done!"),
