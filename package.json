@@ -6,13 +6,14 @@
   "workspaces": [
     "src/api",
     "src/ui",
-    "src/archival"
+    "src/archival",
+    "src/dirsync"
   ],
   "packageManager": "yarn@1.22.22",
   "scripts": {
     "postinstall": "npm run setup",
     "setup": "git config blame.ignoreRevsFile .git-blame-ignore-revs",
-    "build": "concurrently --names 'api,ui,archival' 'yarn workspace infra-core-api run build' 'yarn workspace infra-core-ui run build' 'yarn workspace infra-core-archival run build'",
+    "build": "concurrently --names 'api,ui,archival,dirsync' 'yarn workspace infra-core-api run build' 'yarn workspace infra-core-ui run build' 'yarn workspace infra-core-archival run build' 'yarn workspace infra-core-gsuite-dirsync run build'",
     "postbuild": "node src/api/createLambdaPackage.js && yarn lockfile-manage",
     "dev": "cross-env DISABLE_AUDIT_LOG=true concurrently --names 'api,ui' 'yarn workspace infra-core-api run dev' 'yarn workspace infra-core-ui run dev'",
     "lockfile-manage": "synp --with-workspace --source-file yarn.lock",

@@ -41,7 +41,6 @@ build: src/
 				rm -rf node_modules/aws-crt/dist/bin/{darwin*,linux-x64*,linux-arm64-musl} && \
 				rm -rf node_modules/argon2/prebuilds/{darwin*,freebsd*,linux-arm,linux-x64*,win32-x64*} && \
 				rm -rf node_modules/argon2/prebuilds/linux-arm64/argon2.armv8.musl.node"
-
 local:
 	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
 
