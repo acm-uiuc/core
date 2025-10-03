@@ -339,3 +339,22 @@ resource "aws_dynamodb_table" "sig_info" {
     projection_type = "KEYS_ONLY"
   }
 }
+
+resource "aws_dynamodb_table" "store_inventory" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-store-inventory"
+  deletion_protection_enabled = true
+  hash_key                    = "productId"
+  range_key                   = "variantId"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "productId"
+    type = "S"
+  }
+  attribute {
+    name = "variantId"
+    type = "S"
+  }
+}
