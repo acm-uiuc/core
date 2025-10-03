@@ -64,6 +64,8 @@ export type GenericConfigType = {
   UserInfoTable: string;
   SigInfoTableName: string;
   EntraHostedDomainName: string;
+  StoreInventoryTableName: string;
+  // TODO: (store) add other tables
 };
 
 type EnvironmentConfigType = {
@@ -106,6 +108,7 @@ const genericConfig: GenericConfigType = {
   UserInfoTable: "infra-core-api-user-info",
   SigInfoTableName: "infra-core-api-sigs",
   EntraHostedDomainName: "acmillinois.onmicrosoft.com",
+  StoreInventoryTableName: "infra-core-api-store-inventory"
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
