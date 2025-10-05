@@ -13,12 +13,10 @@ const SecretsConfigSchema = z.object({
   entraClientCertificate: z
     .string()
     .min(1, "entraClientCertificate is required"),
-  // googleDelegatedUser: z
-  //   .string()
-  //   .email("googleDelegatedUser must be a valid email"),
-  // googleServiceAccountJson: z
-  //   .string()
-  //   .min(1, "googleServiceAccountJson is required"),
+  googleDelegatedUser: z.email("googleDelegatedUser must be a valid email"),
+  googleServiceAccountJson: z
+    .string()
+    .min(1, "googleServiceAccountJson is required"),
   deleteRemovedContacts: z.boolean().default(false),
 });
 
