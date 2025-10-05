@@ -88,13 +88,6 @@ module "archival" {
   })
 }
 
-module "dirsync" {
-  source           = "../../modules/dirsync"
-  ProjectId        = var.ProjectId
-  RunEnvironment   = "dev"
-  LogRetentionDays = var.LogRetentionDays
-  SyncFrequency    = "rate(1 hour)"
-}
 
 resource "aws_cloudfront_key_value_store" "linkry_kv" {
   name = "${var.ProjectId}-cloudfront-linkry-kv"
