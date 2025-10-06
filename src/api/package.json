@@ -65,7 +65,7 @@
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.1",
-    "@types/aws-lambda": "^8.10.152",
+    "@types/aws-lambda": "^8.10.155",
     "@types/qrcode": "^1.5.5",
     "@types/sanitize-html": "^2.16.0",
     "esbuild-copy-static-files": "^0.1.0",

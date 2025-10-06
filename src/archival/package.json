@@ -13,9 +13,9 @@
     "prettier:write": "prettier --write *.ts **/*.ts"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.138",
-    "@types/node": "^24.3.0",
-    "typescript": "^5.9.2",
+    "@types/aws-lambda": "^8.10.155",
+    "@types/node": "^24.6.2",
+    "typescript": "^5.9.3",
     "esbuild": "^0.25.3"
   },
   "dependencies": {
