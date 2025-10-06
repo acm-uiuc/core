@@ -580,6 +580,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         dynamoClient: fastify.dynamoClient,
         logger: request.log,
         officersEmail,
+        redisClient: fastify.redisClient,
       };
 
       const addPromises = add.map((user) => addLead({ ...commonArgs, user }));
@@ -639,8 +640,8 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           orgName: fastify.environmentConfig.GithubOrgName,
         });
       } else {
-        request.log.info(
-          "IDP sync is disabled in this environment - the newly created group will have no members!",
+        request.log.warn(
+          "IdP sync is disabled in this environment - the newly created group will have no members!",
         );
       }
 
