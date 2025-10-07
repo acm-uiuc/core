@@ -3,7 +3,6 @@ import {
   Avatar,
   Badge,
   Group,
-  Table,
   Text,
   Button,
   TextInput,
@@ -11,15 +10,18 @@ import {
   Skeleton,
   Pagination,
   Select,
+  Stack,
 } from "@mantine/core";
 import {
   IconUserPlus,
   IconTrash,
   IconSearch,
   IconAlertCircle,
+  IconDeviceFloppy,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { GroupMemberGetResponse, EntraActionResponse } from "@common/types/iam";
+import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 
 interface GroupMemberManagementProps {
   fetchMembers: () => Promise<GroupMemberGetResponse>;
@@ -29,7 +31,15 @@ interface GroupMemberManagementProps {
   ) => Promise<EntraActionResponse>;
 }
 
+interface DisplayMember {
+  name: string;
+  email: string;
+  isNew: boolean;
+  isQueuedForRemoval: boolean;
+}
+
 const PER_PAGE_OPTIONS = ["10", "20", "50", "100"].sort();
+
 const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
   fetchMembers,
   updateMembers,
@@ -86,13 +96,19 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
       });
     }
   };
+
   const handleUndoRemoveMember = (email: string) => {
     setToRemove((prev) => prev.filter((x) => x !== email));
   };
+
   const handleRemoveMember = (email: string) => {
     if (!toRemove.includes(email)) {
       setToRemove((prev) => [...prev, email]);
     }
+  };
+
+  const handleCancelAdd = (email: string) => {
+    setToAdd((prev) => prev.filter((item) => item !== email));
   };
 
   const handleSaveChanges = async () => {
@@ -135,12 +151,17 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
   };
 
   const { paginatedMembers, totalPages } = useMemo(() => {
-    const combinedList = [
-      ...members.map((member) => ({ ...member, isNew: false })),
+    const combinedList: DisplayMember[] = [
+      ...members.map((member) => ({
+        ...member,
+        isNew: false,
+        isQueuedForRemoval: toRemove.includes(member.email),
+      })),
       ...toAdd.map((email) => ({
         name: email.split("@")[0],
         email,
         isNew: true,
+        isQueuedForRemoval: false,
       })),
     ];
 
@@ -158,110 +179,118 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
     );
 
     return { paginatedMembers: paginated, totalPages: total };
-  }, [members, toAdd, searchQuery, activePage, itemsPerPage]);
+  }, [members, toAdd, toRemove, searchQuery, activePage, itemsPerPage]);
 
-  const rows = paginatedMembers.map((member) => {
-    if (member.isNew) {
-      return (
-        <Table.Tr key={member.email}>
-          <Table.Td>
-            <Group gap="sm">
-              <Avatar name={member.name} color="initials" />
-              <div>
-                <Text fz="sm" fw={500}>
-                  {member.name}
-                </Text>
-                <Text fz="xs" c="dimmed">
-                  {member.email}
-                </Text>
-              </div>
-            </Group>
-          </Table.Td>
-          <Table.Td>
-            <Badge color="blue" variant="light">
-              Queued for addition
-            </Badge>
-          </Table.Td>
-          <Table.Td>
-            <Button
-              color="yellow"
-              variant="light"
-              size="xs"
-              onClick={() =>
-                setToAdd((prev) => prev.filter((item) => item !== member.email))
-              }
-              leftSection={<IconTrash size={14} />}
-            >
-              Cancel
-            </Button>
-          </Table.Td>
-        </Table.Tr>
-      );
-    }
-
-    return (
-      <Table.Tr key={member.email}>
-        <Table.Td>
-          <Group gap="sm">
-            <Avatar name={member.name || member.email[0]} color="initials" />
-            <div>
-              <Text fz="sm" fw={500}>
-                {member.name}
-              </Text>
-              <Text fz="xs" c="dimmed">
-                {member.email}
-              </Text>
-            </div>
-          </Group>
-        </Table.Td>
-        <Table.Td>
-          {toRemove.includes(member.email) ? (
+  // Define columns for members table
+  const memberColumns: Column<DisplayMember>[] = [
+    {
+      key: "member",
+      label: "Member",
+      isPrimaryColumn: true,
+      render: (member) => (
+        <Group gap="sm">
+          <Avatar
+            name={member.name || member.email[0]}
+            color="initials"
+            size="sm"
+          />
+          <div>
+            <Text fz="sm" fw={500}>
+              {member.name}
+            </Text>
+            <Text fz="xs" c="dimmed">
+              {member.email}
+            </Text>
+          </div>
+        </Group>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (member) => {
+        if (member.isQueuedForRemoval) {
+          return (
             <Badge color="red" variant="light">
               Queued for removal
             </Badge>
-          ) : (
-            <Badge color="green" variant="light">
-              Active
+          );
+        }
+        if (member.isNew) {
+          return (
+            <Badge color="blue" variant="light">
+              Queued for addition
             </Badge>
-          )}
-        </Table.Td>
-        <Table.Td>
-          {toRemove.includes(member.email) ? (
+          );
+        }
+        return (
+          <Badge color="green" variant="light">
+            Active
+          </Badge>
+        );
+      },
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      hideMobileLabel: true,
+      render: (member) => {
+        if (member.isQueuedForRemoval) {
+          return (
             <Button
               color="yellow"
               variant="light"
               size="xs"
-              onClick={() => handleUndoRemoveMember(member.email)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUndoRemoveMember(member.email);
+              }}
               leftSection={<IconTrash size={14} />}
             >
               Cancel
             </Button>
-          ) : (
+          );
+        }
+        if (member.isNew) {
+          return (
             <Button
-              color="red"
+              color="yellow"
               variant="light"
               size="xs"
-              onClick={() => handleRemoveMember(member.email)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancelAdd(member.email);
+              }}
               leftSection={<IconTrash size={14} />}
             >
-              Remove
+              Cancel
             </Button>
-          )}
-        </Table.Td>
-      </Table.Tr>
-    );
-  });
+          );
+        }
+        return (
+          <Button
+            color="red"
+            variant="light"
+            size="xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRemoveMember(member.email);
+            }}
+            leftSection={<IconTrash size={14} />}
+          >
+            Remove
+          </Button>
+        );
+      },
+    },
+  ];
 
   const skeletonRows = Array.from({ length: 5 }).map((_, index) => (
-    <Table.Tr key={`skeleton-${index}`}>
-      <Table.Td colSpan={3}>
-        <Skeleton height={40} radius="sm" />
-      </Table.Td>
-    </Table.Tr>
+    <Skeleton key={`skeleton-${index}`} height={60} radius="sm" mb="sm" />
   ));
 
   return (
-    <div>
+    <Stack gap="md">
       <Group>
         <TextInput
           label="Search"
@@ -279,47 +308,39 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
           style={{ width: "150px" }}
         />
       </Group>
-      <Table verticalSpacing="sm" highlightOnHover>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Member</Table.Th>
-            <Table.Th>Status</Table.Th>
-            <Table.Th>Actions</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {isLoading ? (
-            skeletonRows
-          ) : rows.length > 0 ? (
-            rows
-          ) : (
-            <Table.Tr>
-              <Table.Td colSpan={3}>
-                <Text c="dimmed" size="sm">
-                  No members found.
-                </Text>
-              </Table.Td>
-            </Table.Tr>
-          )}
-        </Table.Tbody>
-      </Table>
+
+      {isLoading ? (
+        <Stack gap="sm">{skeletonRows}</Stack>
+      ) : paginatedMembers.length > 0 ? (
+        <ResponsiveTable
+          data={paginatedMembers}
+          columns={memberColumns}
+          keyExtractor={(member) => member.email}
+          testIdPrefix="member-row"
+          cardColumns={{ base: 1, xs: 2 }}
+        />
+      ) : (
+        <Text c="dimmed" size="sm" ta="center" py="xl">
+          No members found.
+        </Text>
+      )}
 
       {totalPages > 1 && (
         <Pagination
           total={totalPages}
           value={activePage}
           onChange={setActivePage}
-          mt="md"
         />
       )}
+
       <TextInput
         value={emailToAdd}
         onChange={(e) => setEmailToAdd(e.currentTarget.value)}
         placeholder="Enter email to add"
         label="Add New Member"
       />
+
       <Button
-        mt="sm"
         leftSection={<IconUserPlus size={16} />}
         onClick={handleAddMember}
         disabled={isLoading}
@@ -330,10 +351,10 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
       <Button
         fullWidth
         color="blue"
-        mt="xl"
         onClick={() => setConfirmationModal(true)}
         disabled={(!toAdd.length && !toRemove.length) || isLoading}
         loading={isLoading}
+        leftSection={<IconDeviceFloppy size={16} color="white" />}
       >
         Save Changes
       </Button>
@@ -342,6 +363,7 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
         opened={confirmationModal}
         onClose={() => setConfirmationModal(false)}
         title="Confirm Changes"
+        centered
       >
         <div>
           {toAdd.length > 0 && (
@@ -382,7 +404,7 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
           </Group>
         </div>
       </Modal>
-    </div>
+    </Stack>
   );
 };
 

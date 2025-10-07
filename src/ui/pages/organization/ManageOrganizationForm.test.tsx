@@ -659,9 +659,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await user.click(screen.getByRole("button", { name: "Add Lead" }));
 
     // Click save lead changes
-    const saveButton = screen.getByRole("button", {
-      name: /Save Lead Changes/,
-    });
+    const saveButton = screen.getByTestId("save-lead-changes");
     await user.click(saveButton);
 
     // Check modal appears
@@ -695,9 +693,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await user.click(removeButtons[0]);
 
     // Open modal and confirm
-    const saveButton = screen.getByRole("button", {
-      name: /Save Lead Changes/,
-    });
+    const saveButton = screen.getByTestId("save-lead-changes");
     await user.click(saveButton);
 
     await waitFor(() => {
@@ -733,9 +729,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
       expect(screen.getByText("John Doe")).toBeInTheDocument();
     });
 
-    const saveButton = screen.getByRole("button", {
-      name: /Save Lead Changes/,
-    });
+    const saveButton = screen.getByTestId("save-lead-changes");
     expect(saveButton).toBeDisabled();
   });
 

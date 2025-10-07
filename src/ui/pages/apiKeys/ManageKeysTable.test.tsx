@@ -99,7 +99,7 @@ describe("OrgApiKeyTable Tests", () => {
   });
 
   it("renders the table headers correctly", async () => {
-    getApiKeys.mockResolvedValue([]);
+    getApiKeys.mockResolvedValue(mockApiKeys);
     await renderComponent();
 
     expect(screen.getByText("Key ID")).toBeInTheDocument();
@@ -139,7 +139,11 @@ describe("OrgApiKeyTable Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("No API keys found.")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          `No API keys found. Click "Create API Key" to get started.`,
+        ),
+      ).toBeInTheDocument();
     });
   });
 
@@ -172,8 +176,8 @@ describe("OrgApiKeyTable Tests", () => {
     const checkboxes = screen.getAllByRole("checkbox");
     expect(checkboxes.length).toBeGreaterThan(1); // Header + rows
 
-    // Select first row
-    await user.click(checkboxes[1]); // First row checkbox (index 0 is header)
+    // Select first data row (skip the header checkbox at index 0)
+    await user.click(checkboxes[1]);
 
     // Delete button should appear with count
     expect(screen.getByText(/Delete 1 API Key/)).toBeInTheDocument();
@@ -185,7 +189,7 @@ describe("OrgApiKeyTable Tests", () => {
     expect(screen.queryByText(/Delete 1 API Key/)).not.toBeInTheDocument();
   });
 
-  it("allows selecting all rows with header checkbox", async () => {
+  it("allows selecting all rows with Select All button", async () => {
     getApiKeys.mockResolvedValue(mockApiKeys);
     await renderComponent();
     const user = userEvent.setup();
@@ -195,22 +199,24 @@ describe("OrgApiKeyTable Tests", () => {
       expect(screen.getByText("acmuiuc_key123")).toBeInTheDocument();
     });
 
-    // Check that header checkbox exists
-    const headerCheckbox = screen.getAllByRole("checkbox")[0]; // Header checkbox
-    expect(headerCheckbox).toBeInTheDocument();
+    // Find and click the "Select All" button
+    const selectAllButton = screen.getByRole("button", { name: /Select All/i });
+    expect(selectAllButton).toBeInTheDocument();
 
-    // Click header checkbox
     await act(async () => {
-      await user.click(headerCheckbox);
+      await user.click(selectAllButton);
     });
 
     // Delete button should show count of all rows
     const deleteButton = await screen.findByText(/Delete 2 API Keys/);
     expect(deleteButton).toBeInTheDocument();
 
-    // Uncheck all
+    // Click "Deselect All" button
+    const deselectAllButton = screen.getByRole("button", {
+      name: /Deselect All/i,
+    });
     await act(async () => {
-      await user.click(headerCheckbox);
+      await user.click(deselectAllButton);
     });
 
     // Delete button should be gone

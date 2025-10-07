@@ -47,8 +47,9 @@ describe("StripeCurrentLinksPanel Tests", () => {
 
     expect(getLinksMock).toHaveBeenCalledOnce();
     expect(await screen.findByText("Current Links")).toBeInTheDocument();
-    expect(screen.getByRole("table")).toBeInTheDocument();
-    expect(screen.getAllByRole("row")).toHaveLength(1); // Only header row
+    expect(
+      await screen.findByText("No payment links found."),
+    ).toBeInTheDocument();
   });
 
   it("renders table with a few items", async () => {

@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
-  Table,
   Group,
   Select,
   Title,
@@ -20,11 +19,11 @@ import {
   IconRefresh,
   IconFileText,
   IconSearch,
-  IconClock,
   IconWorld,
 } from "@tabler/icons-react";
 import { Modules, ModulesToHumanName } from "@common/modules";
 import { notifications } from "@mantine/notifications";
+import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 
 interface LogEntry {
   actor: string;
@@ -76,9 +75,10 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
       label: ModulesToHumanName[module],
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
+
   // Convert local date to UTC epoch timestamp (seconds, not milliseconds)
   const dateToEpochTimestamp = (date: Date): number => {
-    return Math.floor(date.getTime() / 1000); // Convert milliseconds to seconds
+    return Math.floor(date.getTime() / 1000);
   };
 
   const fetchLogs = async () => {
@@ -93,7 +93,6 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
 
     setLoading(true);
     try {
-      // Convert the local dates to epoch timestamps in seconds
       const startTimestamp = dateToEpochTimestamp(startTime);
       const endTimestamp = dateToEpochTimestamp(endTime);
 
@@ -104,7 +103,7 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
       );
 
       setLogs(data as LogEntry[]);
-      setCurrentPage(1); // Reset to first page on new data
+      setCurrentPage(1);
     } catch (error) {
       console.error("Error fetching logs:", error);
       notifications.show({
@@ -143,12 +142,10 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
 
   // Format timestamp to readable date based on user preference
   const formatTimestamp = (timestamp: number): string => {
-    // Multiply by 1000 to convert from seconds to milliseconds if needed
     const timeMs = timestamp > 10000000000 ? timestamp : timestamp * 1000;
     const date = new Date(timeMs);
 
     if (showUtcTime) {
-      // Format in UTC time
       return date.toLocaleString(undefined, {
         year: "numeric",
         month: "2-digit",
@@ -161,7 +158,6 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
         timeZoneName: "short",
       });
     }
-    // Format in local time with timezone name
     return new Date(timeMs).toLocaleString(undefined, {
       year: "numeric",
       month: "2-digit",
@@ -176,7 +172,6 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
 
   // Get relative time from now
   const getRelativeTime = (timestamp: number): string => {
-    // Ensure timestamp is in milliseconds
     const timeMs = timestamp > 10000000000 ? timestamp : timestamp * 1000;
     const now = Date.now();
     const diff = now - timeMs;
@@ -198,13 +193,71 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
     return `${seconds} second${seconds !== 1 ? "s" : ""} ago`;
   };
 
+  // Define columns for logs table
+  const logsColumns: Column<LogEntry>[] = [
+    {
+      key: "timestamp",
+      label: "Timestamp",
+      isPrimaryColumn: true,
+      render: (log) => (
+        <Stack gap="xs">
+          <Text size="sm">{formatTimestamp(log.createdAt)}</Text>
+          <Badge size="sm" color="gray" variant="light">
+            {getRelativeTime(log.createdAt)}
+          </Badge>
+        </Stack>
+      ),
+    },
+    {
+      key: "actor",
+      label: "Actor",
+      render: (log) => <Text size="sm">{log.actor}</Text>,
+    },
+    {
+      key: "action",
+      label: "Action",
+      render: (log) => (
+        <Text
+          size="sm"
+          style={{
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
+          }}
+        >
+          {log.message}
+        </Text>
+      ),
+    },
+    {
+      key: "target",
+      label: "Target",
+      render: (log) => (
+        <Text size="sm">
+          {selectedModule === Modules.AUDIT_LOG &&
+          Object.values(Modules).includes(log.target as Modules)
+            ? ModulesToHumanName[log.target as Modules]
+            : log.target}
+        </Text>
+      ),
+    },
+    {
+      key: "requestId",
+      label: "Request ID",
+      render: (log) => (
+        <Text size="xs" c="dimmed" style={{ wordBreak: "break-all" }}>
+          {log.requestId}
+        </Text>
+      ),
+    },
+  ];
+
   return (
     <Stack>
       <Paper p="md" radius="md" withBorder>
         <Stack>
           <Title order={3}>Filter Logs</Title>
 
-          <Group align="flex-end">
+          <Group align="flex-end" wrap="wrap">
             <Select
               label="Module"
               placeholder="Select service module"
@@ -274,7 +327,7 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
             >
               <Switch
                 label={
-                  <Group m="xs">
+                  <Group gap="xs">
                     <IconWorld size={16} />
                     <Text size="sm">
                       {showUtcTime
@@ -304,69 +357,33 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
       </Paper>
 
       {loading ? (
-        <Group py="xl">
+        <Group justify="center" py="xl">
           <Loader size="lg" />
         </Group>
       ) : logs && logs.length > 0 ? (
         <>
           <Paper p="md" withBorder>
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Timestamp</Table.Th>
-                  <Table.Th>Actor</Table.Th>
-                  <Table.Th>Action</Table.Th>
-                  <Table.Th>Target</Table.Th>
-                  <Table.Th>Request ID</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {currentLogs.map((log, index) => (
-                  <Table.Tr key={`${log.requestId}-${index}`}>
-                    <Table.Td>
-                      <Group mt={0} mb={0}>
-                        <Text size="sm">{formatTimestamp(log.createdAt)}</Text>
-                        <Badge size="sm" color="gray">
-                          <Group>
-                            <Text size="xs">
-                              {getRelativeTime(log.createdAt)}
-                            </Text>
-                          </Group>
-                        </Badge>
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>{log.actor}</Table.Td>
-                    <Table.Td>
-                      <Text
-                        size="sm"
-                        style={{
-                          whiteSpace: "normal",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {log.message}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      {selectedModule === Modules.AUDIT_LOG &&
-                      Object.values(Modules).includes(log.target as Modules)
-                        ? ModulesToHumanName[log.target as Modules]
-                        : log.target}
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">
-                        {log.requestId}
-                      </Text>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+            {currentLogs.length > 0 ? (
+              <ResponsiveTable
+                data={currentLogs.map((log, index) => ({
+                  ...log,
+                  _index: index,
+                }))}
+                columns={logsColumns}
+                keyExtractor={(log) => `${log.requestId}-${log._index}`}
+                testIdPrefix="log-row"
+                cardColumns={{ base: 1, sm: 2 }}
+              />
+            ) : (
+              <Text c="dimmed" size="sm" ta="center" py="xl">
+                No logs match your search criteria.
+              </Text>
+            )}
           </Paper>
 
           {/* Pagination Controls */}
-          <Group justify="space-between" mt="md">
-            <Group>
+          <Group justify="space-between" wrap="wrap">
+            <Group wrap="wrap">
               <Text size="sm">Items per page:</Text>
               <Select
                 value={pageSize}
@@ -382,22 +399,24 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
                 {totalItems} entries
               </Text>
             </Group>
-            <Pagination
-              value={currentPage}
-              onChange={setCurrentPage}
-              total={totalPages}
-              siblings={1}
-              boundaries={1}
-            />
+            {totalPages > 1 && (
+              <Pagination
+                value={currentPage}
+                onChange={setCurrentPage}
+                total={totalPages}
+                siblings={1}
+                boundaries={1}
+              />
+            )}
           </Group>
         </>
       ) : logs === null ? null : (
         <Paper p="xl" withBorder>
           <Group>
             <IconFileText size={48} opacity={0.3} />
-            <Stack>
+            <Stack gap="xs">
               <Title order={3}>No logs to display</Title>
-              <Text variant="dimmed">
+              <Text c="dimmed">
                 {selectedModule
                   ? "Select a new time range and click 'Fetch Logs'"
                   : "Select a module and time range to fetch logs"}

@@ -17,7 +17,7 @@ import {
   ScrollArea,
   Stack,
 } from "@mantine/core";
-import { IconUserPlus, IconTrash } from "@tabler/icons-react";
+import { IconUserPlus, IconTrash, IconDeviceFloppy } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { illinoisNetId } from "@common/types/generic";
 import { AuthGuard } from "@ui/components/AuthGuard";
@@ -470,8 +470,9 @@ const ExternalMemberListManagement: React.FC<
           onClick={() => setConfirmationModalOpened(true)}
           disabled={(!toAdd.length && !toRemove.length) || isLoading}
           loading={isLoading}
+          leftSection={<IconDeviceFloppy size={16} color="white" />}
         >
-          Save Changes ({toAdd.length} Additions, {toRemove.length} Removals)
+          Save Changes
         </Button>
       </AuthGuard>
 

@@ -62,12 +62,9 @@ export const UserInvitePanel: React.FC<UserInvitePanelProps> = ({
   };
 
   return (
-    <Box p="md">
+    <Box>
       <Box mb="md">
-        <Text fw={500} mb={4}>
-          Add Users to Entra ID Tenant
-        </Text>
-        <Text size="sm" color="dimmed" mb="sm">
+        <Text size="sm" c="dimmed" mb="sm">
           Enter <code>illinois.edu</code> emails (one per line). Paid members
           are already added to the tenant.
         </Text>

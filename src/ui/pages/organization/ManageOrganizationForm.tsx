@@ -13,7 +13,6 @@ import {
   Stack,
   Select,
   Paper,
-  Table,
   Badge,
   Avatar,
   Modal,
@@ -30,6 +29,7 @@ import {
   IconTrash,
   IconUserPlus,
   IconAlertTriangle,
+  IconDeviceFloppy,
 } from "@tabler/icons-react";
 import {
   LeadEntry,
@@ -40,6 +40,7 @@ import {
 } from "@common/types/organizations";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 import * as z from "zod/v4";
+import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 
 type OrganizationData = z.infer<typeof setOrganizationMetaBody>;
 
@@ -51,6 +52,11 @@ interface ManageOrganizationFormProps {
   updateOrganizationData: (data: OrganizationData) => Promise<void>;
   updateLeads?: (toAdd: LeadEntry[], toRemove: string[]) => Promise<void>;
   firstTime?: boolean;
+}
+
+interface DisplayLead extends LeadEntry {
+  isNew: boolean;
+  isQueuedForRemoval: boolean;
 }
 
 export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
@@ -103,8 +109,6 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
       setToAdd([]);
       setToRemove([]);
 
-      // Only extract the fields that are allowed in setOrganizationMetaBody
-      // (excludes id, leads, leadsEntraGroupId)
       form.setValues({
         description: data.description,
         website: data.website,
@@ -123,7 +127,6 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
   };
 
   useEffect(() => {
-    // Reset form state when organization changes
     setOrgData(undefined);
     setLoading(false);
     form.reset();
@@ -135,7 +138,6 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
     setNewLeadTitle("");
     setNewLeadNonVoting(false);
 
-    // Fetch new organization data
     fetchOrganizationData();
   }, [organizationId]);
 
@@ -231,8 +233,6 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
     try {
       const values = form.values;
 
-      // Only send the fields allowed by setOrganizationMetaBody schema
-      // (description, website, links - NO id, leads, or leadsEntraGroupId)
       const cleanedData: OrganizationData = {
         description: values.description?.trim() || undefined,
         website: values.website?.trim() || undefined,
@@ -258,9 +258,128 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
     form.removeListItem("links", index);
   };
 
-  const allDisplayLeads = [
-    ...currentLeads.map((lead) => ({ ...lead, isNew: false })),
-    ...toAdd.map((lead) => ({ ...lead, isNew: true })),
+  const allDisplayLeads: DisplayLead[] = [
+    ...currentLeads.map((lead) => ({
+      ...lead,
+      isNew: false,
+      isQueuedForRemoval: toRemove.includes(lead.username),
+    })),
+    ...toAdd.map((lead) => ({
+      ...lead,
+      isNew: true,
+      isQueuedForRemoval: false,
+    })),
+  ];
+
+  // Define columns for leads table
+  const leadsColumns: Column<DisplayLead>[] = [
+    {
+      key: "lead",
+      label: "Lead",
+      isPrimaryColumn: true,
+      render: (lead) => (
+        <Group gap="sm">
+          <Avatar name={lead.name} color="initials" size="sm" />
+          <div>
+            <Group gap="xs">
+              <Text fz="sm" fw={500}>
+                {lead.name}
+              </Text>
+              {lead.nonVotingMember && (
+                <Badge color="gray" variant="light" size="sm">
+                  Non-Voting
+                </Badge>
+              )}
+            </Group>
+            <Text fz="xs" c="dimmed">
+              {lead.username}
+            </Text>
+          </div>
+        </Group>
+      ),
+    },
+    {
+      key: "title",
+      label: "Title",
+      render: (lead) => lead.title,
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (lead) => {
+        if (lead.isQueuedForRemoval) {
+          return (
+            <Badge color="red" variant="light">
+              Queued for removal
+            </Badge>
+          );
+        }
+        if (lead.isNew) {
+          return (
+            <Badge color="blue" variant="light">
+              Queued for addition
+            </Badge>
+          );
+        }
+        return (
+          <Badge color="green" variant="light">
+            Active
+          </Badge>
+        );
+      },
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      hideMobileLabel: true,
+      render: (lead) => {
+        if (lead.isQueuedForRemoval) {
+          return (
+            <Button
+              color="yellow"
+              variant="light"
+              size="xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancelRemove(lead.username);
+              }}
+            >
+              Cancel
+            </Button>
+          );
+        }
+        if (lead.isNew) {
+          return (
+            <Button
+              color="red"
+              variant="light"
+              size="xs"
+              leftSection={<IconTrash size={14} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancelAdd(lead.username);
+              }}
+            >
+              Cancel Add
+            </Button>
+          );
+        }
+        return (
+          <Button
+            color="red"
+            variant="light"
+            size="xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleQueueRemove(lead.username);
+            }}
+            leftSection={<IconTrash size={14} />}
+          >
+            Remove
+          </Button>
+        );
+      },
+    },
   ];
 
   if (orgData === undefined) {
@@ -356,7 +475,12 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
           </Paper>
 
           <Group mt="md">
-            <Button type="submit" loading={loading} disabled={loading}>
+            <Button
+              type="submit"
+              loading={loading}
+              disabled={loading}
+              leftSection={<IconDeviceFloppy size={16} color="white" />}
+            >
               Save Changes
             </Button>
           </Group>
@@ -376,113 +500,21 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
                 represenatives at Executive Council meetings.
               </Text>
 
-              <Table verticalSpacing="sm" highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Lead</Table.Th>
-                    <Table.Th>Title</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th>Actions</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {allDisplayLeads.length === 0 ? (
-                    <Table.Tr>
-                      <Table.Td colSpan={4}>
-                        <Text c="dimmed" size="sm" ta="center">
-                          No leads found.
-                        </Text>
-                      </Table.Td>
-                    </Table.Tr>
-                  ) : (
-                    allDisplayLeads.map((lead) => {
-                      const isQueuedForRemoval = toRemove.includes(
-                        lead.username,
-                      );
-                      return (
-                        <Table.Tr key={lead.username}>
-                          <Table.Td>
-                            <Group gap="sm">
-                              <Avatar name={lead.name} color="initials" />
-                              <div>
-                                <Group gap="xs">
-                                  <Text fz="sm" fw={500}>
-                                    {lead.name}
-                                  </Text>
-                                  {lead.nonVotingMember && (
-                                    <Badge
-                                      color="gray"
-                                      variant="light"
-                                      size="sm"
-                                    >
-                                      Non-Voting
-                                    </Badge>
-                                  )}
-                                </Group>
-                                <Text fz="xs" c="dimmed">
-                                  {lead.username}
-                                </Text>
-                              </div>
-                            </Group>
-                          </Table.Td>
-                          <Table.Td>{lead.title}</Table.Td>
-                          <Table.Td>
-                            {isQueuedForRemoval ? (
-                              <Badge color="red" variant="light">
-                                Queued for removal
-                              </Badge>
-                            ) : lead.isNew ? (
-                              <Badge color="blue" variant="light">
-                                Queued for addition
-                              </Badge>
-                            ) : (
-                              <Badge color="green" variant="light">
-                                Active
-                              </Badge>
-                            )}
-                          </Table.Td>
-                          <Table.Td>
-                            {isQueuedForRemoval ? (
-                              <Button
-                                color="yellow"
-                                variant="light"
-                                size="xs"
-                                onClick={() =>
-                                  handleCancelRemove(lead.username)
-                                }
-                              >
-                                Cancel
-                              </Button>
-                            ) : lead.isNew ? (
-                              <Button
-                                color="red"
-                                variant="light"
-                                size="xs"
-                                leftSection={<IconTrash size={14} />}
-                                onClick={() => handleCancelAdd(lead.username)}
-                              >
-                                Cancel Add
-                              </Button>
-                            ) : (
-                              <Button
-                                color="red"
-                                variant="light"
-                                size="xs"
-                                onClick={() => handleQueueRemove(lead.username)}
-                                leftSection={<IconTrash size={14} />}
-                              >
-                                Remove
-                              </Button>
-                            )}
-                          </Table.Td>
-                        </Table.Tr>
-                      );
-                    })
-                  )}
-                </Table.Tbody>
-              </Table>
+              {allDisplayLeads.length === 0 ? (
+                <Text c="dimmed" size="sm" ta="center" py="xl">
+                  No leads found.
+                </Text>
+              ) : (
+                <ResponsiveTable
+                  data={allDisplayLeads}
+                  columns={leadsColumns}
+                  keyExtractor={(lead) => lead.username}
+                  testIdPrefix="lead-row"
+                  cardColumns={{ base: 1, xs: 2 }}
+                />
+              )}
 
-              <Stack gap="xs" mt="md">
+              <Stack gap="xs" mt="xl">
                 <TextInput
                   label="Lead Name"
                   placeholder="John Doe"
@@ -578,9 +610,10 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
                 onClick={() => setConfirmModalOpen(true)}
                 disabled={(!toAdd.length && !toRemove.length) || loading}
                 loading={loading}
+                leftSection={<IconDeviceFloppy size={16} color="white" />}
+                data-testid="save-lead-changes"
               >
-                Save Lead Changes ({toAdd.length} Additions, {toRemove.length}{" "}
-                Removals)
+                Save Changes
               </Button>
             </Paper>
 

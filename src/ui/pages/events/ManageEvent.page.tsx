@@ -407,6 +407,7 @@ export const ManageEventPage: React.FC = () => {
           <Select
             label="Host"
             placeholder="Select host organization"
+            searchable
             withAsterisk
             data={orgList.map((org) => ({ value: org, label: org }))}
             {...form.getInputProps("host")}
@@ -421,6 +422,7 @@ export const ManageEventPage: React.FC = () => {
           <Select
             label="Repeats"
             placeholder="Select repeat frequency"
+            searchable
             data={repeatOptions.map((option) => ({
               value: option,
               label: capitalizeFirstLetter(option),

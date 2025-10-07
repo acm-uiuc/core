@@ -1,20 +1,5 @@
-import {
-  Table,
-  Text,
-  Group,
-  Title,
-  Badge,
-  Card,
-  Button,
-  UnstyledButton,
-  Center,
-} from "@mantine/core";
+import { Text, Group, Title, Badge, Card, Button } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
-  IconChevronUp,
-  IconChevronDown,
-  IconSelector,
-} from "@tabler/icons-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as z from "zod/v4";
@@ -24,6 +9,11 @@ import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
 import { ItemPostData } from "@common/types/tickets";
+import {
+  ResponsiveTable,
+  Column,
+  useTableSort,
+} from "@ui/components/ResponsiveTable";
 
 const baseItemMetadata = z.object({
   itemId: z.string().min(1),
@@ -50,37 +40,6 @@ const listItemsResponseSchema = z.object({
   merch: z.array(baseItemMetadata),
   tickets: z.array(ticketingItemMetadata),
 });
-
-interface ThProps {
-  children: React.ReactNode;
-  reversed: boolean;
-  sorted: boolean;
-  onSort: () => void;
-}
-
-function Th({ children, reversed, sorted, onSort }: ThProps) {
-  const Icon = sorted
-    ? reversed
-      ? IconChevronUp
-      : IconChevronDown
-    : IconSelector;
-
-  return (
-    <Table.Th>
-      <UnstyledButton
-        onClick={onSort}
-        style={{ display: "flex", alignItems: "center", gap: "4px" }}
-      >
-        <Text fw={500} size="sm">
-          {children}
-        </Text>
-        <Center>
-          <Icon size={14} stroke={1.5} />
-        </Center>
-      </UnstyledButton>
-    </Table.Th>
-  );
-}
 
 const getTicketStatus = (item: TicketItemMetadata) => {
   if (item.itemSalesActive === false) {
@@ -111,18 +70,26 @@ const getMerchStatus = (item: ItemMetadata) => {
   return { text: "Available", color: "green" as const };
 };
 
-type SortBy = "name" | "status" | null;
-
 const SelectTicketsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<{
     tickets: TicketItemMetadata[];
     merch: ItemMetadata[];
   }>({ tickets: [], merch: [] });
-  const [sortBy, setSortBy] = useState<SortBy>(null);
-  const [reversedSort, setReversedSort] = useState(false);
+
+  const { sortBy, reversedSort, handleSort, sortData } = useTableSort<
+    ItemMetadata | TicketItemMetadata
+  >("status");
+
   const api = useApi("core");
   const navigate = useNavigate();
+
+  const isTicketItem = (
+    item: ItemMetadata | TicketItemMetadata,
+  ): item is TicketItemMetadata => {
+    return "eventCapacity" in item && "ticketsSold" in item;
+  };
+
   const fetchItems = async () => {
     try {
       setLoading(true);
@@ -132,7 +99,6 @@ const SelectTicketsPage: React.FC = () => {
         tickets: parsed.tickets,
         merch: parsed.merch,
       });
-      handleSort("status");
     } catch (error) {
       console.error("Error fetching items:", error);
       notifications.show({
@@ -144,56 +110,10 @@ const SelectTicketsPage: React.FC = () => {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchItems();
   }, []);
-
-  const handleSort = (field: SortBy) => {
-    if (sortBy === field) {
-      setReversedSort((r) => !r);
-    } else {
-      setSortBy(field);
-      setReversedSort(false);
-    }
-  };
-
-  const isTicketItem = (
-    item: ItemMetadata | TicketItemMetadata,
-  ): item is TicketItemMetadata => {
-    return "eventCapacity" in item && "ticketsSold" in item;
-  };
-
-  const sortItems = <T extends ItemMetadata | TicketItemMetadata>(
-    items: T[],
-  ) => {
-    if (!sortBy) {
-      return items;
-    }
-
-    return [...items].sort((a, b) => {
-      if (sortBy === "name") {
-        const comparison = a.itemName.localeCompare(b.itemName);
-        return reversedSort ? -comparison : comparison;
-      }
-
-      if (sortBy === "status") {
-        const statusA = isTicketItem(a)
-          ? getTicketStatus(a).text
-          : getMerchStatus(a).text;
-        const statusB = isTicketItem(b)
-          ? getTicketStatus(b).text
-          : getMerchStatus(b).text;
-        const comparison = statusA.localeCompare(statusB);
-        return reversedSort ? -comparison : comparison;
-      }
-
-      return 0;
-    });
-  };
-
-  if (loading) {
-    return <FullScreenLoader />;
-  }
 
   const handleToggleSales = async (item: ItemMetadata | TicketItemMetadata) => {
     let newIsActive = false;
@@ -202,6 +122,7 @@ const SelectTicketsPage: React.FC = () => {
     } else {
       newIsActive = !(getMerchStatus(item).color === "green");
     }
+
     try {
       setLoading(true);
       const data: ItemPostData = {
@@ -234,8 +155,194 @@ const SelectTicketsPage: React.FC = () => {
     navigate(`/tickets/scan`);
   };
 
-  const sortedMerch = sortItems(items.merch);
-  const sortedTickets = sortItems(items.tickets);
+  // Sort function for both merch and tickets
+  const sortFn = (
+    a: ItemMetadata | TicketItemMetadata,
+    b: ItemMetadata | TicketItemMetadata,
+    sortBy: string,
+  ) => {
+    if (sortBy === "name") {
+      return a.itemName.localeCompare(b.itemName);
+    }
+    if (sortBy === "status") {
+      const statusA = isTicketItem(a)
+        ? getTicketStatus(a).text
+        : getMerchStatus(a).text;
+      const statusB = isTicketItem(b)
+        ? getTicketStatus(b).text
+        : getMerchStatus(b).text;
+      return statusA.localeCompare(statusB);
+    }
+    return 0;
+  };
+
+  // Define columns for merchandise
+  const merchColumns: Column<ItemMetadata>[] = [
+    {
+      key: "name",
+      label: "Item Name",
+      isPrimaryColumn: true,
+      sortable: true,
+      render: (item) => item.itemName,
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (item) => {
+        const status = getMerchStatus(item);
+        return <Badge color={status.color}>{status.text}</Badge>;
+      },
+    },
+    {
+      key: "price",
+      label: "Price (Member / Non-Member)",
+      render: (item) => (
+        <>
+          ${item.priceDollars.member.toFixed(2)} / $
+          {item.priceDollars.nonMember.toFixed(2)}
+        </>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      hideMobileLabel: true,
+      render: (item) => (
+        <Group>
+          <AuthGuard
+            isAppShell={false}
+            resourceDef={{
+              service: "core",
+              validRoles: [AppRoles.TICKETS_MANAGER],
+            }}
+          >
+            <Button
+              variant="primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleManageClick(item.itemId);
+              }}
+              id={`merch-${item.itemId}-manage`}
+            >
+              View Sales
+            </Button>
+            <Button
+              color={getMerchStatus(item).color === "green" ? "red" : "green"}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleSales(item);
+              }}
+              id={`tickets-${item.itemId}-toggle-status`}
+            >
+              {getMerchStatus(item).color === "green" ? "Disable" : "Enable"}{" "}
+              Sales
+            </Button>
+          </AuthGuard>
+        </Group>
+      ),
+    },
+  ];
+
+  // Define columns for tickets
+  const ticketColumns: Column<TicketItemMetadata>[] = [
+    {
+      key: "name",
+      label: "Event Name",
+      isPrimaryColumn: true,
+      sortable: true,
+      render: (ticket) => ticket.itemName,
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (ticket) => {
+        const status = getTicketStatus(ticket);
+        return <Badge color={status.color}>{status.text}</Badge>;
+      },
+    },
+    {
+      key: "capacity",
+      label: "Capacity",
+      render: (ticket) => (
+        <Group gap="xs">
+          <Text>
+            {ticket.ticketsSold}/{ticket.eventCapacity}
+          </Text>
+          {ticket.ticketsSold >= ticket.eventCapacity && (
+            <Badge color="red" size="sm">
+              Full
+            </Badge>
+          )}
+        </Group>
+      ),
+    },
+    {
+      key: "price",
+      label: "Price (Member/Non-Member)",
+      mobileLabel: "Price",
+      render: (ticket) => (
+        <>
+          ${ticket.priceDollars.member.toFixed(2)} / $
+          {ticket.priceDollars.nonMember.toFixed(2)}
+        </>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      hideMobileLabel: true,
+      render: (ticket) => (
+        <Group>
+          <AuthGuard
+            isAppShell={false}
+            resourceDef={{
+              service: "core",
+              validRoles: [AppRoles.TICKETS_MANAGER],
+            }}
+          >
+            <Button
+              variant="primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleManageClick(ticket.itemId);
+              }}
+              id={`tickets-${ticket.itemId}-manage`}
+            >
+              View Sales
+            </Button>
+            <Button
+              color={
+                getTicketStatus(ticket).color === "green" ? "red" : "green"
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleSales(ticket);
+              }}
+              id={`tickets-${ticket.itemId}-toggle-status`}
+            >
+              {getTicketStatus(ticket).color === "green" ? "Disable" : "Enable"}{" "}
+              Sales
+            </Button>
+          </AuthGuard>
+        </Group>
+      ),
+    },
+  ];
+
+  if (loading) {
+    return <FullScreenLoader />;
+  }
+
+  const sortedMerch = sortData(
+    items.merch as (ItemMetadata | TicketItemMetadata)[],
+    sortFn,
+  ) as ItemMetadata[];
+  const sortedTickets = sortData(
+    items.tickets as (ItemMetadata | TicketItemMetadata)[],
+    sortFn,
+  ) as TicketItemMetadata[];
 
   return (
     <AuthGuard
@@ -247,6 +354,7 @@ const SelectTicketsPage: React.FC = () => {
       <Title order={2} mb="md">
         Tickets & Merchandise
       </Title>
+
       <AuthGuard
         isAppShell={false}
         resourceDef={{
@@ -263,183 +371,35 @@ const SelectTicketsPage: React.FC = () => {
           Scan Ticket/Merch Codes
         </Button>
       </AuthGuard>
-      <Card withBorder>
+
+      <Card withBorder mb="lg">
         <Title order={3} mb="md">
           Merchandise
         </Title>
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Th
-                sorted={sortBy === "name"}
-                reversed={reversedSort}
-                onSort={() => handleSort("name")}
-              >
-                Item Name
-              </Th>
-              <Th
-                sorted={sortBy === "status"}
-                reversed={reversedSort}
-                onSort={() => handleSort("status")}
-              >
-                Status
-              </Th>
-              <Table.Th>Price (Member/Non-Member)</Table.Th>
-              <Table.Th>Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {sortedMerch.map((item) => {
-              const status = getMerchStatus(item);
-              return (
-                <Table.Tr
-                  key={item.itemId}
-                  style={{ cursor: "pointer" }}
-                  data-testid={`merch-row-${item.itemId}`}
-                >
-                  <Table.Td>{item.itemName}</Table.Td>
-                  <Table.Td>
-                    <Badge color={status.color}>{status.text}</Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    ${item.priceDollars.member.toFixed(2)} / $
-                    {item.priceDollars.nonMember.toFixed(2)}
-                  </Table.Td>
-                  <Table.Td>
-                    <Group>
-                      <AuthGuard
-                        isAppShell={false}
-                        resourceDef={{
-                          service: "core",
-                          validRoles: [AppRoles.TICKETS_MANAGER],
-                        }}
-                      >
-                        <Button
-                          variant="primary"
-                          onClick={() => handleManageClick(item.itemId)}
-                          id={`merch-${item.itemId}-manage`}
-                        >
-                          View Sales
-                        </Button>
-                        <Button
-                          color={
-                            getMerchStatus(item).color === "green"
-                              ? "red"
-                              : "green"
-                          }
-                          onClick={() => handleToggleSales(item)}
-                          id={`tickets-${item.itemId}-toggle-status`}
-                        >
-                          {getMerchStatus(item).color === "green"
-                            ? "Disable"
-                            : "Enable"}{" "}
-                          Sales
-                        </Button>
-                      </AuthGuard>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              );
-            })}
-          </Table.Tbody>
-        </Table>
+        <ResponsiveTable
+          data={sortedMerch}
+          columns={merchColumns}
+          keyExtractor={(item) => item.itemId}
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortReversed={reversedSort}
+          testIdPrefix="merch-row"
+        />
       </Card>
 
-      <Card mb="lg" withBorder>
+      <Card withBorder mb="lg">
         <Title order={3} mb="md">
           Tickets
         </Title>
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Th
-                sorted={sortBy === "name"}
-                reversed={reversedSort}
-                onSort={() => handleSort("name")}
-              >
-                Event Name
-              </Th>
-              <Th
-                sorted={sortBy === "status"}
-                reversed={reversedSort}
-                onSort={() => handleSort("status")}
-              >
-                Status
-              </Th>
-              <Table.Th>Capacity</Table.Th>
-              <Table.Th>Price (Member/Non-Member)</Table.Th>
-              <Table.Th>Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {sortedTickets.map((ticket) => {
-              const status = getTicketStatus(ticket);
-              return (
-                <Table.Tr
-                  key={ticket.itemId}
-                  style={{ cursor: "pointer" }}
-                  data-testid={`ticket-row-${ticket.itemId}`}
-                >
-                  <Table.Td>{ticket.itemName}</Table.Td>
-                  <Table.Td>
-                    <Badge color={status.color}>{status.text}</Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Group gap="xs">
-                      <Text>
-                        {ticket.ticketsSold}/{ticket.eventCapacity}
-                      </Text>
-                      {ticket.ticketsSold >= ticket.eventCapacity && (
-                        <Badge color="red" size="sm">
-                          Full
-                        </Badge>
-                      )}
-                    </Group>
-                  </Table.Td>
-                  <Table.Td>
-                    ${ticket.priceDollars.member.toFixed(2)} / $
-                    {ticket.priceDollars.nonMember.toFixed(2)}
-                  </Table.Td>
-                  <Table.Td>
-                    <Group>
-                      <AuthGuard
-                        isAppShell={false}
-                        resourceDef={{
-                          service: "core",
-                          validRoles: [AppRoles.TICKETS_MANAGER],
-                        }}
-                      >
-                        <Group>
-                          <Button
-                            variant="primary"
-                            onClick={() => handleManageClick(ticket.itemId)}
-                            id={`tickets-${ticket.itemId}-manage`}
-                          >
-                            View Sales
-                          </Button>
-                          <Button
-                            color={
-                              getTicketStatus(ticket).color === "green"
-                                ? "red"
-                                : "green"
-                            }
-                            onClick={() => handleToggleSales(ticket)}
-                            id={`tickets-${ticket.itemId}-toggle-status`}
-                          >
-                            {getTicketStatus(ticket).color === "green"
-                              ? "Disable"
-                              : "Enable"}{" "}
-                            Sales
-                          </Button>
-                        </Group>
-                      </AuthGuard>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              );
-            })}
-          </Table.Tbody>
-        </Table>
+        <ResponsiveTable
+          data={sortedTickets}
+          columns={ticketColumns}
+          keyExtractor={(ticket) => ticket.itemId}
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortReversed={reversedSort}
+          testIdPrefix="ticket-row"
+        />
       </Card>
     </AuthGuard>
   );
