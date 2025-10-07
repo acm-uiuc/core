@@ -152,6 +152,12 @@ export const StripeCurrentLinksPanel: React.FC<
       ),
     },
     {
+      key: "invoiceId",
+      label: "Invoice ID",
+      isPrimaryColumn: true,
+      render: (link) => link.invoiceId,
+    },
+    {
       key: "status",
       label: "Status",
       render: (link) =>
@@ -164,12 +170,6 @@ export const StripeCurrentLinksPanel: React.FC<
             Inactive
           </Badge>
         ),
-    },
-    {
-      key: "invoiceId",
-      label: "Invoice ID",
-      isPrimaryColumn: true,
-      render: (link) => link.invoiceId,
     },
     {
       key: "amount",
