@@ -283,6 +283,7 @@ export const ViewEventsPage: React.FC = () => {
         columns={columns}
         keyExtractor={(event) => event.id}
         testIdPrefix="event-row"
+        testId="events-table"
       />
 
       {showPrevious && (
@@ -293,6 +294,7 @@ export const ViewEventsPage: React.FC = () => {
             columns={columns}
             keyExtractor={(event) => event.id}
             testIdPrefix="event-previous-row"
+            testId="previous-events-table"
           />
         </>
       )}

@@ -45,6 +45,7 @@ export interface ResponsiveTableProps<T> {
     | number
     | { base?: number; xs?: number; sm?: number; md?: number }; // Grid columns for mobile cards
   cardColumns?: number | { base?: number; xs?: number; sm?: number }; // Columns inside each card
+  testId?: string; // Table data-testId
 }
 
 interface ThProps {
@@ -97,6 +98,7 @@ export function ResponsiveTable<T>({
   padding,
   mobileColumns = { base: 1, sm: 2 },
   cardColumns = { base: 1, xs: 2 },
+  testId,
 }: ResponsiveTableProps<T>) {
   const realPadding = padding || "sm";
   const [isMobile, setIsMobile] = useState(
@@ -121,7 +123,7 @@ export function ResponsiveTable<T>({
   // Desktop table view
   if (!isMobile) {
     return (
-      <Table>
+      <Table data-testid={testId}>
         <Table.Thead>
           <Table.Tr>
             {columns.map((column) => {
