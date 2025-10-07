@@ -5,7 +5,7 @@ export function getPrimarySuggestedOrg(
   orgRoles: OrgRoleDefinition[] | null | undefined,
 ): ACMOrganization {
   if (!orgRoles || orgRoles.length === 0) {
-    return "ACM";
+    return "";
   }
   const leadOrgs = orgRoles
     .filter((x) => x.role === "LEAD")
@@ -14,5 +14,5 @@ export function getPrimarySuggestedOrg(
   if (leadOrgs.length > 0) {
     return leadOrgs[0];
   }
-  return "ACM";
+  return "";
 }
