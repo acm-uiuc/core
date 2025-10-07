@@ -11,7 +11,7 @@ describe("Events tests", () => {
     await page.locator("a").filter({ hasText: "Events" }).click();
     await expect(page.getByRole("heading")).toContainText("Event Management");
     await expect(
-      page.getByRole("button", { name: "New Calendar Event" }),
+      page.getByRole("button", { name: "Create Event" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Show Previous Events" }),
