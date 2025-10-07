@@ -3,16 +3,13 @@ import {
   Box,
   Title,
   Button,
-  Table,
   Modal,
   Group,
-  Transition,
   ButtonGroup,
   Anchor,
-  Badge,
   Tabs,
   Loader,
-  useMantineColorScheme,
+  Stack,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -26,12 +23,7 @@ import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles.js";
 import { linkRecord } from "@common/types/linkry.js";
 import { getRunEnvironmentConfig } from "@ui/config.js";
-
-const wrapTextStyle: React.CSSProperties = {
-  wordWrap: "break-word",
-  overflowWrap: "break-word" as const,
-  whiteSpace: "normal",
-};
+import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 
 export type LinkryGetResponse = z.infer<typeof linkRecord>;
 
@@ -41,84 +33,9 @@ export const LinkShortener: React.FC = () => {
   const [delegatedLinks, setDelegatedLinks] = useState<LinkryGetResponse[]>([]);
   const api = useApi("core");
   const [opened, { open, close }] = useDisclosure(false);
-  const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false); // Changed default to false
   const [deleteLinkCandidate, setDeleteLinkCandidate] =
     useState<LinkryGetResponse | null>(null);
   const navigate = useNavigate();
-  const { colorScheme } = useMantineColorScheme();
-
-  const renderTableRow = (link: LinkryGetResponse, index: number) => {
-    const shouldShow = true;
-
-    return (
-      <Transition
-        mounted={shouldShow}
-        transition="fade"
-        duration={10000}
-        timingFunction="ease"
-      >
-        {(styles) => (
-          <tr
-            style={{
-              ...styles,
-              display: shouldShow ? "table-row" : "none",
-              backgroundColor:
-                colorScheme === "dark"
-                  ? index % 2 === 0
-                    ? "#333333"
-                    : "#444444"
-                  : index % 2 === 0
-                    ? "#f0f8ff"
-                    : "#ffffff",
-            }}
-          >
-            <Table.Td style={wrapTextStyle}>
-              {getRunEnvironmentConfig().LinkryPublicUrl}/{link.slug}
-            </Table.Td>
-            <Table.Td style={wrapTextStyle}>
-              <Anchor href={link.redirect} target="_blank" size="sm">
-                {link.redirect}
-              </Anchor>
-            </Table.Td>
-            {/* <Table.Td style={wrapTextStyle}>{dayjs(link.createdAt).format('MMM D YYYY hh:mm')}</Table.Td>
-            <Table.Td style={wrapTextStyle}>{dayjs(link.updatedAt).format('MMM D YYYY hh:mm')}</Table.Td> */}
-            <Table.Td
-              style={{
-                textAlign: "center",
-                justifyContent: "rightcenter",
-                alignItems: "center",
-              }}
-            >
-              <ButtonGroup>
-                {/* <Button component="a" href={`/linkry/edit/${link.id}`}>
-                 Edit
-                </Button> */}
-                <Button
-                  component="a"
-                  href={
-                    link.slug
-                      ? `/linkry/edit/${encodeURIComponent(link.slug)}?previousPage=${window.location.pathname}`
-                      : "#"
-                  }
-                >
-                  <IconEdit size={16} />
-                </Button>
-                <Button
-                  color="red"
-                  onClick={() => {
-                    setDeleteLinkCandidate(link);
-                    open();
-                  }}
-                >
-                  <IconTrash size={16} />
-                </Button>
-              </ButtonGroup>
-            </Table.Td>
-          </tr>
-        )}
-      </Transition>
-    );
-  };
 
   useEffect(() => {
     const getEvents = async () => {
@@ -161,12 +78,81 @@ export const LinkShortener: React.FC = () => {
     } catch (error) {
       console.error(error);
       notifications.show({
-        title: "Error deleting event",
+        title: "Error deleting link",
         message: `${error}`,
         color: "red",
       });
     }
   };
+
+  // Define columns for links table
+  const linksColumns: Column<LinkryGetResponse>[] = [
+    {
+      key: "slug",
+      label: "Shortened Link",
+      isPrimaryColumn: true,
+      render: (link) => (
+        <Text
+          size="sm"
+          style={{
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
+          }}
+        >
+          {getRunEnvironmentConfig().LinkryPublicUrl}/{link.slug}
+        </Text>
+      ),
+    },
+    {
+      key: "redirect",
+      label: "Redirect URL",
+      render: (link) => (
+        <Anchor
+          href={link.redirect}
+          target="_blank"
+          size="sm"
+          style={{
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
+          }}
+        >
+          {link.redirect}
+        </Anchor>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      hideMobileLabel: true,
+      render: (link) => (
+        <ButtonGroup>
+          <Button
+            component="a"
+            href={
+              link.slug
+                ? `/linkry/edit/${encodeURIComponent(link.slug)}?previousPage=${window.location.pathname}`
+                : "#"
+            }
+            onClick={(e) => e.stopPropagation()}
+            size="xs"
+          >
+            <IconEdit size={16} />
+          </Button>
+          <Button
+            color="red"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteLinkCandidate(link);
+              open();
+            }}
+            size="xs"
+          >
+            <IconTrash size={16} />
+          </Button>
+        </ButtonGroup>
+      ),
+    },
+  ];
 
   return (
     <AuthGuard
@@ -182,15 +168,16 @@ export const LinkShortener: React.FC = () => {
           left: 0,
           width: "100vw",
           height: "100vh",
-          backgroundColor: "rgba(255, 255, 255, 0.7)", // semi-transparent background
+          backgroundColor: "rgba(255, 255, 255, 0.7)",
           display: isLoading ? "flex" : "none",
           justifyContent: "center",
           alignItems: "center",
-          zIndex: 9999, // make sure it’s on top
+          zIndex: 9999,
         }}
       >
         <Loader size={48} color="blue" />
       </Box>
+
       {deleteLinkCandidate && (
         <Modal
           opened={opened}
@@ -209,7 +196,7 @@ export const LinkShortener: React.FC = () => {
           <Group>
             <Button
               leftSection={<IconTrash />}
-              color="Red"
+              color="red"
               onClick={() => {
                 if (deleteLinkCandidate?.slug) {
                   deleteLink(deleteLinkCandidate.slug);
@@ -221,8 +208,8 @@ export const LinkShortener: React.FC = () => {
             <Button
               leftSection={<IconCancel />}
               onClick={() => {
-                setDeleteLinkCandidate(null); // Clear the delete candidate
-                close(); // Close the modal
+                setDeleteLinkCandidate(null);
+                close();
               }}
             >
               Cancel
@@ -230,72 +217,65 @@ export const LinkShortener: React.FC = () => {
           </Group>
         </Modal>
       )}
-      <Title order={2} mb="md">
-        User Links
-      </Title>
 
-      <div
-        style={{
-          display: "flex",
-          columnGap: "1vw",
-          verticalAlign: "middle",
-          marginBottom: "20px",
-        }}
-      >
-        <Button
-          leftSection={<IconPlus size={14} />}
-          onClick={() => {
-            navigate("/linkry/add");
+      <Stack gap="md">
+        <Group justify="space-between" wrap="wrap">
+          <Title order={2}>User Links</Title>
+          <Button
+            leftSection={<IconPlus size={14} />}
+            onClick={() => navigate("/linkry/add")}
+          >
+            Add New Link
+          </Button>
+        </Group>
+
+        <Tabs
+          defaultValue="owned"
+          styles={{
+            tab: {
+              fontWeight: "bold",
+              color: "rgb(34, 139, 230)",
+            },
           }}
         >
-          Add New Link
-        </Button>
-      </div>
+          <Tabs.List>
+            <Tabs.Tab value="owned">My Links</Tabs.Tab>
+            <Tabs.Tab value="delegated">Delegated Links</Tabs.Tab>
+          </Tabs.List>
 
-      <Tabs
-        defaultValue="owned"
-        styles={{
-          tab: {
-            fontWeight: "bold",
-            color: "rgb(34, 139, 230)",
-          },
-        }}
-      >
-        <Tabs.List>
-          <Tabs.Tab value="owned">My Links</Tabs.Tab>
-          <Tabs.Tab value="delegated">Delegated Links</Tabs.Tab>
-        </Tabs.List>
+          <Tabs.Panel value="owned" pt="md">
+            {ownedLinks.length > 0 ? (
+              <ResponsiveTable
+                data={ownedLinks}
+                columns={linksColumns}
+                keyExtractor={(link) => link.slug}
+                testIdPrefix="owned-link-row"
+                cardColumns={{ base: 1, sm: 2 }}
+              />
+            ) : (
+              <Text c="dimmed" size="sm" ta="center" py="xl">
+                No owned links found. Click "Add New Link" to create one.
+              </Text>
+            )}
+          </Tabs.Panel>
 
-        <Tabs.Panel value="owned" pt="xs">
-          <div style={{ width: "100%", overflowX: "auto" }}>
-            <Table style={{ tableLayout: "fixed", width: "100%" }}>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Shortened Link</Table.Th>
-                  <Table.Th>Redirect URL</Table.Th>
-                  <Table.Th>Actions</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>{ownedLinks.map(renderTableRow)}</Table.Tbody>
-            </Table>
-          </div>
-        </Tabs.Panel>
-
-        <Tabs.Panel value="delegated" pt="xs">
-          <div style={{ width: "100%", overflowX: "auto" }}>
-            <Table style={{ tableLayout: "fixed", width: "100%" }}>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Shortened Link</Table.Th>
-                  <Table.Th>Redirect URL</Table.Th>
-                  <Table.Th>Actions</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>{delegatedLinks.map(renderTableRow)}</Table.Tbody>
-            </Table>
-          </div>
-        </Tabs.Panel>
-      </Tabs>
+          <Tabs.Panel value="delegated" pt="md">
+            {delegatedLinks.length > 0 ? (
+              <ResponsiveTable
+                data={delegatedLinks}
+                columns={linksColumns}
+                keyExtractor={(link) => link.slug}
+                testIdPrefix="delegated-link-row"
+                cardColumns={{ base: 1, sm: 2 }}
+              />
+            ) : (
+              <Text c="dimmed" size="sm" ta="center" py="xl">
+                No delegated links found.
+              </Text>
+            )}
+          </Tabs.Panel>
+        </Tabs>
+      </Stack>
     </AuthGuard>
   );
 };

@@ -184,6 +184,7 @@ export const OrgInfoPage = () => {
               value={selectedOrg}
               onChange={handleOrgChange}
               mt="md"
+              searchable
               maw={400}
             />
           </div>

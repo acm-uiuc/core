@@ -2,7 +2,6 @@ import {
   Alert,
   Badge,
   Button,
-  Center,
   Checkbox,
   Code,
   CopyButton,
@@ -12,7 +11,7 @@ import {
   Modal,
   MultiSelect,
   Skeleton,
-  Table,
+  Stack,
   Text,
   TextInput,
 } from "@mantine/core";
@@ -38,6 +37,7 @@ import dayjs from "dayjs";
 import { AppRoles } from "@common/roles";
 import { BlurredTextDisplay } from "../../components/BlurredTextDisplay";
 import * as z from "zod/v4";
+import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 
 const HumanFriendlyDate = ({ date }: { date: number }) => {
   return (
@@ -51,6 +51,10 @@ interface OrgApiKeyTableProps {
   createApiKey: (data: ApiKeyPostBody) => Promise<{ apiKey: string }>;
 }
 
+interface DisplayApiKey extends ApiKeyMaskedEntry {
+  isSelected: boolean;
+}
+
 export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
   getApiKeys,
   deleteApiKeys,
@@ -61,10 +65,8 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
-  // New state for delete confirmation modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
-  // New state for view permissions modal
   const [viewPermissionsModalOpen, setViewPermissionsModalOpen] =
     useState(false);
   const [selectedKeyForPermissions, setSelectedKeyForPermissions] =
@@ -107,18 +109,15 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
         icon: <IconAlertCircle size={16} />,
       });
     } finally {
-      // Close the modal after deletion attempt
       setDeleteModalOpen(false);
     }
   };
 
-  // New function to open the delete confirmation modal
   const confirmDelete = (ids: string[]) => {
     setIdsToDelete(ids);
     setDeleteModalOpen(true);
   };
 
-  // New function to open the view permissions modal
   const openViewPermissionsModal = (key: ApiKeyMaskedEntry) => {
     setSelectedKeyForPermissions(key);
     setViewPermissionsModalOpen(true);
@@ -143,61 +142,120 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
     }
   };
 
-  const createRow = (entry: ApiKeyMaskedEntry) => (
-    <Table.Tr key={entry.keyId}>
-      <Table.Td>
-        <Checkbox
-          checked={selected.includes(entry.keyId)}
-          onChange={(event) =>
-            setSelected(
-              event.currentTarget.checked
-                ? [...selected, entry.keyId]
-                : selected.filter((id) => id !== entry.keyId),
-            )
-          }
-        />
-      </Table.Td>
-      <Table.Td>
-        <Code>acmuiuc_{entry.keyId}</Code>
-      </Table.Td>
-      <Table.Td>{entry.description}</Table.Td>
-      <Table.Td>
-        {entry.owner === userData?.email ? "You" : entry.owner}
-      </Table.Td>
-      <Table.Td>
-        <HumanFriendlyDate date={entry.createdAt} />
-      </Table.Td>
-      <Table.Td>
-        {entry.expiresAt ? (
-          <HumanFriendlyDate date={entry.expiresAt} />
-        ) : (
-          <Text size="sm">Never</Text>
-        )}
-      </Table.Td>
-      <Table.Td>
-        <Group>
-          <Button
-            variant="subtle"
-            size="xs"
-            leftSection={<IconEye size={14} />}
-            onClick={() => openViewPermissionsModal(entry)}
-          >
-            View Details
-          </Button>
-        </Group>
-      </Table.Td>
-    </Table.Tr>
-  );
+  const handleSelectRow = (keyId: string, checked: boolean) => {
+    setSelected(
+      checked ? [...selected, keyId] : selected.filter((id) => id !== keyId),
+    );
+  };
 
-  // --- Create Form State ---
+  const handleSelectAll = () => {
+    if (!apiKeys) {
+      return;
+    }
+    if (selected.length === apiKeys.length) {
+      setSelected([]);
+    } else {
+      setSelected(apiKeys.map((k) => k.keyId));
+    }
+  };
+
+  // Create Form State
   const [roles, setRoles] = useState<AppRoles[]>([]);
   const [description, setDescription] = useState("");
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [policyDocument, setPolicyDocument] = useState("");
 
+  const displayApiKeys: DisplayApiKey[] = apiKeys
+    ? apiKeys.map((key) => ({
+        ...key,
+        isSelected: selected.includes(key.keyId),
+      }))
+    : [];
+
+  // Define columns for API keys table
+  const apiKeyColumns: Column<DisplayApiKey>[] = [
+    {
+      key: "select",
+      label: "Select",
+      hideMobileLabel: true,
+      render: (key) => (
+        <Checkbox
+          checked={key.isSelected}
+          onChange={(event) =>
+            handleSelectRow(key.keyId, event.currentTarget.checked)
+          }
+        />
+      ),
+    },
+    {
+      key: "keyId",
+      label: "Key ID",
+      isPrimaryColumn: true,
+      render: (key) => <Code>acmuiuc_{key.keyId}</Code>,
+    },
+    {
+      key: "description",
+      label: "Description",
+      render: (key) => (
+        <Text
+          size="sm"
+          style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+        >
+          {key.description}
+        </Text>
+      ),
+    },
+    {
+      key: "owner",
+      label: "Owner",
+      render: (key) => (
+        <Text size="sm">
+          {key.owner === userData?.email ? "You" : key.owner}
+        </Text>
+      ),
+    },
+    {
+      key: "created",
+      label: "Created",
+      render: (key) => <HumanFriendlyDate date={key.createdAt} />,
+    },
+    {
+      key: "expires",
+      label: "Expires",
+      render: (key) =>
+        key.expiresAt ? (
+          <HumanFriendlyDate date={key.expiresAt} />
+        ) : (
+          <Text size="sm">Never</Text>
+        ),
+    },
+    {
+      key: "permissions",
+      label: "Permissions",
+      hideMobileLabel: true,
+      render: (key) => (
+        <Button
+          variant="subtle"
+          size="xs"
+          leftSection={<IconEye size={14} />}
+          onClick={(e) => {
+            e.stopPropagation();
+            openViewPermissionsModal(key);
+          }}
+        >
+          View Details
+        </Button>
+      ),
+    },
+  ];
+
+  const skeletonRows = Array.from({ length: 3 }).map((_, index) => (
+    <Skeleton key={`skeleton-${index}`} height={60} radius="sm" mb="sm" />
+  ));
+
   return (
-    <>
-      <Group justify="space-between" mb="sm">
+    <Stack gap="md">
+      <Group justify="space-between" wrap="wrap">
         <Group>
           <Button
             variant="filled"
@@ -207,11 +265,21 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
               setRoles([]);
               setDescription("");
               setExpiresAt(null);
+              setPolicyDocument("");
               setCreateModalOpen(true);
               setCreatedKey(null);
             }}
           >
             Create API Key
+          </Button>
+          <Button
+            variant="light"
+            onClick={handleSelectAll}
+            disabled={isLoading || !apiKeys || apiKeys.length === 0}
+          >
+            {selected.length === apiKeys?.length
+              ? "Deselect All"
+              : "Select All"}
           </Button>
           {selected.length > 0 && (
             <Button
@@ -225,59 +293,22 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
         </Group>
       </Group>
 
-      <Table.ScrollContainer minWidth={700}>
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>
-                <Checkbox
-                  checked={apiKeys ? selected.length === apiKeys.length : false}
-                  onChange={(event) =>
-                    setSelected(
-                      event.currentTarget.checked && apiKeys
-                        ? apiKeys.map((k) => k.keyId)
-                        : [],
-                    )
-                  }
-                />
-              </Table.Th>
-              <Table.Th>Key ID</Table.Th>
-              <Table.Th>Description</Table.Th>
-              <Table.Th>Owner</Table.Th>
-              <Table.Th>Created</Table.Th>
-              <Table.Th>Expires</Table.Th>
-              <Table.Th>Permissions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {isLoading || !apiKeys ? (
-              [...Array(3)].map((_, i) => (
-                <Table.Tr key={`skeleton-${i}`}>
-                  {Array(7)
-                    .fill(0)
-                    .map((_, idx) => (
-                      <Table.Td key={idx}>
-                        <Skeleton height={20} />
-                      </Table.Td>
-                    ))}
-                </Table.Tr>
-              ))
-            ) : apiKeys.length === 0 ? (
-              <Table.Tr>
-                <Table.Td colSpan={7}>
-                  <Center>
-                    <Text size="sm" c="dimmed">
-                      No API keys found.
-                    </Text>
-                  </Center>
-                </Table.Td>
-              </Table.Tr>
-            ) : (
-              apiKeys.map(createRow)
-            )}
-          </Table.Tbody>
-        </Table>
-      </Table.ScrollContainer>
+      {isLoading || !apiKeys ? (
+        <Stack gap="sm">{skeletonRows}</Stack>
+      ) : apiKeys.length === 0 ? (
+        <Text c="dimmed" size="sm" ta="center" py="xl">
+          No API keys found. Click "Create API Key" to get started.
+        </Text>
+      ) : (
+        <ResponsiveTable
+          data={displayApiKeys}
+          columns={apiKeyColumns}
+          keyExtractor={(key) => key.keyId}
+          testIdPrefix="api-key-row"
+          cardColumns={{ base: 1, sm: 2 }}
+        />
+      )}
+
       <Text c="dimmed" size="sm">
         All times shown in local timezone (
         {Intl.DateTimeFormat().resolvedOptions().timeZone}).
@@ -450,7 +481,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
         </Group>
       </Modal>
 
-      {/* View Permissions Modal - Reusing components from create modal */}
+      {/* View Permissions Modal */}
       <Modal
         opened={viewPermissionsModalOpen}
         onClose={() => setViewPermissionsModalOpen(false)}
@@ -458,81 +489,89 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
         centered
       >
         {selectedKeyForPermissions && (
-          <>
-            <Text size="sm" fw={500} mb="xs">
-              Key ID
-            </Text>
-            <Code mb="md">acmuiuc_{selectedKeyForPermissions.keyId}</Code>
+          <Stack gap="md">
+            <div>
+              <Text size="sm" fw={500} mb="xs">
+                Key ID
+              </Text>
+              <Code>acmuiuc_{selectedKeyForPermissions.keyId}</Code>
+            </div>
 
-            <Text size="sm" fw={500} mb="xs">
-              Description
-            </Text>
-            <Text size="sm" mb="md">
-              {selectedKeyForPermissions.description}
-            </Text>
+            <div>
+              <Text size="sm" fw={500} mb="xs">
+                Description
+              </Text>
+              <Text size="sm">{selectedKeyForPermissions.description}</Text>
+            </div>
 
-            <Text size="sm" fw={500} mb="xs">
-              Roles
-            </Text>
-            <MultiSelect
-              data={apiKeyAllowedRoles}
-              value={selectedKeyForPermissions.roles as AppRoles[]}
-              readOnly
-              disabled
-              mt="xs"
-              mb="md"
-            />
+            <div>
+              <Text size="sm" fw={500} mb="xs">
+                Roles
+              </Text>
+              <MultiSelect
+                data={apiKeyAllowedRoles}
+                value={selectedKeyForPermissions.roles as AppRoles[]}
+                readOnly
+                disabled
+              />
+            </div>
 
-            <Text size="sm" fw={500} mb="xs">
-              Created
-            </Text>
-            <Text mb="md">
+            <div>
+              <Text size="sm" fw={500} mb="xs">
+                Created
+              </Text>
               <HumanFriendlyDate date={selectedKeyForPermissions.createdAt} />
-            </Text>
+            </div>
 
-            <Text size="sm" fw={500} mb="xs">
-              Expires
-            </Text>
-            <Text mb="md" size="sm">
-              {selectedKeyForPermissions.expiresAt ? (
-                <HumanFriendlyDate date={selectedKeyForPermissions.expiresAt} />
-              ) : (
-                "Never"
-              )}
-            </Text>
+            <div>
+              <Text size="sm" fw={500} mb="xs">
+                Expires
+              </Text>
+              <Text size="sm">
+                {selectedKeyForPermissions.expiresAt ? (
+                  <HumanFriendlyDate
+                    date={selectedKeyForPermissions.expiresAt}
+                  />
+                ) : (
+                  "Never"
+                )}
+              </Text>
+            </div>
 
-            <Text size="sm" fw={500} mb="xs">
-              Owner
-            </Text>
-            <Text mb="md" size="sm">
-              {selectedKeyForPermissions.owner === userData?.email
-                ? "You"
-                : selectedKeyForPermissions.owner}
-            </Text>
+            <div>
+              <Text size="sm" fw={500} mb="xs">
+                Owner
+              </Text>
+              <Text size="sm">
+                {selectedKeyForPermissions.owner === userData?.email
+                  ? "You"
+                  : selectedKeyForPermissions.owner}
+              </Text>
+            </div>
 
             {selectedKeyForPermissions.restrictions && (
-              <>
+              <div>
                 <Text size="sm" fw={500} mb="xs">
                   Policy Restrictions
                 </Text>
-                <Code block mt="sm">
+                <Code block>
                   {JSON.stringify(
                     selectedKeyForPermissions.restrictions,
                     null,
                     2,
                   )}
                 </Code>
-              </>
+              </div>
             )}
 
-            <Group justify="flex-end" mt="lg">
+            <Group justify="flex-end">
               <Button onClick={() => setViewPermissionsModalOpen(false)}>
                 Close
               </Button>
             </Group>
-          </>
+          </Stack>
         )}
       </Modal>
-    </>
+    </Stack>
   );
 };

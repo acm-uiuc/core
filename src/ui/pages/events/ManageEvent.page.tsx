@@ -40,6 +40,8 @@ import {
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import { useAuth } from "@ui/components/AuthContext";
+import { getPrimarySuggestedOrg } from "@ui/util";
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
@@ -108,6 +110,8 @@ export const ManageEventPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const navigate = useNavigate();
   const api = useApi("core");
+  const { orgRoles } = useAuth();
+  const userPrimaryOrg = getPrimarySuggestedOrg(orgRoles);
 
   const { eventId } = useParams();
 
@@ -172,7 +176,7 @@ export const ManageEventPage: React.FC = () => {
       end: new Date(startDate + 3.6e6),
       location: "ACM Room (Siebel CS 1104)",
       locationLink: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
-      host: "ACM",
+      host: userPrimaryOrg,
       featured: false,
       repeats: undefined,
       repeatEnds: undefined,
@@ -407,6 +411,7 @@ export const ManageEventPage: React.FC = () => {
           <Select
             label="Host"
             placeholder="Select host organization"
+            searchable
             withAsterisk
             data={orgList.map((org) => ({ value: org, label: org }))}
             {...form.getInputProps("host")}
@@ -421,6 +426,7 @@ export const ManageEventPage: React.FC = () => {
           <Select
             label="Repeats"
             placeholder="Select repeat frequency"
+            searchable
             data={repeatOptions.map((option) => ({
               value: option,
               label: capitalizeFirstLetter(option),

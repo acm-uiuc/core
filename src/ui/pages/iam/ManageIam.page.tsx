@@ -45,7 +45,7 @@ export const ManageIamPage = () => {
     };
 
     fetchGroups();
-  }, [api]); // Dependency array ensures this runs once
+  }, [api]);
 
   const handleInviteSubmit = async (emailList: string[]) => {
     try {
@@ -68,7 +68,7 @@ export const ManageIamPage = () => {
   const getGroupMembers = async (groupId: string | null) => {
     if (!groupId) {
       return [];
-    } // Do not fetch if no group is selected
+    }
     try {
       const response = await api.get(`/api/v1/iam/groups/${groupId}`);
       const data = response.data as GroupMemberGetResponse;
@@ -122,9 +122,16 @@ export const ManageIamPage = () => {
         validRoles: [AppRoles.IAM_ADMIN, AppRoles.IAM_INVITE_ONLY],
       }}
     >
-      <Title order={2}>Manage Authentication</Title>
-      <SimpleGrid cols={2}>
-        <UserInvitePanel onSubmit={handleInviteSubmit} />
+      <Title order={2} mb="md">
+        Manage Authentication
+      </Title>
+      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+        <Stack>
+          <Text fw={500} mb={4} size="lg">
+            Add Users to Entra ID Tenant
+          </Text>
+          <UserInvitePanel onSubmit={handleInviteSubmit} />
+        </Stack>
         <AuthGuard
           resourceDef={{ service: "core", validRoles: [AppRoles.IAM_ADMIN] }}
           isAppShell={false}
@@ -135,6 +142,7 @@ export const ManageIamPage = () => {
             </Text>
             <Select
               label="Select Group"
+              searchable
               data={groupOptions}
               value={selectedGroup}
               clearable={false}
@@ -148,7 +156,7 @@ export const ManageIamPage = () => {
             />
             {selectedGroup && (
               <GroupMemberManagement
-                key={selectedGroup} // Re-mounts component on group change to trigger fetch
+                key={selectedGroup}
                 fetchMembers={() => getGroupMembers(selectedGroup)}
                 updateMembers={updateGroupMembers}
               />
