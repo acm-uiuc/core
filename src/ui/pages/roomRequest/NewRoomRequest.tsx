@@ -33,6 +33,8 @@ import { notifications } from "@mantine/notifications";
 import { fromError } from "zod-validation-error";
 import { ZodError } from "zod/v4";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
+import { useAuth } from "@ui/components/AuthContext";
+import { getPrimarySuggestedOrg } from "@ui/util";
 
 // Component for yes/no questions with conditional content
 interface ConditionalFieldProps {
@@ -159,7 +161,8 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   const numSteps = 4;
   const navigate = useNavigate();
   const semesterOptions = getSemesters();
-  const semesterValues = semesterOptions.map((x) => x.value);
+  const { orgRoles } = useAuth();
+  const userPrimaryOrg = getPrimarySuggestedOrg(orgRoles);
 
   // Initialize with today's date and times
   let startingDate = new Date();
@@ -180,10 +183,10 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     initialValues:
       initialValues ||
       ({
-        host: "",
+        host: userPrimaryOrg,
         title: "",
         theme: "",
-        semester: "",
+        semester: semesterOptions[0].value,
         description: "",
         eventStart: startingDate,
         eventEnd: oneHourAfterStarting,
