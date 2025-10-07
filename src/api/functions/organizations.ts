@@ -23,7 +23,8 @@ import { EntraGroupActions } from "common/types/iam.js";
 import { buildAuditLogTransactPut } from "./auditLog.js";
 import { Modules } from "common/modules.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
-import { ValidLoggers } from "api/types.js";
+import { Redis, ValidLoggers } from "api/types.js";
+import { createLock, IoredisAdapter, type SimpleLock } from "redlock-universal";
 
 export interface GetOrgInfoInputs {
   id: string;
@@ -184,6 +185,7 @@ export const addLead = async ({
   dynamoClient,
   logger,
   officersEmail,
+  redisClient,
 }: {
   user: z.infer<typeof enforcedOrgLeadEntry>;
   orgId: string;
@@ -194,6 +196,7 @@ export const addLead = async ({
   dynamoClient: DynamoDBClient;
   logger: FastifyBaseLogger;
   officersEmail: string;
+  redisClient: Redis;
 }): Promise<SQSMessage | null> => {
   const { username } = user;
 
@@ -229,51 +232,60 @@ export const addLead = async ({
 
     return await dynamoClient.send(addTransaction);
   };
-
-  try {
-    await retryDynamoTransactionWithBackoff(
-      addOperation,
-      logger,
-      `Add lead ${username} to ${orgId}`,
-    );
-  } catch (e: any) {
-    if (
-      e.name === "TransactionCanceledException" &&
-      e.message.includes("ConditionalCheckFailed")
-    ) {
-      logger.info(
-        `User ${username} is already a lead for ${orgId}. Skipping add operation.`,
+  const lock = createLock({
+    adapter: new IoredisAdapter(redisClient),
+    key: `user:${username}`,
+    retryAttempts: 5,
+    retryDelay: 300,
+  }) as SimpleLock;
+  return await lock.using(async () => {
+    try {
+      await retryDynamoTransactionWithBackoff(
+        addOperation,
+        logger,
+        `Add lead ${username} to ${orgId}`,
       );
-      return null;
+    } catch (e: any) {
+      if (
+        e.name === "TransactionCanceledException" &&
+        e.message.includes("ConditionalCheckFailed")
+      ) {
+        logger.info(
+          `User ${username} is already a lead for ${orgId}. Skipping add operation.`,
+        );
+        return null;
+      }
+      throw e;
     }
-    throw e;
-  }
 
-  logger.info(
-    `Successfully added ${username} as lead for ${orgId} in DynamoDB.`,
-  );
-
-  if (entraGroupId) {
-    await modifyGroup(
-      entraIdToken,
-      username,
-      entraGroupId,
-      EntraGroupActions.ADD,
-      dynamoClient,
+    logger.info(
+      `Successfully added ${username} as lead for ${orgId} in DynamoDB.`,
     );
-    logger.info(`Successfully added ${username} to Entra group for ${orgId}.`);
-  }
 
-  return {
-    function: AvailableSQSFunctions.EmailNotifications,
-    metadata: { initiator: actorUsername, reqId },
-    payload: {
-      to: getAllUserEmails(username),
-      cc: [officersEmail],
-      subject: `Lead added for ${orgId}`,
-      content: `Hello,\n\nWe're letting you know that ${username} has been added as a lead for ${orgId} by ${actorUsername}. Changes may take up to 2 hours to reflect in all systems.\n\nNo action is required from you at this time.`,
-    },
-  };
+    if (entraGroupId) {
+      await modifyGroup(
+        entraIdToken,
+        username,
+        entraGroupId,
+        EntraGroupActions.ADD,
+        dynamoClient,
+      );
+      logger.info(
+        `Successfully added ${username} to Entra group for ${orgId}.`,
+      );
+    }
+
+    return {
+      function: AvailableSQSFunctions.EmailNotifications,
+      metadata: { initiator: actorUsername, reqId },
+      payload: {
+        to: getAllUserEmails(username),
+        cc: [officersEmail],
+        subject: `${user.nonVotingMember ? "Non-voting lead" : "Lead"} added for ${orgId}`,
+        content: `Hello,\n\nWe're letting you know that ${username} has been added as a ${user.nonVotingMember ? "non-voting" : ""} lead for ${orgId} by ${actorUsername}. Changes may take up to 2 hours to reflect in all systems.`,
+      },
+    };
+  });
 };
 
 export const removeLead = async ({
@@ -286,6 +298,7 @@ export const removeLead = async ({
   dynamoClient,
   logger,
   officersEmail,
+  redisClient,
 }: {
   username: string;
   orgId: string;
@@ -296,6 +309,7 @@ export const removeLead = async ({
   dynamoClient: DynamoDBClient;
   logger: FastifyBaseLogger;
   officersEmail: string;
+  redisClient: Redis;
 }): Promise<SQSMessage | null> => {
   const removeOperation = async () => {
     const removeTransaction = new TransactWriteItemsCommand({
@@ -325,52 +339,61 @@ export const removeLead = async ({
     return await dynamoClient.send(removeTransaction);
   };
 
-  try {
-    await retryDynamoTransactionWithBackoff(
-      removeOperation,
-      logger,
-      `Remove lead ${username} from ${orgId}`,
-    );
-  } catch (e: any) {
-    if (
-      e.name === "TransactionCanceledException" &&
-      e.message.includes("ConditionalCheckFailed")
-    ) {
-      logger.info(
-        `User ${username} was not a lead for ${orgId}. Skipping remove operation.`,
+  const lock = createLock({
+    adapter: new IoredisAdapter(redisClient),
+    key: `user:${username}`,
+    retryAttempts: 5,
+    retryDelay: 300,
+  }) as SimpleLock;
+
+  return await lock.using(async () => {
+    try {
+      await retryDynamoTransactionWithBackoff(
+        removeOperation,
+        logger,
+        `Remove lead ${username} from ${orgId}`,
       );
-      return null;
+    } catch (e: any) {
+      if (
+        e.name === "TransactionCanceledException" &&
+        e.message.includes("ConditionalCheckFailed")
+      ) {
+        logger.info(
+          `User ${username} was not a lead for ${orgId}. Skipping remove operation.`,
+        );
+        return null;
+      }
+      throw e;
     }
-    throw e;
-  }
 
-  logger.info(
-    `Successfully removed ${username} as lead for ${orgId} in DynamoDB.`,
-  );
-
-  if (entraGroupId) {
-    await modifyGroup(
-      entraIdToken,
-      username,
-      entraGroupId,
-      EntraGroupActions.REMOVE,
-      dynamoClient,
-    );
     logger.info(
-      `Successfully removed ${username} from Entra group for ${orgId}.`,
+      `Successfully removed ${username} as lead for ${orgId} in DynamoDB.`,
     );
-  }
 
-  return {
-    function: AvailableSQSFunctions.EmailNotifications,
-    metadata: { initiator: actorUsername, reqId },
-    payload: {
-      to: getAllUserEmails(username),
-      cc: [officersEmail],
-      subject: `Lead removed for ${orgId}`,
-      content: `Hello,\n\nWe're letting you know that ${username} has been removed as a lead for ${orgId} by ${actorUsername}.\n\nNo action is required from you at this time.`,
-    },
-  };
+    if (entraGroupId) {
+      await modifyGroup(
+        entraIdToken,
+        username,
+        entraGroupId,
+        EntraGroupActions.REMOVE,
+        dynamoClient,
+      );
+      logger.info(
+        `Successfully removed ${username} from Entra group for ${orgId}.`,
+      );
+    }
+
+    return {
+      function: AvailableSQSFunctions.EmailNotifications,
+      metadata: { initiator: actorUsername, reqId },
+      payload: {
+        to: getAllUserEmails(username),
+        cc: [officersEmail],
+        subject: `Lead removed for ${orgId}`,
+        content: `Hello,\n\nWe're letting you know that ${username} has been removed as a lead for ${orgId} by ${actorUsername}.\n\nNo action is required from you at this time.`,
+      },
+    };
+  });
 };
 
 /**
