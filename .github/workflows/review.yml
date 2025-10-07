@@ -19,7 +19,7 @@ jobs:
         with:
           app-id: ${{ secrets.REQUIRED_REVIEWS_APP_ID }}
           private-key: ${{ secrets.REQUIRED_REVIEWS_APP_KEY }}
-      - uses: Automattic/action-required-review@v4.1.1
+      - uses: Automattic/action-required-review@v4.1.2
         with:
           token: ${{ steps.generate-token.outputs.token }}
           status: Required Reviews
