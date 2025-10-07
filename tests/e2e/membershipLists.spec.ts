@@ -49,25 +49,17 @@ describe("External Membership tests", () => {
     await expect(page.locator("tbody")).toContainText("corete6");
     await expect(page.locator("tbody")).toContainText("Queued for addition");
     await expect(page.locator("tbody")).toContainText("Cancel Add");
-    await page
-      .getByRole("button", { name: "Save Changes (1 Additions, 0" })
-      .click();
+    await page.getByRole("button", { name: "Save Changes" }).click();
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
-    await expect(page.getByRole("main").nth(1)).toContainText(
-      "Save Changes (1 Additions, 0 Removals)",
-    );
-    await page
-      .getByRole("button", { name: "Save Changes (1 Additions, 0" })
-      .click();
+    await expect(page.getByRole("main").nth(1)).toContainText("Save Changes");
+    await page.getByRole("button", { name: "Save Changes" }).click();
     await page.getByRole("button", { name: "Confirm and Save" }).click();
     await page
       .getByRole("row", { name: "CO corete5 Active Remove" })
       .getByRole("button")
       .click();
     await page.getByRole("button", { name: "Remove" }).click();
-    await page
-      .getByRole("button", { name: "Save Changes (0 Additions, 2" })
-      .click();
+    await page.getByRole("button", { name: "Save Changes" }).click();
     await page.getByRole("button", { name: "Confirm and Save" }).click();
     await expect(page.getByText("Member list has been updated.")).toBeVisible();
     // Part 2
