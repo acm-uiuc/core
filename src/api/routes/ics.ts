@@ -14,7 +14,7 @@ import ical, {
 } from "ical-generator";
 import moment from "moment";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
-import { CoreOrganizationList } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList, OrganizationName } from "@acm-uiuc/js-shared";
 import { CLIENT_HTTP_CACHE_POLICY, EventRepeatOptions } from "./events.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { getCacheCounter } from "api/functions/cache.js";
@@ -43,7 +43,7 @@ function generateHostName(host: string) {
 
 const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {
-    limit: CoreOrganizationList.length,
+    limit: AllOrganizationNameList.length,
     duration: 30,
     rateLimitIdentifier: "ical",
   });
@@ -87,7 +87,7 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
         reply.header("etag", etag);
       }
       if (host) {
-        if (!CoreOrganizationList.includes(host)) {
+        if (!AllOrganizationNameList.includes(host as OrganizationName)) {
           throw new ValidationError({
             message: `Invalid host parameter "${host}" in path.`,
           });

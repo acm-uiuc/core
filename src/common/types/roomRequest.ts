@@ -1,5 +1,5 @@
 import * as z from "zod/v4";
-import { AllOrganizationList } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
 import { illinoisSemesterId } from "./generic.js"
 
 export const eventThemeOptions = [
@@ -146,7 +146,7 @@ export const roomRequestPostResponse = z.object({
 });
 
 export const roomRequestBaseSchema = z.object({
-  host: z.enum(AllOrganizationList),
+  host: z.enum(AllOrganizationNameList),
   title: z.string().min(2, "Title must have at least 2 characters"),
   semester: illinoisSemesterId
 });

@@ -1,4 +1,4 @@
-import { AllOrganizationList } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
 import { AppRoleHumanMapper, AppRoles } from "../roles.js";
 import { z } from "zod/v4";
 
@@ -28,7 +28,7 @@ export const orgLinkEntry = z.object({
 export const enforcedOrgLeadEntry = orgLeadEntry.extend({ name: z.string().min(1), title: z.string().min(1) })
 
 export const getOrganizationInfoResponse = z.object({
-  id: z.enum(AllOrganizationList),
+  id: z.enum(AllOrganizationNameList),
   description: z.optional(z.string()),
   website: z.optional(z.url()),
   leads: z.optional(z.array(orgLeadEntry)),

@@ -1,12 +1,12 @@
 import * as z from "zod/v4";
 import { createPolicy } from "./evaluator.js";
-import { CoreOrganizationList } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList, OrganizationName } from "@acm-uiuc/js-shared";
 import { FastifyRequest } from "fastify";
 
 export const hostRestrictionPolicy = createPolicy(
   "EventsHostRestrictionPolicy",
-  z.object({ host: z.array(z.enum(CoreOrganizationList)) }),
-  (request: FastifyRequest & {username?: string;}, params) => {
+  z.object({ host: z.array(z.enum(AllOrganizationNameList)) }),
+  (request: FastifyRequest & { username?: string; }, params) => {
     if (request.method === "GET") {
       return {
         allowed: true,
@@ -21,7 +21,7 @@ export const hostRestrictionPolicy = createPolicy(
         cacheKey: null
       };
     }
-    const typedBody = request.body as {host: string;featured: boolean;};
+    const typedBody = request.body as { host: string; featured: boolean; };
     if (!typedBody || !typedBody["host"]) {
       return {
         allowed: true,
@@ -36,7 +36,7 @@ export const hostRestrictionPolicy = createPolicy(
         cacheKey: request.username || null
       };
     }
-    if (!params.host.includes(typedBody["host"])) {
+    if (!params.host.includes(typedBody["host"] as OrganizationName)) {
       return {
         allowed: false,
         message: `Denied by policy "EventsHostRestrictionPolicy". Host must be one of: ${params.host.toString()}.`,

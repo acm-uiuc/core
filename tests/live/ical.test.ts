@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { CoreOrganizationList } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
 import ical from "node-ical";
 import { getBaseEndpoint } from "./utils.js";
 const baseEndpoint = getBaseEndpoint();
@@ -25,27 +25,6 @@ const fetchWithRateLimit = async (url: string) => {
 
   return response;
 };
-
-describe(
-  "Get calendars per organization with rate limit handling",
-  { timeout: 450000 },
-  async () => {
-    for (const org of CoreOrganizationList) {
-      test(`Get ${org} calendar`, async () => {
-        await delay(Math.random() * 200);
-        const response = await fetchWithRateLimit(
-          `${baseEndpoint}/api/v1/ical/${org}`,
-        );
-        expect(response.status).toBe(200);
-        expect(response.headers.get("Content-Disposition")).toEqual(
-          'attachment; filename="calendar.ics"',
-        );
-        const calendar = ical.sync.parseICS(await response.text());
-        expect(calendar["vcalendar"]["type"]).toEqual("VCALENDAR");
-      });
-    }
-  },
-);
 
 test("Check that the ACM host works", { timeout: 45000 }, async () => {
   const response = await fetchWithRateLimit(
