@@ -1,4 +1,4 @@
-import { ACMOrganization } from "@acm-uiuc/js-shared";
+import { OrganizationName } from "@acm-uiuc/js-shared";
 import { OrgRoleDefinition } from "@common/roles";
 
 export type NonEmptyArray<T> = [T, ...T[]];
@@ -15,13 +15,13 @@ export function min<T>(items: NonEmptyArray<T>): T {
 
 export function getPrimarySuggestedOrg(
   orgRoles: OrgRoleDefinition[] | null | undefined,
-): ACMOrganization {
+): OrganizationName | null {
   if (!orgRoles || orgRoles.length === 0) {
-    return "";
+    return null;
   }
   const leadOrgs = orgRoles.filter((x) => x.role === "LEAD").map((x) => x.org);
   if (leadOrgs.length > 0) {
-    return min(leadOrgs as NonEmptyArray<ACMOrganization>);
+    return min(leadOrgs as NonEmptyArray<OrganizationName>);
   }
-  return "";
+  return null;
 }

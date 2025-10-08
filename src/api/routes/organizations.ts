@@ -1,8 +1,8 @@
 import { FastifyError, FastifyPluginAsync } from "fastify";
 import {
-  ACMOrganization,
-  AllOrganizationList,
-  OrganizationShortIdentifierMapping,
+  AllOrganizationNameList,
+  getOrgByName,
+  Organizations,
 } from "@acm-uiuc/js-shared";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { withRoles, withTags } from "api/components/index.js";
@@ -142,7 +142,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           isAuthenticated = false;
         }
       }
-      const promises = AllOrganizationList.map((x) =>
+      const promises = AllOrganizationNameList.map((x) =>
         getOrgInfo({
           id: x,
           dynamoClient: fastify.dynamoClient,
@@ -161,7 +161,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             leadsEntraGroupId: undefined,
           }));
         }
-        const unknownIds = AllOrganizationList.filter(
+        const unknownIds = AllOrganizationNameList.filter(
           (x) => !successIds.includes(x),
         ).map((x) => ({ id: x }));
         return reply.send([...successOnly, ...unknownIds]);
@@ -185,7 +185,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           "Get information about a specific ACM @ UIUC sub-organization.",
         params: z.object({
           orgId: z
-            .enum(AllOrganizationList)
+            .enum(AllOrganizationNameList)
             .meta({ description: "ACM @ UIUC organization to query." }),
         }),
         response: {
@@ -236,7 +236,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           summary: "Set metadata for an ACM @ UIUC sub-organization.",
           params: z.object({
             orgId: z
-              .enum(AllOrganizationList)
+              .enum(AllOrganizationNameList)
               .meta({ description: "ACM @ UIUC organization to modify." }),
           }),
           body: setOrganizationMetaBody,
@@ -325,7 +325,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           summary: "Set leads for an ACM @ UIUC sub-organization.",
           params: z.object({
             orgId: z
-              .enum(AllOrganizationList)
+              .enum(AllOrganizationNameList)
               .meta({ description: "ACM @ UIUC organization to modify." }),
           }),
           body: patchOrganizationLeadsBody,
@@ -424,7 +424,13 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
 
       const shouldCreateNewEntraGroup = !entraGroupId;
       const grpDisplayName = `${request.params.orgId} Admin`;
-      const grpShortName = `${OrganizationShortIdentifierMapping[request.params.orgId as keyof typeof OrganizationShortIdentifierMapping]}-adm`;
+      const orgInfo = getOrgByName(request.params.orgId);
+      if (!orgInfo) {
+        throw new InternalServerError({
+          message: `Organization ${request.params.orgId} could not be resolved.`,
+        });
+      }
+      const grpShortName = `${orgInfo?.shortcode}-adm`;
 
       // Create Entra group if needed
       if (shouldCreateNewEntraGroup) {

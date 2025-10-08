@@ -6,7 +6,7 @@ import { AppRoles } from "@common/roles";
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle } from "@tabler/icons-react";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
-import { AllOrganizationList } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList, OrganizationName } from "@acm-uiuc/js-shared";
 import { useAuth } from "@ui/components/AuthContext";
 import { ManageOrganizationForm } from "./ManageOrganizationForm";
 import {
@@ -17,21 +17,24 @@ import {
 import * as z from "zod/v4";
 import { useSearchParams } from "react-router-dom";
 
-type AcmOrg = (typeof AllOrganizationList)[number];
 type OrganizationData = z.infer<typeof setOrganizationMetaBody>;
 
 export const OrgInfoPage = () => {
   const api = useApi("core");
   const { orgRoles } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [manageableOrgs, setManagableOrgs] = useState<AcmOrg[] | null>(null);
+  const [manageableOrgs, setManagableOrgs] = useState<
+    OrganizationName[] | null
+  >(null);
 
   // Get org from URL query parameter
-  const orgFromUrl = searchParams.get("org") as AcmOrg | null;
-  const [selectedOrg, setSelectedOrg] = useState<AcmOrg | null>(orgFromUrl);
+  const orgFromUrl = searchParams.get("org") as OrganizationName | null;
+  const [selectedOrg, setSelectedOrg] = useState<OrganizationName | null>(
+    orgFromUrl,
+  );
 
   const getOrganizationData = async (
-    org: AcmOrg,
+    org: OrganizationName,
   ): Promise<OrganizationData> => {
     try {
       const response = await api.get(
@@ -51,7 +54,7 @@ export const OrgInfoPage = () => {
   };
 
   const updateOrganizationData = async (
-    org: AcmOrg,
+    org: OrganizationName,
     data: OrganizationData,
   ): Promise<void> => {
     try {
@@ -78,7 +81,7 @@ export const OrgInfoPage = () => {
     }
   };
   const updateLeads = async (
-    org: AcmOrg,
+    org: OrganizationName,
     toAdd: LeadEntry[],
     toRemove: string[],
   ): Promise<void> => {
@@ -110,7 +113,7 @@ export const OrgInfoPage = () => {
     (async () => {
       const appRoles = await getUserRoles("core");
       if (appRoles?.includes(AppRoles.ALL_ORG_MANAGER)) {
-        setManagableOrgs(AllOrganizationList);
+        setManagableOrgs(AllOrganizationNameList);
         return;
       }
       setManagableOrgs(
@@ -120,7 +123,7 @@ export const OrgInfoPage = () => {
   }, [orgRoles]);
 
   // Update URL when selected org changes
-  const handleOrgChange = (org: AcmOrg | null) => {
+  const handleOrgChange = (org: OrganizationName | null) => {
     setSelectedOrg(org);
     if (org) {
       setSearchParams({ org });
@@ -182,7 +185,7 @@ export const OrgInfoPage = () => {
               placeholder="Select organization"
               data={manageableOrgs}
               value={selectedOrg}
-              onChange={handleOrgChange}
+              onChange={(i) => handleOrgChange(i as OrganizationName)}
               mt="md"
               searchable
               maw={400}
@@ -192,7 +195,9 @@ export const OrgInfoPage = () => {
           {selectedOrg && (
             <ManageOrganizationForm
               organizationId={selectedOrg}
-              getOrganizationData={getOrganizationData}
+              getOrganizationData={(i) =>
+                getOrganizationData(i as OrganizationName)
+              }
               updateOrganizationData={(data) =>
                 updateOrganizationData(selectedOrg, data)
               }

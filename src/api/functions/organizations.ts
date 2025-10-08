@@ -1,4 +1,4 @@
-import { AllOrganizationList } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList, OrganizationName } from "@acm-uiuc/js-shared";
 import {
   QueryCommand,
   ScanCommand,
@@ -154,14 +154,14 @@ export async function getUserOrgRoles({
         logger.warn(`Invalid role in role definition: ${JSON.stringify(item)}`);
         continue;
       }
-      if (!AllOrganizationList.includes(org)) {
+      if (!AllOrganizationNameList.includes(org as OrganizationName)) {
         logger.warn(`Invalid org in role definition: ${JSON.stringify(item)}`);
         continue;
       }
       cleanedRoles.push({
         org,
         role,
-      } as { org: (typeof AllOrganizationList)[number]; role: OrgRole });
+      } as { org: OrganizationName; role: OrgRole });
     }
     return cleanedRoles;
   } catch (e) {

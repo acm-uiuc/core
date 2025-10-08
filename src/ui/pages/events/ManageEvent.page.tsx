@@ -22,7 +22,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import * as z from "zod/v4";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
-import { AllOrganizationList as orgList } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList as orgList } from "@acm-uiuc/js-shared";
 import { AppRoles } from "@common/roles";
 import { EVENT_CACHED_DURATION } from "@common/config";
 import {
@@ -176,7 +176,7 @@ export const ManageEventPage: React.FC = () => {
       end: new Date(startDate + 3.6e6),
       location: "ACM Room (Siebel CS 1104)",
       locationLink: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
-      host: userPrimaryOrg,
+      host: userPrimaryOrg || "",
       featured: false,
       repeats: undefined,
       repeatEnds: undefined,

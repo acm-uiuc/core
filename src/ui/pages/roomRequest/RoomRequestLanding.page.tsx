@@ -13,6 +13,7 @@ import {
   RoomRequestPostResponse,
   type RoomRequestStatus,
 } from "@common/types/roomRequest";
+import { OrganizationName } from "@acm-uiuc/js-shared";
 
 export const ManageRoomRequestsPage: React.FC = () => {
   const api = useApi("core");
@@ -34,7 +35,7 @@ export const ManageRoomRequestsPage: React.FC = () => {
       {
         requestId: string;
         title: string;
-        host: string;
+        host: OrganizationName;
         status: RoomRequestStatus;
       }[]
     >(
