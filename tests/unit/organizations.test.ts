@@ -17,6 +17,8 @@ import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
 import { randomUUID } from "node:crypto";
 import { createGithubTeam } from "../../src/api/functions/github.js";
+import { addLead, removeLead } from "../../src/api/functions/organizations.js";
+import { modifyGroup } from "../../src/api/functions/entraId.js";
 
 const app = await init();
 const ddbMock = mockClient(DynamoDBClient);
@@ -425,6 +427,70 @@ describe("Organization info tests - Extended Coverage", () => {
           parentTeamId: 14420860,
         }),
       );
+    });
+
+    test("Successfully adds and removes Officers but skips Entra + GitHub integration", async () => {
+      const testJwt = createJwt();
+
+      // Mock GetItemCommand for org metadata
+      ddbMock
+        .on(GetItemCommand, { TableName: genericConfig.SigInfoTableName })
+        .resolves({
+          Item: marshall({ leadsEntraGroupID: "abc" }),
+        });
+      // Mock getUserOrgRoles to return LEAD role for this user
+      ddbMock
+        .on(QueryCommand, {
+          TableName: genericConfig.SigInfoTableName,
+          IndexName: "UsernameIndex",
+          KeyConditionExpression: `username = :username`,
+          ExpressionAttributeValues: {
+            ":username": { S: "oldlead@illinois.edu" },
+          },
+        })
+        .resolves({
+          Items: [
+            marshall({
+              username: "oldlead@illinois.edu",
+              primaryKey: "LEAD#ACM",
+            }),
+          ],
+        });
+      ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+      sqsMock.on(SendMessageBatchCommand).resolves({
+        Successful: [
+          {
+            Id: "1",
+            MessageId: "msg-1",
+            MD5OfMessageBody: "mock-md5",
+          },
+        ],
+        Failed: [],
+      });
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/v1/organizations/ACM/leads",
+        headers: { authorization: `Bearer ${testJwt}` },
+        payload: {
+          add: [
+            {
+              username: "newlead@illinois.edu",
+              name: "New Lead",
+              title: "President",
+            },
+          ],
+          remove: ["oldlead@illinois.edu"],
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(
+        ddbMock.commandCalls(TransactWriteItemsCommand).length,
+      ).toBeGreaterThan(0);
+      expect(createGithubTeam).toHaveBeenCalledTimes(0);
+      expect(modifyGroup).toHaveBeenCalledTimes(0);
     });
 
     test("Organization lead can manage other leads", async () => {
