@@ -32,7 +32,6 @@ import { AppRoles } from "common/roles.js";
 import {
   DynamoDBClient,
   GetItemCommand,
-  TransactWriteItem,
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import {

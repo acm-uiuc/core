@@ -202,91 +202,154 @@ export const addLead = async ({
 }): Promise<SQSMessage | null> => {
   const { username } = user;
 
-  const addOperation = async () => {
-    const addTransaction = new TransactWriteItemsCommand({
-      TransactItems: [
-        buildAuditLogTransactPut({
-          entry: {
-            module: Modules.ORG_INFO,
-            actor: actorUsername,
-            target: username,
-            message: `Added target as a lead of ${orgId}.`,
-          },
-        })!,
-        {
-          Put: {
-            TableName: genericConfig.SigInfoTableName,
-            Item: marshall(
-              {
-                ...user,
-                primaryKey: `LEAD#${orgId}`,
-                entryId: username,
-                updatedAt: new Date().toISOString(),
-              },
-              { removeUndefinedValues: true },
-            ),
-            ConditionExpression:
-              "attribute_not_exists(primaryKey) AND attribute_not_exists(entryId)",
-          },
-        },
-      ],
-    });
-
-    return await dynamoClient.send(addTransaction);
-  };
   const lock = createLock({
     adapter: new IoredisAdapter(redisClient),
     key: `user:${username}`,
     retryAttempts: 5,
     retryDelay: 300,
   }) as SimpleLock;
+
   return await lock.using(async () => {
+    let entraAddSucceeded = false;
+
     try {
-      await retryDynamoTransactionWithBackoff(
-        addOperation,
-        logger,
-        `Add lead ${username} to ${orgId}`,
-      );
-    } catch (e: any) {
-      if (
-        e.name === "TransactionCanceledException" &&
-        e.message.includes("ConditionalCheckFailed")
-      ) {
+      // Step 1: Add to Entra ID first (if applicable)
+      if (entraGroupId && !shouldSkipEnhancedActions) {
         logger.info(
-          `User ${username} is already a lead for ${orgId}. Skipping add operation.`,
+          `Adding ${username} to Entra group for ${orgId} (Group ID: ${entraGroupId}).`,
         );
-        return null;
+
+        await modifyGroup(
+          entraIdToken,
+          username,
+          entraGroupId,
+          EntraGroupActions.ADD,
+          dynamoClient,
+        );
+
+        entraAddSucceeded = true;
+        logger.info(
+          `Successfully added ${username} to Entra group for ${orgId}.`,
+        );
       }
-      throw e;
-    }
 
-    logger.info(
-      `Successfully added ${username} as lead for ${orgId} in DynamoDB.`,
-    );
+      // Step 2: Add to DynamoDB
+      const addTransaction = new TransactWriteItemsCommand({
+        TransactItems: [
+          buildAuditLogTransactPut({
+            entry: {
+              module: Modules.ORG_INFO,
+              actor: actorUsername,
+              target: username,
+              message: `Added target as a lead of ${orgId}.`,
+            },
+          })!,
+          {
+            Put: {
+              TableName: genericConfig.SigInfoTableName,
+              Item: marshall(
+                {
+                  ...user,
+                  primaryKey: `LEAD#${orgId}`,
+                  entryId: username,
+                  updatedAt: new Date().toISOString(),
+                },
+                { removeUndefinedValues: true },
+              ),
+              ConditionExpression:
+                "attribute_not_exists(primaryKey) AND attribute_not_exists(entryId)",
+            },
+          },
+        ],
+      });
 
-    if (entraGroupId && !shouldSkipEnhancedActions) {
-      await modifyGroup(
-        entraIdToken,
-        username,
-        entraGroupId,
-        EntraGroupActions.ADD,
-        dynamoClient,
-      );
+      try {
+        await retryDynamoTransactionWithBackoff(
+          async () => await dynamoClient.send(addTransaction),
+          logger,
+          `Add lead ${username} to ${orgId}`,
+        );
+      } catch (e: any) {
+        if (
+          e.name === "TransactionCanceledException" &&
+          e.message.includes("ConditionalCheckFailed")
+        ) {
+          logger.info(
+            `User ${username} is already a lead for ${orgId}. Rolling back Entra changes if needed.`,
+          );
+
+          // Rollback Entra ID if it was added
+          if (entraAddSucceeded && entraGroupId) {
+            logger.warn(
+              `Rolling back Entra group addition for ${username} in ${orgId}.`,
+            );
+            try {
+              await modifyGroup(
+                entraIdToken,
+                username,
+                entraGroupId,
+                EntraGroupActions.REMOVE,
+                dynamoClient,
+              );
+              logger.info(
+                `Successfully rolled back Entra group addition for ${username}.`,
+              );
+            } catch (rollbackError) {
+              logger.error(
+                `CRITICAL: Failed to rollback Entra group addition for ${username} in ${orgId}. Manual intervention required.`,
+                rollbackError,
+              );
+            }
+          }
+
+          return null;
+        }
+        throw e; // Re-throw for outer catch block
+      }
+
       logger.info(
-        `Successfully added ${username} to Entra group for ${orgId}.`,
+        `Successfully added ${username} as lead for ${orgId} in DynamoDB.`,
       );
-    }
 
-    return {
-      function: AvailableSQSFunctions.EmailNotifications,
-      metadata: { initiator: actorUsername, reqId },
-      payload: {
-        to: getAllUserEmails(username),
-        cc: [officersEmail],
-        subject: `${user.nonVotingMember ? "Non-voting lead" : "Lead"} added for ${orgId}`,
-        content: `Hello,\n\nWe're letting you know that ${username} has been added as a ${user.nonVotingMember ? "non-voting" : ""} lead for ${orgId} by ${actorUsername}.${shouldSkipEnhancedActions && "\nLeads for this org are not updated automatically in external systems (such as Entra ID). Please contact the appropriate administrators to make sure these updates are made.\n"}Changes may take up to 2 hours to reflect in all systems.`,
-      },
-    };
+      // Step 3: Send notification email
+      return {
+        function: AvailableSQSFunctions.EmailNotifications,
+        metadata: { initiator: actorUsername, reqId },
+        payload: {
+          to: getAllUserEmails(username),
+          cc: [officersEmail],
+          subject: `${user.nonVotingMember ? "Non-voting lead" : "Lead"} added for ${orgId}`,
+          content: `Hello,\n\nWe're letting you know that ${username} has been added as a ${user.nonVotingMember ? "non-voting" : ""} lead for ${orgId} by ${actorUsername}.${shouldSkipEnhancedActions ? "\nLeads for this org are not updated automatically in external systems (such as Entra ID). Please contact the appropriate administrators to ensure these updates are made.\n" : "\n"}Changes may take up to 2 hours to reflect in all systems.`,
+        },
+      };
+    } catch (error) {
+      // Rollback Entra ID if DynamoDB operation failed
+      if (entraAddSucceeded && entraGroupId) {
+        logger.error(
+          `DynamoDB operation failed for ${username} in ${orgId}. Rolling back Entra group addition.`,
+        );
+        try {
+          await modifyGroup(
+            entraIdToken,
+            username,
+            entraGroupId,
+            EntraGroupActions.REMOVE,
+            dynamoClient,
+          );
+          logger.info(
+            `Successfully rolled back Entra group addition for ${username}.`,
+          );
+        } catch (rollbackError) {
+          logger.error(
+            `CRITICAL: Failed to rollback Entra group addition for ${username} in ${orgId}. Manual intervention required.`,
+            rollbackError,
+          );
+        }
+      }
+
+      // Re-throw the original error
+      throw error;
+    }
   });
 };
 
@@ -301,6 +364,7 @@ export const removeLead = async ({
   logger,
   officersEmail,
   redisClient,
+  shouldSkipEnhancedActions,
 }: {
   username: string;
   orgId: string;
@@ -312,35 +376,8 @@ export const removeLead = async ({
   logger: FastifyBaseLogger;
   officersEmail: string;
   redisClient: Redis;
+  shouldSkipEnhancedActions: boolean;
 }): Promise<SQSMessage | null> => {
-  const removeOperation = async () => {
-    const removeTransaction = new TransactWriteItemsCommand({
-      TransactItems: [
-        buildAuditLogTransactPut({
-          entry: {
-            module: Modules.ORG_INFO,
-            actor: actorUsername,
-            target: username,
-            message: `Removed target from lead of ${orgId}.`,
-          },
-        })!,
-        {
-          Delete: {
-            TableName: genericConfig.SigInfoTableName,
-            Key: marshall({
-              primaryKey: `LEAD#${orgId}`,
-              entryId: username,
-            }),
-            ConditionExpression:
-              "attribute_exists(primaryKey) AND attribute_exists(entryId)",
-          },
-        },
-      ],
-    });
-
-    return await dynamoClient.send(removeTransaction);
-  };
-
   const lock = createLock({
     adapter: new IoredisAdapter(redisClient),
     key: `user:${username}`,
@@ -349,52 +386,141 @@ export const removeLead = async ({
   }) as SimpleLock;
 
   return await lock.using(async () => {
+    let entraRemoveSucceeded = false;
+
     try {
-      await retryDynamoTransactionWithBackoff(
-        removeOperation,
-        logger,
-        `Remove lead ${username} from ${orgId}`,
-      );
-    } catch (e: any) {
-      if (
-        e.name === "TransactionCanceledException" &&
-        e.message.includes("ConditionalCheckFailed")
-      ) {
+      // Step 1: Remove from Entra ID first (if applicable)
+      if (entraGroupId && !shouldSkipEnhancedActions) {
         logger.info(
-          `User ${username} was not a lead for ${orgId}. Skipping remove operation.`,
+          `Removing ${username} from Entra group for ${orgId} (Group ID: ${entraGroupId}).`,
         );
-        return null;
+
+        await modifyGroup(
+          entraIdToken,
+          username,
+          entraGroupId,
+          EntraGroupActions.REMOVE,
+          dynamoClient,
+        );
+
+        entraRemoveSucceeded = true;
+        logger.info(
+          `Successfully removed ${username} from Entra group for ${orgId}.`,
+        );
       }
-      throw e;
-    }
 
-    logger.info(
-      `Successfully removed ${username} as lead for ${orgId} in DynamoDB.`,
-    );
+      // Step 2: Remove from DynamoDB
+      const removeTransaction = new TransactWriteItemsCommand({
+        TransactItems: [
+          buildAuditLogTransactPut({
+            entry: {
+              module: Modules.ORG_INFO,
+              actor: actorUsername,
+              target: username,
+              message: `Removed target from lead of ${orgId}.`,
+            },
+          })!,
+          {
+            Delete: {
+              TableName: genericConfig.SigInfoTableName,
+              Key: marshall({
+                primaryKey: `LEAD#${orgId}`,
+                entryId: username,
+              }),
+              ConditionExpression:
+                "attribute_exists(primaryKey) AND attribute_exists(entryId)",
+            },
+          },
+        ],
+      });
 
-    if (entraGroupId) {
-      await modifyGroup(
-        entraIdToken,
-        username,
-        entraGroupId,
-        EntraGroupActions.REMOVE,
-        dynamoClient,
-      );
+      try {
+        await retryDynamoTransactionWithBackoff(
+          async () => await dynamoClient.send(removeTransaction),
+          logger,
+          `Remove lead ${username} from ${orgId}`,
+        );
+      } catch (e: any) {
+        if (
+          e.name === "TransactionCanceledException" &&
+          e.message.includes("ConditionalCheckFailed")
+        ) {
+          logger.info(
+            `User ${username} was not a lead for ${orgId}. Rolling back Entra changes if needed.`,
+          );
+
+          // Rollback Entra ID if it was removed
+          if (entraRemoveSucceeded && entraGroupId) {
+            logger.warn(
+              `Rolling back Entra group removal for ${username} in ${orgId}.`,
+            );
+            try {
+              await modifyGroup(
+                entraIdToken,
+                username,
+                entraGroupId,
+                EntraGroupActions.ADD,
+                dynamoClient,
+              );
+              logger.info(
+                `Successfully rolled back Entra group removal for ${username}.`,
+              );
+            } catch (rollbackError) {
+              logger.error(
+                `CRITICAL: Failed to rollback Entra group removal for ${username} in ${orgId}. Manual intervention required.`,
+                rollbackError,
+              );
+            }
+          }
+
+          return null;
+        }
+        throw e; // Re-throw for outer catch block
+      }
+
       logger.info(
-        `Successfully removed ${username} from Entra group for ${orgId}.`,
+        `Successfully removed ${username} as lead for ${orgId} in DynamoDB.`,
       );
-    }
 
-    return {
-      function: AvailableSQSFunctions.EmailNotifications,
-      metadata: { initiator: actorUsername, reqId },
-      payload: {
-        to: getAllUserEmails(username),
-        cc: [officersEmail],
-        subject: `Lead removed for ${orgId}`,
-        content: `Hello,\n\nWe're letting you know that ${username} has been removed as a lead for ${orgId} by ${actorUsername}.\n\nNo action is required from you at this time.`,
-      },
-    };
+      // Step 3: Send notification email
+      return {
+        function: AvailableSQSFunctions.EmailNotifications,
+        metadata: { initiator: actorUsername, reqId },
+        payload: {
+          to: getAllUserEmails(username),
+          cc: [officersEmail],
+          subject: `Lead removed for ${orgId}`,
+          content: `Hello,\n\nWe're letting you know that ${username} has been removed as a lead for ${orgId} by ${actorUsername}.${shouldSkipEnhancedActions ? "\nLeads for this org are not updated automatically in external systems (such as Entra ID). Please contact the appropriate administrators to make sure these updates are made.\n" : "\n"}No action is required from you at this time.`,
+        },
+      };
+    } catch (error) {
+      // Rollback Entra ID if DynamoDB operation failed
+      if (entraRemoveSucceeded && entraGroupId) {
+        logger.error(
+          `DynamoDB operation failed for ${username} in ${orgId}. Rolling back Entra group removal.`,
+        );
+        try {
+          await modifyGroup(
+            entraIdToken,
+            username,
+            entraGroupId,
+            EntraGroupActions.ADD,
+            dynamoClient,
+          );
+          logger.info(
+            `Successfully rolled back Entra group removal for ${username}.`,
+          );
+        } catch (rollbackError) {
+          logger.error(
+            `CRITICAL: Failed to rollback Entra group removal for ${username} in ${orgId}. Manual intervention required.`,
+            rollbackError,
+          );
+        }
+      }
+
+      // Re-throw the original error
+      throw error;
+    }
   });
 };
 
