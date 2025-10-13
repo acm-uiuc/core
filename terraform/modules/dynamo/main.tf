@@ -358,3 +358,56 @@ resource "aws_dynamodb_table" "store_inventory" {
     type = "S"
   }
 }
+
+resource "aws_dynamodb_table" "store_carts_orders" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-store-carts-orders"
+  deletion_protection_enabled = true
+  hash_key                    = "orderId"
+  range_key                   = "lineItemId"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "orderId"
+    type = "S"
+  }
+  attribute {
+    name = "lineItemId"
+    type = "S"
+  }
+  attribute {
+    name = "itemId"
+    type = "S"
+  }
+
+  attribute {
+    name = "createdAt"
+    type = "S"
+  }
+  global_secondary_index {
+    name            = "ItemIdIndex"
+    hash_key        = "itemId"
+    range_key       = "createdAt"
+    projection_type = "ALL"
+  }
+}
+
+resource "aws_dynamodb_table" "store_limits" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-store-limits"
+  deletion_protection_enabled = true
+  hash_key                    = "userId"
+  range_key                   = "limitId"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+  attribute {
+    name = "limitId"
+    type = "S"
+  }
+}

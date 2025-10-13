@@ -235,6 +235,12 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-keys",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs",
           "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs/index/*",
+
+          // added permissions for 3 new tables
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-inventory",
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders",
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders/index/*",
+          "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-limits"
         ]
       },
       {
@@ -458,4 +464,5 @@ output "core_sqs_consumer_lambda_arn" {
 output "core_sqs_consumer_lambda_name" {
   value = local.core_sqs_consumer_lambda_name
 }
+
 
