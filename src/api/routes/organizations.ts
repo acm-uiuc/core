@@ -61,6 +61,7 @@ import {
   assignIdpGroupsToTeam,
   createGithubTeam,
 } from "api/functions/github.js";
+import { SKIP_EXTERNAL_ORG_LEAD_UPDATE } from "common/overrides.js";
 
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${Math.floor(ORG_DATA_CACHED_DURATION * 1.1)}, stale-if-error=3600`;
 
@@ -349,6 +350,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       },
     },
     async (request, reply) => {
+      const orgId = getOrgByName(request.params.orgId)!.id;
       const { add, remove } = request.body;
       const allUsernames = [...add.map((u) => u.username), ...remove];
       const officersEmail =
@@ -405,6 +407,9 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         fastify.dynamoClient.send(getMetadataCommand),
         getAuthorizedClients(),
       ]);
+      // Metadata has been updated. If they are in the skip set, skip them.
+      const shouldSkipEnhancedActions =
+        SKIP_EXTERNAL_ORG_LEAD_UPDATE.includes(orgId);
       let entraGroupId = metadataResponse.Item
         ? (unmarshall(metadataResponse.Item).leadsEntraGroupId as string)
         : undefined;
@@ -422,7 +427,10 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         logger: request.log,
       });
 
-      const shouldCreateNewEntraGroup = !entraGroupId;
+      const shouldCreateNewEntraGroup =
+        !entraGroupId && !shouldSkipEnhancedActions;
+      const shouldCreateNewGithubGroup =
+        !githubTeamId && !shouldSkipEnhancedActions;
       const grpDisplayName = `${request.params.orgId} Admin`;
       const orgInfo = getOrgByName(request.params.orgId);
       if (!orgInfo) {
@@ -518,7 +526,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
 
       // Create GitHub team if needed
-      if (!githubTeamId) {
+      if (shouldCreateNewGithubGroup) {
         request.log.info(
           `No GitHub team exists for ${request.params.orgId}. Creating new team...`,
         );
@@ -576,7 +584,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           `Store GitHub team ID for ${request.params.orgId}`,
         );
       }
-
       const commonArgs = {
         orgId: request.params.orgId,
         actorUsername: request.username!,
@@ -635,7 +642,11 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
 
-      if (createdGithubTeam && fastify.environmentConfig.GithubIdpSyncEnabled) {
+      if (
+        createdGithubTeam &&
+        githubTeamId &&
+        fastify.environmentConfig.GithubIdpSyncEnabled
+      ) {
         request.log.info("Setting up IDP sync for Github team!");
         await assignIdpGroupsToTeam({
           githubToken: fastify.secretConfig.github_pat,
@@ -645,10 +656,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           orgId: fastify.environmentConfig.GithubOrgId,
           orgName: fastify.environmentConfig.GithubOrgName,
         });
-      } else {
-        request.log.warn(
-          "IdP sync is disabled in this environment - the newly created group will have no members!",
-        );
       }
 
       return reply.status(201).send();
