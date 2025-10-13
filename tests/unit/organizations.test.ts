@@ -378,7 +378,7 @@ describe("Organization info tests - Extended Coverage", () => {
           Items: [
             marshall({
               username: "oldlead@illinois.edu",
-              primaryKey: "LEAD#ACM",
+              primaryKey: "LEAD#Social Committee",
             }),
           ],
         });
@@ -397,7 +397,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "PATCH",
-        url: "/api/v1/organizations/ACM/leads",
+        url: "/api/v1/organizations/Social Committee/leads",
         headers: { authorization: `Bearer ${testJwt}` },
         payload: {
           add: [
@@ -420,8 +420,8 @@ describe("Organization info tests - Extended Coverage", () => {
         expect.objectContaining({
           githubToken: "abc123testing",
           orgId: "acm-uiuc-testing",
-          name: "acm-adm-nonprod",
-          description: "ACM Admin",
+          name: "social-adm-nonprod",
+          description: "Social Committee Admin",
           parentTeamId: 14420860,
         }),
       );
