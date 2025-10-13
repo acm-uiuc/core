@@ -186,6 +186,7 @@ export const addLead = async ({
   logger,
   officersEmail,
   redisClient,
+  shouldSkipEnhancedActions,
 }: {
   user: z.infer<typeof enforcedOrgLeadEntry>;
   orgId: string;
@@ -197,6 +198,7 @@ export const addLead = async ({
   logger: FastifyBaseLogger;
   officersEmail: string;
   redisClient: Redis;
+  shouldSkipEnhancedActions: boolean;
 }): Promise<SQSMessage | null> => {
   const { username } = user;
 
@@ -262,7 +264,7 @@ export const addLead = async ({
       `Successfully added ${username} as lead for ${orgId} in DynamoDB.`,
     );
 
-    if (entraGroupId) {
+    if (entraGroupId && !shouldSkipEnhancedActions) {
       await modifyGroup(
         entraIdToken,
         username,
@@ -282,7 +284,7 @@ export const addLead = async ({
         to: getAllUserEmails(username),
         cc: [officersEmail],
         subject: `${user.nonVotingMember ? "Non-voting lead" : "Lead"} added for ${orgId}`,
-        content: `Hello,\n\nWe're letting you know that ${username} has been added as a ${user.nonVotingMember ? "non-voting" : ""} lead for ${orgId} by ${actorUsername}. Changes may take up to 2 hours to reflect in all systems.`,
+        content: `Hello,\n\nWe're letting you know that ${username} has been added as a ${user.nonVotingMember ? "non-voting" : ""} lead for ${orgId} by ${actorUsername}.${shouldSkipEnhancedActions && "\nLeads for this org are not updated automatically in external systems (such as Entra ID). Please contact the appropriate administrators to make sure these updates are made.\n"}Changes may take up to 2 hours to reflect in all systems.`,
       },
     };
   });

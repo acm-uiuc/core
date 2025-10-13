@@ -594,6 +594,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         logger: request.log,
         officersEmail,
         redisClient: fastify.redisClient,
+        shouldSkipEnhancedActions,
       };
 
       const addPromises = add.map((user) => addLead({ ...commonArgs, user }));
