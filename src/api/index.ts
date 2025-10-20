@@ -292,7 +292,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       region: genericConfig.AwsOhioRegion,
     });
     app.secretsManagerClient = new SecretsManagerClient({
-      region: genericConfig.AwsRegion,
+      region: genericConfig.AwsOhioRegion,
     });
     app.refreshSecretConfig = async () => {
       app.log.debug(

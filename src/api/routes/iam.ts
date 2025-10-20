@@ -60,7 +60,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const credentials = await getRoleCredentials(roleArns.Entra);
       const clients = {
         smClient: new SecretsManagerClient({
-          region: genericConfig.AwsRegion,
+          region: genericConfig.AwsOhioRegion,
           credentials,
         }),
         dynamoClient: new DynamoDBClient({
