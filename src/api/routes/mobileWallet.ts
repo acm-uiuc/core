@@ -33,7 +33,7 @@ const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
         // response: { 202: queuedResponseJsonSchema },
         querystring: z
           .object({
-            email: z.string().email(),
+            email: z.email(),
           })
           .refine((data) => data.email.endsWith("@illinois.edu"), {
             message: "Email must be on the illinois.edu domain.",

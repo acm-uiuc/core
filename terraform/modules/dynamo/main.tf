@@ -1,13 +1,3 @@
-provider "aws" {
-  region = "us-east-2"
-  default_tags {
-    tags = {
-      project           = var.ProjectId
-      terraform_managed = true
-    }
-  }
-}
-
 resource "aws_dynamodb_table" "app_audit_log" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-audit-log"

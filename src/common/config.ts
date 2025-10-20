@@ -65,7 +65,6 @@ export type GenericConfigType = {
   SigInfoTableName: string;
   EntraHostedDomainName: string;
   StoreInventoryTableName: string;
-  AwsOhioRegion: string;
   // TODO: (store) add other tables
 };
 
@@ -89,8 +88,7 @@ const genericConfig: GenericConfigType = {
   EntraSecretName: "infra-core-api-entra",
   EntraReadOnlySecretName: "infra-core-api-ro-entra",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
-  AwsRegion: "us-east-1",
-  AwsOhioRegion: "us-east-2",
+  AwsRegion: "us-east-2",
   EntraTenantId: "c8d9148f-9a59-4db3-827d-42ea0c2b6e2e",
   MerchStorePurchasesTableName: "infra-merchstore-purchase-history",
   MerchStoreMetadataTableName: "infra-merchstore-metadata",
