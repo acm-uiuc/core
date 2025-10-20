@@ -28,6 +28,18 @@ provider "aws" {
   }
 }
 
+provider "aws" {
+  alias               = "ohio"
+  allowed_account_ids = ["298118738376"]
+  region              = "us-east-2"
+  default_tags {
+    tags = {
+      project           = var.ProjectId
+      terraform_managed = true
+    }
+  }
+}
+
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
