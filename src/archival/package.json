@@ -16,11 +16,11 @@
     "@types/aws-lambda": "^8.10.138",
     "@types/node": "^24.3.0",
     "typescript": "^5.9.2",
-    "esbuild": "^0.25.3"
+    "esbuild": "^0.25.11"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.895.0",
-    "@aws-sdk/client-firehose": "^3.895.0",
-    "@aws-sdk/util-dynamodb": "^3.895.0"
+    "@aws-sdk/client-dynamodb": "^3.913.0",
+    "@aws-sdk/client-firehose": "^3.913.0",
+    "@aws-sdk/util-dynamodb": "^3.913.0"
   }
 }
