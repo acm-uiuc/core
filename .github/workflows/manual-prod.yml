@@ -22,7 +22,7 @@ jobs:
           HUSKY: "0"
 
       - name: Set up Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22.x
           cache: "yarn"
@@ -55,7 +55,7 @@ jobs:
           HUSKY: "0"
 
       - name: Set up Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22.x
           cache: "yarn"
@@ -102,7 +102,7 @@ jobs:
     environment: "AWS PROD"
     steps:
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22.x
 
