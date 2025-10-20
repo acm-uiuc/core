@@ -256,6 +256,26 @@ resource "aws_dynamodb_table" "stripe_links" {
   }
 }
 
+resource "aws_dynamodb_table" "stripe_payments" {
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-stripe-payments"
+  deletion_protection_enabled = true
+  hash_key                    = "primaryKey"
+  range_key                   = "sortKey"
+
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "primaryKey"
+    type = "S"
+  }
+
+  attribute {
+    name = "sortKey"
+    type = "S"
+  }
+}
 resource "aws_dynamodb_table" "linkry_records" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-linkry"
