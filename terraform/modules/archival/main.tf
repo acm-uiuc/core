@@ -5,33 +5,41 @@ data "archive_file" "api_lambda_code" {
 }
 
 locals {
-  dynamo_stream_reader_lambda_name = "${var.ProjectId}-dynamo-archival"
-  firehose_stream_name             = "${var.ProjectId}-archival-stream"
+  aws_region                       = "us-east-2"
+  dynamo_stream_reader_lambda_name = "${var.ProjectId}-${local.aws_region}-dynamo-archival"
+  firehose_stream_name             = "${var.ProjectId}-${local.aws_region}-archival-stream"
+  bucket_prefix                    = "${data.aws_caller_identity.current.account_id}-${local.aws_region}"
 }
+
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 resource "aws_cloudwatch_log_group" "archive_logs" {
+  region            = local.aws_region
   name              = "/aws/lambda/${local.dynamo_stream_reader_lambda_name}"
   retention_in_days = var.LogRetentionDays
 }
 
 resource "aws_cloudwatch_log_group" "firehose_logs" {
+  region            = local.aws_region
   name              = "/aws/kinesisfirehose/${local.firehose_stream_name}"
   retention_in_days = var.LogRetentionDays
 }
 
 resource "aws_cloudwatch_log_stream" "firehose_logs_stream" {
+  region         = local.aws_region
   log_group_name = aws_cloudwatch_log_group.firehose_logs.name
   name           = "DataArchivalS3Delivery"
 }
 
 
 resource "aws_s3_bucket" "this" {
-  bucket = "${var.BucketPrefix}-ddb-archive"
+  region = local.aws_region
+  bucket = "${local.bucket_prefix}-ddb-archive"
 }
 
 resource "aws_s3_bucket_versioning" "this" {
+  region = local.aws_region
   bucket = aws_s3_bucket.this.id
   versioning_configuration {
     status = "Enabled"
@@ -39,6 +47,7 @@ resource "aws_s3_bucket_versioning" "this" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "this" {
+  region = local.aws_region
   bucket = aws_s3_bucket.this.id
 
   rule {
@@ -92,6 +101,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
 }
 
 resource "aws_s3_bucket_intelligent_tiering_configuration" "this" {
+  region = local.aws_region
   bucket = aws_s3_bucket.this.id
   name   = "ArchiveAfterSixMonths"
   status = "Enabled"
@@ -134,11 +144,13 @@ resource "aws_iam_policy" "archive_lambda_policy" {
 
 
 data "aws_dynamodb_table" "existing_tables" {
+  region   = local.aws_region
   for_each = toset(var.MonitorTables)
   name     = each.key
 }
 
 resource "aws_lambda_event_source_mapping" "stream_mapping" {
+  region                  = local.aws_region
   for_each                = toset(var.MonitorTables)
   function_name           = aws_lambda_function.api_lambda.arn
   event_source_arn        = data.aws_dynamodb_table.existing_tables[each.key].stream_arn
@@ -218,6 +230,7 @@ resource "aws_iam_role_policy_attachment" "firehose_attach" {
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "dynamic_stream" {
+  region      = local.aws_region
   name        = local.firehose_stream_name
   destination = "extended_s3"
 
@@ -299,6 +312,7 @@ resource "aws_iam_role_policy_attachment" "archive_attach" {
 }
 
 resource "aws_lambda_function" "api_lambda" {
+  region           = local.aws_region
   depends_on       = [aws_cloudwatch_log_group.archive_logs]
   function_name    = local.dynamo_stream_reader_lambda_name
   role             = aws_iam_role.archive_role.arn
