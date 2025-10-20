@@ -21,7 +21,7 @@ export const getAuthorizedClients = async (
         credentials,
       }),
       dynamoClient: new DynamoDBClient({
-        region: genericConfig.AwsRegion,
+        region: genericConfig.AwsOhioRegion,
         credentials,
       }),
     };

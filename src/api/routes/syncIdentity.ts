@@ -33,7 +33,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           credentials,
         }),
         dynamoClient: new DynamoDBClient({
-          region: genericConfig.AwsRegion,
+          region: genericConfig.AwsOhioRegion,
           credentials,
         }),
         redisClient: fastify.redisClient,

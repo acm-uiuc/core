@@ -39,7 +39,7 @@ export async function createAuditLogEntry({
   const safeDynamoClient =
     dynamoClient ||
     new DynamoDBClient({
-      region: genericConfig.AwsRegion,
+      region: genericConfig.AwsOhioRegion,
     });
 
   const item = buildMarshalledAuditLogItem(entry);

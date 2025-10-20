@@ -289,7 +289,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
   app.nodeCache = new NodeCache({ checkperiod: 30 });
   if (initClients) {
     app.dynamoClient = new DynamoDBClient({
-      region: genericConfig.AwsRegion,
+      region: genericConfig.AwsOhioRegion,
     });
     app.secretsManagerClient = new SecretsManagerClient({
       region: genericConfig.AwsRegion,
