@@ -19,10 +19,7 @@ resource "aws_dynamodb_table" "app_audit_log" {
     attribute_name = "expireAt"
     enabled        = true
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -43,10 +40,7 @@ resource "aws_dynamodb_table" "api_keys" {
     attribute_name = "expiresAt"
     enabled        = true
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -81,10 +75,7 @@ resource "aws_dynamodb_table" "room_requests" {
     attribute_name = "expiresAt"
     enabled        = true
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -121,10 +112,7 @@ resource "aws_dynamodb_table" "room_requests_status" {
     attribute_name = "expiresAt"
     enabled        = true
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -162,10 +150,7 @@ resource "aws_dynamodb_table" "external_membership" {
     hash_key        = "memberList"
     projection_type = "KEYS_ONLY"
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -183,10 +168,7 @@ resource "aws_dynamodb_table" "iam_assignments" {
     name = "id"
     type = "S"
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -212,10 +194,7 @@ resource "aws_dynamodb_table" "user_info" {
     hash_key        = "uinHash"
     projection_type = "KEYS_ONLY"
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -245,10 +224,7 @@ resource "aws_dynamodb_table" "events" {
     attribute_name = "expiresAt"
     enabled        = true
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -281,10 +257,7 @@ resource "aws_dynamodb_table" "stripe_links" {
     attribute_name = "expiresAt"
     enabled        = true
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -336,10 +309,7 @@ resource "aws_dynamodb_table" "linkry_records" {
     range_key       = "slug"
     projection_type = "ALL"
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -360,10 +330,7 @@ resource "aws_dynamodb_table" "cache" {
     attribute_name = "expireAt"
     enabled        = true
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -405,10 +372,7 @@ resource "aws_dynamodb_table" "sig_info" {
     range_key       = "primaryKey"
     projection_type = "KEYS_ONLY"
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -430,10 +394,7 @@ resource "aws_dynamodb_table" "store_inventory" {
     name = "variantId"
     type = "S"
   }
-  replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
-  }
+
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
