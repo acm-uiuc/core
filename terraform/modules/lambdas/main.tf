@@ -32,6 +32,7 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 resource "aws_cloudwatch_log_group" "api_logs" {
+  region            = "us-east-2"
   name              = "/aws/lambda/${local.core_api_lambda_name}"
   retention_in_days = var.LogRetentionDays
 }
@@ -102,8 +103,8 @@ resource "aws_iam_policy" "entra_policy" {
         Effect = "Allow",
         Action = ["secretsmanager:GetSecretValue"],
         Resource = [
-          "arn:aws:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-entra*",
-          "arn:aws:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-ro-entra*"
+          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-entra*",
+          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-ro-entra*"
         ]
       }
     ]
@@ -119,7 +120,7 @@ resource "aws_iam_policy" "api_only_policy" {
         Effect = "Allow",
         Action = ["sqs:SendMessage"],
         Resource = [
-          "arn:aws:sqs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:${var.ProjectId}-*",
+          "arn:aws:sqs:us-east-2:${data.aws_caller_identity.current.account_id}:${var.ProjectId}-*",
         ]
       }
     ]
@@ -188,9 +189,9 @@ resource "aws_iam_policy" "shared_iam_policy" {
         Action = ["secretsmanager:GetSecretValue"],
         Effect = "Allow",
         Resource = [
-          "arn:aws:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-config*",
-          "arn:aws:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-testing-credentials*",
-          "arn:aws:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-uin-pepper*"
+          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-config*",
+          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-testing-credentials*",
+          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-uin-pepper*"
         ]
       },
       {
@@ -332,6 +333,7 @@ resource "aws_iam_role_policy_attachment" "sqs_attach_shared" {
 }
 
 resource "aws_lambda_function" "api_lambda" {
+  region           = "us-east-2"
   depends_on       = [aws_cloudwatch_log_group.api_logs]
   function_name    = local.core_api_lambda_name
   role             = aws_iam_role.api_role.arn
@@ -357,6 +359,7 @@ resource "aws_lambda_function" "api_lambda" {
 }
 
 resource "aws_lambda_function" "sqs_lambda" {
+  region     = "us-east-2"
   depends_on = [aws_cloudwatch_log_group.api_logs]
   logging_config {
     log_format = "JSON"
@@ -383,6 +386,7 @@ resource "aws_lambda_function" "sqs_lambda" {
 }
 
 resource "aws_lambda_function_url" "api_lambda_function_url" {
+  region             = "us-east-2"
   function_name      = aws_lambda_function.api_lambda.function_name
   authorization_type = "NONE"
   invoke_mode        = "RESPONSE_STREAM"
@@ -390,6 +394,7 @@ resource "aws_lambda_function_url" "api_lambda_function_url" {
 
 // Slow lambda - used for monitoring purposes to avoid triggering lamdba latency alarms
 resource "aws_lambda_function" "slow_lambda" {
+  region           = "us-east-2"
   depends_on       = [aws_cloudwatch_log_group.api_logs]
   function_name    = local.core_api_slow_lambda_name
   role             = aws_iam_role.api_role.arn
@@ -422,6 +427,7 @@ resource "aws_lambda_function_url" "slow_api_lambda_function_url" {
   function_name      = aws_lambda_function.slow_lambda.function_name
   authorization_type = "NONE"
   invoke_mode        = "RESPONSE_STREAM"
+  region             = "us-east-2"
 }
 
 module "lambda_warmer_main" {

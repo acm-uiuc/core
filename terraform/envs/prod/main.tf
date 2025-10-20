@@ -55,6 +55,9 @@ module "sqs_queues" {
   source                        = "../../modules/sqs"
   resource_prefix               = var.ProjectId
   core_sqs_consumer_lambda_name = module.lambdas.core_sqs_consumer_lambda_name
+  providers = {
+    aws = aws.ohio
+  }
 }
 
 module "dynamo" {
@@ -112,6 +115,9 @@ module "lambdas" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
+  providers = {
+    aws = aws.ohio
+  }
 }
 
 module "frontend" {
@@ -137,6 +143,8 @@ module "assets" {
 }
 
 resource "aws_lambda_event_source_mapping" "queue_consumer" {
+  provider                = aws.ohio
+  region                  = "us-east-2"
   depends_on              = [module.lambdas, module.sqs_queues]
   for_each                = local.queue_arns
   batch_size              = 5

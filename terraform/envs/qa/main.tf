@@ -28,6 +28,18 @@ provider "aws" {
   }
 }
 
+provider "aws" {
+  allowed_account_ids = ["427040638965"]
+  alias               = "ohio"
+  region              = "us-east-2"
+  default_tags {
+    tags = {
+      project           = var.ProjectId
+      terraform_managed = true
+    }
+  }
+}
+
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
@@ -37,6 +49,9 @@ module "sqs_queues" {
   source                        = "../../modules/sqs"
   resource_prefix               = var.ProjectId
   core_sqs_consumer_lambda_name = module.lambdas.core_sqs_consumer_lambda_name
+  providers = {
+    aws = aws.ohio
+  }
 }
 locals {
   bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.region}"
@@ -174,6 +189,8 @@ resource "aws_route53_record" "linkry" {
   }
 }
 resource "aws_lambda_event_source_mapping" "queue_consumer" {
+  provider                = aws.ohio
+  region                  = "us-east-2"
   depends_on              = [module.lambdas, module.sqs_queues]
   for_each                = local.queue_arns
   batch_size              = 5
