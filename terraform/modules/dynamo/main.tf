@@ -256,9 +256,9 @@ resource "aws_dynamodb_table" "stripe_links" {
   }
 }
 
-resource "aws_dynamodb_table" "ach_records" {
+resource "aws_dynamodb_table" "stripe_payments" {
   billing_mode                = "PAY_PER_REQUEST"
-  name                        = "${var.ProjectId}-ach-records"
+  name                        = "${var.ProjectId}-stripe-payments"
   deletion_protection_enabled = true
   hash_key                    = "primaryKey"
   range_key                   = "sortKey"
