@@ -1,3 +1,13 @@
+provider "aws" {
+  region = "us-east-2"
+  default_tags {
+    tags = {
+      project           = var.ProjectId
+      terraform_managed = true
+    }
+  }
+}
+
 resource "aws_dynamodb_table" "app_audit_log" {
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-audit-log"
@@ -19,6 +29,10 @@ resource "aws_dynamodb_table" "app_audit_log" {
     attribute_name = "expireAt"
     enabled        = true
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -39,6 +53,12 @@ resource "aws_dynamodb_table" "api_keys" {
     attribute_name = "expiresAt"
     enabled        = true
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "room_requests" {
@@ -70,6 +90,10 @@ resource "aws_dynamodb_table" "room_requests" {
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
+  }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -106,6 +130,10 @@ resource "aws_dynamodb_table" "room_requests_status" {
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
+  }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -144,7 +172,12 @@ resource "aws_dynamodb_table" "external_membership" {
     hash_key        = "memberList"
     projection_type = "KEYS_ONLY"
   }
-
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 
@@ -160,6 +193,12 @@ resource "aws_dynamodb_table" "iam_assignments" {
     name = "id"
     type = "S"
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "user_info" {
@@ -183,6 +222,12 @@ resource "aws_dynamodb_table" "user_info" {
     hash_key        = "uinHash"
     projection_type = "KEYS_ONLY"
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "events" {
@@ -209,6 +254,10 @@ resource "aws_dynamodb_table" "events" {
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
+  }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -242,6 +291,12 @@ resource "aws_dynamodb_table" "stripe_links" {
     attribute_name = "expiresAt"
     enabled        = true
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "stripe_payments" {
@@ -263,6 +318,12 @@ resource "aws_dynamodb_table" "stripe_payments" {
     name = "sortKey"
     type = "S"
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 resource "aws_dynamodb_table" "linkry_records" {
   billing_mode                = "PAY_PER_REQUEST"
@@ -289,6 +350,12 @@ resource "aws_dynamodb_table" "linkry_records" {
     range_key       = "slug"
     projection_type = "ALL"
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "cache" {
@@ -307,6 +374,12 @@ resource "aws_dynamodb_table" "cache" {
     attribute_name = "expireAt"
     enabled        = true
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "sig_info" {
@@ -346,6 +419,12 @@ resource "aws_dynamodb_table" "sig_info" {
     range_key       = "primaryKey"
     projection_type = "KEYS_ONLY"
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "store_inventory" {
@@ -365,6 +444,12 @@ resource "aws_dynamodb_table" "store_inventory" {
     name = "variantId"
     type = "S"
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "store_carts_orders" {
@@ -399,6 +484,12 @@ resource "aws_dynamodb_table" "store_carts_orders" {
     range_key       = "createdAt"
     projection_type = "ALL"
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "store_limits" {
@@ -418,4 +509,10 @@ resource "aws_dynamodb_table" "store_limits" {
     name = "limitId"
     type = "S"
   }
+  replica {
+    region_name    = "us-east-2"
+    propagate_tags = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
