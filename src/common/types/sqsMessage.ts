@@ -1,3 +1,4 @@
+import { AllOrganizationNameList, OrganizationsByName } from "@acm-uiuc/js-shared";
 import * as z from "zod/v4";
 
 export enum AvailableSQSFunctions {
@@ -6,6 +7,7 @@ export enum AvailableSQSFunctions {
   ProvisionNewMember = "provisionNewMember",
   SendSaleEmail = "sendSaleEmail",
   EmailNotifications = "emailNotifications",
+  CreateOrgGithubTeam = "createOrgGithubTeam",
 }
 
 const sqsMessageMetadataSchema = z.object({
@@ -67,6 +69,13 @@ export const sqsPayloadSchemas = {
         name: z.string().min(1),
         url: z.string().min(1).url()
       }).optional()
+    })
+  ),
+  [AvailableSQSFunctions.CreateOrgGithubTeam]: createSQSSchema(
+    AvailableSQSFunctions.CreateOrgGithubTeam, z.object({
+      orgName: z.enum(AllOrganizationNameList),
+      githubTeamName: z.string().min(1),
+      githubTeamDescription: z.string().min(1)
     })
   )
 } as const;

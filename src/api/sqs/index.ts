@@ -22,6 +22,7 @@ import {
 import { ValidationError } from "../../common/errors/index.js";
 import { RunEnvironment } from "../../common/roles.js";
 import { environmentConfig } from "../../common/config.js";
+import { createOrgGithubTeamHandler } from "./handlers/createOrgGithubTeam.js";
 
 export type SQSFunctionPayloadTypes = {
   [K in keyof typeof sqsPayloadSchemas]: SQSHandlerFunction<K>;
@@ -39,6 +40,7 @@ const handlers: SQSFunctionPayloadTypes = {
   [AvailableSQSFunctions.ProvisionNewMember]: provisionNewMemberHandler,
   [AvailableSQSFunctions.SendSaleEmail]: sendSaleEmailHandler,
   [AvailableSQSFunctions.EmailNotifications]: emailNotificationsHandler,
+  [AvailableSQSFunctions.CreateOrgGithubTeam]: createOrgGithubTeamHandler,
 };
 export const runEnvironment = process.env.RunEnvironment as RunEnvironment;
 export const currentEnvironmentConfig = environmentConfig[runEnvironment];
