@@ -197,6 +197,39 @@ export class DatabaseDeleteError extends BaseError<"DatabaseDeleteError"> {
   }
 }
 
+export class StoreItemNotFoundError extends BaseError<"StoreItemNotFoundError"> {
+  constructor({ message }: { message?: string }) {
+    super({
+      name: "StoreItemNotFoundError",
+      id: 112,
+      message: message || "Could not find the store item requested.",
+      httpStatusCode: 404,
+    });
+  }
+}
+
+export class StoreItemOutOfStockError extends BaseError<"StoreItemOutOfStockError"> {
+  constructor({ message }: { message?: string }) {
+    super({
+      name: "StoreItemOutOfStockError",
+      id: 113,
+      message: message || "Store item found but out of stock.",
+      httpStatusCode: 400,
+    });
+  }
+}
+
+export class StoreItemNotSellTimeError extends BaseError<"StoreItemNotSellTimeError"> {
+  constructor({ message }: { message?: string }) {
+    super({
+      name: "StoreItemNotSellTimeError",
+      id: 114,
+      message: message || "Store item found but not at selling time.",
+      httpStatusCode: 400,
+    });
+  }
+}
+
 export class EntraGroupError extends BaseError<"EntraGroupError"> {
   group: string;
   constructor({

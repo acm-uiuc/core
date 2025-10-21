@@ -17,7 +17,7 @@ export type ConfigType = {
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
   EntraServicePrincipalId: string;
-  LinkryBaseUrl: string
+  LinkryBaseUrl: string;
   PasskitIdentifier: string;
   PasskitSerialNumber: string;
   EmailDomain: string;
@@ -32,7 +32,7 @@ export type ConfigType = {
   GroupEmailSuffix: string;
   GithubOrgName: string;
   ExecGithubTeam: number;
-  GithubIdpSyncEnabled: boolean
+  GithubIdpSyncEnabled: boolean;
   GithubOrgId: number;
 };
 
@@ -65,8 +65,9 @@ export type GenericConfigType = {
   SigInfoTableName: string;
   EntraHostedDomainName: string;
   StoreInventoryTableName: string;
+  StoreOrdersTableName: string;
+  StoreLimitsTableName: string;
   AwsOhioRegion: string;
-  // TODO: (store) add other tables
 };
 
 type EnvironmentConfigType = {
@@ -110,7 +111,9 @@ const genericConfig: GenericConfigType = {
   UserInfoTable: "infra-core-api-user-info",
   SigInfoTableName: "infra-core-api-sigs",
   EntraHostedDomainName: "acmillinois.onmicrosoft.com",
-  StoreInventoryTableName: "infra-core-api-store-inventory"
+  StoreInventoryTableName: "infra-core-api-store-inventory",
+  StoreOrdersTableName: "infra-core-api-store-carts-orders",
+  StoreLimitsTableName: "infra-core-api-store-limits"
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
