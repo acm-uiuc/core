@@ -10,12 +10,12 @@ variable "ProjectId" {
 
 variable "GeneralSNSAlertArn" {
   type    = string
-  default = "arn:aws:sns:us-east-1:298118738376:infra-monitor-alerts"
+  default = "arn:aws:sns:us-east-2:298118738376:infra-monitor-alerts"
 }
 
 variable "PrioritySNSAlertArn" {
   type    = string
-  default = "arn:aws:sns:us-east-1:298118738376:infra-core-api-priority-alerts"
+  default = "arn:aws:sns:us-east-2:298118738376:infra-core-api-priority-alerts"
 }
 
 

@@ -65,7 +65,7 @@ export const emailNotificationsHandler: SQSHandlerFunction<
       },
     },
   });
-  const sesClient = new SESClient({ region: genericConfig.AwsRegion });
+  const sesClient = new SESClient({ region: genericConfig.SesRegion });
   const response = await sesClient.send(command);
   logger.info("Sent!");
   await createAuditLogEntry({

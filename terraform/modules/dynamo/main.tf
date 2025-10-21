@@ -1,14 +1,8 @@
-provider "aws" {
-  region = "us-east-2"
-  default_tags {
-    tags = {
-      project           = var.ProjectId
-      terraform_managed = true
-    }
-  }
-}
+# 10/20/2025: currently tables are defined primary in us-east-1 and secondary in us-east-2.
+# Once replication is done we will primary us-east-2 and secondary us-east-1
 
 resource "aws_dynamodb_table" "app_audit_log" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-audit-log"
   deletion_protection_enabled = true
@@ -30,14 +24,17 @@ resource "aws_dynamodb_table" "app_audit_log" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "api_keys" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-keys"
   deletion_protection_enabled = true
@@ -54,14 +51,17 @@ resource "aws_dynamodb_table" "api_keys" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "room_requests" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-room-requests"
   deletion_protection_enabled = true
@@ -92,8 +92,10 @@ resource "aws_dynamodb_table" "room_requests" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -101,6 +103,7 @@ resource "aws_dynamodb_table" "room_requests" {
 
 
 resource "aws_dynamodb_table" "room_requests_status" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-room-requests-status"
   deletion_protection_enabled = true
@@ -132,8 +135,10 @@ resource "aws_dynamodb_table" "room_requests_status" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -141,6 +146,7 @@ resource "aws_dynamodb_table" "room_requests_status" {
 
 
 resource "aws_dynamodb_table" "external_membership" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-membership-external-v3"
   deletion_protection_enabled = true
@@ -173,8 +179,10 @@ resource "aws_dynamodb_table" "external_membership" {
     projection_type = "KEYS_ONLY"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -182,6 +190,7 @@ resource "aws_dynamodb_table" "external_membership" {
 
 
 resource "aws_dynamodb_table" "iam_assignments" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-iam-assignments"
   deletion_protection_enabled = true
@@ -194,14 +203,17 @@ resource "aws_dynamodb_table" "iam_assignments" {
     type = "S"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "user_info" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-user-info"
   deletion_protection_enabled = true
@@ -223,14 +235,17 @@ resource "aws_dynamodb_table" "user_info" {
     projection_type = "KEYS_ONLY"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "events" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-events"
   deletion_protection_enabled = true
@@ -256,14 +271,17 @@ resource "aws_dynamodb_table" "events" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "stripe_links" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-stripe-links"
   deletion_protection_enabled = true
@@ -292,14 +310,17 @@ resource "aws_dynamodb_table" "stripe_links" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "stripe_payments" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-stripe-payments"
   deletion_protection_enabled = true
@@ -319,13 +340,16 @@ resource "aws_dynamodb_table" "stripe_payments" {
     type = "S"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 resource "aws_dynamodb_table" "linkry_records" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-linkry"
   deletion_protection_enabled = true
@@ -351,14 +375,17 @@ resource "aws_dynamodb_table" "linkry_records" {
     projection_type = "ALL"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "cache" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-cache"
   deletion_protection_enabled = true
@@ -375,14 +402,17 @@ resource "aws_dynamodb_table" "cache" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "sig_info" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-sigs"
   deletion_protection_enabled = true
@@ -420,14 +450,17 @@ resource "aws_dynamodb_table" "sig_info" {
     projection_type = "KEYS_ONLY"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "store_inventory" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-store-inventory"
   deletion_protection_enabled = true
@@ -445,14 +478,17 @@ resource "aws_dynamodb_table" "store_inventory" {
     type = "S"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "store_carts_orders" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-store-carts-orders"
   deletion_protection_enabled = true
@@ -485,14 +521,17 @@ resource "aws_dynamodb_table" "store_carts_orders" {
     projection_type = "ALL"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "store_limits" {
+  region                      = "us-east-1"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-store-limits"
   deletion_protection_enabled = true
@@ -510,8 +549,10 @@ resource "aws_dynamodb_table" "store_limits" {
     type = "S"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"

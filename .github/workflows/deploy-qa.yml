@@ -135,7 +135,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
           role-session-name: Core_QA_Deployment_${{ github.run_id }}
-          aws-region: us-east-1
+          aws-region: us-east-2
 
       - name: Publish to AWS
         run: make deploy_qa

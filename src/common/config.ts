@@ -44,6 +44,7 @@ export type GenericConfigType = {
   EntraSecretName: string;
   UpcomingEventThresholdSeconds: number;
   AwsRegion: string;
+  SesRegion: string; // TODO: we're only verified for SES in us-east-1, get verified in us-east-2
   EntraTenantId: string;
   MerchStorePurchasesTableName: string;
   TicketPurchasesTableName: string;
@@ -90,8 +91,8 @@ const genericConfig: GenericConfigType = {
   EntraSecretName: "infra-core-api-entra",
   EntraReadOnlySecretName: "infra-core-api-ro-entra",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
-  AwsRegion: "us-east-1",
-  AwsOhioRegion: "us-east-2",
+  AwsRegion: "us-east-2",
+  SesRegion: "us-east-1",
   EntraTenantId: "c8d9148f-9a59-4db3-827d-42ea0c2b6e2e",
   MerchStorePurchasesTableName: "infra-merchstore-purchase-history",
   MerchStoreMetadataTableName: "infra-merchstore-metadata",

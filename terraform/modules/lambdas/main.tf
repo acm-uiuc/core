@@ -215,13 +215,15 @@ resource "aws_iam_policy" "shared_iam_policy" {
         ],
         Effect = "Allow",
         Resource = [
+          // Tickets is still in us-east-1!
+          "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-events-tickets",
+          "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-events-ticketing-metadata",
+          "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-purchase-history",
+          "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-purchase-history/index/*",
+          "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-metadata",
+
           "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events",
           "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events/index/*",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-purchase-history",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-purchase-history/index/*",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-events-tickets",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-events-ticketing-metadata",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-metadata",
           "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-assignments",
           "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links",
           "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links/index/*",

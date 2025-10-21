@@ -15,7 +15,7 @@ export const emailMembershipPassHandler: SQSHandlerFunction<
   AvailableSQSFunctions.EmailMembershipPass
 > = async (payload, metadata, logger) => {
   const { email, firstName } = payload;
-  const commonConfig = { region: genericConfig.AwsRegion };
+  const commonConfig = { region: genericConfig.SesRegion };
   const clients = await getAuthorizedClients(logger, commonConfig);
   const entraIdToken = await getEntraIdToken({
     clients: { ...clients },

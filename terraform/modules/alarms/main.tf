@@ -7,6 +7,7 @@ terraform {
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_dlq_messages_alarm" {
+  region              = "us-east-2"
   alarm_name          = "${var.resource_prefix}-sqs-dlq-present"
   alarm_description   = "Items are present in the application DLQ, meaning some messages failed to process."
   namespace           = "AWS/SQS"
@@ -26,6 +27,7 @@ resource "aws_cloudwatch_metric_alarm" "app_dlq_messages_alarm" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_latency_alarm" {
+  region              = "us-east-2"
   for_each            = var.performance_noreq_lambdas
   alarm_name          = "${each.value}-latency-high"
   alarm_description   = "${replace(each.value, "${var.resource_prefix}-", "")} Trailing Mean - 95% API gateway latency is > 1.5s for 2 times in 4 minutes."
@@ -45,6 +47,7 @@ resource "aws_cloudwatch_metric_alarm" "app_latency_alarm" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_no_requests_alarm" {
+  region              = "us-east-2"
   for_each            = var.performance_noreq_lambdas
   alarm_name          = "${each.value}-no-requests"
   alarm_description   = "${replace(each.value, "${var.resource_prefix}-", "")}: no requests have been received in the past 5 minutes."
@@ -64,6 +67,7 @@ resource "aws_cloudwatch_metric_alarm" "app_no_requests_alarm" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_invocation_error_alarm" {
+  region              = "us-east-2"
   for_each            = var.all_lambdas
   alarm_name          = "${each.value}-error-invocation"
   alarm_description   = "${replace(each.value, "${var.resource_prefix}-", "")} lambda threw a critical error."
@@ -83,6 +87,7 @@ resource "aws_cloudwatch_metric_alarm" "app_invocation_error_alarm" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "app5xx_error_alarm" {
+  region              = "us-east-2"
   alarm_name          = "${var.resource_prefix}-cloudfront-5xx-error"
   alarm_description   = "Main application responses are more than 1% 5xx errors (from Cloudfront)"
   namespace           = "AWS/CloudFront"
@@ -102,6 +107,7 @@ resource "aws_cloudwatch_metric_alarm" "app5xx_error_alarm" {
 
 # firehose alarms
 resource "aws_cloudwatch_metric_alarm" "firehost_archival_data_freshness" {
+  region              = "us-east-2"
   alarm_name          = "${var.resource_prefix}-firehose-data-stale"
   alarm_description   = "Delivery of archival records to S3 is taking longer than 5 minutes."
   namespace           = "AWS/Firehose"

@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from "fastify";
 import * as z from "zod/v4";
 import {
   ConditionalCheckFailedException,
+  DynamoDBClient,
   QueryCommand,
   ScanCommand,
   UpdateItemCommand,
@@ -93,15 +94,11 @@ const listMerchItemsResponse = z.object({
 
 const postSchema = z.union([postMerchSchema, postTicketSchema]);
 
-type VerifyPostRequest = z.infer<typeof postSchema>;
-
-type TicketsGetRequest = {
-  Params: { id: string };
-  Querystring: { type: string };
-  Body: undefined;
-};
-
 const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
+  // tickets is legacy and is stuck in us-east-1 for now.
+  const UsEast1DynamoClient = new DynamoDBClient({
+    region: "us-east-1",
+  });
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "",
     {
@@ -133,7 +130,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       });
 
       const merchItems: ItemMetadata[] = [];
-      const response = await fastify.dynamoClient.send(merchCommand);
+      const response = await UsEast1DynamoClient.send(merchCommand);
       const now = new Date();
 
       if (response.Items) {
@@ -168,7 +165,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       });
 
       const ticketItems: TicketItemMetadata[] = [];
-      const ticketResponse = await fastify.dynamoClient.send(ticketCommand);
+      const ticketResponse = await UsEast1DynamoClient.send(ticketCommand);
 
       if (ticketResponse.Items) {
         for (const item of ticketResponse.Items.map((x) => unmarshall(x))) {
@@ -231,7 +228,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               ":itemId": { S: eventId },
             },
           });
-          const response = await fastify.dynamoClient.send(command);
+          const response = await UsEast1DynamoClient.send(command);
           if (!response.Items) {
             throw new NotFoundError({
               endpointName: `/api/v1/tickets/${eventId}`,
@@ -321,7 +318,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           break;
       }
       try {
-        await fastify.dynamoClient.send(command);
+        await UsEast1DynamoClient.send(command);
       } catch (e) {
         if (e instanceof ConditionalCheckFailedException) {
           throw new NotFoundError({
@@ -412,7 +409,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
       let purchaserData: PurchaseData;
       try {
-        const ticketEntry = await fastify.dynamoClient.send(command);
+        const ticketEntry = await UsEast1DynamoClient.send(command);
         if (!ticketEntry.Attributes) {
           throw new DatabaseFetchError({
             message: "Could not find ticket data",
@@ -472,7 +469,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         purchaserData,
       });
       await createAuditLogEntry({
-        dynamoClient: fastify.dynamoClient,
+        dynamoClient: UsEast1DynamoClient,
         entry: {
           module: Modules.TICKETS,
           actor: request.username!,

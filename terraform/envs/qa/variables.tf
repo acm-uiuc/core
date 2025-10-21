@@ -42,10 +42,10 @@ variable "EmailDomain" {
 
 variable "GeneralSNSAlertArn" {
   type    = string
-  default = "arn:aws:sns:us-east-1:427040638965:infra-monitor-alerts"
+  default = "arn:aws:sns:us-east-2:427040638965:infra-monitor-alerts"
 }
 
 variable "PrioritySNSAlertArn" {
   type    = string
-  default = "arn:aws:sns:us-east-1:427040638965:infra-monitor-alerts"
+  default = "arn:aws:sns:us-east-2:427040638965:infra-monitor-alerts"
 }

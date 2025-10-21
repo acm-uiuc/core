@@ -123,7 +123,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::298118738376:role/GitHubActionsRole
           role-session-name: Manual_Core_Prod_Deployment_${{ github.run_id }}
-          aws-region: us-east-1
+          aws-region: us-east-2
       - name: Publish to AWS
         run: make deploy_prod
         env:

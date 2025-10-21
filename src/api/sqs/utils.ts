@@ -17,11 +17,11 @@ export const getAuthorizedClients = async (
     const credentials = await getRoleCredentials(roleArns.Entra);
     const clients = {
       smClient: new SecretsManagerClient({
-        region: genericConfig.AwsOhioRegion,
+        region: genericConfig.AwsRegion,
         credentials,
       }),
       dynamoClient: new DynamoDBClient({
-        region: genericConfig.AwsOhioRegion,
+        region: genericConfig.AwsRegion,
         credentials,
       }),
     };

@@ -86,11 +86,11 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       const credentials = await getRoleCredentials(roleArns.Entra);
       const clients = {
         smClient: new SecretsManagerClient({
-          region: genericConfig.AwsOhioRegion,
+          region: genericConfig.AwsRegion,
           credentials,
         }),
         dynamoClient: new DynamoDBClient({
-          region: genericConfig.AwsOhioRegion,
+          region: genericConfig.AwsRegion,
           credentials,
         }),
         redisClient: fastify.redisClient,
