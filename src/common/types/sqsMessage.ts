@@ -80,12 +80,22 @@ export const sqsPayloadSchemas = {
   )
 } as const;
 
+// Add this type helper
+type AllSchemas = {
+  [K in AvailableSQSFunctions]: (typeof sqsPayloadSchemas)[K];
+};
+
+// This will cause a TypeScript error if you're missing any schemas in the union
+const _exhaustivenessCheck: AllSchemas = sqsPayloadSchemas;
+
 export const sqsPayloadSchema = z.discriminatedUnion("function", [
   sqsPayloadSchemas[AvailableSQSFunctions.Ping],
   sqsPayloadSchemas[AvailableSQSFunctions.EmailMembershipPass],
   sqsPayloadSchemas[AvailableSQSFunctions.ProvisionNewMember],
   sqsPayloadSchemas[AvailableSQSFunctions.SendSaleEmail],
-  sqsPayloadSchemas[AvailableSQSFunctions.EmailNotifications]] as
+  sqsPayloadSchemas[AvailableSQSFunctions.EmailNotifications],
+  sqsPayloadSchemas[AvailableSQSFunctions.CreateOrgGithubTeam]
+] as
   const);
 
 export type SQSPayload<T extends AvailableSQSFunctions> = z.infer<
