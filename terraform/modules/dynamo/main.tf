@@ -20,8 +20,10 @@ resource "aws_dynamodb_table" "app_audit_log" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -44,8 +46,10 @@ resource "aws_dynamodb_table" "api_keys" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -82,8 +86,10 @@ resource "aws_dynamodb_table" "room_requests" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -122,8 +128,10 @@ resource "aws_dynamodb_table" "room_requests_status" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -163,8 +171,10 @@ resource "aws_dynamodb_table" "external_membership" {
     projection_type = "KEYS_ONLY"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -184,8 +194,10 @@ resource "aws_dynamodb_table" "iam_assignments" {
     type = "S"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -213,8 +225,10 @@ resource "aws_dynamodb_table" "user_info" {
     projection_type = "KEYS_ONLY"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -246,8 +260,10 @@ resource "aws_dynamodb_table" "events" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -282,8 +298,10 @@ resource "aws_dynamodb_table" "stripe_links" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -307,6 +325,12 @@ resource "aws_dynamodb_table" "stripe_payments" {
   attribute {
     name = "sortKey"
     type = "S"
+  }
+  replica {
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -337,8 +361,10 @@ resource "aws_dynamodb_table" "linkry_records" {
     projection_type = "ALL"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -361,8 +387,10 @@ resource "aws_dynamodb_table" "cache" {
     enabled        = true
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -406,8 +434,10 @@ resource "aws_dynamodb_table" "sig_info" {
     projection_type = "KEYS_ONLY"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -431,8 +461,10 @@ resource "aws_dynamodb_table" "store_inventory" {
     type = "S"
   }
   replica {
-    region_name    = "us-east-2"
-    propagate_tags = true
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
@@ -470,6 +502,12 @@ resource "aws_dynamodb_table" "store_carts_orders" {
     range_key       = "createdAt"
     projection_type = "ALL"
   }
+  replica {
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
+  }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 }
@@ -490,6 +528,12 @@ resource "aws_dynamodb_table" "store_limits" {
   attribute {
     name = "limitId"
     type = "S"
+  }
+  replica {
+    region_name                 = "us-east-2"
+    propagate_tags              = true
+    deletion_protection_enabled = true
+    point_in_time_recovery      = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
