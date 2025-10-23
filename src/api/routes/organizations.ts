@@ -53,7 +53,7 @@ import {
 } from "api/functions/entraId.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { getRoleCredentials } from "api/functions/sts.js";
-import { SQSClient } from "@aws-sdk/client-sqs";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { sendSqsMessagesInBatches } from "api/functions/sqs.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 import {
@@ -61,6 +61,7 @@ import {
   createGithubTeam,
 } from "api/functions/github.js";
 import { SKIP_EXTERNAL_ORG_LEAD_UPDATE } from "common/overrides.js";
+import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${Math.floor(ORG_DATA_CACHED_DURATION * 1.1)}, stale-if-error=3600`;
 
@@ -413,11 +414,9 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         ? (unmarshall(metadataResponse.Item).leadsEntraGroupId as string)
         : undefined;
 
-      let githubTeamId = metadataResponse.Item
-        ? (unmarshall(metadataResponse.Item).githubTeamId as number)
+      const githubTeamId = metadataResponse.Item
+        ? (unmarshall(metadataResponse.Item).leadsGithubTeamId as number)
         : undefined;
-
-      let createdGithubTeam = false;
 
       const entraIdToken = await getEntraIdToken({
         clients,
@@ -428,8 +427,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
 
       const shouldCreateNewEntraGroup =
         !entraGroupId && !shouldSkipEnhancedActions;
-      const shouldCreateNewGithubGroup =
-        !githubTeamId && !shouldSkipEnhancedActions;
       const grpDisplayName = `${request.params.orgId} Admin`;
       const orgInfo = getOrgByName(request.params.orgId);
       if (!orgInfo) {
@@ -524,65 +521,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         }
       }
 
-      // Create GitHub team if needed
-      if (shouldCreateNewGithubGroup) {
-        request.log.info(
-          `No GitHub team exists for ${request.params.orgId}. Creating new team...`,
-        );
-        const suffix = fastify.environmentConfig.GroupEmailSuffix;
-        githubTeamId = await createGithubTeam({
-          orgId: fastify.environmentConfig.GithubOrgName,
-          githubToken: fastify.secretConfig.github_pat,
-          parentTeamId: fastify.environmentConfig.ExecGithubTeam,
-          name: `${grpShortName}${suffix === "" ? "" : `-${suffix}`}`,
-          description: grpDisplayName,
-          logger: request.log,
-        });
-        request.log.info(
-          `Created GitHub team "${githubTeamId}" for ${request.params.orgId} leads.`,
-        );
-        createdGithubTeam = true;
-
-        // Store GitHub team ID immediately
-        const logStatement = buildAuditLogTransactPut({
-          entry: {
-            module: Modules.ORG_INFO,
-            message: `Created GitHub team "${githubTeamId}" for organization leads.`,
-            actor: request.username!,
-            target: request.params.orgId,
-          },
-        });
-
-        const storeGithubIdOperation = async () => {
-          const commandTransaction = new TransactWriteItemsCommand({
-            TransactItems: [
-              ...(logStatement ? [logStatement] : []),
-              {
-                Update: {
-                  TableName: genericConfig.SigInfoTableName,
-                  Key: marshall({
-                    primaryKey: `DEFINE#${request.params.orgId}`,
-                    entryId: "0",
-                  }),
-                  UpdateExpression:
-                    "SET leadsGithubTeamId = :githubTeamId, updatedAt = :updatedAt",
-                  ExpressionAttributeValues: marshall({
-                    ":githubTeamId": githubTeamId,
-                    ":updatedAt": new Date().toISOString(),
-                  }),
-                },
-              },
-            ],
-          });
-          return await clients.dynamoClient.send(commandTransaction);
-        };
-
-        await retryDynamoTransactionWithBackoff(
-          storeGithubIdOperation,
-          request.log,
-          `Store GitHub team ID for ${request.params.orgId}`,
-        );
-      }
       const commonArgs = {
         orgId: request.params.orgId,
         actorUsername: request.username!,
@@ -628,12 +566,30 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         .map((r) => r.value)
         .filter((p): p is SQSMessage => p !== null);
 
+      if (!fastify.sqsClient) {
+        fastify.sqsClient = new SQSClient({
+          region: genericConfig.AwsRegion,
+        });
+      }
+
+      // Queue creating GitHub team if needed
+      if (!githubTeamId) {
+        const sqsPayload: SQSPayload<AvailableSQSFunctions.CreateOrgGithubTeam> =
+          {
+            function: AvailableSQSFunctions.CreateOrgGithubTeam,
+            metadata: {
+              initiator: request.username!,
+              reqId: request.id,
+            },
+            payload: {
+              orgName: request.params.orgId,
+              githubTeamDescription: grpDisplayName,
+              githubTeamName: grpShortName,
+            },
+          };
+        sqsPayloads.push(sqsPayload);
+      }
       if (sqsPayloads.length > 0) {
-        if (!fastify.sqsClient) {
-          fastify.sqsClient = new SQSClient({
-            region: genericConfig.AwsRegion,
-          });
-        }
         await sendSqsMessagesInBatches({
           sqsClient: fastify.sqsClient,
           queueUrl: fastify.environmentConfig.SqsQueueUrl,
@@ -641,23 +597,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           sqsPayloads,
         });
       }
-
-      if (
-        createdGithubTeam &&
-        githubTeamId &&
-        fastify.environmentConfig.GithubIdpSyncEnabled
-      ) {
-        request.log.info("Setting up IDP sync for Github team!");
-        await assignIdpGroupsToTeam({
-          githubToken: fastify.secretConfig.github_pat,
-          teamId: githubTeamId,
-          logger: request.log,
-          groupsToSync: [entraGroupId].filter((x): x is string => !!x),
-          orgId: fastify.environmentConfig.GithubOrgId,
-          orgName: fastify.environmentConfig.GithubOrgName,
-        });
-      }
-
       return reply.status(201).send();
     },
   );

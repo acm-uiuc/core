@@ -53,7 +53,7 @@ describe("createGithubTeam", () => {
 
     const result = await createGithubTeam(defaultInputs);
 
-    expect(result).toBe(existingTeamId);
+    expect(result).toStrictEqual({ updated: false, id: existingTeamId });
     expect(mockLogger.info).toHaveBeenCalledWith(
       `Team "Test Team" already exists with id: ${existingTeamId}`
     );
@@ -81,7 +81,7 @@ describe("createGithubTeam", () => {
 
     const result = await createGithubTeam(defaultInputs);
 
-    expect(result).toBe(newTeamId);
+    expect(result).toStrictEqual({ updated: true, id: newTeamId });
     expect(mockOctokit.request).toHaveBeenCalledWith("POST /orgs/{org}/teams", {
       org: "test-org",
       name: "Test Team",
@@ -157,7 +157,7 @@ describe("createGithubTeam", () => {
 
     const result = await createGithubTeam(defaultInputs);
 
-    expect(result).toBe(newTeamId);
+    expect(result).toStrictEqual({ updated: true, id: newTeamId });
     expect(mockLogger.warn).toHaveBeenCalledWith(
       `Failed to remove user from team ${newTeamId}:`,
       expect.any(Error)

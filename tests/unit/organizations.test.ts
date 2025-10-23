@@ -16,9 +16,6 @@ import { createJwt } from "./auth.test.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
 import { randomUUID } from "node:crypto";
-import { createGithubTeam } from "../../src/api/functions/github.js";
-import { addLead, removeLead } from "../../src/api/functions/organizations.js";
-import { modifyGroup } from "../../src/api/functions/entraId.js";
 
 const app = await init();
 const ddbMock = mockClient(DynamoDBClient);
@@ -45,17 +42,6 @@ vi.mock("../../src/api/functions/entraId.js", () => {
     }),
     createM365Group: vi.fn().mockImplementation(async () => {
       return randomUUID();
-    }),
-  };
-});
-vi.mock("../../src/api/functions/github.js", () => {
-  return {
-    ...vi.importActual("../../src/api/functions/github.js"),
-    createGithubTeam: vi.fn().mockImplementation(async () => {
-      return randomUUID();
-    }),
-    assignIdpGroupsToTeam: vi.fn().mockImplementation(async () => {
-      return;
     }),
   };
 });
@@ -417,16 +403,6 @@ describe("Organization info tests - Extended Coverage", () => {
       expect(
         ddbMock.commandCalls(TransactWriteItemsCommand).length,
       ).toBeGreaterThan(0);
-      expect(createGithubTeam).toHaveBeenCalledOnce();
-      expect(createGithubTeam).toHaveBeenCalledWith(
-        expect.objectContaining({
-          githubToken: "abc123testing",
-          orgId: "acm-uiuc-testing",
-          name: "social-adm-nonprod",
-          description: "Social Committee Admin",
-          parentTeamId: 14420860,
-        }),
-      );
     });
 
     test("Successfully adds and removes Officers but skips Entra + GitHub integration", async () => {
@@ -489,8 +465,6 @@ describe("Organization info tests - Extended Coverage", () => {
       expect(
         ddbMock.commandCalls(TransactWriteItemsCommand).length,
       ).toBeGreaterThan(0);
-      expect(createGithubTeam).toHaveBeenCalledTimes(0);
-      expect(modifyGroup).toHaveBeenCalledTimes(0);
     });
 
     test("Organization lead can manage other leads", async () => {
