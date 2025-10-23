@@ -31,6 +31,10 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
+locals {
+  LinkryReplicationRegions = toset(["us-east-1", "us-west-2", "eu-central-1", "ap-south-1"])
+}
+
 
 module "sqs_queues" {
   depends_on                    = [module.lambdas]
@@ -47,8 +51,9 @@ locals {
 }
 
 module "dynamo" {
-  source    = "../../modules/dynamo"
-  ProjectId = var.ProjectId
+  source                   = "../../modules/dynamo"
+  ProjectId                = var.ProjectId
+  LinkryReplicationRegions = local.LinkryReplicationRegions
 }
 
 module "origin_verify" {

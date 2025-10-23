@@ -290,7 +290,13 @@ resource "aws_dynamodb_table" "linkry_records" {
     name = "access"
     type = "S"
   }
-
+  dynamic "replica" {
+    for_each = var.LinkryReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
   global_secondary_index {
     name            = "AccessIndex"
     hash_key        = "access"

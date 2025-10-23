@@ -37,6 +37,7 @@ locals {
     main = module.sqs_queues.main_queue_arn
     sqs  = module.sqs_queues.sales_email_queue_arn
   }
+  LinkryReplicationRegions = toset(["us-east-1", "us-west-2", "eu-central-1", "ap-south-1"])
 }
 
 module "sqs_queues" {
@@ -46,8 +47,9 @@ module "sqs_queues" {
 }
 
 module "dynamo" {
-  source    = "../../modules/dynamo"
-  ProjectId = var.ProjectId
+  source                   = "../../modules/dynamo"
+  ProjectId                = var.ProjectId
+  LinkryReplicationRegions = local.LinkryReplicationRegions
 }
 
 module "origin_verify" {
