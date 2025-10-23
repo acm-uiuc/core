@@ -37,7 +37,7 @@ test("getting groups", { timeout: 10000 }, async () => {
 test("getting members of a group", async () => {
   const token = await createJwt();
   const response = await fetch(
-    `${baseEndpoint}/api/v1/iam/groups/dbe18eb2-9675-46c4-b1ef-749a6db4fedd`,
+    `${baseEndpoint}/api/v1/iam/groups/ff25ec56-6a33-420d-bdb0-51d8a3920e46`,
     {
       method: "GET",
       headers: {
