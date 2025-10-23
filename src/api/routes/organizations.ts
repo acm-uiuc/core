@@ -415,7 +415,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         : undefined;
 
       const githubTeamId = metadataResponse.Item
-        ? (unmarshall(metadataResponse.Item).githubTeamId as number)
+        ? (unmarshall(metadataResponse.Item).leadsGithubTeamId as number)
         : undefined;
 
       const entraIdToken = await getEntraIdToken({
