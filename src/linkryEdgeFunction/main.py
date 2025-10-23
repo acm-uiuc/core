@@ -4,7 +4,9 @@ import boto3
 from botocore.exceptions import ClientError
 
 DEFAULT_AWS_REGION = "us-east-2"
-AVAILABLE_REPLICAS = os.environ.get("DYNAMODB_REPLICAS", DEFAULT_AWS_REGION).split(",")
+AVAILABLE_REPLICAS = [
+    "us-west-2",
+]
 DYNAMODB_TABLE = "infra-core-api-linkry"
 FALLBACK_URL = os.environ.get("FALLBACK_URL", "https://acm.illinois.edu/404")
 LINKRY_HOME_URL = os.environ.get(
@@ -21,6 +23,8 @@ def select_replica(lambda_region):
 
     # Otherwise, find nearest replica by region prefix matching
     region_prefix = "-".join(lambda_region.split("-")[:2])
+    if region_prefix == "us":
+        return DEFAULT_AWS_REGION
 
     for replica in AVAILABLE_REPLICAS:
         if replica.startswith(region_prefix):
@@ -63,10 +67,9 @@ def handler(event, context):
                 ":slug": {"S": path},
                 ":owner_prefix": {"S": "OWNER#"},
             },
+            ProjectionExpression="redirect",
             Limit=1,  # We only need one result
         )
-
-        print(f"DynamoDB query response: {json.dumps(response, default=str)}")
 
         if response.get("Items") and len(response["Items"]) > 0:
             item = response["Items"][0]

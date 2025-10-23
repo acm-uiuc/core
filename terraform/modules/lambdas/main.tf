@@ -310,14 +310,6 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events/stream/*",
         ]
       },
-      {
-        Sid    = "LinkryKvAccess",
-        Effect = "Allow",
-        Action = [
-          "cloudfront-keyvaluestore:*"
-        ],
-        Resource = [var.LinkryKvArn]
-      }
     ]
   }))
 
@@ -360,7 +352,6 @@ resource "aws_lambda_function" "api_lambda" {
       PREVIOUS_ORIGIN_VERIFY_KEY            = var.PreviousOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT = var.PreviousOriginVerifyKeyExpiresAt
       EntraRoleArn                          = aws_iam_role.entra_role.arn
-      LinkryKvArn                           = var.LinkryKvArn
       "NODE_OPTIONS"                        = "--enable-source-maps"
     }
   }
@@ -425,7 +416,6 @@ resource "aws_lambda_function" "slow_lambda" {
       PREVIOUS_ORIGIN_VERIFY_KEY            = var.PreviousOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT = var.PreviousOriginVerifyKeyExpiresAt
       EntraRoleArn                          = aws_iam_role.entra_role.arn
-      LinkryKvArn                           = var.LinkryKvArn
       "NODE_OPTIONS"                        = "--enable-source-maps"
     }
   }
@@ -502,16 +492,11 @@ resource "aws_lambda_function" "linkry_edge" {
   function_name    = "${var.ProjectId}-linkry-edge"
   role             = aws_iam_role.linkry_lambda_edge_role.arn
   handler          = "main.handler"
-  runtime          = "python3.12" # Changed to Python runtime
+  runtime          = "python3.12"
   publish          = true
   timeout          = 5
+  memory_size      = 128
   source_code_hash = data.archive_file.linkry_edge_lambda_code.output_base64sha256
-
-  environment {
-    variables = {
-      DYNAMODB_REPLICAS = join(",", var.LinkryReplicationRegions)
-    }
-  }
 }
 // Outputs
 
@@ -541,4 +526,6 @@ output "core_sqs_consumer_lambda_name" {
   value = local.core_sqs_consumer_lambda_name
 }
 
-
+output "linkry_redirect_function_arn" {
+  value = aws_lambda_function.linkry_edge.qualified_arn
+}

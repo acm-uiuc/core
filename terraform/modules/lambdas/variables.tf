@@ -3,11 +3,6 @@ variable "ProjectId" {
   description = "Prefix before each resource"
 }
 
-variable "LinkryKvArn" {
-  type = string
-}
-
-
 variable "RunEnvironment" {
   type = string
   validation {
