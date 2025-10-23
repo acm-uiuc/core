@@ -10,6 +10,12 @@ data "archive_file" "sqs_lambda_code" {
   output_path = "${path.module}/../../../dist/terraform/sqs.zip"
 }
 
+data "archive_file" "linkry_edge_lambda_code" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../../src/linkryEdgeFunction/"
+  output_path = "${path.module}/../../../dist/terraform/linkryEdgeFunction.zip"
+}
+
 locals {
   core_api_lambda_name          = "${var.ProjectId}-main-server"
   core_api_slow_lambda_name     = "${var.ProjectId}-slow-server"
@@ -444,7 +450,69 @@ module "lambda_warmer_slow" {
   is_streaming_lambda = true
 }
 
+// Linkry Lambda @ Edge
+resource "aws_iam_role" "linkry_lambda_edge_role" {
+  name = "${var.ProjectId}-linkry-edge-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = [
+            "lambda.amazonaws.com",
+            "edgelambda.amazonaws.com"
+          ]
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
 
+resource "aws_iam_role_policy_attachment" "linkry_lambda_edge_basic" {
+  role       = aws_iam_role.linkry_lambda_edge_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "linkry_lambda_edge_dynamodb" {
+  name = "${var.ProjectId}-linkry-edge-dynamodb"
+  role = aws_iam_role.linkry_lambda_edge_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Query"
+        ]
+        Resource = [
+          "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/${var.ProjectId}-linkry"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_lambda_function" "linkry_edge" {
+  region           = "us-east-1"
+  filename         = data.archive_file.linkry_edge_lambda_code.output_path
+  function_name    = "${var.ProjectId}-linkry-edge"
+  role             = aws_iam_role.linkry_lambda_edge_role.arn
+  handler          = "main.handler"
+  runtime          = "python3.12" # Changed to Python runtime
+  publish          = true
+  timeout          = 5
+  source_code_hash = data.archive_file.linkry_edge_lambda_code.output_base64sha256
+
+  environment {
+    variables = {
+      DYNAMODB_REPLICAS = join(",", var.LinkryReplicationRegions)
+    }
+  }
+}
 // Outputs
 
 output "core_function_url" {
