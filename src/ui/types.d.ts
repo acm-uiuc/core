@@ -9,7 +9,6 @@ import type NodeCache from "node-cache";
 import { type DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { type SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { type SQSClient } from "@aws-sdk/client-sqs";
-import { type CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
 import { type AvailableAuthorizationPolicy } from "@common/policies/definition.js";
 
 declare module "fastify" {
