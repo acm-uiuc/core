@@ -10,22 +10,15 @@ import {
   UnauthorizedError,
   ValidationError,
 } from "../../common/errors/index.js";
-import { NoDataRequest } from "../types.js";
 import {
   QueryCommand,
   TransactWriteItemsCommand,
   TransactWriteItem,
   TransactionCanceledException,
 } from "@aws-sdk/client-dynamodb";
-import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
 import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import rateLimiter from "api/plugins/rateLimiter.js";
-import {
-  deleteKey,
-  getLinkryKvArn,
-  setKey,
-} from "api/functions/cloudfrontKvStore.js";
 import { createRequest, linkrySlug } from "common/types/linkry.js";
 import {
   extractUniqueSlugs,
@@ -189,12 +182,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           if (routeAlreadyExists) {
             throw new ValidationError({
               message: `Slug ${request.body.slug} is reserved by the system.`,
-            });
-          }
-
-          if (!fastify.cloudfrontKvClient) {
-            fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
-              region: genericConfig.AwsRegion,
             });
           }
         },
@@ -423,24 +410,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: "Failed to save data to DynamoDB.",
           });
         }
-        // Add to cloudfront key value store so that redirects happen at the edge
-        const kvArn = await getLinkryKvArn(fastify.runEnvironment);
-        try {
-          await setKey({
-            key: request.body.slug,
-            value: request.body.redirect,
-            kvsClient: fastify.cloudfrontKvClient,
-            arn: kvArn,
-          });
-        } catch (e) {
-          fastify.log.error(e);
-          if (e instanceof BaseError) {
-            throw e;
-          }
-          throw new DatabaseInsertError({
-            message: "Failed to save redirect to Cloudfront KV store.",
-          });
-        }
         await createAuditLogEntry({
           dynamoClient: fastify.dynamoClient,
           entry: {
@@ -517,15 +486,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             }),
           }),
         ),
-        onRequest: async (request, reply) => {
-          await fastify.authorizeFromSchema(request, reply);
-
-          if (!fastify.cloudfrontKvClient) {
-            fastify.cloudfrontKvClient = new CloudFrontKeyValueStoreClient({
-              region: genericConfig.AwsRegion,
-            });
-          }
-        },
+        onRequest: fastify.authorizeFromSchema,
       },
       async (request, reply) => {
         const { slug } = request.params;
@@ -612,22 +573,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
           throw new DatabaseDeleteError({
             message: "Failed to delete data from DynamoDB.",
-          });
-        }
-        const kvArn = await getLinkryKvArn(fastify.runEnvironment);
-        try {
-          await deleteKey({
-            key: slug,
-            kvsClient: fastify.cloudfrontKvClient,
-            arn: kvArn,
-          });
-        } catch (e) {
-          fastify.log.error(e);
-          if (e instanceof BaseError) {
-            throw e;
-          }
-          throw new DatabaseDeleteError({
-            message: "Failed to delete redirect at Cloudfront KV store.",
           });
         }
         await createAuditLogEntry({

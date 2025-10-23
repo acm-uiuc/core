@@ -43,6 +43,6 @@ variable "OriginVerifyKey" {
   type = string
 }
 
-variable "LinkryKvArn" {
+variable "LinkryEdgeFunctionArn" {
   type = string
 }

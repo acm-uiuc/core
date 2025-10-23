@@ -15,7 +15,6 @@
     "prettier:write": "prettier --write *.ts **/*.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudfront-keyvaluestore": "^3.895.0",
     "@aws-sdk/client-dynamodb": "^3.895.0",
     "@aws-sdk/client-lambda": "^3.895.0",
     "@aws-sdk/client-secrets-manager": "^3.895.0",

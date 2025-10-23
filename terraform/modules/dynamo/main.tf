@@ -303,6 +303,8 @@ resource "aws_dynamodb_table" "linkry_records" {
     range_key       = "slug"
     projection_type = "ALL"
   }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
 }
 
 resource "aws_dynamodb_table" "cache" {
