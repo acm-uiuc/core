@@ -8,6 +8,7 @@ export enum AvailableSQSFunctions {
   SendSaleEmail = "sendSaleEmail",
   EmailNotifications = "emailNotifications",
   CreateOrgGithubTeam = "createOrgGithubTeam",
+  SyncExecCouncil = "syncExecCouncil",
 }
 
 const sqsMessageMetadataSchema = z.object({
@@ -77,6 +78,9 @@ export const sqsPayloadSchemas = {
       githubTeamName: z.string().min(1),
       githubTeamDescription: z.string().min(1)
     })
+  ),
+  [AvailableSQSFunctions.SyncExecCouncil]: createSQSSchema(
+    AvailableSQSFunctions.SyncExecCouncil, z.object({})
   )
 } as const;
 
@@ -94,7 +98,8 @@ export const sqsPayloadSchema = z.discriminatedUnion("function", [
   sqsPayloadSchemas[AvailableSQSFunctions.ProvisionNewMember],
   sqsPayloadSchemas[AvailableSQSFunctions.SendSaleEmail],
   sqsPayloadSchemas[AvailableSQSFunctions.EmailNotifications],
-  sqsPayloadSchemas[AvailableSQSFunctions.CreateOrgGithubTeam]
+  sqsPayloadSchemas[AvailableSQSFunctions.CreateOrgGithubTeam],
+  sqsPayloadSchemas[AvailableSQSFunctions.SyncExecCouncil]
 ] as
   const);
 
