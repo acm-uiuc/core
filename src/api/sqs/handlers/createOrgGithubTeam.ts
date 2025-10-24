@@ -91,7 +91,7 @@ export const createOrgGithubTeamHandler: SQSHandlerFunction<
       const { updated, id: teamId } = await createGithubTeam({
         orgId: currentEnvironmentConfig.GithubOrgName,
         githubToken: secretConfig.github_pat,
-        parentTeamId: currentEnvironmentConfig.ExecGithubTeam,
+        parentTeamId: currentEnvironmentConfig.OrgAdminGithubParentTeam,
         name: finalName,
         description: githubTeamDescription,
         logger,

@@ -525,42 +525,106 @@ export const removeLead = async ({
 };
 
 /**
- * Returns the Microsoft 365 Dynamic User query to return all members of all lead groups.
- * Currently used to setup the Exec member list.
+ * Returns all voting org leads across all organizations.
+ * Uses consistent reads to avoid eventual consistency issues.
  * @param dynamoClient A DynamoDB client.
- * @param includeGroupIds Used to ensure that a specific group ID is included (Scan could be eventually consistent.)
+ * @param logger A logger instance.
  */
-export async function getLeadsM365DynamicQuery({
+export async function getAllVotingLeads({
   dynamoClient,
-  includeGroupIds,
+  logger,
 }: {
   dynamoClient: DynamoDBClient;
-  includeGroupIds?: string[];
-}): Promise<string | null> {
-  const command = new ScanCommand({
-    TableName: genericConfig.SigInfoTableName,
-    IndexName: "LeadsGroupIdIndex",
+  logger: ValidLoggers;
+}): Promise<
+  Array<{ username: string; org: string; name: string; title: string }>
+> {
+  // Query all organizations in parallel for better performance
+  const queryPromises = AllOrganizationNameList.map(async (orgName) => {
+    const leadsQuery = new QueryCommand({
+      TableName: genericConfig.SigInfoTableName,
+      KeyConditionExpression: "primaryKey = :leadName",
+      ExpressionAttributeValues: {
+        ":leadName": { S: `LEAD#${orgName}` },
+      },
+      ConsistentRead: true,
+    });
+
+    try {
+      const responseMarshall = await dynamoClient.send(leadsQuery);
+      if (responseMarshall.Items) {
+        return responseMarshall.Items.map((x) => unmarshall(x))
+          .filter((x) => x.username && !x.nonVotingMember)
+          .map((x) => ({
+            username: x.username as string,
+            org: orgName,
+            name: x.name as string,
+            title: x.title as string,
+          }));
+      }
+      return [];
+    } catch (e) {
+      if (e instanceof BaseError) {
+        throw e;
+      }
+      logger.error(e);
+      throw new DatabaseFetchError({
+        message: `Failed to get leads for org ${orgName}.`,
+      });
+    }
   });
-  const results = await dynamoClient.send(command);
-  if (!results || !results.Items || results.Items.length === 0) {
-    return null;
-  }
-  const entries = results.Items.map((x) => unmarshall(x)) as {
-    primaryKey: string;
-    leadsEntraGroupId: string;
-  }[];
-  const groupIds = entries
-    .filter((x) => x.primaryKey.startsWith("DEFINE#"))
-    .map((x) => x.leadsEntraGroupId);
 
-  if (groupIds.length === 0) {
-    return null;
+  const results = await Promise.all(queryPromises);
+  return results.flat();
+}
+
+/**
+ * Checks if a user should remain in exec council by verifying they are a voting lead of at least one org.
+ * Uses consistent reads to avoid eventual consistency issues.
+ * @param username The username to check.
+ * @param dynamoClient A DynamoDB client.
+ * @param logger A logger instance.
+ */
+export async function shouldBeInExecCouncil({
+  username,
+  dynamoClient,
+  logger,
+}: {
+  username: string;
+  dynamoClient: DynamoDBClient;
+  logger: ValidLoggers;
+}): Promise<boolean> {
+  // Query all orgs to see if this user is a voting lead of any org
+  for (const orgName of AllOrganizationNameList) {
+    const leadsQuery = new QueryCommand({
+      TableName: genericConfig.SigInfoTableName,
+      KeyConditionExpression: "primaryKey = :leadName AND entryId = :username",
+      ExpressionAttributeValues: {
+        ":leadName": { S: `LEAD#${orgName}` },
+        ":username": { S: username },
+      },
+      ConsistentRead: true,
+    });
+
+    try {
+      const responseMarshall = await dynamoClient.send(leadsQuery);
+      if (responseMarshall.Items && responseMarshall.Items.length > 0) {
+        const lead = unmarshall(responseMarshall.Items[0]);
+        // If they're a lead and not a non-voting member, they should be in exec
+        if (!lead.nonVotingMember) {
+          return true;
+        }
+      }
+    } catch (e) {
+      if (e instanceof BaseError) {
+        throw e;
+      }
+      logger.error(e);
+      throw new DatabaseFetchError({
+        message: `Failed to check lead status for ${username} in org ${orgName}.`,
+      });
+    }
   }
 
-  const formattedGroupIds = [
-    ...new Set([...(includeGroupIds || []), ...groupIds]),
-  ]
-    .map((id) => `'${id}'`)
-    .join(", ");
-  return `user.memberOf -any (group.objectId -in [${formattedGroupIds}])`;
+  return false;
 }

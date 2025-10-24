@@ -1,9 +1,5 @@
-import { FastifyError, FastifyPluginAsync } from "fastify";
-import {
-  AllOrganizationNameList,
-  getOrgByName,
-  Organizations,
-} from "@acm-uiuc/js-shared";
+import { FastifyPluginAsync } from "fastify";
+import { AllOrganizationNameList, getOrgByName } from "@acm-uiuc/js-shared";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { withRoles, withTags } from "api/components/index.js";
 import { z } from "zod/v4";
@@ -23,7 +19,6 @@ import {
 } from "common/errors/index.js";
 import {
   addLead,
-  getLeadsM365DynamicQuery,
   getOrgInfo,
   removeLead,
   SQSMessage,
@@ -35,8 +30,6 @@ import {
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import {
-  execCouncilGroupId,
-  execCouncilTestingGroupId,
   genericConfig,
   notificationRecipients,
   roleArns,
@@ -46,20 +39,12 @@ import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { authorizeByOrgRoleOrSchema } from "api/functions/authorization.js";
 import { checkPaidMembership } from "api/functions/membership.js";
-import {
-  createM365Group,
-  getEntraIdToken,
-  setGroupMembershipRule,
-} from "api/functions/entraId.js";
+import { createM365Group, getEntraIdToken } from "api/functions/entraId.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { getRoleCredentials } from "api/functions/sts.js";
-import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { SQSClient } from "@aws-sdk/client-sqs";
 import { sendSqsMessagesInBatches } from "api/functions/sqs.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
-import {
-  assignIdpGroupsToTeam,
-  createGithubTeam,
-} from "api/functions/github.js";
 import { SKIP_EXTERNAL_ORG_LEAD_UPDATE } from "common/overrides.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 
@@ -499,20 +484,8 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             `Store Entra group ID for ${request.params.orgId}`,
           );
 
-          // Update dynamic membership query
-          const newQuery = await getLeadsM365DynamicQuery({
-            dynamoClient: fastify.dynamoClient,
-            includeGroupIds: [entraGroupId],
-          });
-          if (newQuery) {
-            const groupToUpdate =
-              fastify.runEnvironment === "prod"
-                ? execCouncilGroupId
-                : execCouncilTestingGroupId;
-            request.log.info("Changing Exec group membership dynamic query...");
-            await setGroupMembershipRule(entraIdToken, groupToUpdate, newQuery);
-            request.log.info("Changed Exec group membership dynamic query!");
-          }
+          // Note: Exec council membership is now managed via SQS sync handler
+          // instead of dynamic membership rules
         } catch (e) {
           request.log.error(e, "Failed to create Entra group");
           throw new InternalServerError({
@@ -589,6 +562,19 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           };
         sqsPayloads.push(sqsPayload);
       }
+
+      // Queue exec council sync to ensure voting members are added/removed
+      const syncExecPayload: SQSPayload<AvailableSQSFunctions.SyncExecCouncil> =
+        {
+          function: AvailableSQSFunctions.SyncExecCouncil,
+          metadata: {
+            initiator: request.username!,
+            reqId: request.id,
+          },
+          payload: {},
+        };
+      sqsPayloads.push(syncExecPayload);
+
       if (sqsPayloads.length > 0) {
         await sendSqsMessagesInBatches({
           sqsClient: fastify.sqsClient,
