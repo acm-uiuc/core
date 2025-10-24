@@ -9,6 +9,7 @@ import {
   execCouncilGroupId,
   execCouncilTestingGroupId,
   genericConfig,
+  roleArns,
 } from "common/config.js";
 import { getAllVotingLeads } from "api/functions/organizations.js";
 import {
@@ -18,22 +19,51 @@ import {
 } from "api/functions/entraId.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { EntraGroupActions } from "common/types/iam.js";
+import { getRoleCredentials } from "api/functions/sts.js";
 
 export const syncExecCouncilHandler: SQSHandlerFunction<
   AvailableSQSFunctions.SyncExecCouncil
 > = async (_payload, _metadata, logger) => {
+  const getAuthorizedClients = async () => {
+    if (roleArns.Entra) {
+      logger.info(
+        `Attempting to assume Entra role ${roleArns.Entra} to get the Entra token...`,
+      );
+      const credentials = await getRoleCredentials(roleArns.Entra);
+      const clients = {
+        smClient: new SecretsManagerClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
+        dynamoClient: new DynamoDBClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
+      };
+      logger.info(
+        `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
+      );
+      return clients;
+    }
+    logger.debug("Did not assume Entra role as no env variable was present");
+    return {
+      smClient: new SecretsManagerClient({
+        region: genericConfig.AwsRegion,
+      }),
+      dynamoClient: new DynamoDBClient({
+        region: genericConfig.AwsRegion,
+      }),
+    };
+  };
+
   const dynamo = new DynamoDBClient({
     region: genericConfig.AwsRegion,
   });
 
-  const smClient = new SecretsManagerClient({
-    region: genericConfig.AwsRegion,
-  });
-
   try {
-    // Get Entra ID token
+    const clients = await getAuthorizedClients();
     const entraIdToken = await getEntraIdToken({
-      clients: { smClient, dynamoClient: dynamo },
+      clients,
       clientId: currentEnvironmentConfig.AadValidClientId,
       secretName: genericConfig.EntraSecretName,
       logger,
