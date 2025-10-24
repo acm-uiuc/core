@@ -487,7 +487,7 @@ resource "aws_iam_role_policy" "linkry_lambda_edge_dynamodb" {
 }
 
 resource "aws_cloudwatch_log_group" "lambda_edge" {
-  name              = "/aws/lambda/us-east-1.${aws_lambda_function.edge.function_name}"
+  name              = "/aws/lambda/us-east-1.${aws_lambda_function.linkry_edge.function_name}"
   retention_in_days = var.LogRetentionDays
 }
 
