@@ -101,7 +101,13 @@ export async function getOrgInfo({
               name: x.name,
               username: x.username,
               title: x.title,
-            }) as { name: string; username: string; title: string | undefined },
+              nonVotingMember: x.nonVotingMember || false,
+            }) as {
+              name: string;
+              username: string;
+              title: string | undefined;
+              nonVotingMember: boolean;
+            },
         );
       response = { ...response, leads: unmarshalledLeads };
     }
