@@ -570,7 +570,7 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
 
                 <Checkbox
                   label="Non-voting member"
-                  description="Check this if the lead should not have voting rights in Executive Council"
+                  description={`Check this if the lead should not have voting rights for ${organizationId} in the Executive Council`}
                   checked={newLeadNonVoting}
                   onChange={(e) => setNewLeadNonVoting(e.currentTarget.checked)}
                 />
@@ -587,8 +587,8 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
                     </Text>
                     <Text size="sm">
                       This lead will have management permissions but will not
-                      have voting rights in Executive Council meetings. Use this
-                      designation carefully.
+                      have voting rights for your organization in Executive
+                      Council meetings. Use this designation carefully.
                     </Text>
                   </Alert>
                 )}

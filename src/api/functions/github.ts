@@ -6,7 +6,7 @@ import { Octokit } from "octokit";
 export interface CreateGithubTeamInputs {
   githubToken: string;
   orgId: string;
-  parentTeamId: number;
+  parentTeamId?: number;
   name: string;
   description?: string;
   privacy?: "secret" | "closed";
