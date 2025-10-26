@@ -349,11 +349,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         return;
       }
       const response = await createRoomRequest(values);
-      await navigate("/roomRequests");
-      notifications.show({
-        title: "Room Request Submitted",
-        message: `The request ID is ${response.id}.`,
-      });
+      navigate(`/roomRequests/${values.semester}/${response.id}`);
     } catch (e) {
       notifications.show({
         color: "red",
