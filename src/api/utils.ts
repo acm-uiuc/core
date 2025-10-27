@@ -42,3 +42,5 @@ export async function retryDynamoTransactionWithBackoff<T>(
 
   throw lastError;
 }
+
+export const isProd = process.env.RunEnvironment === "prod";

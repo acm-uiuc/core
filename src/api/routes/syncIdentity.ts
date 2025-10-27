@@ -109,6 +109,9 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           lastName: surname,
           netId,
           dynamoClient: fastify.dynamoClient,
+          redisClient: fastify.redisClient,
+          stripeApiKey: fastify.secretConfig.stripe_secret_key,
+          logger: request.log,
         });
         let isPaidMember = await checkPaidMembershipFromRedis(
           netId,
@@ -123,7 +126,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
         }
         if (isPaidMember) {
           const username = `${netId}@illinois.edu`;
-          request.log.info("User is paid member, syncing profile!");
+          request.log.info("User is paid member, syncing Entra user!");
           const entraIdToken = await getEntraIdToken({
             clients: await getAuthorizedClients(),
             clientId: fastify.environmentConfig.AadValidClientId,
