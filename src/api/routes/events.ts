@@ -9,7 +9,11 @@ import {
   ScanCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { EVENT_CACHED_DURATION, genericConfig } from "../../common/config.js";
+import {
+  EVENT_CACHED_DURATION,
+  genericConfig,
+  STALE_IF_ERROR_CACHED_TIME,
+} from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import {
   BaseError,
@@ -118,7 +122,7 @@ const repeatOptions = ["weekly", "biweekly"] as const;
 const zodIncludeMetadata = z.coerce.boolean().default(false).optional().meta({
   description: "If true, include metadata for each event entry.",
 });
-export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=420, stale-if-error=3600`;
+export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=${EVENT_CACHED_DURATION * 2}, stale-if-error=${STALE_IF_ERROR_CACHED_TIME}`;
 export type EventRepeatOptions = (typeof repeatOptions)[number];
 
 const baseSchema = z.object({

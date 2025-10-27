@@ -33,6 +33,7 @@ import {
   genericConfig,
   notificationRecipients,
   roleArns,
+  STALE_IF_ERROR_CACHED_TIME,
 } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
@@ -48,7 +49,7 @@ import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 import { SKIP_EXTERNAL_ORG_LEAD_UPDATE } from "common/overrides.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 
-export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${Math.floor(ORG_DATA_CACHED_DURATION * 1.1)}, stale-if-error=3600`;
+export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${ORG_DATA_CACHED_DURATION * 2}, stale-if-error=${STALE_IF_ERROR_CACHED_TIME}`;
 
 const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {
