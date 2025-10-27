@@ -301,6 +301,7 @@ export type StripeCustomerCreateParams = {
   name: string;
   stripeApiKey: string;
   metadata?: Record<string, string>;
+  idempotencyKey?: string;
 };
 
 export const createStripeCustomer = async ({
@@ -308,15 +309,19 @@ export const createStripeCustomer = async ({
   name,
   stripeApiKey,
   metadata,
+  idempotencyKey,
 }: StripeCustomerCreateParams): Promise<string> => {
-  const stripe = new Stripe(stripeApiKey);
-  const customer = await stripe.customers.create({
-    email,
-    name,
-    metadata: {
-      ...metadata,
-      ...(isProd ? {} : { environment: process.env.RunEnvironment }),
+  const stripe = new Stripe(stripeApiKey, { maxNetworkRetries: 2 });
+  const customer = await stripe.customers.create(
+    {
+      email,
+      name,
+      metadata: {
+        ...(metadata ?? {}),
+        ...(isProd ? {} : { environment: process.env.RunEnvironment }),
+      },
     },
-  });
+    idempotencyKey ? { idempotencyKey } : undefined,
+  );
   return customer.id;
 };
