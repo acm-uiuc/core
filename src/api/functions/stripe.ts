@@ -27,7 +27,7 @@ export type StripeCheckoutSessionCreateParams = {
 export type StripeCheckoutSessionCreateWithCustomerParams = {
   successUrl?: string;
   returnUrl?: string;
-  customerId?: string;
+  customerId: string;
   stripeApiKey: string;
   items: { price: string; quantity: number }[];
   initiator: string;
