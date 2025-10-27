@@ -19,8 +19,8 @@
     "esbuild": "^0.25.11"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.914.0",
-    "@aws-sdk/client-firehose": "^3.914.0",
-    "@aws-sdk/util-dynamodb": "^3.914.0"
+    "@aws-sdk/client-dynamodb": "^3.917.0",
+    "@aws-sdk/client-firehose": "^3.917.0",
+    "@aws-sdk/util-dynamodb": "^3.917.0"
   }
 }
