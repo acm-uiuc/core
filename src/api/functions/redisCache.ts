@@ -1,11 +1,11 @@
 import type RedisModule from "ioredis";
 import type pino from "pino";
-import { type FastifyBaseLogger } from "fastify";
+import { ValidLoggers } from "api/types.js";
 
 export type GetFromCacheInput = {
   redisClient: RedisModule.default;
   key: string;
-  logger: pino.Logger | FastifyBaseLogger;
+  logger: ValidLoggers;
 };
 
 export type SetInCacheInput = {
@@ -13,7 +13,7 @@ export type SetInCacheInput = {
   key: string;
   data: string;
   expiresIn?: number;
-  logger: pino.Logger | FastifyBaseLogger;
+  logger: ValidLoggers;
 };
 
 export async function getKey<T extends object>({
