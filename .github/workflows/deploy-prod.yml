@@ -20,7 +20,7 @@ jobs:
           HUSKY: "0"
 
       - name: Set up Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22.x
           cache: "yarn"
@@ -53,7 +53,7 @@ jobs:
           HUSKY: "0"
 
       - name: Set up Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22.x
           cache: "yarn"
@@ -79,7 +79,7 @@ jobs:
           VITE_BUILD_HASH: ${{ env.VITE_BUILD_HASH }}
 
       - name: Upload Build files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           include-hidden-files: true
           name: build-prod
@@ -104,7 +104,7 @@ jobs:
     environment: "AWS PROD"
     steps:
       - name: Set up Node for testing
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22.x
 
@@ -118,7 +118,7 @@ jobs:
           HUSKY: "0"
 
       - name: Download Build files
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: build-prod
       - uses: aws-actions/configure-aws-credentials@v5
