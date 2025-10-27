@@ -367,7 +367,9 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
             "initiator" in event.data.object.metadata &&
             event.data.object.metadata.initiator === "purchase-membership"
           ) {
-            const customerEmail = event.data.object.customer_email;
+            const customerEmail =
+              event.data.object.customer_email ||
+              event.data.object.customer_details?.email;
             const firstName = event.data.object.metadata.givenName;
             const lastName = event.data.object.metadata.surname;
             if (!customerEmail) {
