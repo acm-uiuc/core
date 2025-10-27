@@ -19,6 +19,7 @@ import {
   resolveEmailToOid,
 } from "api/functions/entraId.js";
 import { syncFullProfile } from "api/functions/sync.js";
+import { getUserIdentity, UserIdentity } from "api/functions/identity.js";
 
 const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -142,6 +143,66 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
         return reply.status(201).send();
+      },
+    );
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+      "/isRequired",
+      {
+        schema: withTags(["Generic"], {
+          headers: z.object({
+            "x-uiuc-token": z.jwt().min(1).meta({
+              description:
+                "An access token for the user in the UIUC Entra ID tenant.",
+            }),
+          }),
+          summary: "Check if a user needs a full user identity sync.",
+          response: {
+            200: {
+              description: "The status was retrieved.",
+              content: {
+                "application/json": {
+                  schema: z.object({
+                    syncRequired: z.boolean().default(false),
+                  }),
+                },
+              },
+            },
+            403: notAuthenticatedError,
+          },
+        }),
+      },
+      async (request, reply) => {
+        const accessToken = request.headers["x-uiuc-token"];
+        const verifiedData = await verifyUiucAccessToken({
+          accessToken,
+          logger: request.log,
+        });
+        const { userPrincipalName: upn, givenName, surname } = verifiedData;
+        const netId = upn.replace("@illinois.edu", "");
+        if (netId.includes("@")) {
+          request.log.error(
+            `Found UPN ${upn} which cannot be turned into NetID via simple replacement.`,
+          );
+          throw new ValidationError({
+            message: "ID token could not be parsed.",
+          });
+        }
+        const userIdentity = await getUserIdentity({
+          netId,
+          dynamoClient: fastify.dynamoClient,
+          logger: request.log,
+        });
+
+        const requiredFields: (keyof UserIdentity)[] = [
+          "uinHash",
+          "firstName",
+          "lastName",
+          "stripeCustomerId",
+        ];
+
+        const syncRequired =
+          !userIdentity || requiredFields.some((field) => !userIdentity[field]);
+        return reply.send({ syncRequired });
       },
     );
   };
