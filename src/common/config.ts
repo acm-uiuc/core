@@ -40,6 +40,7 @@ export type GenericConfigType = {
   CacheDynamoTableName: string;
   LinkryDynamoTableName: string;
   StripeLinksDynamoTableName: string;
+  StripePaymentsDynamoTableName: string;
   EntraSecretName: string;
   UpcomingEventThresholdSeconds: number;
   AwsRegion: string;
@@ -83,6 +84,7 @@ export const commChairsGroupId = "105e7d32-7289-435e-a67a-552c7f215507";
 const genericConfig: GenericConfigType = {
   EventsDynamoTableName: "infra-core-api-events",
   StripeLinksDynamoTableName: "infra-core-api-stripe-links",
+  StripePaymentsDynamoTableName: "infra-core-api-stripe-payments",
   CacheDynamoTableName: "infra-core-api-cache",
   LinkryDynamoTableName: "infra-core-api-linkry",
   EntraSecretName: "infra-core-api-entra",

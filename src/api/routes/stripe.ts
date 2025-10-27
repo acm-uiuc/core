@@ -3,6 +3,7 @@ import {
   ScanCommand,
   TransactWriteItemsCommand,
   UpdateItemCommand,
+  PutItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
@@ -332,6 +333,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           sig,
           secretApiConfig.stripe_links_endpoint_secret as string,
         );
+        // event = JSON.parse(request.rawBody.toString()); <-- this is for testing without a stripe account via Curl
       } catch (err: unknown) {
         if (err instanceof BaseError) {
           throw err;
@@ -715,7 +717,57 @@ Please contact Officer Board with any questions.`,
           return reply
             .code(200)
             .send({ handled: false, requestId: request.id });
+        case "customer_cash_balance_transaction.created": {
+          const txn = event.data.object as any;
 
+          if (txn.funding_method === "bank_transfer") {
+            const customerId = txn.customer?.toString() ?? "UNKNOWN";
+            const amount = txn.net_amount;
+            const currency = txn.currency;
+            const status = txn.status;
+            const eventId = event.id;
+
+            request.log.info(
+              `Received ACH push ${status} txn ${txn.id} for ${customerId} (${amount} ${currency})`,
+            );
+
+            await fastify.dynamoClient.send(
+              new PutItemCommand({
+                TableName: genericConfig.StripePaymentsDynamoTableName,
+                Item: marshall({
+                  primaryKey: `CUSTOMER#${customerId}`,
+                  sortKey: `PAY#${txn.id}`,
+                  amount,
+                  currency,
+                  status,
+                  createdAt: Date.now(),
+                  eventId,
+                }),
+              }),
+            );
+
+            // if (status === "succeeded") {
+            //   await fastify.dynamoClient.send(
+            //     new UpdateItemCommand({
+            //       TableName: genericConfig.StripePaymentsDynamoTableName,
+            //       Key: marshall({
+            //         primaryKey: `CUSTOMER#${customerId}`,
+            //         sortKey: "SUMMARY",
+            //       }),
+            //       UpdateExpression: "ADD totalPaid :amount SET lastUpdated = :ts",
+            //       ExpressionAttributeValues: marshall({
+            //         ":amount": amount,
+            //         ":ts": Date.now(),
+            //       }),
+            //     })
+            //   );
+            // }
+          }
+
+          return reply
+            .status(200)
+            .send({ handled: true, requestId: request.id });
+        }
         default:
           request.log.warn(`Unhandled event type: ${event.type}`);
       }
