@@ -3,7 +3,6 @@ import {
   checkPaidMembershipFromRedis,
   checkExternalMembership,
   MEMBER_CACHE_SECONDS,
-  setPaidMembershipInTable,
 } from "api/functions/membership.js";
 import { FastifyPluginAsync } from "fastify";
 import {
@@ -12,7 +11,10 @@ import {
   ValidationError,
 } from "common/errors/index.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
-import { createCheckoutSession } from "api/functions/stripe.js";
+import {
+  createCheckoutSession,
+  createCheckoutSessionWithCustomer,
+} from "api/functions/stripe.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import {
@@ -125,6 +127,9 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           lastName: surname,
           netId,
           dynamoClient: fastify.dynamoClient,
+          redisClient: fastify.redisClient,
+          stripeApiKey: fastify.secretConfig.stripe_secret_key,
+          logger: request.log,
         });
         let isPaidMember = await checkPaidMembershipFromRedis(
           netId,
@@ -137,18 +142,24 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             fastify.dynamoClient,
           );
         }
-        await savePromise;
-        request.log.debug("Saved user hashed UIN!");
-        if (isPaidMember) {
-          throw new ValidationError({
-            message: `${upn} is already a paid member.`,
-          });
+        const userData = await savePromise;
+        if (!userData) {
+          request.log.error(
+            "Was expecting to get a user data save, but we didn't!",
+          );
+          throw new InternalServerError({});
         }
+        request.log.debug("Saved user hashed UIN!");
+        // if (isPaidMember) {
+        //   throw new ValidationError({
+        //     message: `${upn} is already a paid member.`,
+        //   });
+        // }
         return reply.status(200).send(
-          await createCheckoutSession({
+          await createCheckoutSessionWithCustomer({
             successUrl: "https://acm.illinois.edu/paid",
             returnUrl: "https://acm.illinois.edu/membership",
-            customerEmail: upn,
+            customerId: userData.stripeCustomerId,
             stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
             items: [
               {
