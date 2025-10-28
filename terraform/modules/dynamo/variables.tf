@@ -3,7 +3,7 @@ variable "ProjectId" {
   description = "Prefix before each resource"
 }
 
-variable "LinkryReplicationRegions" {
+variable "ReplicationRegions" {
   type        = set(string)
-  description = "A list of regions where the Linkry data should be replicated to (in addition to the primary region)"
+  description = "A list of regions where data should be replicated to (in addition to the primary region)"
 }
