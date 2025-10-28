@@ -230,6 +230,17 @@ export class StoreItemNotSellTimeError extends BaseError<"StoreItemNotSellTimeEr
   }
 }
 
+export class StoreItemPurchaseLimitExceededError extends BaseError<"StoreItemPurchaseLimitExceededError"> {
+  constructor({ message }: { message?: string }) {
+    super({
+      name: "StoreItemPurchaseLimitExceededError",
+      id: 115,
+      message: message || "Store item found but exceed purchase limit.",
+      httpStatusCode: 400,
+    });
+  }
+}
+
 export class EntraGroupError extends BaseError<"EntraGroupError"> {
   group: string;
   constructor({
