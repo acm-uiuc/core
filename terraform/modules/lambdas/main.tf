@@ -36,7 +36,6 @@ locals {
   is_primary_deployment = var.region == "us-east-2"
 }
 data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
 
 resource "aws_cloudwatch_log_group" "api_logs" {
   region            = var.region
