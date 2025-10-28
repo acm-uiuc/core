@@ -464,14 +464,14 @@ resource "aws_iam_role" "linkry_lambda_edge_role" {
 
 resource "aws_iam_role_policy_attachment" "linkry_lambda_edge_basic" {
   count      = local.is_primary_deployment ? 1 : 0
-  role       = aws_iam_role.linkry_lambda_edge_role.name
+  role       = aws_iam_role.linkry_lambda_edge_role[0].name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_iam_role_policy" "linkry_lambda_edge_dynamodb" {
   count       = local.is_primary_deployment ? 1 : 0
   name_prefix = "${var.ProjectId}-linkry-edge-dynamodb"
-  role        = aws_iam_role.linkry_lambda_edge_role.id
+  role        = aws_iam_role.linkry_lambda_edge_role[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -495,7 +495,7 @@ resource "aws_lambda_function" "linkry_edge" {
   region           = "us-east-1"
   filename         = data.archive_file.linkry_edge_lambda_code.output_path
   function_name    = "${var.ProjectId}-linkry-edge"
-  role             = aws_iam_role.linkry_lambda_edge_role.arn
+  role             = aws_iam_role.linkry_lambda_edge_role[0].arn
   handler          = "main.handler"
   runtime          = "python3.12"
   publish          = true
@@ -503,6 +503,7 @@ resource "aws_lambda_function" "linkry_edge" {
   memory_size      = 128
   source_code_hash = data.archive_file.linkry_edge_lambda_code.output_base64sha256
 }
+
 // Outputs
 
 output "core_function_url" {
