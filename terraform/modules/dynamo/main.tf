@@ -22,6 +22,13 @@ resource "aws_dynamodb_table" "app_audit_log" {
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
 }
 
 resource "aws_dynamodb_table" "api_keys" {
@@ -40,6 +47,15 @@ resource "aws_dynamodb_table" "api_keys" {
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
   }
 }
 
@@ -76,6 +92,13 @@ resource "aws_dynamodb_table" "room_requests" {
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
 }
 
 
@@ -110,6 +133,15 @@ resource "aws_dynamodb_table" "room_requests_status" {
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
   }
 }
 
@@ -146,6 +178,15 @@ resource "aws_dynamodb_table" "external_membership" {
     name            = "keysOnlyIndex"
     hash_key        = "memberList"
     projection_type = "KEYS_ONLY"
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
   }
 }
 
@@ -187,6 +228,15 @@ resource "aws_dynamodb_table" "user_info" {
     hash_key        = "uinHash"
     projection_type = "KEYS_ONLY"
   }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
 }
 
 resource "aws_dynamodb_table" "events" {
@@ -217,6 +267,13 @@ resource "aws_dynamodb_table" "events" {
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
 }
 
 resource "aws_dynamodb_table" "stripe_links" {
@@ -248,6 +305,15 @@ resource "aws_dynamodb_table" "stripe_links" {
     attribute_name = "expiresAt"
     enabled        = true
   }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
 }
 
 resource "aws_dynamodb_table" "stripe_payments" {
@@ -269,6 +335,15 @@ resource "aws_dynamodb_table" "stripe_payments" {
   attribute {
     name = "sortKey"
     type = "S"
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
   }
 }
 resource "aws_dynamodb_table" "linkry_records" {
@@ -305,6 +380,13 @@ resource "aws_dynamodb_table" "linkry_records" {
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
 }
 
 resource "aws_dynamodb_table" "cache" {
@@ -323,6 +405,15 @@ resource "aws_dynamodb_table" "cache" {
   ttl {
     attribute_name = "expireAt"
     enabled        = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
   }
 }
 
@@ -364,6 +455,15 @@ resource "aws_dynamodb_table" "sig_info" {
     range_key       = "primaryKey"
     projection_type = "KEYS_ONLY"
   }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
 }
 
 resource "aws_dynamodb_table" "store_inventory" {
@@ -383,6 +483,15 @@ resource "aws_dynamodb_table" "store_inventory" {
   attribute {
     name = "variantId"
     type = "S"
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
   }
 }
 
@@ -419,6 +528,15 @@ resource "aws_dynamodb_table" "store_carts_orders" {
     range_key       = "createdAt"
     projection_type = "ALL"
   }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
 }
 
 resource "aws_dynamodb_table" "store_limits" {
@@ -438,5 +556,14 @@ resource "aws_dynamodb_table" "store_limits" {
   attribute {
     name = "limitId"
     type = "S"
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
   }
 }
