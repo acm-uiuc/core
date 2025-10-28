@@ -18,21 +18,6 @@ const ddbMock = mockClient(DynamoDBClient);
 const jwt_secret = testSecretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
-// Mock the Cloudfront KV client to prevent the actual Cloudfront KV call
-// aws-sdk-client-mock doesn't support Cloudfront KV Client API
-vi.mock("../../src/api/functions/cloudfrontKvStore.js", async () => {
-  return {
-    setKey: vi.fn(),
-    deleteKey: vi.fn(),
-    getKey: vi.fn().mockResolvedValue("https://www.acm.illinois.edu"),
-    getLinkryKvArn: vi
-      .fn()
-      .mockResolvedValue(
-        "arn:aws:cloudfront::1234567890:key-value-store/bb90421c-e923-4bd7-a42a-7281150389c3s",
-      ),
-  };
-});
-
 const app = await init();
 
 (app as any).nodeCache.flushAll();

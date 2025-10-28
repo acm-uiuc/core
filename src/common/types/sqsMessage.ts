@@ -1,3 +1,4 @@
+import { AllOrganizationNameList, OrganizationsByName } from "@acm-uiuc/js-shared";
 import * as z from "zod/v4";
 
 export enum AvailableSQSFunctions {
@@ -6,6 +7,8 @@ export enum AvailableSQSFunctions {
   ProvisionNewMember = "provisionNewMember",
   SendSaleEmail = "sendSaleEmail",
   EmailNotifications = "emailNotifications",
+  CreateOrgGithubTeam = "createOrgGithubTeam",
+  SyncExecCouncil = "syncExecCouncil",
 }
 
 const sqsMessageMetadataSchema = z.object({
@@ -68,15 +71,36 @@ export const sqsPayloadSchemas = {
         url: z.string().min(1).url()
       }).optional()
     })
+  ),
+  [AvailableSQSFunctions.CreateOrgGithubTeam]: createSQSSchema(
+    AvailableSQSFunctions.CreateOrgGithubTeam, z.object({
+      orgName: z.enum(AllOrganizationNameList),
+      githubTeamName: z.string().min(1),
+      githubTeamDescription: z.string().min(1)
+    })
+  ),
+  [AvailableSQSFunctions.SyncExecCouncil]: createSQSSchema(
+    AvailableSQSFunctions.SyncExecCouncil, z.object({})
   )
 } as const;
+
+// Add this type helper
+type AllSchemas = {
+  [K in AvailableSQSFunctions]: (typeof sqsPayloadSchemas)[K];
+};
+
+// This will cause a TypeScript error if you're missing any schemas in the union
+const _exhaustivenessCheck: AllSchemas = sqsPayloadSchemas;
 
 export const sqsPayloadSchema = z.discriminatedUnion("function", [
   sqsPayloadSchemas[AvailableSQSFunctions.Ping],
   sqsPayloadSchemas[AvailableSQSFunctions.EmailMembershipPass],
   sqsPayloadSchemas[AvailableSQSFunctions.ProvisionNewMember],
   sqsPayloadSchemas[AvailableSQSFunctions.SendSaleEmail],
-  sqsPayloadSchemas[AvailableSQSFunctions.EmailNotifications]] as
+  sqsPayloadSchemas[AvailableSQSFunctions.EmailNotifications],
+  sqsPayloadSchemas[AvailableSQSFunctions.CreateOrgGithubTeam],
+  sqsPayloadSchemas[AvailableSQSFunctions.SyncExecCouncil]
+] as
   const);
 
 export type SQSPayload<T extends AvailableSQSFunctions> = z.infer<

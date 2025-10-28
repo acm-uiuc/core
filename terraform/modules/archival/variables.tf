@@ -3,6 +3,10 @@ variable "ProjectId" {
   description = "Prefix before each resource"
 }
 
+variable "BucketPrefix" {
+  type = string
+}
+
 variable "LogRetentionDays" {
   type = number
 }

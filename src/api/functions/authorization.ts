@@ -13,7 +13,6 @@ import {
 } from "../../common/roles.js";
 import type Redis from "ioredis";
 import { AUTH_CACHE_PREFIX } from "api/plugins/auth.js";
-import type pino from "pino";
 import {
   FastifyInstance,
   FastifyReply,
@@ -21,6 +20,7 @@ import {
   type FastifyBaseLogger,
 } from "fastify";
 import { getUserOrgRoles } from "./organizations.js";
+import { ValidLoggers } from "api/types.js";
 
 export async function getUserRoles(
   dynamoClient: DynamoDBClient,
@@ -102,7 +102,7 @@ export async function getGroupRoles(
 type ClearAuthCacheInput = {
   redisClient: Redis.default;
   username: string[];
-  logger: pino.Logger | FastifyBaseLogger;
+  logger: ValidLoggers;
 };
 export async function clearAuthCache({
   redisClient,

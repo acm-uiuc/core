@@ -16,9 +16,6 @@ import { createJwt } from "./auth.test.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
 import { randomUUID } from "node:crypto";
-import { createGithubTeam } from "../../src/api/functions/github.js";
-import { addLead, removeLead } from "../../src/api/functions/organizations.js";
-import { modifyGroup } from "../../src/api/functions/entraId.js";
 
 const app = await init();
 const ddbMock = mockClient(DynamoDBClient);
@@ -45,17 +42,6 @@ vi.mock("../../src/api/functions/entraId.js", () => {
     }),
     createM365Group: vi.fn().mockImplementation(async () => {
       return randomUUID();
-    }),
-  };
-});
-vi.mock("../../src/api/functions/github.js", () => {
-  return {
-    ...vi.importActual("../../src/api/functions/github.js"),
-    createGithubTeam: vi.fn().mockImplementation(async () => {
-      return randomUUID();
-    }),
-    assignIdpGroupsToTeam: vi.fn().mockImplementation(async () => {
-      return;
     }),
   };
 });
@@ -133,6 +119,229 @@ describe("Organization info tests - Extended Coverage", () => {
 
       expect(response.headers["cache-control"]).toContain("public");
       expect(response.headers["cache-control"]).toContain("max-age=300");
+    });
+
+    test("Returns nonVotingMember true when lead is non-voting", async () => {
+      const orgMetaWithLeads = {
+        primaryKey: "DEFINE#ACM",
+        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
+        website: "https://www.acm.illinois.edu",
+      };
+
+      const nonVotingLead = {
+        primaryKey: "LEAD#ACM",
+        entryId: "nonvoting@illinois.edu",
+        username: "nonvoting@illinois.edu",
+        name: "Non Voting Lead",
+        title: "Advisor",
+        nonVotingMember: true,
+      };
+
+      ddbMock
+        .on(QueryCommand, {
+          KeyConditionExpression: "primaryKey = :definitionId",
+        })
+        .resolves({
+          Items: [marshall(orgMetaWithLeads)],
+        })
+        .on(QueryCommand, {
+          KeyConditionExpression: "primaryKey = :leadName",
+        })
+        .resolves({
+          Items: [marshall(nonVotingLead)],
+        });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v1/organizations",
+      });
+
+      expect(response.statusCode).toBe(200);
+      const responseJson = response.json();
+      const acmOrg = responseJson.find((org: any) => org.id === "ACM");
+      expect(acmOrg).toBeDefined();
+      expect(acmOrg.leads).toBeDefined();
+      expect(acmOrg.leads.length).toBeGreaterThan(0);
+      const nonVotingLeadResponse = acmOrg.leads.find(
+        (lead: any) => lead.username === "nonvoting@illinois.edu",
+      );
+      expect(nonVotingLeadResponse).toBeDefined();
+      expect(nonVotingLeadResponse.nonVotingMember).toBe(true);
+    });
+
+    test("Returns nonVotingMember false when lead is voting member", async () => {
+      const orgMetaWithLeads = {
+        primaryKey: "DEFINE#ACM",
+        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
+        website: "https://www.acm.illinois.edu",
+      };
+
+      const votingLead = {
+        primaryKey: "LEAD#ACM",
+        entryId: "voting@illinois.edu",
+        username: "voting@illinois.edu",
+        name: "Voting Lead",
+        title: "President",
+        nonVotingMember: false,
+      };
+
+      ddbMock
+        .on(QueryCommand, {
+          KeyConditionExpression: "primaryKey = :definitionId",
+        })
+        .resolves({
+          Items: [marshall(orgMetaWithLeads)],
+        })
+        .on(QueryCommand, {
+          KeyConditionExpression: "primaryKey = :leadName",
+        })
+        .resolves({
+          Items: [marshall(votingLead)],
+        });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v1/organizations",
+      });
+
+      expect(response.statusCode).toBe(200);
+      const responseJson = response.json();
+      const acmOrg = responseJson.find((org: any) => org.id === "ACM");
+      expect(acmOrg).toBeDefined();
+      expect(acmOrg.leads).toBeDefined();
+      expect(acmOrg.leads.length).toBeGreaterThan(0);
+      const votingLeadResponse = acmOrg.leads.find(
+        (lead: any) => lead.username === "voting@illinois.edu",
+      );
+      expect(votingLeadResponse).toBeDefined();
+      expect(votingLeadResponse.nonVotingMember).toBe(false);
+    });
+
+    test("Returns nonVotingMember false by default when not specified in data", async () => {
+      const orgMetaWithLeads = {
+        primaryKey: "DEFINE#ACM",
+        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
+        website: "https://www.acm.illinois.edu",
+      };
+
+      const leadWithoutNonVotingField = {
+        primaryKey: "LEAD#ACM",
+        entryId: "default@illinois.edu",
+        username: "default@illinois.edu",
+        name: "Default Lead",
+        title: "Vice President",
+        // nonVotingMember field not included
+      };
+
+      ddbMock
+        .on(QueryCommand, {
+          KeyConditionExpression: "primaryKey = :definitionId",
+        })
+        .resolves({
+          Items: [marshall(orgMetaWithLeads)],
+        })
+        .on(QueryCommand, {
+          KeyConditionExpression: "primaryKey = :leadName",
+        })
+        .resolves({
+          Items: [marshall(leadWithoutNonVotingField)],
+        });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v1/organizations",
+      });
+
+      expect(response.statusCode).toBe(200);
+      const responseJson = response.json();
+      const acmOrg = responseJson.find((org: any) => org.id === "ACM");
+      expect(acmOrg).toBeDefined();
+      expect(acmOrg.leads).toBeDefined();
+      expect(acmOrg.leads.length).toBeGreaterThan(0);
+      const defaultLeadResponse = acmOrg.leads.find(
+        (lead: any) => lead.username === "default@illinois.edu",
+      );
+      expect(defaultLeadResponse).toBeDefined();
+      expect(defaultLeadResponse.nonVotingMember).toBe(false);
+    });
+
+    test("Returns multiple leads with mixed voting statuses", async () => {
+      const orgMetaWithLeads = {
+        primaryKey: "DEFINE#ACM",
+        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
+        website: "https://www.acm.illinois.edu",
+      };
+
+      const votingLead = {
+        primaryKey: "LEAD#ACM",
+        entryId: "voting@illinois.edu",
+        username: "voting@illinois.edu",
+        name: "Voting Lead",
+        title: "President",
+        nonVotingMember: false,
+      };
+
+      const nonVotingLead = {
+        primaryKey: "LEAD#ACM",
+        entryId: "nonvoting@illinois.edu",
+        username: "nonvoting@illinois.edu",
+        name: "Non Voting Lead",
+        title: "Advisor",
+        nonVotingMember: true,
+      };
+
+      const defaultLead = {
+        primaryKey: "LEAD#ACM",
+        entryId: "default@illinois.edu",
+        username: "default@illinois.edu",
+        name: "Default Lead",
+        title: "Treasurer",
+      };
+
+      ddbMock
+        .on(QueryCommand, {
+          KeyConditionExpression: "primaryKey = :definitionId",
+        })
+        .resolves({
+          Items: [marshall(orgMetaWithLeads)],
+        })
+        .on(QueryCommand, {
+          KeyConditionExpression: "primaryKey = :leadName",
+        })
+        .resolves({
+          Items: [
+            marshall(votingLead),
+            marshall(nonVotingLead),
+            marshall(defaultLead),
+          ],
+        });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v1/organizations",
+      });
+
+      expect(response.statusCode).toBe(200);
+      const responseJson = response.json();
+      const acmOrg = responseJson.find((org: any) => org.id === "ACM");
+      expect(acmOrg).toBeDefined();
+      expect(acmOrg.leads).toBeDefined();
+      expect(acmOrg.leads.length).toBe(3);
+
+      const votingLeadResponse = acmOrg.leads.find(
+        (lead: any) => lead.username === "voting@illinois.edu",
+      );
+      expect(votingLeadResponse.nonVotingMember).toBe(false);
+
+      const nonVotingLeadResponse = acmOrg.leads.find(
+        (lead: any) => lead.username === "nonvoting@illinois.edu",
+      );
+      expect(nonVotingLeadResponse.nonVotingMember).toBe(true);
+
+      const defaultLeadResponse = acmOrg.leads.find(
+        (lead: any) => lead.username === "default@illinois.edu",
+      );
+      expect(defaultLeadResponse.nonVotingMember).toBe(false);
     });
   });
 
@@ -417,16 +626,6 @@ describe("Organization info tests - Extended Coverage", () => {
       expect(
         ddbMock.commandCalls(TransactWriteItemsCommand).length,
       ).toBeGreaterThan(0);
-      expect(createGithubTeam).toHaveBeenCalledOnce();
-      expect(createGithubTeam).toHaveBeenCalledWith(
-        expect.objectContaining({
-          githubToken: "abc123testing",
-          orgId: "acm-uiuc-testing",
-          name: "social-adm-nonprod",
-          description: "Social Committee Admin",
-          parentTeamId: 14420860,
-        }),
-      );
     });
 
     test("Successfully adds and removes Officers but skips Entra + GitHub integration", async () => {
@@ -489,8 +688,6 @@ describe("Organization info tests - Extended Coverage", () => {
       expect(
         ddbMock.commandCalls(TransactWriteItemsCommand).length,
       ).toBeGreaterThan(0);
-      expect(createGithubTeam).toHaveBeenCalledTimes(0);
-      expect(modifyGroup).toHaveBeenCalledTimes(0);
     });
 
     test("Organization lead can manage other leads", async () => {

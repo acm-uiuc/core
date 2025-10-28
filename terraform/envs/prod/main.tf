@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 6.15.0"
+      version = "~> 6.18.0"
     }
   }
 
@@ -37,6 +37,7 @@ locals {
     main = module.sqs_queues.main_queue_arn
     sqs  = module.sqs_queues.sales_email_queue_arn
   }
+  LinkryReplicationRegions = toset(["us-west-2"])
 }
 
 module "sqs_queues" {
@@ -46,17 +47,14 @@ module "sqs_queues" {
 }
 
 module "dynamo" {
-  source    = "../../modules/dynamo"
-  ProjectId = var.ProjectId
+  source                   = "../../modules/dynamo"
+  ProjectId                = var.ProjectId
+  LinkryReplicationRegions = local.LinkryReplicationRegions
 }
 
 module "origin_verify" {
   source    = "../../modules/origin_verify"
   ProjectId = var.ProjectId
-}
-
-resource "aws_cloudfront_key_value_store" "linkry_kv" {
-  name = "${var.ProjectId}-cloudfront-linkry-kv"
 }
 
 module "alarms" {
@@ -80,6 +78,7 @@ module "archival" {
   source           = "../../modules/archival"
   ProjectId        = var.ProjectId
   RunEnvironment   = "dev"
+  BucketPrefix     = local.bucket_prefix
   LogRetentionDays = var.LogRetentionDays
   MonitorTables    = ["${var.ProjectId}-audit-log", "${var.ProjectId}-events", "${var.ProjectId}-room-requests"]
   TableDeletionDays = tomap({
@@ -93,26 +92,26 @@ module "lambdas" {
   source                           = "../../modules/lambdas"
   ProjectId                        = var.ProjectId
   RunEnvironment                   = "prod"
-  LinkryKvArn                      = aws_cloudfront_key_value_store.linkry_kv.arn
   CurrentOriginVerifyKey           = module.origin_verify.current_origin_verify_key
   PreviousOriginVerifyKey          = module.origin_verify.previous_origin_verify_key
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
+  LinkryReplicationRegions         = local.LinkryReplicationRegions
 }
 
 module "frontend" {
-  source             = "../../modules/frontend"
-  BucketPrefix       = local.bucket_prefix
-  CoreLambdaHost     = module.lambdas.core_function_url
-  OriginVerifyKey    = module.origin_verify.current_origin_verify_key
-  ProjectId          = var.ProjectId
-  CoreCertificateArn = var.CoreCertificateArn
-  CorePublicDomain   = var.CorePublicDomain
-  CoreSlowLambdaHost = module.lambdas.core_slow_function_url
-  IcalPublicDomain   = var.IcalPublicDomain
-  LinkryPublicDomain = var.LinkryPublicDomain
-  LinkryKvArn        = aws_cloudfront_key_value_store.linkry_kv.arn
+  source                = "../../modules/frontend"
+  BucketPrefix          = local.bucket_prefix
+  CoreLambdaHost        = module.lambdas.core_function_url
+  OriginVerifyKey       = module.origin_verify.current_origin_verify_key
+  ProjectId             = var.ProjectId
+  CoreCertificateArn    = var.CoreCertificateArn
+  CorePublicDomain      = var.CorePublicDomain
+  CoreSlowLambdaHost    = module.lambdas.core_slow_function_url
+  IcalPublicDomain      = var.IcalPublicDomain
+  LinkryPublicDomain    = var.LinkryPublicDomain
+  LinkryEdgeFunctionArn = module.lambdas.linkry_redirect_function_arn
 }
 
 module "assets" {

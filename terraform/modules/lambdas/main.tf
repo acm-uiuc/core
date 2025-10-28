@@ -10,6 +10,12 @@ data "archive_file" "sqs_lambda_code" {
   output_path = "${path.module}/../../../dist/terraform/sqs.zip"
 }
 
+data "archive_file" "linkry_edge_lambda_code" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../../src/linkryEdgeFunction/"
+  output_path = "${path.module}/../../../dist/terraform/linkryEdgeFunction.zip"
+}
+
 locals {
   core_api_lambda_name          = "${var.ProjectId}-main-server"
   core_api_slow_lambda_name     = "${var.ProjectId}-slow-server"
@@ -281,6 +287,7 @@ resource "aws_iam_policy" "shared_iam_policy" {
         Action = [
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
+          "dynamodb:GetItem",
           "dynamodb:DescribeTable",
           "dynamodb:BatchGetItem",
           "dynamodb:Query",
@@ -304,14 +311,6 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events/stream/*",
         ]
       },
-      {
-        Sid    = "LinkryKvAccess",
-        Effect = "Allow",
-        Action = [
-          "cloudfront-keyvaluestore:*"
-        ],
-        Resource = [var.LinkryKvArn]
-      }
     ]
   }))
 
@@ -354,7 +353,6 @@ resource "aws_lambda_function" "api_lambda" {
       PREVIOUS_ORIGIN_VERIFY_KEY            = var.PreviousOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT = var.PreviousOriginVerifyKeyExpiresAt
       EntraRoleArn                          = aws_iam_role.entra_role.arn
-      LinkryKvArn                           = var.LinkryKvArn
       "NODE_OPTIONS"                        = "--enable-source-maps"
     }
   }
@@ -419,7 +417,6 @@ resource "aws_lambda_function" "slow_lambda" {
       PREVIOUS_ORIGIN_VERIFY_KEY            = var.PreviousOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT = var.PreviousOriginVerifyKeyExpiresAt
       EntraRoleArn                          = aws_iam_role.entra_role.arn
-      LinkryKvArn                           = var.LinkryKvArn
       "NODE_OPTIONS"                        = "--enable-source-maps"
     }
   }
@@ -444,7 +441,64 @@ module "lambda_warmer_slow" {
   is_streaming_lambda = true
 }
 
+// Linkry Lambda @ Edge
+resource "aws_iam_role" "linkry_lambda_edge_role" {
+  name = "${var.ProjectId}-linkry-edge-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = [
+            "lambda.amazonaws.com",
+            "edgelambda.amazonaws.com"
+          ]
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
 
+resource "aws_iam_role_policy_attachment" "linkry_lambda_edge_basic" {
+  role       = aws_iam_role.linkry_lambda_edge_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "linkry_lambda_edge_dynamodb" {
+  name = "${var.ProjectId}-linkry-edge-dynamodb"
+  role = aws_iam_role.linkry_lambda_edge_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Query"
+        ]
+        Resource = [
+          "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/${var.ProjectId}-linkry"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_lambda_function" "linkry_edge" {
+  region           = "us-east-1"
+  filename         = data.archive_file.linkry_edge_lambda_code.output_path
+  function_name    = "${var.ProjectId}-linkry-edge"
+  role             = aws_iam_role.linkry_lambda_edge_role.arn
+  handler          = "main.handler"
+  runtime          = "python3.12"
+  publish          = true
+  timeout          = 5
+  memory_size      = 128
+  source_code_hash = data.archive_file.linkry_edge_lambda_code.output_base64sha256
+}
 // Outputs
 
 output "core_function_url" {
@@ -473,4 +527,6 @@ output "core_sqs_consumer_lambda_name" {
   value = local.core_sqs_consumer_lambda_name
 }
 
-
+output "linkry_redirect_function_arn" {
+  value = aws_lambda_function.linkry_edge.qualified_arn
+}

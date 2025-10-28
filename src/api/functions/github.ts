@@ -6,7 +6,7 @@ import { Octokit } from "octokit";
 export interface CreateGithubTeamInputs {
   githubToken: string;
   orgId: string;
-  parentTeamId: number;
+  parentTeamId?: number;
   name: string;
   description?: string;
   privacy?: "secret" | "closed";
@@ -152,7 +152,7 @@ export async function createGithubTeam({
 
     if (existingTeam) {
       logger.info(`Team "${name}" already exists with id: ${existingTeam.id}`);
-      return existingTeam.id;
+      return { updated: false, id: existingTeam.id };
     }
     logger.info(`Creating GitHub team "${name}"`);
     const response = await octokit.request("POST /orgs/{org}/teams", {
@@ -196,7 +196,7 @@ export async function createGithubTeam({
       logger.warn(`Failed to remove user from team ${newTeamId}:`, removeError);
     }
 
-    return newTeamId;
+    return { updated: true, id: newTeamId };
   } catch (e) {
     if (e instanceof BaseError) {
       throw e;

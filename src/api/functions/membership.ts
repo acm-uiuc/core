@@ -20,9 +20,9 @@ import { pollUntilNoError } from "./general.js";
 import Redis from "ioredis";
 import { getKey, setKey } from "./redisCache.js";
 import { FastifyBaseLogger } from "fastify";
-import type pino from "pino";
 import { createAuditLogEntry } from "./auditLog.js";
 import { Modules } from "common/modules.js";
+import { ValidLoggers } from "api/types.js";
 
 export const MEMBER_CACHE_SECONDS = 43200; // 12 hours
 
@@ -38,7 +38,7 @@ export async function patchExternalMemberList({
   add: string[];
   remove: string[];
   clients: { dynamoClient: DynamoDBClient; redisClient: Redis.default };
-  logger: pino.Logger | FastifyBaseLogger;
+  logger: ValidLoggers;
   auditLogData: { actor: string; requestId: string };
 }) {
   const listId = oldListId.toLowerCase();

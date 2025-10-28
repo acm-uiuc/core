@@ -18,6 +18,8 @@ import {
   provisionNewMemberHandler,
   sendSaleEmailHandler,
   emailNotificationsHandler,
+  createOrgGithubTeamHandler,
+  syncExecCouncilHandler,
 } from "./handlers/index.js";
 import { ValidationError } from "../../common/errors/index.js";
 import { RunEnvironment } from "../../common/roles.js";
@@ -39,6 +41,8 @@ const handlers: SQSFunctionPayloadTypes = {
   [AvailableSQSFunctions.ProvisionNewMember]: provisionNewMemberHandler,
   [AvailableSQSFunctions.SendSaleEmail]: sendSaleEmailHandler,
   [AvailableSQSFunctions.EmailNotifications]: emailNotificationsHandler,
+  [AvailableSQSFunctions.CreateOrgGithubTeam]: createOrgGithubTeamHandler,
+  [AvailableSQSFunctions.SyncExecCouncil]: syncExecCouncilHandler,
 };
 export const runEnvironment = process.env.RunEnvironment as RunEnvironment;
 export const currentEnvironmentConfig = environmentConfig[runEnvironment];

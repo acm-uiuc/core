@@ -1,3 +1,4 @@
+import { isProd } from "api/utils.js";
 import { InternalServerError, ValidationError } from "common/errors/index.js";
 import { capitalizeFirstLetter } from "common/types/roomRequest.js";
 import Stripe from "stripe";
@@ -15,6 +16,18 @@ export type StripeCheckoutSessionCreateParams = {
   successUrl?: string;
   returnUrl?: string;
   customerEmail?: string;
+  stripeApiKey: string;
+  items: { price: string; quantity: number }[];
+  initiator: string;
+  metadata?: Record<string, string>;
+  allowPromotionCodes: boolean;
+  customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
+};
+
+export type StripeCheckoutSessionCreateWithCustomerParams = {
+  successUrl?: string;
+  returnUrl?: string;
+  customerId: string;
   stripeApiKey: string;
   items: { price: string; quantity: number }[];
   initiator: string;
@@ -91,6 +104,44 @@ export const createCheckoutSession = async ({
     })),
     mode: "payment",
     customer_email: customerEmail,
+    metadata: {
+      ...(metadata || {}),
+      initiator,
+    },
+    allow_promotion_codes: allowPromotionCodes,
+    custom_fields: customFields,
+  };
+  const session = await stripe.checkout.sessions.create(payload);
+  if (!session.url) {
+    throw new InternalServerError({
+      message: "Could not create Stripe checkout session.",
+    });
+  }
+  return session.url;
+};
+
+export const createCheckoutSessionWithCustomer = async ({
+  successUrl,
+  returnUrl,
+  stripeApiKey,
+  customerId,
+  items,
+  initiator,
+  allowPromotionCodes,
+  customFields,
+  metadata,
+}: StripeCheckoutSessionCreateWithCustomerParams): Promise<string> => {
+  const stripe = new Stripe(stripeApiKey);
+  const payload: Stripe.Checkout.SessionCreateParams = {
+    success_url: successUrl || "",
+    cancel_url: returnUrl || "",
+    payment_method_types: ["card"],
+    line_items: items.map((item) => ({
+      price: item.price,
+      quantity: item.quantity,
+    })),
+    mode: "payment",
+    customer: customerId,
     metadata: {
       ...(metadata || {}),
       initiator,
@@ -243,4 +294,34 @@ export const getPaymentMethodDescriptionString = ({
       }
       return `${friendlyName} (${cardBrandMap[cardPresentData.brand || "unknown"]} ending in ${cardPresentData.last4})`;
   }
+};
+
+export type StripeCustomerCreateParams = {
+  email: string;
+  name: string;
+  stripeApiKey: string;
+  metadata?: Record<string, string>;
+  idempotencyKey?: string;
+};
+
+export const createStripeCustomer = async ({
+  email,
+  name,
+  stripeApiKey,
+  metadata,
+  idempotencyKey,
+}: StripeCustomerCreateParams): Promise<string> => {
+  const stripe = new Stripe(stripeApiKey, { maxNetworkRetries: 2 });
+  const customer = await stripe.customers.create(
+    {
+      email,
+      name,
+      metadata: {
+        ...(metadata ?? {}),
+        ...(isProd ? {} : { environment: process.env.RunEnvironment }),
+      },
+    },
+    idempotencyKey ? { idempotencyKey } : undefined,
+  );
+  return customer.id;
 };

@@ -7,7 +7,6 @@ import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SQSClient } from "@aws-sdk/client-sqs";
-import { CloudFrontKeyValueStoreClient } from "@aws-sdk/client-cloudfront-keyvaluestore";
 import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
 import type RedisModule from "ioredis";
 export type Redis = RedisModule.default;
@@ -45,7 +44,6 @@ declare module "fastify" {
     sqsClient?: SQSClient;
     redisClient: Redis;
     secretsManagerClient: SecretsManagerClient;
-    cloudfrontKvClient: CloudFrontKeyValueStoreClient;
     secretConfig: SecretConfig | (SecretConfig & SecretTesting);
     refreshSecretConfig: CallableFunction;
   }

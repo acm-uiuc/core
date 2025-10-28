@@ -20,6 +20,7 @@ import pino from "pino";
 import { createAuditLogEntry } from "./auditLog.js";
 import { Modules } from "common/modules.js";
 import { FastifyBaseLogger } from "fastify";
+import { ValidLoggers } from "api/types.js";
 
 function trim(s: string) {
   return (s || "").replace(/^\s+|\s+$/g, "");
@@ -38,7 +39,7 @@ export async function issueAppleWalletMembershipCard(
   runEnvironment: RunEnvironment,
   email: string,
   initiator: string,
-  logger: pino.Logger | FastifyBaseLogger,
+  logger: ValidLoggers,
   name?: string,
 ) {
   if (!email.endsWith("@illinois.edu")) {
@@ -118,6 +119,7 @@ export async function issueAppleWalletMembershipCard(
   }
   pkpass.backFields.push({ label: "Pass Created On", key: "iat", value: iat });
   pkpass.backFields.push({ label: "Membership ID", key: "id", value: email });
+  logger.info("Constructed membership file");
   const buffer = pkpass.getAsBuffer();
   await createAuditLogEntry({
     entry: {

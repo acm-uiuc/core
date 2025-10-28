@@ -314,52 +314,6 @@ function handler(event) {
 EOT
 }
 
-resource "aws_cloudfront_function" "linkry_redirect" {
-  name                         = "${var.ProjectId}-linkry-edge-redir"
-  comment                      = "Linkry Redirect @ Edge"
-  key_value_store_associations = [var.LinkryKvArn]
-  runtime                      = "cloudfront-js-2.0"
-  code                         = <<EOT
-import cf from 'cloudfront';
-const kvs = cf.kvs();
-
-async function handler(event) {
-  const request = event.request;
-  const path = request.uri.replace(/^\/+/, '');
-  if (path === "") {
-    return {
-      statusCode: 301,
-      statusDescription: 'Found',
-      headers: {
-        'location': { value: "https://${var.CorePublicDomain}/linkry" }
-      }
-    }
-  }
-  let statusCode = 307;
-  let statusDescription = 'Not Found';
-  let redirectUrl = "https://acm.illinois.edu/404";
-  try {
-    const value = await kvs.get(path);
-    if (value) {
-      redirectUrl = value;
-      statusCode = 302;
-      statusDescription = 'Found'
-    }
-  } catch (err) {
-    console.log(`KVS key lookup failed for $!{path}: $!{err}`);
-  }
-  var response = {
-    statusCode: statusCode,
-    statusDescription: statusDescription,
-    headers: {
-      'location': { value: redirectUrl },
-      'cache-control': { value: 'no-cache, no-store, must-revalidate' }
-    }
-  };
-  return response;
-}
-EOT
-}
 resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
   bucket = aws_s3_bucket.frontend.id
   policy = jsonencode(({
@@ -418,10 +372,11 @@ resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
-    function_association {
+    cache_policy_id        = "83da9c7e-98b4-4e11-a168-04f0df8e2c65"
+    lambda_function_association {
       event_type   = "viewer-request"
-      function_arn = aws_cloudfront_function.linkry_redirect.arn
+      lambda_arn   = var.LinkryEdgeFunctionArn
+      include_body = false
     }
   }
   viewer_certificate {

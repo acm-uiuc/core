@@ -25,14 +25,13 @@ export type ConfigType = {
   PaidMemberGroupId: string;
   PaidMemberPriceId: string;
   AadValidReadOnlyClientId: string;
-  LinkryCloudfrontKvArn?: string;
   ConfigurationSecretIds: string[];
   DiscordGuildId: string;
   GroupSuffix: string;
   GroupEmailSuffix: string;
   GithubOrgName: string;
-  ExecGithubTeam: number;
-  GithubIdpSyncEnabled: boolean;
+  OrgAdminGithubParentTeam: number;
+  GithubIdpSyncEnabled: boolean
   GithubOrgId: number;
 };
 
@@ -140,14 +139,13 @@ const environmentConfig: EnvironmentConfigType = {
     PaidMemberGroupId: "9222451f-b354-4e64-ba28-c0f367a277c2",
     PaidMemberPriceId: "price_1S5eAqDGHrJxx3mKZYGoulj3",
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
-    LinkryCloudfrontKvArn: "arn:aws:cloudfront::427040638965:key-value-store/0c2c02fd-7c47-4029-975d-bc5d0376bba1",
     DiscordGuildId: "1278798685706391664",
     EntraServicePrincipalId: "8c26ff11-fb86-42f2-858b-9011c9f0708d",
     GroupSuffix: "[NonProd]",
     GroupEmailSuffix: "nonprod",
     GithubOrgName: "acm-uiuc-testing",
     GithubOrgId: 235748315,
-    ExecGithubTeam: 14420860,
+    OrgAdminGithubParentTeam: 14420860,
     GithubIdpSyncEnabled: false
   },
   prod: {
@@ -179,7 +177,7 @@ const environmentConfig: EnvironmentConfigType = {
     GroupEmailSuffix: "",
     GithubOrgName: "acm-uiuc",
     GithubOrgId: 425738,
-    ExecGithubTeam: 12025214,
+    OrgAdminGithubParentTeam: 12025214,
     GithubIdpSyncEnabled: true
   },
 };
@@ -209,6 +207,7 @@ const roleArns = {
 };
 
 export const EVENT_CACHED_DURATION = 120;
+export const STALE_IF_ERROR_CACHED_TIME = 86400; // 1 day
 
 type NotificationRecipientsType = {
   [env in RunEnvironment]: {

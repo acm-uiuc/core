@@ -25,16 +25,14 @@ import {
   EntraGroupActions,
   EntraGroupMetadata,
   EntraInvitationResponse,
-  ProfilePatchRequest,
   ProfilePatchWithUpnRequest,
 } from "../../common/types/iam.js";
 import { UserProfileData } from "common/types/msGraphApi.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { checkPaidMembershipFromTable } from "./membership.js";
-import type pino from "pino";
-import { type FastifyBaseLogger } from "fastify";
 import { RunEnvironment } from "common/roles.js";
+import { ValidLoggers } from "api/types.js";
 
 function validateGroupId(groupId: string): boolean {
   const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
@@ -46,7 +44,7 @@ type GetEntraIdTokenInput = {
   clientId: string;
   scopes?: string[];
   secretName?: string;
-  logger: pino.Logger | FastifyBaseLogger;
+  logger: ValidLoggers;
 };
 export async function getEntraIdToken({
   clients,
