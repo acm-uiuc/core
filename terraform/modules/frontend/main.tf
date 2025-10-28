@@ -125,24 +125,34 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend_oac.id
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
   }
-  origin {
-    origin_id   = "LambdaFunction"
-    domain_name = var.CoreLambdaHost
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
+
+  # Dynamic origins for each region's Lambda function
+  dynamic "origin" {
+    for_each = var.CoreLambdaHost
+    content {
+      origin_id   = "LambdaFunction-${origin.key}"
+      domain_name = origin.value
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
+      }
     }
   }
-  origin {
-    origin_id   = "SlowLambdaFunction"
-    domain_name = var.CoreSlowLambdaHost
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
+
+  # Dynamic origins for each region's Slow Lambda function
+  dynamic "origin" {
+    for_each = var.CoreSlowLambdaHost
+    content {
+      origin_id   = "SlowLambdaFunction-${origin.key}"
+      domain_name = origin.value
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
+      }
     }
   }
   default_root_object = "index.html"
@@ -173,7 +183,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   }
   ordered_cache_behavior {
     path_pattern             = "/api/v1/syncIdentity"
-    target_origin_id         = "SlowLambdaFunction"
+    target_origin_id         = "SlowLambdaFunction-${var.CurrentActiveRegion}"
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods           = ["GET", "HEAD"]
@@ -187,7 +197,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   }
   ordered_cache_behavior {
     path_pattern             = "/api/v1/events*"
-    target_origin_id         = "LambdaFunction"
+    target_origin_id         = "LambdaFunction-${var.CurrentActiveRegion}"
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods           = ["GET", "HEAD"]
@@ -201,7 +211,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   }
   ordered_cache_behavior {
     path_pattern             = "/api/v1/organizations*"
-    target_origin_id         = "LambdaFunction"
+    target_origin_id         = "LambdaFunction-${var.CurrentActiveRegion}"
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods           = ["GET", "HEAD"]
@@ -215,7 +225,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   }
   ordered_cache_behavior {
     path_pattern             = "/api/*"
-    target_origin_id         = "LambdaFunction"
+    target_origin_id         = "LambdaFunction-${var.CurrentActiveRegion}"
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods           = ["GET", "HEAD"]
@@ -232,15 +242,20 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
 
 resource "aws_cloudfront_distribution" "ical_cloudfront_distribution" {
   http_version = "http2and3"
-  origin {
-    origin_id   = "LambdaFunction"
-    domain_name = var.CoreLambdaHost
-    origin_path = "/api/v1/ical"
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
+
+  # Dynamic origins for each region's Lambda function
+  dynamic "origin" {
+    for_each = var.CoreLambdaHost
+    content {
+      origin_id   = "LambdaFunction-${origin.key}"
+      domain_name = origin.value
+      origin_path = "/api/v1/ical"
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
+      }
     }
   }
   aliases         = [var.IcalPublicDomain]
@@ -248,7 +263,7 @@ resource "aws_cloudfront_distribution" "ical_cloudfront_distribution" {
   is_ipv6_enabled = true
   default_cache_behavior {
     compress                 = true
-    target_origin_id         = "LambdaFunction"
+    target_origin_id         = "LambdaFunction-${var.CurrentActiveRegion}"
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["GET", "HEAD"]
     cached_methods           = ["GET", "HEAD"]

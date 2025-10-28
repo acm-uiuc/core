@@ -111,10 +111,17 @@ module "lambdas" {
 }
 
 module "frontend" {
-  source                = "../../modules/frontend"
-  BucketPrefix          = local.primary_bucket_prefix
-  CoreLambdaHost        = module.lambdas.core_function_url
-  CoreSlowLambdaHost    = module.lambdas.core_slow_function_url
+  source       = "../../modules/frontend"
+  BucketPrefix = local.primary_bucket_prefix
+  CoreLambdaHost = {
+    "us-east-2" = module.lambdas.core_function_url
+    "us-west-2" = module.lambdas_usw2.core_function_url
+  }
+  CoreSlowLambdaHost = {
+    "us-east-2" = module.lambdas.core_slow_function_url
+    "us-west-2" = module.lambdas_usw2.core_slow_function_url
+  }
+  CurrentActiveRegion   = var.current_active_region
   OriginVerifyKey       = module.origin_verify.current_origin_verify_key
   ProjectId             = var.ProjectId
   CoreCertificateArn    = var.CoreCertificateArn

@@ -101,15 +101,36 @@ module "lambdas" {
   EmailDomain                      = var.EmailDomain
 }
 
+// Multi-Region Failover: US-West-2
+
+module "lambdas_usw2" {
+  region                           = "us-west-2"
+  source                           = "../../modules/lambdas"
+  ProjectId                        = var.ProjectId
+  RunEnvironment                   = "prod"
+  CurrentOriginVerifyKey           = module.origin_verify.current_origin_verify_key
+  PreviousOriginVerifyKey          = module.origin_verify.previous_origin_verify_key
+  PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
+  LogRetentionDays                 = var.LogRetentionDays
+  EmailDomain                      = var.EmailDomain
+}
+
 module "frontend" {
-  source                = "../../modules/frontend"
-  BucketPrefix          = local.primary_bucket_prefix
-  CoreLambdaHost        = module.lambdas.core_function_url
+  source       = "../../modules/frontend"
+  BucketPrefix = local.primary_bucket_prefix
+  CoreLambdaHost = {
+    "us-east-2" = module.lambdas.core_function_url
+    "us-west-2" = module.lambdas_usw2.core_function_url
+  }
+  CoreSlowLambdaHost = {
+    "us-east-2" = module.lambdas.core_slow_function_url
+    "us-west-2" = module.lambdas_usw2.core_slow_function_url
+  }
+  CurrentActiveRegion   = var.current_active_region
   OriginVerifyKey       = module.origin_verify.current_origin_verify_key
   ProjectId             = var.ProjectId
   CoreCertificateArn    = var.CoreCertificateArn
   CorePublicDomain      = var.CorePublicDomain
-  CoreSlowLambdaHost    = module.lambdas.core_slow_function_url
   IcalPublicDomain      = var.IcalPublicDomain
   LinkryPublicDomain    = var.LinkryPublicDomain
   LinkryEdgeFunctionArn = module.lambdas.linkry_redirect_function_arn
