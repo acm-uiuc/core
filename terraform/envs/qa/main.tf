@@ -37,6 +37,7 @@ locals {
 
 
 module "sqs_queues" {
+  region                        = "us-east-2"
   depends_on                    = [module.lambdas]
   source                        = "../../modules/sqs"
   resource_prefix               = var.ProjectId
@@ -47,6 +48,10 @@ locals {
   queue_arns = {
     main = module.sqs_queues.main_queue_arn
     sqs  = module.sqs_queues.sales_email_queue_arn
+  }
+  queue_arns_usw2 = {
+    main = module.sqs_queues_usw2.main_queue_arn
+    sqs  = module.sqs_queues_usw2.sales_email_queue_arn
   }
 }
 
@@ -139,6 +144,24 @@ module "lambdas_usw2" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
+}
+
+module "sqs_queues_usw2" {
+  region                        = "us-west-2"
+  depends_on                    = [module.lambdas_usw2]
+  source                        = "../../modules/sqs"
+  resource_prefix               = var.ProjectId
+  core_sqs_consumer_lambda_name = module.lambdas_usw2.core_sqs_consumer_lambda_name
+}
+
+resource "aws_lambda_event_source_mapping" "queue_consumer_usw2" {
+  region                  = "us-west-2"
+  depends_on              = [module.lambdas_usw2, module.sqs_queues_usw2]
+  for_each                = local.queue_arns_usw2
+  batch_size              = 5
+  event_source_arn        = each.value
+  function_name           = module.lambdas_usw2.core_sqs_consumer_lambda_arn
+  function_response_types = ["ReportBatchItemFailures"]
 }
 
 // QA only - setup Route 53 records
