@@ -291,7 +291,7 @@ resource "aws_dynamodb_table" "linkry_records" {
     type = "S"
   }
   dynamic "replica" {
-    for_each = var.LinkryReplicationRegions
+    for_each = var.ReplicationRegions
     content {
       region_name                 = replica.value
       deletion_protection_enabled = true

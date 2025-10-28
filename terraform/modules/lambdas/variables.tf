@@ -33,8 +33,7 @@ variable "EmailDomain" {
   type = string
 }
 
-variable "LinkryReplicationRegions" {
-  type        = set(string)
-  description = "A list of regions where the Linkry data has be replicated to (in addition to the primary region)"
+variable "region" {
+  type        = string
+  description = "AWS region to deploy non-global resources to"
 }
-
