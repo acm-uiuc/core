@@ -44,7 +44,7 @@ resource "aws_cloudwatch_log_group" "api_logs" {
 }
 
 resource "aws_iam_role" "api_role" {
-  name = "${local.core_api_lambda_name}-role"
+  name_prefix = "${local.core_api_lambda_name}-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -60,7 +60,7 @@ resource "aws_iam_role" "api_role" {
 }
 
 resource "aws_iam_role" "sqs_consumer_role" {
-  name = "${local.core_sqs_consumer_lambda_name}-role"
+  name_prefix = "${local.core_sqs_consumer_lambda_name}-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -76,7 +76,7 @@ resource "aws_iam_role" "sqs_consumer_role" {
 }
 
 resource "aws_iam_role" "entra_role" {
-  name = "${var.ProjectId}-entra-role"
+  name_prefix = "${var.ProjectId}-entra-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -101,7 +101,7 @@ resource "aws_iam_role" "entra_role" {
 }
 
 resource "aws_iam_policy" "entra_policy" {
-  name = "${var.ProjectId}-entra-policy"
+  name_prefix = "${var.ProjectId}-entra-policy"
   policy = jsonencode(({
     Version = "2012-10-17"
     Statement = [
@@ -118,7 +118,7 @@ resource "aws_iam_policy" "entra_policy" {
 }
 
 resource "aws_iam_policy" "api_only_policy" {
-  name = "${var.ProjectId}-api-only-policy"
+  name_prefix = "${var.ProjectId}-api-only-policy"
   policy = jsonencode(({
     Version = "2012-10-17"
     Statement = [
@@ -133,9 +133,8 @@ resource "aws_iam_policy" "api_only_policy" {
   }))
 }
 
-
 resource "aws_iam_policy" "sqs_policy" {
-  name = "${var.ProjectId}-sqs-consumer-policy"
+  name_prefix = "${var.ProjectId}-sqs-consumer-policy"
   policy = jsonencode(({
     Version = "2012-10-17"
     Statement = [
@@ -182,7 +181,7 @@ resource "aws_iam_policy" "sqs_policy" {
 
 
 resource "aws_iam_policy" "shared_iam_policy" {
-  name = "${var.ProjectId}-lambda-shared-policy"
+  name_prefix = "${var.ProjectId}-lambda-shared-policy"
   policy = jsonencode(({
     Version = "2012-10-17"
     Statement = [
@@ -443,7 +442,7 @@ module "lambda_warmer_slow" {
 
 // Linkry Lambda @ Edge
 resource "aws_iam_role" "linkry_lambda_edge_role" {
-  name = "${var.ProjectId}-linkry-edge-role"
+  name_prefix = "${var.ProjectId}-linkry-edge-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -467,8 +466,8 @@ resource "aws_iam_role_policy_attachment" "linkry_lambda_edge_basic" {
 }
 
 resource "aws_iam_role_policy" "linkry_lambda_edge_dynamodb" {
-  name = "${var.ProjectId}-linkry-edge-dynamodb"
-  role = aws_iam_role.linkry_lambda_edge_role.id
+  name_prefix = "${var.ProjectId}-linkry-edge-dynamodb"
+  role        = aws_iam_role.linkry_lambda_edge_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
