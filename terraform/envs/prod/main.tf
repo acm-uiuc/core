@@ -41,6 +41,7 @@ locals {
 }
 
 module "sqs_queues" {
+  region                        = "us-east-2"
   source                        = "../../modules/sqs"
   resource_prefix               = var.ProjectId
   core_sqs_consumer_lambda_name = module.lambdas.core_sqs_consumer_lambda_name
