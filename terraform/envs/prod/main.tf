@@ -32,24 +32,25 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 locals {
-  bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.region}"
+  primary_bucket_prefix = "${data.aws_caller_identity.current.account_id}-${data.aws_region.current.region}"
   queue_arns = {
     main = module.sqs_queues.main_queue_arn
     sqs  = module.sqs_queues.sales_email_queue_arn
   }
-  LinkryReplicationRegions = toset(["us-west-2"])
+  DynamoReplicationRegions = toset(["us-west-2"])
 }
 
 module "sqs_queues" {
+  region                        = "us-east-2"
   source                        = "../../modules/sqs"
   resource_prefix               = var.ProjectId
   core_sqs_consumer_lambda_name = module.lambdas.core_sqs_consumer_lambda_name
 }
 
 module "dynamo" {
-  source                   = "../../modules/dynamo"
-  ProjectId                = var.ProjectId
-  LinkryReplicationRegions = local.LinkryReplicationRegions
+  source             = "../../modules/dynamo"
+  ProjectId          = var.ProjectId
+  ReplicationRegions = local.DynamoReplicationRegions
 }
 
 module "origin_verify" {
@@ -78,7 +79,7 @@ module "archival" {
   source           = "../../modules/archival"
   ProjectId        = var.ProjectId
   RunEnvironment   = "dev"
-  BucketPrefix     = local.bucket_prefix
+  BucketPrefix     = local.primary_bucket_prefix
   LogRetentionDays = var.LogRetentionDays
   MonitorTables    = ["${var.ProjectId}-audit-log", "${var.ProjectId}-events", "${var.ProjectId}-room-requests"]
   TableDeletionDays = tomap({
@@ -89,6 +90,7 @@ module "archival" {
 }
 
 module "lambdas" {
+  region                           = "us-east-2"
   source                           = "../../modules/lambdas"
   ProjectId                        = var.ProjectId
   RunEnvironment                   = "prod"
@@ -97,12 +99,11 @@ module "lambdas" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
-  LinkryReplicationRegions         = local.LinkryReplicationRegions
 }
 
 module "frontend" {
   source                = "../../modules/frontend"
-  BucketPrefix          = local.bucket_prefix
+  BucketPrefix          = local.primary_bucket_prefix
   CoreLambdaHost        = module.lambdas.core_function_url
   OriginVerifyKey       = module.origin_verify.current_origin_verify_key
   ProjectId             = var.ProjectId
@@ -116,7 +117,7 @@ module "frontend" {
 
 module "assets" {
   source             = "../../modules/assets"
-  BucketPrefix       = local.bucket_prefix
+  BucketPrefix       = local.primary_bucket_prefix
   AssetsPublicDomain = var.AssetsPublicDomain
   ProjectId          = var.ProjectId
   CoreCertificateArn = var.CoreCertificateArn

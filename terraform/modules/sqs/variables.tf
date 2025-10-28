@@ -18,3 +18,8 @@ variable "dlq_message_retention" {
 variable "core_sqs_consumer_lambda_name" {
   type = string
 }
+
+variable "region" {
+  type        = string
+  description = "AWS region to deploy non-global resources to"
+}
