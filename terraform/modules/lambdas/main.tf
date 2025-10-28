@@ -33,6 +33,7 @@ locals {
     api    = aws_iam_policy.api_only_policy.arn
     shared = aws_iam_policy.shared_iam_policy.arn
   }
+  is_primary_deployment = var.region == "us-east-2"
 }
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
@@ -109,8 +110,8 @@ resource "aws_iam_policy" "entra_policy" {
         Effect = "Allow",
         Action = ["secretsmanager:GetSecretValue"],
         Resource = [
-          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-entra*",
-          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-ro-entra*"
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-entra*",
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-ro-entra*"
         ]
       }
     ]
@@ -126,7 +127,7 @@ resource "aws_iam_policy" "api_only_policy" {
         Effect = "Allow",
         Action = ["sqs:SendMessage"],
         Resource = [
-          "arn:aws:sqs:us-east-2:${data.aws_caller_identity.current.account_id}:${var.ProjectId}-*",
+          "arn:aws:sqs:${var.region}:${data.aws_caller_identity.current.account_id}:${var.ProjectId}-*",
         ]
       }
     ]
@@ -194,9 +195,9 @@ resource "aws_iam_policy" "shared_iam_policy" {
         Action = ["secretsmanager:GetSecretValue"],
         Effect = "Allow",
         Resource = [
-          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-config*",
-          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-testing-credentials*",
-          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-uin-pepper*"
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-config*",
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-testing-credentials*",
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-uin-pepper*"
         ]
       },
       {
@@ -227,26 +228,26 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-purchase-history/index/*",
           "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-metadata",
 
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events/index/*",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-assignments",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links/index/*",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-external-v3",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-external-v3/index/*",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests/index/*",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests-status",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests-status/index/*",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry/index/*",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-keys",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs/index/*",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-inventory",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders/index/*",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-limits"
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-assignments",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-external-v3",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-external-v3/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests-status",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests-status/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-keys",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-inventory",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-limits"
         ]
       },
       {
@@ -262,7 +263,7 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "dynamodb:UpdateItem"
         ],
         Resource = [
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-cache",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-cache",
         ]
       },
       {
@@ -274,8 +275,8 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "dynamodb:Query",
         ],
         Resource = [
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-audit-log",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-audit-log/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-audit-log",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-audit-log/index/*",
         ]
       },
       {
@@ -290,8 +291,8 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "dynamodb:Query",
         ],
         Resource = [
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-user-info",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-user-info/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-user-info",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-user-info/index/*",
         ]
       },
       {
@@ -304,8 +305,8 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "dynamodb:ListStreams"
         ],
         Resource = [
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links/stream/*",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events/stream/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links/stream/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events/stream/*",
         ]
       },
     ]
@@ -442,6 +443,7 @@ module "lambda_warmer_slow" {
 
 // Linkry Lambda @ Edge
 resource "aws_iam_role" "linkry_lambda_edge_role" {
+  count       = local.is_primary_deployment ? 1 : 0
   name_prefix = "${var.ProjectId}-linkry-edge-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -461,11 +463,13 @@ resource "aws_iam_role" "linkry_lambda_edge_role" {
 }
 
 resource "aws_iam_role_policy_attachment" "linkry_lambda_edge_basic" {
+  count      = local.is_primary_deployment ? 1 : 0
   role       = aws_iam_role.linkry_lambda_edge_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_iam_role_policy" "linkry_lambda_edge_dynamodb" {
+  count       = local.is_primary_deployment ? 1 : 0
   name_prefix = "${var.ProjectId}-linkry-edge-dynamodb"
   role        = aws_iam_role.linkry_lambda_edge_role.id
 
@@ -487,6 +491,7 @@ resource "aws_iam_role_policy" "linkry_lambda_edge_dynamodb" {
 }
 
 resource "aws_lambda_function" "linkry_edge" {
+  count            = local.is_primary_deployment ? 1 : 0
   region           = "us-east-1"
   filename         = data.archive_file.linkry_edge_lambda_code.output_path
   function_name    = "${var.ProjectId}-linkry-edge"
