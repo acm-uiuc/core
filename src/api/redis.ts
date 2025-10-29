@@ -63,8 +63,10 @@ export async function createRedisModule(
   }
 
   if (fallbackMode === "read-only") {
-    logger.error("Primary Redis is down, using fallback in read-only mode");
-    return new RedisModule.default(fallbackUrl);
+    logger.error(
+      "Primary Redis is down and Fallback Redis is down, using primary anyway",
+    );
+    return new RedisModule.default(primaryUrl);
   }
 
   logger.error(
