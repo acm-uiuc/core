@@ -13,6 +13,7 @@ import { getAuthorizedClients, getSecretConfig } from "../utils.js";
 import { emailMembershipPassHandler } from "./emailMembershipPassHandler.js";
 import RedisModule from "ioredis";
 import { setKey } from "api/functions/redisCache.js";
+import { createRedisModule } from "api/redis.js";
 
 export const provisionNewMemberHandler: SQSHandlerFunction<
   AvailableSQSFunctions.ProvisionNewMember
@@ -30,7 +31,11 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
     logger,
     commonConfig,
   });
-  const redisClient = new RedisModule.default(secretConfig.redis_url);
+  const redisClient = await createRedisModule(
+    secretConfig.redis_url,
+    secretConfig.fallback_redis_url,
+    logger,
+  );
   const netId = email.replace("@illinois.edu", "");
   const cacheKey = `membership:${netId}:acmpaid`;
   logger.info("Got authorized clients and Entra ID token.");
