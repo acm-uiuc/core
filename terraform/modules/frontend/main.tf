@@ -2,6 +2,8 @@ locals {
   all_regions = keys(var.CoreSlowLambdaHost)
 }
 
+data "aws_caller_identity" "current" {}
+
 resource "aws_s3_bucket" "frontend" {
   region   = each.key
   for_each = toset(local.all_regions)
