@@ -34,7 +34,13 @@ export async function createRedisModule(
   logger: ValidLoggers,
 ) {
   const primaryMode = await checkRedisMode(primaryUrl);
-
+  if (Math.random() < 0.01) {
+    // Upstash will complain if we never hit the instance
+    // Fire a hit every so often on the fallback
+    // Don't block on it
+    // Given we create a client once ever hour, we should hit the node at least once every 4 days at least
+    checkRedisMode(fallbackUrl);
+  }
   if (primaryMode === "read-write") {
     logger.info("Using primary Redis in read-write mode");
     return new RedisModule.default(primaryUrl);
