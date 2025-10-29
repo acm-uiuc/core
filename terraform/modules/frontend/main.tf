@@ -139,7 +139,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
     content {
       origin_id                = "S3Bucket-${origin.key}"
       origin_access_control_id = aws_cloudfront_origin_access_control.frontend_oac.id
-      domain_name              = aws_s3_bucket.frontend[origin.value].bucket_regional_domain_name
+      domain_name              = aws_s3_bucket.frontend[origin.key].bucket_regional_domain_name
     }
   }
 
