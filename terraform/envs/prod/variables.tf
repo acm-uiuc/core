@@ -48,3 +48,13 @@ variable "IcalPublicDomain" {
   type    = string
   default = "ical.acm.illinois.edu"
 }
+
+variable "current_active_region" {
+  type        = string
+  description = "Currently active AWS region"
+
+  validation {
+    condition     = contains(["us-east-2", "us-west-2"], var.current_active_region)
+    error_message = "Invalid value for current_active_region"
+  }
+}

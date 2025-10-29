@@ -31,9 +31,6 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-locals {
-  DynamoReplicationRegions = toset(["us-west-2"])
-}
 
 
 module "sqs_queues" {
@@ -53,6 +50,8 @@ locals {
     main = module.sqs_queues_usw2.main_queue_arn
     sqs  = module.sqs_queues_usw2.sales_email_queue_arn
   }
+  DynamoReplicationRegions = toset(["us-west-2"])
+  deployment_env           = "dev"
 }
 
 module "dynamo" {
@@ -86,7 +85,7 @@ module "archival" {
   depends_on       = [module.dynamo]
   source           = "../../modules/archival"
   ProjectId        = var.ProjectId
-  RunEnvironment   = "dev"
+  RunEnvironment   = local.deployment_env
   LogRetentionDays = var.LogRetentionDays
   MonitorTables    = ["${var.ProjectId}-audit-log", "${var.ProjectId}-events", "${var.ProjectId}-room-requests"]
   BucketPrefix     = local.primary_bucket_prefix
@@ -102,7 +101,7 @@ module "lambdas" {
   region                           = "us-east-2"
   source                           = "../../modules/lambdas"
   ProjectId                        = var.ProjectId
-  RunEnvironment                   = "dev"
+  RunEnvironment                   = local.deployment_env
   CurrentOriginVerifyKey           = module.origin_verify.current_origin_verify_key
   PreviousOriginVerifyKey          = module.origin_verify.previous_origin_verify_key
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
@@ -111,10 +110,17 @@ module "lambdas" {
 }
 
 module "frontend" {
-  source                = "../../modules/frontend"
-  BucketPrefix          = local.primary_bucket_prefix
-  CoreLambdaHost        = module.lambdas.core_function_url
-  CoreSlowLambdaHost    = module.lambdas.core_slow_function_url
+  source       = "../../modules/frontend"
+  BucketPrefix = local.primary_bucket_prefix
+  CoreLambdaHost = {
+    "us-east-2" = module.lambdas.core_function_url
+    "us-west-2" = module.lambdas_usw2.core_function_url
+  }
+  CoreSlowLambdaHost = {
+    "us-east-2" = module.lambdas.core_slow_function_url
+    "us-west-2" = module.lambdas_usw2.core_slow_function_url
+  }
+  CurrentActiveRegion   = var.current_active_region
   OriginVerifyKey       = module.origin_verify.current_origin_verify_key
   ProjectId             = var.ProjectId
   CoreCertificateArn    = var.CoreCertificateArn
@@ -138,7 +144,7 @@ module "lambdas_usw2" {
   region                           = "us-west-2"
   source                           = "../../modules/lambdas"
   ProjectId                        = var.ProjectId
-  RunEnvironment                   = "dev"
+  RunEnvironment                   = local.deployment_env
   CurrentOriginVerifyKey           = module.origin_verify.current_origin_verify_key
   PreviousOriginVerifyKey          = module.origin_verify.previous_origin_verify_key
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
