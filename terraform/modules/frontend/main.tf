@@ -139,7 +139,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
     content {
       origin_id                = "S3Bucket-${origin.key}"
       origin_access_control_id = aws_cloudfront_origin_access_control.frontend_oac.id
-      domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
+      domain_name              = aws_s3_bucket.frontend[origin.value].bucket_regional_domain_name
     }
   }
 
@@ -347,8 +347,10 @@ EOT
 }
 
 resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
-  bucket = aws_s3_bucket.frontend.id
-  policy = jsonencode(({
+  for_each = toset(local.all_regions)
+
+  bucket = aws_s3_bucket.frontend[each.key].id
+  policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
@@ -357,7 +359,7 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
           Service = "cloudfront.amazonaws.com"
         },
         Action   = "s3:GetObject",
-        Resource = "${aws_s3_bucket.frontend.arn}/*"
+        Resource = "${aws_s3_bucket.frontend[each.key].arn}/*"
         Condition = {
           StringEquals = {
             "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
@@ -370,7 +372,7 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
           Service = "cloudfront.amazonaws.com"
         },
         Action   = "s3:ListBucket",
-        Resource = aws_s3_bucket.frontend.arn
+        Resource = aws_s3_bucket.frontend[each.key].arn
         Condition = {
           StringEquals = {
             "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
@@ -378,9 +380,7 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
         }
       }
     ]
-
-  }))
-
+  })
 }
 
 resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
