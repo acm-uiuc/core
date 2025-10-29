@@ -4,13 +4,18 @@ variable "ProjectId" {
 }
 
 variable "CoreLambdaHost" {
-  type        = string
-  description = "Host for Lambda Function URL"
+  type        = map(string)
+  description = "Map of region to Lambda Function URL host"
 }
 
 variable "CoreSlowLambdaHost" {
+  type        = map(string)
+  description = "Map of region to Slow Lambda Function URL host"
+}
+
+variable "CurrentActiveRegion" {
   type        = string
-  description = "Host for Slow Lambda Function URL"
+  description = "Currently active AWS region for primary routing"
 }
 
 variable "CorePublicDomain" {

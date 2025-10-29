@@ -49,3 +49,13 @@ variable "PrioritySNSAlertArn" {
   type    = string
   default = "arn:aws:sns:us-east-2:427040638965:infra-monitor-alerts"
 }
+
+variable "current_active_region" {
+  type        = string
+  description = "Currently active AWS region"
+
+  validation {
+    condition     = contains(["us-east-2", "us-west-2"], var.current_active_region)
+    error_message = "Invalid value for current_active_region"
+  }
+}
