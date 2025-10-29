@@ -1,9 +1,17 @@
+locals {
+  all_regions = keys(var.CoreSlowLambdaHost)
+}
+
 resource "aws_s3_bucket" "frontend" {
-  bucket = "${var.BucketPrefix}-${var.ProjectId}"
+  region   = each.key
+  for_each = toset(local.all_regions)
+  bucket   = "${data.aws_caller_identity.current.account_id}-${var.ProjectId}-${each.key}"
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
+  for_each = toset(local.all_regions)
+  region   = each.key
+  bucket   = aws_s3_bucket.frontend[each.key].id
 
   rule {
     id     = "AbortIncompleteMultipartUploads"
@@ -41,16 +49,18 @@ data "archive_file" "ui" {
   source_dir  = "${path.module}/../../../dist_ui/"
   output_path = "/tmp/ui_archive.zip"
 }
+
 resource "null_resource" "upload_frontend" {
+  for_each = toset(local.all_regions)
+
   triggers = {
     ui_bucket_sha = data.archive_file.ui.output_sha
   }
 
   provisioner "local-exec" {
-    command = "aws s3 sync ${data.archive_file.ui.source_dir} s3://${aws_s3_bucket.frontend.id} --delete"
+    command = "aws s3 sync ${data.archive_file.ui.source_dir} s3://${aws_s3_bucket.frontend[each.key].id} --region ${each.key} --delete"
   }
 }
-
 resource "null_resource" "invalidate_frontend" {
   depends_on = [null_resource.upload_frontend]
   triggers = {
@@ -120,10 +130,15 @@ resource "aws_cloudfront_cache_policy" "no_cache" {
 
 resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   http_version = "http2and3"
-  origin {
-    origin_id                = "S3Bucket"
-    origin_access_control_id = aws_cloudfront_origin_access_control.frontend_oac.id
-    domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
+
+  # Dynamic origins for each region's S3 bucket
+  dynamic "origin" {
+    for_each = var.CoreLambdaHost
+    content {
+      origin_id                = "S3Bucket-${origin.key}"
+      origin_access_control_id = aws_cloudfront_origin_access_control.frontend_oac.id
+      domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
+    }
   }
 
   # Dynamic origins for each region's Lambda function
@@ -161,7 +176,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   is_ipv6_enabled     = true
   default_cache_behavior {
     compress               = true
-    target_origin_id       = "S3Bucket"
+    target_origin_id       = "S3Bucket-${var.CurrentActiveRegion}"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
