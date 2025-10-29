@@ -146,7 +146,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
 
   # Origin group for S3 buckets with failover
   origin_group {
-    origin_id = "UIS3BucketGroup"
+    origin_id = "S3BucketGroup"
 
     failover_criteria {
       status_codes = [403, 404, 500, 502, 503, 504]
@@ -199,7 +199,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   is_ipv6_enabled     = true
   default_cache_behavior {
     compress               = true
-    target_origin_id       = "UIS3BucketGroup"
+    target_origin_id       = "S3BucketGroup"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
@@ -367,41 +367,83 @@ function handler(event) {
 EOT
 }
 
-resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
+resource "null_resource" "s3_bucket_policy" {
   for_each = toset(local.all_regions)
 
-  bucket = aws_s3_bucket.frontend[each.key].id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow",
-        Principal = {
-          Service = "cloudfront.amazonaws.com"
+  triggers = {
+    bucket_id        = aws_s3_bucket.frontend[each.key].id
+    distribution_arn = aws_cloudfront_distribution.app_cloudfront_distribution.arn
+    policy_hash = md5(jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Effect = "Allow",
+          Principal = {
+            Service = "cloudfront.amazonaws.com"
+          },
+          Action   = "s3:GetObject",
+          Resource = "${aws_s3_bucket.frontend[each.key].arn}/*"
+          Condition = {
+            StringEquals = {
+              "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
+            }
+          }
         },
-        Action   = "s3:GetObject",
-        Resource = "${aws_s3_bucket.frontend[each.key].arn}/*"
-        Condition = {
-          StringEquals = {
-            "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
+        {
+          Effect = "Allow",
+          Principal = {
+            Service = "cloudfront.amazonaws.com"
+          },
+          Action   = "s3:ListBucket",
+          Resource = aws_s3_bucket.frontend[each.key].arn
+          Condition = {
+            StringEquals = {
+              "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
+            }
           }
         }
-      },
-      {
-        Effect = "Allow",
-        Principal = {
-          Service = "cloudfront.amazonaws.com"
-        },
-        Action   = "s3:ListBucket",
-        Resource = aws_s3_bucket.frontend[each.key].arn
-        Condition = {
-          StringEquals = {
-            "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
-          }
-        }
-      }
-    ]
-  })
+      ]
+    }))
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      aws s3api put-bucket-policy \
+        --bucket ${aws_s3_bucket.frontend[each.key].id} \
+        --region ${each.key} \
+        --policy '{
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+              },
+              "Action": "s3:GetObject",
+              "Resource": "${aws_s3_bucket.frontend[each.key].arn}/*",
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": "${aws_cloudfront_distribution.app_cloudfront_distribution.arn}"
+                }
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+              },
+              "Action": "s3:ListBucket",
+              "Resource": "${aws_s3_bucket.frontend[each.key].arn}",
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": "${aws_cloudfront_distribution.app_cloudfront_distribution.arn}"
+                }
+              }
+            }
+          ]
+        }'
+    EOT
+  }
 }
 
 resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
