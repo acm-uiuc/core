@@ -63,6 +63,7 @@ resource "null_resource" "upload_frontend" {
     command = "aws s3 sync ${data.archive_file.ui.source_dir} s3://${aws_s3_bucket.frontend[each.key].id} --region ${each.key} --delete"
   }
 }
+
 resource "null_resource" "invalidate_frontend" {
   depends_on = [null_resource.upload_frontend]
   triggers = {
@@ -135,11 +136,31 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
 
   # Dynamic origins for each region's S3 bucket
   dynamic "origin" {
-    for_each = var.CoreLambdaHost
+    for_each = local.all_regions
     content {
-      origin_id                = "S3Bucket-${origin.key}"
+      origin_id                = "S3Bucket-${origin.value}"
       origin_access_control_id = aws_cloudfront_origin_access_control.frontend_oac.id
-      domain_name              = aws_s3_bucket.frontend[origin.key].bucket_regional_domain_name
+      domain_name              = aws_s3_bucket.frontend[origin.value].bucket_regional_domain_name
+    }
+  }
+
+  # Origin group for S3 buckets with failover
+  origin_group {
+    origin_id = "UIS3BucketGroup"
+
+    failover_criteria {
+      status_codes = [403, 404, 500, 502, 503, 504]
+    }
+
+    member {
+      origin_id = "S3Bucket-${var.CurrentActiveRegion}"
+    }
+
+    dynamic "member" {
+      for_each = [for region in local.all_regions : region if region != var.CurrentActiveRegion]
+      content {
+        origin_id = "S3Bucket-${member.value}"
+      }
     }
   }
 
@@ -178,7 +199,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   is_ipv6_enabled     = true
   default_cache_behavior {
     compress               = true
-    target_origin_id       = "S3Bucket-${var.CurrentActiveRegion}"
+    target_origin_id       = "UIS3BucketGroup"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
