@@ -1,9 +1,19 @@
+locals {
+  all_regions = keys(var.CoreSlowLambdaHost)
+}
+
+data "aws_caller_identity" "current" {}
+
 resource "aws_s3_bucket" "frontend" {
-  bucket = "${var.BucketPrefix}-${var.ProjectId}"
+  region   = each.key
+  for_each = toset(local.all_regions)
+  bucket   = "${data.aws_caller_identity.current.account_id}-${var.ProjectId}-${each.key}"
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
+  for_each = toset(local.all_regions)
+  region   = each.key
+  bucket   = aws_s3_bucket.frontend[each.key].id
 
   rule {
     id     = "AbortIncompleteMultipartUploads"
@@ -41,13 +51,16 @@ data "archive_file" "ui" {
   source_dir  = "${path.module}/../../../dist_ui/"
   output_path = "/tmp/ui_archive.zip"
 }
+
 resource "null_resource" "upload_frontend" {
+  for_each = toset(local.all_regions)
+
   triggers = {
     ui_bucket_sha = data.archive_file.ui.output_sha
   }
 
   provisioner "local-exec" {
-    command = "aws s3 sync ${data.archive_file.ui.source_dir} s3://${aws_s3_bucket.frontend.id} --delete"
+    command = "aws s3 sync ${data.archive_file.ui.source_dir} s3://${aws_s3_bucket.frontend[each.key].id} --region ${each.key} --delete"
   }
 }
 
@@ -120,10 +133,35 @@ resource "aws_cloudfront_cache_policy" "no_cache" {
 
 resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   http_version = "http2and3"
-  origin {
-    origin_id                = "S3Bucket"
-    origin_access_control_id = aws_cloudfront_origin_access_control.frontend_oac.id
-    domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
+
+  # Dynamic origins for each region's S3 bucket
+  dynamic "origin" {
+    for_each = local.all_regions
+    content {
+      origin_id                = "S3Bucket-${origin.value}"
+      origin_access_control_id = aws_cloudfront_origin_access_control.frontend_oac.id
+      domain_name              = aws_s3_bucket.frontend[origin.value].bucket_regional_domain_name
+    }
+  }
+
+  # Origin group for S3 buckets with failover
+  origin_group {
+    origin_id = "S3BucketGroup"
+
+    failover_criteria {
+      status_codes = [403, 404, 500, 502, 503, 504]
+    }
+
+    member {
+      origin_id = "S3Bucket-${var.CurrentActiveRegion}"
+    }
+
+    dynamic "member" {
+      for_each = [for region in local.all_regions : region if region != var.CurrentActiveRegion]
+      content {
+        origin_id = "S3Bucket-${member.value}"
+      }
+    }
   }
 
   # Dynamic origins for each region's Lambda function
@@ -161,7 +199,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   is_ipv6_enabled     = true
   default_cache_behavior {
     compress               = true
-    target_origin_id       = "S3Bucket"
+    target_origin_id       = "S3BucketGroup"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
@@ -329,41 +367,83 @@ function handler(event) {
 EOT
 }
 
-resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
-  bucket = aws_s3_bucket.frontend.id
-  policy = jsonencode(({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow",
-        Principal = {
-          Service = "cloudfront.amazonaws.com"
+resource "null_resource" "s3_bucket_policy" {
+  for_each = toset(local.all_regions)
+
+  triggers = {
+    bucket_id        = aws_s3_bucket.frontend[each.key].id
+    distribution_arn = aws_cloudfront_distribution.app_cloudfront_distribution.arn
+    policy_hash = md5(jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Effect = "Allow",
+          Principal = {
+            Service = "cloudfront.amazonaws.com"
+          },
+          Action   = "s3:GetObject",
+          Resource = "${aws_s3_bucket.frontend[each.key].arn}/*"
+          Condition = {
+            StringEquals = {
+              "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
+            }
+          }
         },
-        Action   = "s3:GetObject",
-        Resource = "${aws_s3_bucket.frontend.arn}/*"
-        Condition = {
-          StringEquals = {
-            "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
+        {
+          Effect = "Allow",
+          Principal = {
+            Service = "cloudfront.amazonaws.com"
+          },
+          Action   = "s3:ListBucket",
+          Resource = aws_s3_bucket.frontend[each.key].arn
+          Condition = {
+            StringEquals = {
+              "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
+            }
           }
         }
-      },
-      {
-        Effect = "Allow",
-        Principal = {
-          Service = "cloudfront.amazonaws.com"
-        },
-        Action   = "s3:ListBucket",
-        Resource = aws_s3_bucket.frontend.arn
-        Condition = {
-          StringEquals = {
-            "AWS:SourceArn" = aws_cloudfront_distribution.app_cloudfront_distribution.arn
-          }
-        }
-      }
-    ]
+      ]
+    }))
+  }
 
-  }))
-
+  provisioner "local-exec" {
+    command = <<-EOT
+      aws s3api put-bucket-policy \
+        --bucket ${aws_s3_bucket.frontend[each.key].id} \
+        --region ${each.key} \
+        --policy '{
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+              },
+              "Action": "s3:GetObject",
+              "Resource": "${aws_s3_bucket.frontend[each.key].arn}/*",
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": "${aws_cloudfront_distribution.app_cloudfront_distribution.arn}"
+                }
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+              },
+              "Action": "s3:ListBucket",
+              "Resource": "${aws_s3_bucket.frontend[each.key].arn}",
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": "${aws_cloudfront_distribution.app_cloudfront_distribution.arn}"
+                }
+              }
+            }
+          ]
+        }'
+    EOT
+  }
 }
 
 resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
