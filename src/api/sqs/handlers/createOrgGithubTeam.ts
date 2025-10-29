@@ -20,6 +20,7 @@ import { Modules } from "common/modules.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 import { SKIP_EXTERNAL_ORG_LEAD_UPDATE } from "common/overrides.js";
 import { getOrgByName } from "@acm-uiuc/js-shared";
+import { createRedisModule } from "api/redis.js";
 
 export const createOrgGithubTeamHandler: SQSHandlerFunction<
   AvailableSQSFunctions.CreateOrgGithubTeam
@@ -28,7 +29,11 @@ export const createOrgGithubTeamHandler: SQSHandlerFunction<
     logger,
     commonConfig: { region: genericConfig.AwsRegion },
   });
-  const redisClient = new RedisModule.default(secretConfig.redis_url);
+  const redisClient = await createRedisModule(
+    secretConfig.redis_url,
+    secretConfig.fallback_redis_url,
+    logger,
+  );
   try {
     const { orgName, githubTeamName, githubTeamDescription } = payload;
     const orgImmutableId = getOrgByName(orgName)!.id;
