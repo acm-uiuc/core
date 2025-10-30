@@ -158,7 +158,7 @@ const environmentConfig: EnvironmentConfigType = {
       /http:\/\/localhost:\d+$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
-    LinkryBaseUrl: "https://go.acm.illinois.edu/",
+    LinkryBaseUrl: "https://acm.gg/",
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
     PasskitSerialNumber: "0",
     EmailDomain: "acm.illinois.edu",
