@@ -226,7 +226,7 @@ export function generateSalesEmail(
             If you have any questions, feel free to ask on our Discord!
         </p>
         <div style="text-align: center; margin-top: 20px;">
-            <a href="https://go.acm.illinois.edu/discord" class="button">Join our Discord</a>
+            <a href="https://acm.gg/discord" class="button">Join our Discord</a>
         </div>
     </div>
     <div class="footer">
