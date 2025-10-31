@@ -9,9 +9,7 @@ AVAILABLE_REPLICAS = [
 ]
 DYNAMODB_TABLE = "infra-core-api-linkry"
 FALLBACK_URL = os.environ.get("FALLBACK_URL", "https://acm.illinois.edu/404")
-LINKRY_HOME_URL = os.environ.get(
-    "LINKRY_HOME_URL", "https://core.acm.illinois.edu/linkry"
-)
+DEFAULT_URL = os.environ.get("DEFAULT_URL", "https://www.acm.illinois.edu")
 CACHE_TTL = "30"  # seconds to hold response in PoP
 
 
@@ -51,7 +49,7 @@ def handler(event, context):
             "status": "301",
             "statusDescription": "Moved Permanently",
             "headers": {
-                "location": [{"key": "Location", "value": LINKRY_HOME_URL}],
+                "location": [{"key": "Location", "value": DEFAULT_URL}],
                 "cache-control": [
                     {"key": "Cache-Control", "value": f"public, max-age={CACHE_TTL}"}
                 ],
