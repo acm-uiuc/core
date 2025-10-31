@@ -211,10 +211,8 @@ export const AuthGuard: React.FC<
           <Title>Unauthorized</Title>
           <Text>
             You have not been granted access to this module. Please fill out the{" "}
-            <a href="https://go.acm.illinois.edu/access_request">
-              access request form
-            </a>{" "}
-            to request access to this module.
+            <a href="https://acm.gg/access_request">access request form</a> to
+            request access to this module.
           </Text>
           <Card withBorder>
             <Title order={3} mb="md">
