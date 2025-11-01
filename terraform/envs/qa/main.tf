@@ -130,14 +130,6 @@ module "frontend" {
   LinkryEdgeFunctionArn = module.lambdas.linkry_redirect_function_arn
 }
 
-module "assets" {
-  source             = "../../modules/assets"
-  BucketPrefix       = local.primary_bucket_prefix
-  AssetsPublicDomain = var.AssetsPublicDomain
-  ProjectId          = var.ProjectId
-  CoreCertificateArn = var.CoreCertificateArn
-}
-
 // Multi-Region Failover: US-West-2
 
 module "lambdas_usw2" {
@@ -171,17 +163,6 @@ resource "aws_lambda_event_source_mapping" "queue_consumer_usw2" {
 }
 
 // QA only - setup Route 53 records
-resource "aws_route53_record" "assets" {
-  for_each = toset(["A", "AAAA"])
-  zone_id  = "Z04502822NVIA85WM2SML"
-  type     = each.key
-  name     = var.AssetsPublicDomain
-  alias {
-    name                   = module.assets.main_cloudfront_domain_name
-    zone_id                = "Z2FDTNDATAQYW2"
-    evaluate_target_health = false
-  }
-}
 resource "aws_route53_record" "frontend" {
   for_each = toset(["A", "AAAA"])
   zone_id  = "Z04502822NVIA85WM2SML"
