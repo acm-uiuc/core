@@ -127,14 +127,6 @@ module "frontend" {
   LinkryEdgeFunctionArn = module.lambdas.linkry_redirect_function_arn
 }
 
-module "assets" {
-  source             = "../../modules/assets"
-  BucketPrefix       = local.primary_bucket_prefix
-  AssetsPublicDomain = var.AssetsPublicDomain
-  ProjectId          = var.ProjectId
-  CoreCertificateArn = var.CoreCertificateArn
-}
-
 resource "aws_lambda_event_source_mapping" "queue_consumer" {
   region                  = "us-east-2"
   depends_on              = [module.lambdas, module.sqs_queues]
