@@ -3,6 +3,7 @@ import {
   ScanCommand,
   TransactWriteItemsCommand,
   UpdateItemCommand,
+  PutItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
@@ -715,7 +716,45 @@ Please contact Officer Board with any questions.`,
           return reply
             .code(200)
             .send({ handled: false, requestId: request.id });
+        case "payment_intent.succeeded": {
+          const intent = event.data.object as Stripe.PaymentIntent;
 
+          const amount = intent.amount_received;
+          const currency = intent.currency;
+          const customerId = intent.customer?.toString() ?? "UNKNOWN";
+          const email =
+            intent.receipt_email ??
+            intent.metadata?.billing_email ??
+            "unknown@example.com";
+          const acmOrg = intent.metadata?.acm_org ?? "ACM@UIUC";
+          const domain = email.includes("@")
+            ? email.split("@")[1]
+            : "unknown.com";
+
+          await fastify.dynamoClient.send(
+            new PutItemCommand({
+              TableName: genericConfig.StripePaymentsDynamoTableName,
+              Item: marshall({
+                primaryKey: `${acmOrg}#${domain}`,
+                sortKey: event.id,
+                amount,
+                currency,
+                status: "succeeded",
+                billingEmail: email,
+                createdAt: new Date().toISOString(),
+                eventId: event.id,
+              }),
+            }),
+          );
+
+          request.log.info(
+            `Recorded successful payment ${intent.id} from ${email} (${amount} ${currency})`,
+          );
+
+          return reply
+            .status(200)
+            .send({ handled: true, requestId: request.id });
+        }
         default:
           request.log.warn(`Unhandled event type: ${event.type}`);
       }
