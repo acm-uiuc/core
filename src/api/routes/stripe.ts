@@ -727,19 +727,21 @@ Please contact Officer Board with any questions.`,
             intent.metadata?.billing_email ??
             "unknown@example.com";
           const acmOrg = intent.metadata?.acm_org ?? "ACM@UIUC";
-          const domain = email.split("@")[1] ?? "unknown.com";
+          const domain = email.includes("@")
+            ? email.split("@")[1]
+            : "unknown.com";
 
           await fastify.dynamoClient.send(
             new PutItemCommand({
               TableName: genericConfig.StripePaymentsDynamoTableName,
               Item: marshall({
                 primaryKey: `${acmOrg}#${domain}`,
-                sortKey: `customer`,
+                sortKey: event.id,
                 amount,
                 currency,
                 status: "succeeded",
                 billingEmail: email,
-                createdAt: Date.now(),
+                createdAt: new Date().toISOString(),
                 eventId: event.id,
               }),
             }),
