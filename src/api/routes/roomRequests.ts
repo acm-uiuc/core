@@ -1,4 +1,4 @@
-import { FastifyPluginAsync } from "fastify";
+import { FastifyPluginAsync, type FastifyRequest } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
   formatStatus,
@@ -19,6 +19,7 @@ import {
   QueryCommand,
   TransactWriteItemsCommand,
   UpdateItemCommand,
+  type QueryCommandOutput,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig, notificationRecipients } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -37,6 +38,51 @@ import {
 import { ROOM_RESERVATION_RETENTION_DAYS } from "common/constants.js";
 import { createPresignedGet, createPresignedPut } from "api/functions/s3.js";
 import { HeadObjectCommand, NotFound, S3Client } from "@aws-sdk/client-s3";
+
+async function verifyRoomRequestAccess(
+  fastify: any,
+  request: FastifyRequest,
+  requestId: string,
+  semesterId: string,
+): Promise<QueryCommandOutput> {
+  let command: QueryCommand;
+  if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
+    command = new QueryCommand({
+      TableName: genericConfig.RoomRequestsTableName,
+      IndexName: "RequestIdIndex",
+      KeyConditionExpression: "requestId = :requestId",
+      FilterExpression: "semesterId = :semesterId",
+      ExpressionAttributeValues: {
+        ":requestId": { S: requestId },
+        ":semesterId": { S: semesterId },
+      },
+      Limit: 1,
+    });
+  } else {
+    command = new QueryCommand({
+      TableName: genericConfig.RoomRequestsTableName,
+      KeyConditionExpression:
+        "semesterId = :semesterId AND #userIdRequestId = :userRequestId",
+      ExpressionAttributeValues: {
+        ":userRequestId": { S: `${request.username}#${requestId}` },
+        ":semesterId": { S: semesterId },
+      },
+      ExpressionAttributeNames: {
+        "#userIdRequestId": "userId#requestId",
+      },
+      Limit: 1,
+    });
+  }
+
+  const resp = await fastify.dynamoClient.send(command);
+  if (!resp.Items || resp.Count !== 1) {
+    throw new DatabaseFetchError({
+      message: "Recieved no database item.",
+    });
+  }
+
+  return resp;
+}
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -474,41 +520,13 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
-      let command;
-      if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
-        command = new QueryCommand({
-          TableName: genericConfig.RoomRequestsTableName,
-          IndexName: "RequestIdIndex",
-          KeyConditionExpression: "requestId = :requestId",
-          FilterExpression: "semesterId = :semesterId",
-          ExpressionAttributeValues: {
-            ":requestId": { S: requestId },
-            ":semesterId": { S: semesterId },
-          },
-          Limit: 1,
-        });
-      } else {
-        command = new QueryCommand({
-          TableName: genericConfig.RoomRequestsTableName,
-          KeyConditionExpression:
-            "semesterId = :semesterId AND #userIdRequestId = :userRequestId",
-          ExpressionAttributeValues: {
-            ":userRequestId": { S: `${request.username}#${requestId}` },
-            ":semesterId": { S: semesterId },
-          },
-          ExpressionAttributeNames: {
-            "#userIdRequestId": "userId#requestId",
-          },
-          Limit: 1,
-        });
-      }
       try {
-        const resp = await fastify.dynamoClient.send(command);
-        if (!resp.Items || resp.Count !== 1) {
-          throw new DatabaseFetchError({
-            message: "Recieved no response.",
-          });
-        }
+        const resp = await verifyRoomRequestAccess(
+          fastify,
+          request,
+          requestId,
+          semesterId,
+        );
         // this isn't atomic, but that's fine - a little inconsistency on this isn't a problem.
         try {
           const statusesResponse = await fastify.dynamoClient.send(
@@ -540,6 +558,11 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 : undefined,
             };
           });
+          if (!resp.Items || resp.Count !== 1) {
+            throw new DatabaseFetchError({
+              message: "Recieved no database item.",
+            });
+          }
           return reply
             .status(200)
             .send({ data: unmarshall(resp.Items[0]), updates });
@@ -606,41 +629,13 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
-      let command;
-      if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
-        command = new QueryCommand({
-          TableName: genericConfig.RoomRequestsTableName,
-          IndexName: "RequestIdIndex",
-          KeyConditionExpression: "requestId = :requestId",
-          FilterExpression: "semesterId = :semesterId",
-          ExpressionAttributeValues: {
-            ":requestId": { S: requestId },
-            ":semesterId": { S: semesterId },
-          },
-          Limit: 1,
-        });
-      } else {
-        command = new QueryCommand({
-          TableName: genericConfig.RoomRequestsTableName,
-          KeyConditionExpression:
-            "semesterId = :semesterId AND #userIdRequestId = :userRequestId",
-          ExpressionAttributeValues: {
-            ":userRequestId": { S: `${request.username}#${requestId}` },
-            ":semesterId": { S: semesterId },
-          },
-          ExpressionAttributeNames: {
-            "#userIdRequestId": "userId#requestId",
-          },
-          Limit: 1,
-        });
-      }
       try {
-        const resp = await fastify.dynamoClient.send(command);
-        if (!resp.Items || resp.Count !== 1) {
-          throw new DatabaseFetchError({
-            message: "Recieved no response.",
-          });
-        }
+        const resp = await verifyRoomRequestAccess(
+          fastify,
+          request,
+          requestId,
+          semesterId,
+        );
         // this isn't atomic, but that's fine - a little inconsistency on this isn't a problem.
         try {
           const statusesResponse = await fastify.dynamoClient.send(
