@@ -107,6 +107,7 @@ module "lambdas" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
+  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn }
 }
 
 module "frontend" {
@@ -130,6 +131,12 @@ module "frontend" {
   LinkryEdgeFunctionArn = module.lambdas.linkry_redirect_function_arn
 }
 
+module "assets" {
+  source                   = "../../modules/assets"
+  ProjectId                = var.ProjectId
+  BucketAllowedCorsOrigins = ["https://${var.CorePublicDomain}", "http://localhost:5173"]
+}
+
 // Multi-Region Failover: US-West-2
 
 module "lambdas_usw2" {
@@ -142,6 +149,7 @@ module "lambdas_usw2" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
+  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn }
 }
 
 module "sqs_queues_usw2" {

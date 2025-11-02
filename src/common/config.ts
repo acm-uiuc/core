@@ -33,6 +33,7 @@ export type ConfigType = {
   OrgAdminGithubParentTeam: number;
   GithubIdpSyncEnabled: boolean
   GithubOrgId: number;
+  AssetsBucketId: string;
 };
 
 export type GenericConfigType = {
@@ -144,7 +145,8 @@ const environmentConfig: EnvironmentConfigType = {
     GithubOrgName: "acm-uiuc-testing",
     GithubOrgId: 235748315,
     OrgAdminGithubParentTeam: 14420860,
-    GithubIdpSyncEnabled: false
+    GithubIdpSyncEnabled: false,
+    AssetsBucketId: `427040638965-infra-core-api-assets-${genericConfig.AwsRegion}`
   },
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
@@ -176,7 +178,8 @@ const environmentConfig: EnvironmentConfigType = {
     GithubOrgName: "acm-uiuc",
     GithubOrgId: 425738,
     OrgAdminGithubParentTeam: 12025214,
-    GithubIdpSyncEnabled: true
+    GithubIdpSyncEnabled: true,
+    AssetsBucketId: `298118738376-infra-core-api-assets-${genericConfig.AwsRegion}`
   },
 };
 

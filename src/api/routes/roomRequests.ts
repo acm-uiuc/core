@@ -1,13 +1,9 @@
-import { FastifyPluginAsync } from "fastify";
+import { FastifyPluginAsync, type FastifyRequest } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
   formatStatus,
-  roomGetResponse,
-  RoomRequestFormValues,
-  roomRequestPostResponse,
   roomRequestSchema,
   RoomRequestStatus,
-  RoomRequestStatusUpdatePostBody,
   roomRequestStatusUpdateRequest,
 } from "common/types/roomRequest.js";
 import { AppRoles } from "common/roles.js";
@@ -16,10 +12,14 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   InternalServerError,
+  NotFoundError,
 } from "common/errors/index.js";
 import {
+  GetItemCommand,
   QueryCommand,
   TransactWriteItemsCommand,
+  UpdateItemCommand,
+  type QueryCommandOutput,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig, notificationRecipients } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -34,9 +34,55 @@ import {
   generateProjectionParams,
   getAllUserEmails,
   getDefaultFilteringQuerystring,
-  nonEmptyCommaSeparatedStringSchema,
 } from "common/utils.js";
 import { ROOM_RESERVATION_RETENTION_DAYS } from "common/constants.js";
+import { createPresignedGet, createPresignedPut } from "api/functions/s3.js";
+import { HeadObjectCommand, NotFound, S3Client } from "@aws-sdk/client-s3";
+
+async function verifyRoomRequestAccess(
+  fastify: any,
+  request: FastifyRequest,
+  requestId: string,
+  semesterId: string,
+): Promise<QueryCommandOutput> {
+  let command: QueryCommand;
+  if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
+    command = new QueryCommand({
+      TableName: genericConfig.RoomRequestsTableName,
+      IndexName: "RequestIdIndex",
+      KeyConditionExpression: "requestId = :requestId",
+      FilterExpression: "semesterId = :semesterId",
+      ExpressionAttributeValues: {
+        ":requestId": { S: requestId },
+        ":semesterId": { S: semesterId },
+      },
+      Limit: 1,
+    });
+  } else {
+    command = new QueryCommand({
+      TableName: genericConfig.RoomRequestsTableName,
+      KeyConditionExpression:
+        "semesterId = :semesterId AND #userIdRequestId = :userRequestId",
+      ExpressionAttributeValues: {
+        ":userRequestId": { S: `${request.username}#${requestId}` },
+        ":semesterId": { S: semesterId },
+      },
+      ExpressionAttributeNames: {
+        "#userIdRequestId": "userId#requestId",
+      },
+      Limit: 1,
+    });
+  }
+
+  const resp = await fastify.dynamoClient.send(command);
+  if (!resp.Items || resp.Count !== 1) {
+    throw new DatabaseFetchError({
+      message: "Recieved no database item.",
+    });
+  }
+
+  return resp;
+}
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -59,6 +105,18 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             semesterId,
           }),
           body: roomRequestStatusUpdateRequest,
+          response: {
+            201: {
+              description: "The room request status was updated.",
+              content: {
+                "application/json": {
+                  schema: z.object({
+                    uploadUrl: z.optional(z.url()),
+                  }),
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -71,6 +129,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
+      const attachmentS3key = request.body.attachmentInfo
+        ? `roomRequests/${requestId}/${request.body.status}/${request.id}/${request.body.attachmentInfo.filename}`
+        : undefined;
       const getReservationData = new QueryCommand({
         TableName: genericConfig.RoomRequestsStatusTableName,
         KeyConditionExpression: "requestId = :requestId",
@@ -83,6 +144,26 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ":requestId": { S: requestId },
         },
       });
+      let uploadUrl: string | undefined = undefined;
+      if (request.body.attachmentInfo) {
+        const { fileSizeBytes, contentType } = request.body.attachmentInfo;
+        request.log.info(
+          request.body.attachmentInfo,
+          `Creating presigned URL to store attachment`,
+        );
+        if (!fastify.s3Client) {
+          fastify.s3Client = new S3Client({
+            region: genericConfig.AwsRegion,
+          });
+        }
+        uploadUrl = await createPresignedPut({
+          s3client: fastify.s3Client,
+          key: attachmentS3key!,
+          bucketName: fastify.environmentConfig.AssetsBucketId,
+          length: fileSizeBytes,
+          mimeType: contentType,
+        });
+      }
       const createdNotified =
         await fastify.dynamoClient.send(getReservationData);
       if (!createdNotified.Items || createdNotified.Count === 0) {
@@ -101,6 +182,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         TableName: genericConfig.RoomRequestsStatusTableName,
         Item: marshall(
           {
+            ...request.body,
             requestId,
             semesterId,
             "createdAt#status": `${createdAt}#${request.body.status}`,
@@ -108,7 +190,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             expiresAt:
               Math.floor(Date.now() / 1000) +
               86400 * ROOM_RESERVATION_RETENTION_DAYS,
-            ...request.body,
+            attachmentS3key,
           },
           { removeUndefinedValues: true },
         ),
@@ -177,7 +259,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       request.log.info(
         `Queued room reservation email to SQS with message ID ${result.MessageId}`,
       );
-      return reply.status(201).send();
+      return reply.status(201).send({ uploadUrl });
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
@@ -438,41 +520,13 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
-      let command;
-      if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
-        command = new QueryCommand({
-          TableName: genericConfig.RoomRequestsTableName,
-          IndexName: "RequestIdIndex",
-          KeyConditionExpression: "requestId = :requestId",
-          FilterExpression: "semesterId = :semesterId",
-          ExpressionAttributeValues: {
-            ":requestId": { S: requestId },
-            ":semesterId": { S: semesterId },
-          },
-          Limit: 1,
-        });
-      } else {
-        command = new QueryCommand({
-          TableName: genericConfig.RoomRequestsTableName,
-          KeyConditionExpression:
-            "semesterId = :semesterId AND #userIdRequestId = :userRequestId",
-          ExpressionAttributeValues: {
-            ":userRequestId": { S: `${request.username}#${requestId}` },
-            ":semesterId": { S: semesterId },
-          },
-          ExpressionAttributeNames: {
-            "#userIdRequestId": "userId#requestId",
-          },
-          Limit: 1,
-        });
-      }
       try {
-        const resp = await fastify.dynamoClient.send(command);
-        if (!resp.Items || resp.Count !== 1) {
-          throw new DatabaseFetchError({
-            message: "Recieved no response.",
-          });
-        }
+        const resp = await verifyRoomRequestAccess(
+          fastify,
+          request,
+          requestId,
+          semesterId,
+        );
         // this isn't atomic, but that's fine - a little inconsistency on this isn't a problem.
         try {
           const statusesResponse = await fastify.dynamoClient.send(
@@ -482,11 +536,13 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
               ExpressionAttributeValues: {
                 ":requestId": { S: requestId },
               },
-              ProjectionExpression: "#createdAt,#notes,#createdBy",
+              ProjectionExpression:
+                "#createdAt,#notes,#createdBy,#attachmentS3key",
               ExpressionAttributeNames: {
                 "#createdBy": "createdBy",
                 "#createdAt": "createdAt#status",
                 "#notes": "notes",
+                "#attachmentS3key": "attachmentS3key",
               },
             }),
           );
@@ -497,8 +553,16 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
               createdAt: unmarshalled["createdAt#status"].split("#")[0],
               status: unmarshalled["createdAt#status"].split("#")[1],
               notes: unmarshalled.notes,
+              attachmentFilename: unmarshalled.attachmentS3key
+                ? (unmarshalled.attachmentS3key as string).split("/").at(-1)
+                : undefined,
             };
           });
+          if (!resp.Items || resp.Count !== 1) {
+            throw new DatabaseFetchError({
+              message: "Recieved no database item.",
+            });
+          }
           return reply
             .status(200)
             .send({ data: unmarshall(resp.Items[0]), updates });
@@ -514,6 +578,153 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           throw e;
         }
         throw new DatabaseInsertError({
+          message: "Could not find by ID.",
+        });
+      }
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "/:semesterId/:requestId/attachmentDownloadUrl/:createdAt/:status",
+    {
+      schema: withRoles(
+        [AppRoles.ROOM_REQUEST_CREATE],
+        withTags(["Room Requests"], {
+          summary:
+            "Get attachment download URL for a specific room request update.",
+          params: z.object({
+            requestId: z.string().min(1).meta({
+              description: "Room request ID.",
+              example: "6667e095-8b04-4877-b361-f636f459ba42",
+            }),
+            semesterId: z.string().min(1).meta({
+              description: "Short semester slug for a given semester.",
+              example: "sp25",
+            }),
+            createdAt: z.iso.datetime().meta({
+              description: "When the update was created",
+              example: "2025-10-26T22:05:22.980Z",
+            }),
+            status: z.enum(RoomRequestStatus).meta({
+              description: "The status for this room request update",
+              example: RoomRequestStatus.APPROVED,
+            }),
+          }),
+          response: {
+            200: {
+              description:
+                "The attachment was found and a download link was generated.",
+              content: {
+                "application/json": {
+                  schema: z.object({
+                    downloadUrl: z.url(),
+                  }),
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      const requestId = request.params.requestId;
+      const semesterId = request.params.semesterId;
+      try {
+        const resp = await verifyRoomRequestAccess(
+          fastify,
+          request,
+          requestId,
+          semesterId,
+        );
+        // this isn't atomic, but that's fine - a little inconsistency on this isn't a problem.
+        try {
+          const statusesResponse = await fastify.dynamoClient.send(
+            new GetItemCommand({
+              TableName: genericConfig.RoomRequestsStatusTableName,
+              Key: {
+                requestId: { S: request.params.requestId },
+                "createdAt#status": {
+                  S: `${request.params.createdAt}#${request.params.status}`,
+                },
+              },
+              ProjectionExpression: "#attachmentS3key",
+              ExpressionAttributeNames: {
+                "#attachmentS3key": "attachmentS3key",
+              },
+            }),
+          );
+          if (!statusesResponse.Item) {
+            throw new NotFoundError({
+              endpointName: request.url,
+            });
+          }
+          const unmarshalled = unmarshall(statusesResponse.Item) as {
+            attachmentS3key?: string;
+          };
+          if (!unmarshalled.attachmentS3key) {
+            throw new NotFoundError({
+              endpointName: request.url,
+            });
+          }
+          if (!fastify.s3Client) {
+            fastify.s3Client = new S3Client({
+              region: genericConfig.AwsRegion,
+            });
+          }
+          try {
+            await fastify.s3Client.send(
+              new HeadObjectCommand({
+                Bucket: fastify.environmentConfig.AssetsBucketId,
+                Key: unmarshalled.attachmentS3key,
+              }),
+            );
+          } catch (error) {
+            if (error instanceof NotFound) {
+              // Key doesn't exist in S3, delete the attribute from DynamoDB
+              await fastify.dynamoClient.send(
+                new UpdateItemCommand({
+                  TableName: genericConfig.RoomRequestsStatusTableName,
+                  Key: {
+                    requestId: { S: request.params.requestId },
+                    "createdAt#status": {
+                      S: `${request.params.createdAt}#${request.params.status}`,
+                    },
+                  },
+                  UpdateExpression: "REMOVE #attachmentS3key",
+                  ExpressionAttributeNames: {
+                    "#attachmentS3key": "attachmentS3key",
+                  },
+                }),
+              );
+
+              throw new NotFoundError({
+                endpointName: request.url,
+              });
+            } else {
+              throw error;
+            }
+          }
+          const url = await createPresignedGet({
+            s3client: fastify.s3Client,
+            bucketName: fastify.environmentConfig.AssetsBucketId,
+            key: unmarshalled.attachmentS3key,
+          });
+          return reply.status(200).send({ downloadUrl: url });
+        } catch (e) {
+          if (e instanceof NotFoundError) {
+            throw e;
+          }
+          request.log.error(e);
+          throw new DatabaseFetchError({
+            message: "Could not get request attachments.",
+          });
+        }
+      } catch (e) {
+        request.log.error(e);
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        throw new DatabaseFetchError({
           message: "Could not find by ID.",
         });
       }

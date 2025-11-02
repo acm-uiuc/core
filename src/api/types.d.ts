@@ -9,6 +9,7 @@ import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SQSClient } from "@aws-sdk/client-sqs";
 import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
 import type RedisModule from "ioredis";
+import { type S3Client } from "@aws-sdk/client-s3";
 export type Redis = RedisModule.default;
 export type ValidLoggers = FastifyBaseLogger | pino.Logger;
 
@@ -42,6 +43,7 @@ declare module "fastify" {
     nodeCache: NodeCache;
     dynamoClient: DynamoDBClient;
     sqsClient?: SQSClient;
+    s3Client?: S3Client;
     redisClient: Redis;
     secretsManagerClient: SecretsManagerClient;
     secretConfig: SecretConfig | (SecretConfig & SecretTesting);

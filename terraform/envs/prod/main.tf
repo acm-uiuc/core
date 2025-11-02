@@ -104,6 +104,7 @@ module "lambdas" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
+  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn }
 }
 
 module "frontend" {
@@ -125,6 +126,12 @@ module "frontend" {
   IcalPublicDomain      = var.IcalPublicDomain
   LinkryPublicDomain    = var.LinkryPublicDomain
   LinkryEdgeFunctionArn = module.lambdas.linkry_redirect_function_arn
+}
+
+module "assets" {
+  source                   = "../../modules/assets"
+  ProjectId                = var.ProjectId
+  BucketAllowedCorsOrigins = ["https://${var.CorePublicDomain}"]
 }
 
 resource "aws_lambda_event_source_mapping" "queue_consumer" {
@@ -149,6 +156,7 @@ module "lambdas_usw2" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
+  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn }
 }
 
 module "sqs_queues_usw2" {

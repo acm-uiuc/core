@@ -2,7 +2,6 @@ import { FastifyPluginAsync } from "fastify";
 import {
   InternalServerError,
   UnauthenticatedError,
-  ValidationError,
 } from "../../common/errors/index.js";
 import * as z from "zod/v4";
 import { checkPaidMembershipFromTable } from "../functions/membership.js";
@@ -15,10 +14,6 @@ import { genericConfig } from "../../common/config.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { withTags } from "api/components/index.js";
-
-const queuedResponseJsonSchema = z.object({
-  queueId: z.string().uuid(),
-});
 
 const mobileWalletRoute: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {
