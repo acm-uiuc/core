@@ -112,7 +112,6 @@ resource "aws_lambda_permission" "allow_bucket_primary" {
 }
 
 resource "aws_lambda_permission" "allow_bucket_secondary" {
-  for_each      = module.buckets.buckets_info
   statement_id  = "AllowExecutionFromS3Bucket"
   action        = "lambda:InvokeFunction"
   function_name = var.ConfirmerLambdaArnSecondary
