@@ -81,7 +81,7 @@ data "aws_iam_policy_document" "bucket_access" {
       "s3:HeadObject"
     ]
     resources = [
-      for bucket_info in module.buckets.buckets_info : "${bucket_info.arn}/*"
+      for buckets_info in module.buckets.buckets_info : "${buckets_info.arn}/*"
     ]
   }
 
@@ -92,7 +92,7 @@ data "aws_iam_policy_document" "bucket_access" {
       "s3:ListBucket"
     ]
     resources = [
-      for bucket_info in module.buckets.buckets_info : bucket_info.arn
+      for buckets_info in module.buckets.buckets_info : buckets_info.arn
     ]
   }
 }
@@ -108,7 +108,7 @@ resource "aws_lambda_permission" "allow_bucket_primary" {
   action        = "lambda:InvokeFunction"
   function_name = var.ConfirmerLambdaArnPrimary
   principal     = "s3.amazonaws.com"
-  source_arn    = module.buckets.bucket_info[var.PrimaryRegion].arn
+  source_arn    = module.buckets.buckets_info[var.PrimaryRegion].arn
 }
 
 resource "aws_lambda_permission" "allow_bucket_secondary" {
@@ -117,12 +117,12 @@ resource "aws_lambda_permission" "allow_bucket_secondary" {
   action        = "lambda:InvokeFunction"
   function_name = var.ConfirmerLambdaArnSecondary
   principal     = "s3.amazonaws.com"
-  source_arn    = module.buckets.bucket_info[var.SecondaryRegion].arn
+  source_arn    = module.buckets.buckets_info[var.SecondaryRegion].arn
 }
 
 
 resource "aws_s3_bucket_notification" "primary_bucket_notification" {
-  bucket = module.buckets.bucket_info[var.PrimaryRegion].id
+  bucket = module.buckets.buckets_info[var.PrimaryRegion].id
   lambda_function {
     lambda_function_arn = var.ConfirmerLambdaArnPrimary
     events              = ["s3:ObjectCreated:*"]
@@ -134,7 +134,7 @@ resource "aws_s3_bucket_notification" "primary_bucket_notification" {
 
 
 resource "aws_s3_bucket_notification" "secondary_bucket_notification" {
-  bucket = module.buckets.bucket_info[var.SecondaryRegion].id
+  bucket = module.buckets.buckets_info[var.SecondaryRegion].id
   lambda_function {
     lambda_function_arn = var.ConfirmerLambdaArnSecondary
     events              = ["s3:ObjectCreated:*"]
