@@ -1,4 +1,8 @@
-import { PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  type S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { InternalServerError } from "common/errors/index.js";
 
@@ -8,7 +12,7 @@ export type CreatePresignedPutInputs = {
   key: string;
   length: number;
   mimeType: string;
-  md5hash: string; // Must be a base64-encoded MD5 hash
+  md5hash?: string; // Must be a base64-encoded MD5 hash
   urlExpiresIn?: number;
 };
 
@@ -36,6 +40,35 @@ export async function createPresignedPut({
   } catch (err) {
     throw new InternalServerError({
       message: "Could not create S3 upload presigned url.",
+    });
+  }
+}
+
+export type CreatePresignedGetInputs = {
+  s3client: S3Client;
+  bucketName: string;
+  key: string;
+  urlExpiresIn?: number;
+};
+
+export async function createPresignedGet({
+  s3client,
+  bucketName,
+  key,
+  urlExpiresIn,
+}: CreatePresignedGetInputs) {
+  const command = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+  });
+
+  const expiresIn = urlExpiresIn || 900;
+
+  try {
+    return await getSignedUrl(s3client, command, { expiresIn });
+  } catch (err) {
+    throw new InternalServerError({
+      message: "Could not create S3 download presigned url.",
     });
   }
 }

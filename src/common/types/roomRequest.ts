@@ -1,7 +1,7 @@
 import * as z from "zod/v4";
 import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
 import { illinoisSemesterId } from "./generic.js"
-export const validMimeTypes = ['application/pdf', 'image/jpeg', 'image/heic', 'image/pdf']
+export const validMimeTypes = ['application/pdf', 'image/jpeg', 'image/heic', 'image/png']
 export const maxAttachmentSizeBytes = 1e7; // 10MB
 
 export const eventThemeOptions = [
@@ -134,7 +134,6 @@ export enum RoomRequestStatus {
 
 export const roomRequestStatusAttachmentInfo = z.object({
   filename: z.string().min(1).max(100),
-  md5hash: z.string().length(32),
   fileSizeBytes: z.number().min(1).max(maxAttachmentSizeBytes),
   contentType: z.enum(validMimeTypes)
 })
@@ -146,8 +145,9 @@ export const roomRequestStatusUpdateRequest = z.object({
 });
 
 export const roomRequestStatusUpdate = roomRequestStatusUpdateRequest.extend({
-  createdAt: z.string().datetime(),
-  createdBy: z.string().email()
+  createdAt: z.iso.datetime(),
+  createdBy: z.email(),
+  attachmentFilename: z.optional(z.string())
 });
 
 export const roomRequestPostResponse = z.object({
