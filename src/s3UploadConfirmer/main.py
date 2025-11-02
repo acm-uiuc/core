@@ -21,7 +21,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - dynamoTable: DynamoDB table name
     - dynamoPrimaryKey: JSON string of primary key
     - dynamoAttribute: Target attribute name to set with value from pending attribute
-    - dynamoPendingAttributeName: Source pending attribute name to remove
+    - dynamopendingattribute: Source pending attribute name to remove
     """
     try:
         # Process each S3 event record
@@ -58,7 +58,7 @@ def process_s3_record(record: Dict[str, Any]) -> None:
     dynamo_table = metadata.get("dynamotable")
     dynamo_primary_key_json = metadata.get("dynamoprimarykey")
     dynamo_attribute = metadata.get("dynamoattribute")
-    dynamo_pending_attribute = metadata.get("dynamopendingattributename")
+    dynamo_pending_attribute = metadata.get("dynamopendingattribute")
 
     # Validate required metadata - exit early if any are missing
     if not dynamo_table:
@@ -74,7 +74,7 @@ def process_s3_record(record: Dict[str, Any]) -> None:
         return
 
     if not dynamo_pending_attribute:
-        logger.warning(f"Missing dynamoPendingAttributeName metadata for {key}")
+        logger.warning(f"Missing dynamopendingattribute metadata for {key}")
         return
 
     # Parse primary key

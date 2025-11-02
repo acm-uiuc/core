@@ -174,7 +174,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
               "createdAt#status": `${createdAt}#${request.body.status}`,
             }),
             dynamoAttribute: "attachmentS3key",
-            dynamoPendingAttributeName: "pendingAttachmentS3key",
+            dynamoPendingAttribute: "pendingAttachmentS3key",
           },
         });
       }
