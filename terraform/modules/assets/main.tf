@@ -53,6 +53,6 @@ resource "aws_s3_bucket_intelligent_tiering_configuration" "tiering" {
 
   tiering {
     access_tier = "ARCHIVE_ACCESS"
-    days        = 1
+    days        = 90
   }
 }
