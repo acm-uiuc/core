@@ -50,7 +50,7 @@ describe("S3 Presigned URL Functions", () => {
     });
 
     test("creates a presigned PUT URL with custom expiration", async () => {
-      const mockUrl = "https://s3.amazonaws.com/bucket/key?signature=abc";
+      const mockUrl = "https://s3.amazonaws.com/bucket/key?signature=xyz";
       const mockS3Client = new S3Client({ region: "us-east-1" });
 
       const result = await createPresignedPut({
