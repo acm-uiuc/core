@@ -683,7 +683,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             );
           } catch (error) {
             if (error instanceof NotFound) {
-              // Check if grade period has passed since creation
+              // Check if grace period has passed since creation
               const createdAt = new Date(request.params.createdAt);
               const now = new Date();
               const timeSinceCreation = now.getTime() - createdAt.getTime();
