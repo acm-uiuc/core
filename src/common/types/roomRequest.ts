@@ -131,7 +131,8 @@ export enum RoomRequestStatus {
 }
 
 export const roomRequestStatusUpdateRequest = z.object({
-  status: z.nativeEnum(RoomRequestStatus),
+  status: z.enum(RoomRequestStatus),
+  attachmentFilename: z.optional(z.string().max(100)),
   notes: z.string().min(1).max(1000)
 });
 

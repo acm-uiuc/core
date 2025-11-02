@@ -6,7 +6,7 @@ locals {
 }
 
 module "buckets" {
-  source       = "git::https://github.com/acm-uiuc/terraform-modules.git//multiregion-s3?ref=99de4c350d1e35931f94499e0c06cbf29d0d5b8a"
+  source       = "git::https://github.com/acm-uiuc/terraform-modules.git//multiregion-s3?ref=976e9eb8f8a29746b02d9e85d78d2952e3548bf9"
   Region1      = var.PrimaryRegion
   Region2      = var.SecondaryRegion
   BucketPrefix = local.asset_bucket_prefix

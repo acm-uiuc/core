@@ -2,12 +2,8 @@ import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
   formatStatus,
-  roomGetResponse,
-  RoomRequestFormValues,
-  roomRequestPostResponse,
   roomRequestSchema,
   RoomRequestStatus,
-  RoomRequestStatusUpdatePostBody,
   roomRequestStatusUpdateRequest,
 } from "common/types/roomRequest.js";
 import { AppRoles } from "common/roles.js";
@@ -59,6 +55,18 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             semesterId,
           }),
           body: roomRequestStatusUpdateRequest,
+          response: {
+            201: {
+              description: "The room request status was updated.",
+              content: {
+                "application/json": {
+                  schema: z.object({
+                    uploadUrl: z.optional(z.url()),
+                  }),
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -177,6 +185,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       request.log.info(
         `Queued room reservation email to SQS with message ID ${result.MessageId}`,
       );
+      if (request.body.attachmentFilename) {
+        request.log.info("Creating presigned URL to store file to");
+      }
       return reply.status(201).send();
     },
   );
