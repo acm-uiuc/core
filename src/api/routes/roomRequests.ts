@@ -33,6 +33,8 @@ import {
   nonEmptyCommaSeparatedStringSchema,
 } from "common/utils.js";
 import { ROOM_RESERVATION_RETENTION_DAYS } from "common/constants.js";
+import { createPresignedPut } from "api/functions/s3.js";
+import { S3Client } from "@aws-sdk/client-s3";
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -79,6 +81,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
+      const attachmentS3key = request.body.attachmentInfo
+        ? `roomRequests/${requestId}/${request.body.status}/${request.body.attachmentInfo.filename}`
+        : undefined;
       const getReservationData = new QueryCommand({
         TableName: genericConfig.RoomRequestsStatusTableName,
         KeyConditionExpression: "requestId = :requestId",
@@ -91,6 +96,28 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ":requestId": { S: requestId },
         },
       });
+      let uploadUrl: string | undefined = undefined;
+      if (request.body.attachmentInfo) {
+        const { md5hash, fileSizeBytes, contentType } =
+          request.body.attachmentInfo;
+        request.log.info(
+          request.body.attachmentInfo,
+          `Creating presigned URL to store attachment`,
+        );
+        if (!fastify.s3Client) {
+          fastify.s3Client = new S3Client({
+            region: genericConfig.AwsRegion,
+          });
+        }
+        uploadUrl = await createPresignedPut({
+          s3client: fastify.s3Client,
+          key: attachmentS3key!,
+          bucketName: fastify.environmentConfig.AssetsBucketId,
+          length: fileSizeBytes,
+          mimeType: contentType,
+          md5hash,
+        });
+      }
       const createdNotified =
         await fastify.dynamoClient.send(getReservationData);
       if (!createdNotified.Items || createdNotified.Count === 0) {
@@ -116,6 +143,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             expiresAt:
               Math.floor(Date.now() / 1000) +
               86400 * ROOM_RESERVATION_RETENTION_DAYS,
+            attachmentS3key,
             ...request.body,
           },
           { removeUndefinedValues: true },
@@ -185,10 +213,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       request.log.info(
         `Queued room reservation email to SQS with message ID ${result.MessageId}`,
       );
-      if (request.body.attachmentFilename) {
-        request.log.info("Creating presigned URL to store file to");
-      }
-      return reply.status(201).send();
+      return reply.status(201).send({ uploadUrl });
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
