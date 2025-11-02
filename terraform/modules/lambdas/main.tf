@@ -454,7 +454,7 @@ resource "aws_lambda_function" "s3_upload_confirmer" {
   function_name    = local.upload_confirmer_lambda_name
   role             = aws_iam_role.api_role.arn
   architectures    = ["arm64"]
-  handler          = "main.handler"
+  handler          = "main.lambda_handler"
   runtime          = "python3.12"
   filename         = data.archive_file.s3_upload_confirmer_code.output_path
   timeout          = 30
