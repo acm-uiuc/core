@@ -56,3 +56,16 @@ resource "aws_s3_bucket_intelligent_tiering_configuration" "tiering" {
     days        = 90
   }
 }
+
+resource "aws_s3_bucket_cors_configuration" "ui_uploads" {
+  for_each = module.buckets.buckets_info
+  bucket   = each.value.id
+  region   = each.key
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT"]
+    allowed_origins = var.BucketAllowedCorsOrigins
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}

@@ -128,8 +128,9 @@ module "frontend" {
 }
 
 module "assets" {
-  source    = "../../modules/assets"
-  ProjectId = var.ProjectId
+  source                   = "../../modules/assets"
+  ProjectId                = var.ProjectId
+  BucketAllowedCorsOrigins = ["https://${var.CorePublicDomain}"]
 }
 
 resource "aws_lambda_event_source_mapping" "queue_consumer" {

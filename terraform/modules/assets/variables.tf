@@ -12,3 +12,8 @@ variable "ProjectId" {
   type        = string
   description = "Prefix before each resource"
 }
+
+variable "BucketAllowedCorsOrigins" {
+  type        = list(string)
+  description = "List of URLs that bucket can be read/written from."
+}
