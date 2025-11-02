@@ -69,3 +69,40 @@ resource "aws_s3_bucket_cors_configuration" "ui_uploads" {
     max_age_seconds = 3000
   }
 }
+
+data "aws_iam_policy_document" "bucket_access" {
+  statement {
+    sid    = "AllowPutGetObjects"
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+      "s3:GetObject",
+      "s3:DeleteObject"
+    ]
+    resources = [
+      for bucket_info in module.buckets.buckets_info : "${bucket_info.arn}/*"
+    ]
+  }
+
+  statement {
+    sid    = "AllowListBucket"
+    effect = "Allow"
+    actions = [
+      "s3:ListBucket"
+    ]
+    resources = [
+      for bucket_info in module.buckets.buckets_info : bucket_info.arn
+    ]
+  }
+}
+
+resource "aws_iam_policy" "bucket_access" {
+  name        = "${var.ProjectId}-bucket-access"
+  description = "Policy to allow operations on ${local.asset_bucket_prefix} buckets"
+  policy      = data.aws_iam_policy_document.bucket_access.json
+}
+
+output "access_policy_arn" {
+  description = "ARN of the IAM policy for bucket access"
+  value       = aws_iam_policy.bucket_access.arn
+}
