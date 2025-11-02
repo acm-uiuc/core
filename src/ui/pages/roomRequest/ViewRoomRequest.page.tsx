@@ -55,6 +55,9 @@ export const ViewRoomRequest: React.FC = () => {
   const [data, setData] = useState<RoomRequestGetResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<FileWithPath | null>(null);
+  const [downloadingAttachment, setDownloadingAttachment] = useState<
+    string | null
+  >(null);
 
   const newStatusForm = useForm<{
     status: RoomRequestStatus | null;
@@ -103,6 +106,8 @@ export const ViewRoomRequest: React.FC = () => {
     if (!filename) {
       return;
     }
+    const attachmentKey = `${createdAt}#${status}`;
+    setDownloadingAttachment(attachmentKey);
     try {
       const response = await api.get<{ downloadUrl: string }>(
         `/api/v1/roomRequests/${semesterId}/${requestId}/attachmentDownloadUrl/${createdAt}/${status}`,
@@ -115,6 +120,8 @@ export const ViewRoomRequest: React.FC = () => {
         color: "red",
         icon: <IconAlertCircle size={16} />,
       });
+    } finally {
+      setDownloadingAttachment(null);
     }
   };
 
@@ -457,7 +464,14 @@ export const ViewRoomRequest: React.FC = () => {
                       <Button
                         size="xs"
                         variant="light"
-                        leftSection={<IconDownload size={14} />}
+                        leftSection={
+                          downloadingAttachment ===
+                          `${x.createdAt}#${x.status}` ? (
+                            <Loader size={14} />
+                          ) : (
+                            <IconDownload size={14} />
+                          )
+                        }
                         onClick={() =>
                           handleDownloadAttachment(
                             x.createdAt,
@@ -465,8 +479,13 @@ export const ViewRoomRequest: React.FC = () => {
                             x.attachmentFilename,
                           )
                         }
+                        disabled={
+                          downloadingAttachment === `${x.createdAt}#${x.status}`
+                        }
                       >
-                        {x.attachmentFilename}
+                        {downloadingAttachment === `${x.createdAt}#${x.status}`
+                          ? "Downloading..."
+                          : x.attachmentFilename}
                       </Button>
                     )}
                     {x.createdAt && (

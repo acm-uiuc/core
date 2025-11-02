@@ -15,7 +15,9 @@ import { InternalServerError } from "../../src/common/errors/index.js";
 // Note: We use vi.mock here instead of aws-sdk-client-mock because
 // getSignedUrl is a standalone function, not an S3Client command
 vi.mock("@aws-sdk/s3-request-presigner", () => ({
-  getSignedUrl: vi.fn(),
+  getSignedUrl: vi
+    .fn()
+    .mockResolvedValue("https://s3.amazonaws.com/bucket/key?signature=xyz"),
 }));
 
 describe("S3 Presigned URL Functions", () => {
@@ -28,7 +30,7 @@ describe("S3 Presigned URL Functions", () => {
       const mockUrl = "https://s3.amazonaws.com/bucket/key?signature=xyz";
       const mockS3Client = new S3Client({ region: "us-east-1" });
 
-      vi.mocked(getSignedUrl).mockResolvedValueOnce(mockUrl);
+      vi.mocked(getSignedUrl);
 
       const result = await createPresignedPut({
         s3client: mockS3Client,
@@ -51,8 +53,6 @@ describe("S3 Presigned URL Functions", () => {
       const mockUrl = "https://s3.amazonaws.com/bucket/key?signature=abc";
       const mockS3Client = new S3Client({ region: "us-east-1" });
 
-      vi.mocked(getSignedUrl).mockResolvedValueOnce(mockUrl);
-
       const result = await createPresignedPut({
         s3client: mockS3Client,
         bucketName: "test-bucket",
@@ -71,10 +71,8 @@ describe("S3 Presigned URL Functions", () => {
     });
 
     test("creates a presigned PUT URL with MD5 hash", async () => {
-      const mockUrl = "https://s3.amazonaws.com/bucket/key?signature=def";
+      const mockUrl = "https://s3.amazonaws.com/bucket/key?signature=xyz";
       const mockS3Client = new S3Client({ region: "us-east-1" });
-
-      vi.mocked(getSignedUrl).mockResolvedValueOnce(mockUrl);
 
       const result = await createPresignedPut({
         s3client: mockS3Client,
