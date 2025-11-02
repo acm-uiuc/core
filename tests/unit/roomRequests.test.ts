@@ -17,6 +17,12 @@ import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { AvailableSQSFunctions } from "../../src/common/types/sqsMessage.js";
 import { RoomRequestStatus } from "../../src/common/types/roomRequest.js";
 
+// Mock the S3 functions module
+vi.mock("../../src/api/functions/s3.js", () => ({
+  createPresignedPut: vi.fn(),
+  createPresignedGet: vi.fn(),
+}));
+
 const ddbMock = mockClient(DynamoDBClient);
 const sqsMock = mockClient(SQSClient);
 
@@ -541,5 +547,121 @@ describe("Test Room Request Creation", async () => {
       "Room Reservation Request Status Change",
     );
     expect(body.payload.to).toEqual(["originalUser"]);
+  });
+
+  test("Returns uploadUrl when attachment info is provided", async () => {
+    const testJwt = createJwt();
+    const mockPresignedUrl =
+      "https://s3.amazonaws.com/bucket/key?signature=abc123";
+
+    // Import the mocked module
+    const s3Functions = await import("../../src/api/functions/s3.js");
+    vi.mocked(s3Functions.createPresignedPut).mockResolvedValue(
+      mockPresignedUrl,
+    );
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
+    });
+
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+    sqsMock.on(SendMessageCommand).resolves({ MessageId: "mock-sqs-id" });
+
+    const statusBodyWithAttachment = {
+      status: RoomRequestStatus.APPROVED,
+      notes: "Request approved with attachment.",
+      attachmentInfo: {
+        filename: "approval-letter.pdf",
+        fileSizeBytes: 102400,
+        contentType: "application/pdf",
+      },
+    };
+
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBodyWithAttachment);
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body).toHaveProperty("uploadUrl");
+    expect(response.body.uploadUrl).toBe(mockPresignedUrl);
+    expect(s3Functions.createPresignedPut).toHaveBeenCalledOnce();
+  });
+
+  test("Does not return uploadUrl when no attachment info is provided", async () => {
+    const testJwt = createJwt();
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
+    });
+
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+    sqsMock.on(SendMessageCommand).resolves({ MessageId: "mock-sqs-id" });
+
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBody);
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body).toEqual({});
+  });
+
+  test("Validates attachment info schema", async () => {
+    const testJwt = createJwt();
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
+    });
+
+    const invalidAttachmentBody = {
+      status: RoomRequestStatus.APPROVED,
+      notes: "Request approved.",
+      attachmentInfo: {
+        filename: "test.pdf",
+        fileSizeBytes: 999999999999, // exceeds max size
+        contentType: "application/pdf",
+      },
+    };
+
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(invalidAttachmentBody);
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  test("Validates attachment content type", async () => {
+    const testJwt = createJwt();
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
+    });
+
+    const invalidContentTypeBody = {
+      status: RoomRequestStatus.APPROVED,
+      notes: "Request approved.",
+      attachmentInfo: {
+        filename: "malicious.exe",
+        fileSizeBytes: 1024,
+        contentType: "application/x-msdownload", // invalid type
+      },
+    };
+
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(invalidContentTypeBody);
+
+    expect(response.statusCode).toBe(400);
   });
 });
