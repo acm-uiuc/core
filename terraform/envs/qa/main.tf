@@ -130,6 +130,11 @@ module "frontend" {
   LinkryEdgeFunctionArn = module.lambdas.linkry_redirect_function_arn
 }
 
+module "assets" {
+  source    = "../../modules/assets"
+  ProjectId = var.ProjectId
+}
+
 // Multi-Region Failover: US-West-2
 
 module "lambdas_usw2" {
