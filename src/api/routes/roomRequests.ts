@@ -35,7 +35,10 @@ import {
   getAllUserEmails,
   getDefaultFilteringQuerystring,
 } from "common/utils.js";
-import { ROOM_RESERVATION_RETENTION_DAYS } from "common/constants.js";
+import {
+  ROOM_RESERVATION_RETENTION_DAYS,
+  UPLOAD_GRACE_PERIOD_MS,
+} from "common/constants.js";
 import { createPresignedGet, createPresignedPut } from "api/functions/s3.js";
 import { HeadObjectCommand, NotFound, S3Client } from "@aws-sdk/client-s3";
 
@@ -680,22 +683,29 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             );
           } catch (error) {
             if (error instanceof NotFound) {
-              // Key doesn't exist in S3, delete the attribute from DynamoDB
-              await fastify.dynamoClient.send(
-                new UpdateItemCommand({
-                  TableName: genericConfig.RoomRequestsStatusTableName,
-                  Key: {
-                    requestId: { S: request.params.requestId },
-                    "createdAt#status": {
-                      S: `${request.params.createdAt}#${request.params.status}`,
+              // Check if grade period has passed since creation
+              const createdAt = new Date(request.params.createdAt);
+              const now = new Date();
+              const timeSinceCreation = now.getTime() - createdAt.getTime();
+
+              if (timeSinceCreation >= UPLOAD_GRACE_PERIOD_MS) {
+                // Grace period has passed, delete the attribute from DynamoDB
+                await fastify.dynamoClient.send(
+                  new UpdateItemCommand({
+                    TableName: genericConfig.RoomRequestsStatusTableName,
+                    Key: {
+                      requestId: { S: request.params.requestId },
+                      "createdAt#status": {
+                        S: `${request.params.createdAt}#${request.params.status}`,
+                      },
                     },
-                  },
-                  UpdateExpression: "REMOVE #attachmentS3key",
-                  ExpressionAttributeNames: {
-                    "#attachmentS3key": "attachmentS3key",
-                  },
-                }),
-              );
+                    UpdateExpression: "REMOVE #attachmentS3key",
+                    ExpressionAttributeNames: {
+                      "#attachmentS3key": "attachmentS3key",
+                    },
+                  }),
+                );
+              }
 
               throw new NotFoundError({
                 endpointName: request.url,
