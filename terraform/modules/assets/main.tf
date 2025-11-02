@@ -14,6 +14,7 @@ module "buckets" {
 
 resource "aws_s3_bucket_lifecycle_configuration" "expire_noncurrent" {
   for_each = module.buckets.buckets_info
+  region   = each.key
   bucket   = each.value.id
 
   rule {
@@ -47,6 +48,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "expire_noncurrent" {
 resource "aws_s3_bucket_intelligent_tiering_configuration" "tiering" {
   for_each = module.buckets.buckets_info
   bucket   = each.value.id
+  region   = each.key
   name     = "EntireBucketIntelligentTiering"
 
   tiering {
