@@ -319,7 +319,7 @@ resource "aws_iam_role_policy_attachment" "api_attach" {
   policy_arn = each.value
 }
 
-resource "aws_iam_role_policy_attachment" "api_attach" {
+resource "aws_iam_role_policy_attachment" "api_attach_addl" {
   for_each   = var.AdditionalIamPolicies
   role       = aws_iam_role.api_role.name
   policy_arn = each.value
@@ -337,7 +337,7 @@ resource "aws_iam_role_policy_attachment" "sqs_attach_shared" {
   policy_arn = each.value
 }
 
-resource "aws_iam_role_policy_attachment" "sqs_attach_shared" {
+resource "aws_iam_role_policy_attachment" "sqs_attach_addl" {
   for_each   = var.AdditionalIamPolicies
   role       = aws_iam_role.sqs_consumer_role.name
   policy_arn = each.value
