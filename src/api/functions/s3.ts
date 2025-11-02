@@ -14,6 +14,7 @@ export type CreatePresignedPutInputs = {
   mimeType: string;
   md5hash?: string; // Must be a base64-encoded MD5 hash
   urlExpiresIn?: number;
+  metadata?: Record<string, string>;
 };
 
 export async function createPresignedPut({
@@ -24,6 +25,7 @@ export async function createPresignedPut({
   mimeType,
   md5hash,
   urlExpiresIn,
+  metadata,
 }: CreatePresignedPutInputs) {
   const command = new PutObjectCommand({
     Bucket: bucketName,
@@ -31,6 +33,7 @@ export async function createPresignedPut({
     ContentLength: length,
     ContentType: mimeType,
     ContentMD5: md5hash,
+    Metadata: metadata,
   });
 
   const expiresIn = urlExpiresIn || 900;

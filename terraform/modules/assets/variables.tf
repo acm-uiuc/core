@@ -17,3 +17,12 @@ variable "BucketAllowedCorsOrigins" {
   type        = list(string)
   description = "List of URLs that bucket can be read/written from."
 }
+
+variable "ConfirmerLambdaArnPrimary" {
+  type = string
+}
+
+variable "ConfirmerLambdaArnSecondary" {
+  type = string
+}
+

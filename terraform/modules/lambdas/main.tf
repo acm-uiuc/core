@@ -16,10 +16,18 @@ data "archive_file" "linkry_edge_lambda_code" {
   output_path = "${path.module}/../../../dist/terraform/linkryEdgeFunction.zip"
 }
 
+
+data "archive_file" "s3_upload_confirmer_code" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../../src/s3UploadConfirmer/"
+  output_path = "${path.module}/../../../dist/terraform/s3UploadConfirmer.zip"
+}
+
 locals {
   core_api_lambda_name          = "${var.ProjectId}-main-server"
   core_api_slow_lambda_name     = "${var.ProjectId}-slow-server"
   core_sqs_consumer_lambda_name = "${var.ProjectId}-sqs-consumer"
+  upload_confirmer_lambda_name  = "${var.ProjectId}-s3-upload-confirmer"
   entra_policies = {
     shared = aws_iam_policy.shared_iam_policy.arn
     entra  = aws_iam_policy.entra_policy.arn
@@ -40,6 +48,12 @@ data "aws_caller_identity" "current" {}
 resource "aws_cloudwatch_log_group" "api_logs" {
   region            = var.region
   name              = "/aws/lambda/${local.core_api_lambda_name}"
+  retention_in_days = var.LogRetentionDays
+}
+
+resource "aws_cloudwatch_log_group" "s3_upload_confirmer" {
+  region            = var.region
+  name              = "/aws/lambda/${local.upload_confirmer_lambda_name}"
   retention_in_days = var.LogRetentionDays
 }
 
@@ -432,6 +446,31 @@ resource "aws_lambda_function" "slow_lambda" {
   }
 }
 
+
+// S3 upload confirmer lambda
+resource "aws_lambda_function" "s3_upload_confirmer" {
+  region           = var.region
+  depends_on       = [aws_cloudwatch_log_group.s3_upload_confirmer]
+  function_name    = local.upload_confirmer_lambda_name
+  role             = aws_iam_role.api_role.arn
+  architectures    = ["arm64"]
+  handler          = "main.handler"
+  runtime          = "python3.12"
+  filename         = data.archive_file.s3_upload_confirmer_code.output_path
+  timeout          = 30
+  memory_size      = 512
+  source_code_hash = data.archive_file.s3_upload_confirmer_code.output_sha256
+  logging_config {
+    log_group  = aws_cloudwatch_log_group.s3_upload_confirmer.name
+    log_format = "Text"
+  }
+  environment {
+    variables = {
+      "RunEnvironment" = var.RunEnvironment
+    }
+  }
+}
+
 resource "aws_lambda_function_url" "slow_api_lambda_function_url" {
   region             = var.region
   function_name      = aws_lambda_function.slow_lambda.function_name
@@ -546,4 +585,8 @@ output "core_sqs_consumer_lambda_name" {
 
 output "linkry_redirect_function_arn" {
   value = local.is_primary_deployment ? aws_lambda_function.linkry_edge[0].qualified_arn : ""
+}
+
+output "s3_confirmer_function_arn" {
+  value = aws_lambda_function.s3_upload_confirmer.arn
 }

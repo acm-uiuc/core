@@ -129,9 +129,11 @@ module "frontend" {
 }
 
 module "assets" {
-  source                   = "../../modules/assets"
-  ProjectId                = var.ProjectId
-  BucketAllowedCorsOrigins = ["https://${var.CorePublicDomain}"]
+  source                      = "../../modules/assets"
+  ProjectId                   = var.ProjectId
+  BucketAllowedCorsOrigins    = ["https://${var.CorePublicDomain}"]
+  ConfirmerLambdaArnPrimary   = module.lambdas.s3_confirmer_function_arn
+  ConfirmerLambdaArnSecondary = module.lambdas_usw2.s3_confirmer_function_arn
 }
 
 resource "aws_lambda_event_source_mapping" "queue_consumer" {

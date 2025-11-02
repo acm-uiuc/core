@@ -132,9 +132,11 @@ module "frontend" {
 }
 
 module "assets" {
-  source                   = "../../modules/assets"
-  ProjectId                = var.ProjectId
-  BucketAllowedCorsOrigins = ["https://${var.CorePublicDomain}", "http://localhost:5173"]
+  source                      = "../../modules/assets"
+  ProjectId                   = var.ProjectId
+  BucketAllowedCorsOrigins    = ["https://${var.CorePublicDomain}", "http://localhost:5173"]
+  ConfirmerLambdaArnPrimary   = module.lambdas.s3_confirmer_function_arn
+  ConfirmerLambdaArnSecondary = module.lambdas_usw2.s3_confirmer_function_arn
 }
 
 // Multi-Region Failover: US-West-2

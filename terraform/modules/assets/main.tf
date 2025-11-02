@@ -103,6 +103,48 @@ resource "aws_iam_policy" "bucket_access" {
   policy      = data.aws_iam_policy_document.bucket_access.json
 }
 
+resource "aws_lambda_permission" "allow_bucket_primary" {
+  statement_id  = "AllowExecutionFromS3Bucket"
+  action        = "lambda:InvokeFunction"
+  function_name = var.ConfirmerLambdaArnPrimary
+  principal     = "s3.amazonaws.com"
+  source_arn    = module.buckets.bucket_info[var.PrimaryRegion].arn
+}
+
+resource "aws_lambda_permission" "allow_bucket_secondary" {
+  for_each      = module.buckets.buckets_info
+  statement_id  = "AllowExecutionFromS3Bucket"
+  action        = "lambda:InvokeFunction"
+  function_name = var.ConfirmerLambdaArnSecondary
+  principal     = "s3.amazonaws.com"
+  source_arn    = module.buckets.bucket_info[var.SecondaryRegion].arn
+}
+
+
+resource "aws_s3_bucket_notification" "primary_bucket_notification" {
+  bucket = module.buckets.bucket_info[var.PrimaryRegion].id
+  lambda_function {
+    lambda_function_arn = var.ConfirmerLambdaArnPrimary
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "reconciled/"
+  }
+
+  depends_on = [aws_lambda_permission.allow_bucket_primary]
+}
+
+
+resource "aws_s3_bucket_notification" "secondary_bucket_notification" {
+  bucket = module.buckets.bucket_info[var.SecondaryRegion].id
+  lambda_function {
+    lambda_function_arn = var.ConfirmerLambdaArnSecondary
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "reconciled/"
+  }
+
+  depends_on = [aws_lambda_permission.allow_bucket_secondary]
+}
+
+
 output "access_policy_arn" {
   description = "ARN of the IAM policy for bucket access"
   value       = aws_iam_policy.bucket_access.arn

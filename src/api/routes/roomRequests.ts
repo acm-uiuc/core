@@ -128,10 +128,11 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not get username from request.",
         });
       }
+      const createdAt = new Date().toISOString();
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
       const attachmentS3key = request.body.attachmentInfo
-        ? `roomRequests/${requestId}/${request.body.status}/${request.id}/${request.body.attachmentInfo.filename}`
+        ? `reconciled/roomRequests/${requestId}/${request.id}/${request.body.attachmentInfo.filename}`
         : undefined;
       const getReservationData = new QueryCommand({
         TableName: genericConfig.RoomRequestsStatusTableName,
@@ -157,12 +158,24 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             region: genericConfig.AwsRegion,
           });
         }
+        if (!attachmentS3key) {
+          throw new InternalServerError({ message: "Failed to handle file." });
+        }
         uploadUrl = await createPresignedPut({
           s3client: fastify.s3Client,
-          key: attachmentS3key!,
+          key: attachmentS3key,
           bucketName: fastify.environmentConfig.AssetsBucketId,
           length: fileSizeBytes,
           mimeType: contentType,
+          metadata: {
+            dynamoTable: genericConfig.RoomRequestsStatusTableName,
+            dynamoPrimaryKey: JSON.stringify({
+              requestId,
+              "createdAt#status": `${createdAt}#${request.body.status}`,
+            }),
+            dynamoAttribute: "attachmentS3key",
+            dynamoPendingAttributeName: "pendingAttachmentS3key",
+          },
         });
       }
       const createdNotified =
@@ -178,7 +191,6 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not find original reservation requestor",
         });
       }
-      const createdAt = new Date().toISOString();
       const itemPut = {
         TableName: genericConfig.RoomRequestsStatusTableName,
         Item: marshall(
