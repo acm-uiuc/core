@@ -104,7 +104,7 @@ module "lambdas" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
-  AdditionalIamPolicies            = [module.assets.access_policy_arn]
+  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn }
 }
 
 module "frontend" {
@@ -156,7 +156,7 @@ module "lambdas_usw2" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
-  AdditionalIamPolicies            = [module.assets.access_policy_arn]
+  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn }
 }
 
 module "sqs_queues_usw2" {

@@ -39,5 +39,5 @@ variable "region" {
 }
 
 variable "AdditionalIamPolicies" {
-  type = set(string)
+  type = map(string)
 }
