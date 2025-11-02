@@ -43,3 +43,14 @@ resource "aws_s3_bucket_lifecycle_configuration" "expire_noncurrent" {
     }
   }
 }
+
+resource "aws_s3_bucket_intelligent_tiering_configuration" "tiering" {
+  for_each = module.buckets.buckets_info
+  bucket   = each.value.id
+  name     = "EntireBucketIntelligentTiering"
+
+  tiering {
+    access_tier = "ARCHIVE_ACCESS"
+    days        = 1
+  }
+}
