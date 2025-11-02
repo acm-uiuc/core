@@ -37,3 +37,7 @@ variable "region" {
   type        = string
   description = "AWS region to deploy non-global resources to"
 }
+
+variable "AdditionalIamPolicies" {
+  type = map(string)
+}
