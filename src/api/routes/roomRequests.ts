@@ -13,6 +13,7 @@ import {
   DatabaseInsertError,
   InternalServerError,
   NotFoundError,
+  ValidationError,
 } from "common/errors/index.js";
 import {
   GetItemCommand,
@@ -190,7 +191,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             expiresAt:
               Math.floor(Date.now() / 1000) +
               86400 * ROOM_RESERVATION_RETENTION_DAYS,
-            attachmentS3key,
+            pendingAttachmentS3key: attachmentS3key,
           },
           { removeUndefinedValues: true },
         ),
@@ -630,12 +631,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
       try {
-        const resp = await verifyRoomRequestAccess(
-          fastify,
-          request,
-          requestId,
-          semesterId,
-        );
+        await verifyRoomRequestAccess(fastify, request, requestId, semesterId);
         // this isn't atomic, but that's fine - a little inconsistency on this isn't a problem.
         try {
           const statusesResponse = await fastify.dynamoClient.send(
@@ -670,39 +666,6 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             fastify.s3Client = new S3Client({
               region: genericConfig.AwsRegion,
             });
-          }
-          try {
-            await fastify.s3Client.send(
-              new HeadObjectCommand({
-                Bucket: fastify.environmentConfig.AssetsBucketId,
-                Key: unmarshalled.attachmentS3key,
-              }),
-            );
-          } catch (error) {
-            if (error instanceof NotFound) {
-              // Key doesn't exist in S3, delete the attribute from DynamoDB
-              await fastify.dynamoClient.send(
-                new UpdateItemCommand({
-                  TableName: genericConfig.RoomRequestsStatusTableName,
-                  Key: {
-                    requestId: { S: request.params.requestId },
-                    "createdAt#status": {
-                      S: `${request.params.createdAt}#${request.params.status}`,
-                    },
-                  },
-                  UpdateExpression: "REMOVE #attachmentS3key",
-                  ExpressionAttributeNames: {
-                    "#attachmentS3key": "attachmentS3key",
-                  },
-                }),
-              );
-
-              throw new NotFoundError({
-                endpointName: request.url,
-              });
-            } else {
-              throw error;
-            }
           }
           const url = await createPresignedGet({
             s3client: fastify.s3Client,
