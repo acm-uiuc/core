@@ -716,6 +716,9 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           });
           return reply.status(200).send({ downloadUrl: url });
         } catch (e) {
+          if (e instanceof NotFoundError) {
+            throw e;
+          }
           request.log.error(e);
           throw new DatabaseFetchError({
             message: "Could not get request attachments.",
