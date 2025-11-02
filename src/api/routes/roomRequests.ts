@@ -18,6 +18,7 @@ import {
   GetItemCommand,
   QueryCommand,
   TransactWriteItemsCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig, notificationRecipients } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -35,7 +36,7 @@ import {
 } from "common/utils.js";
 import { ROOM_RESERVATION_RETENTION_DAYS } from "common/constants.js";
 import { createPresignedGet, createPresignedPut } from "api/functions/s3.js";
-import { S3Client } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, NotFound, S3Client } from "@aws-sdk/client-s3";
 
 const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -674,6 +675,39 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             fastify.s3Client = new S3Client({
               region: genericConfig.AwsRegion,
             });
+          }
+          try {
+            await fastify.s3Client.send(
+              new HeadObjectCommand({
+                Bucket: fastify.environmentConfig.AssetsBucketId,
+                Key: unmarshalled.attachmentS3key,
+              }),
+            );
+          } catch (error) {
+            if (error instanceof NotFound) {
+              // Key doesn't exist in S3, delete the attribute from DynamoDB
+              await fastify.dynamoClient.send(
+                new UpdateItemCommand({
+                  TableName: genericConfig.RoomRequestsStatusTableName,
+                  Key: {
+                    requestId: { S: request.params.requestId },
+                    "createdAt#status": {
+                      S: `${request.params.createdAt}#${request.params.status}`,
+                    },
+                  },
+                  UpdateExpression: "REMOVE #attachmentS3key",
+                  ExpressionAttributeNames: {
+                    "#attachmentS3key": "attachmentS3key",
+                  },
+                }),
+              );
+
+              throw new NotFoundError({
+                endpointName: request.url,
+              });
+            } else {
+              throw error;
+            }
           }
           const url = await createPresignedGet({
             s3client: fastify.s3Client,

@@ -77,7 +77,8 @@ data "aws_iam_policy_document" "bucket_access" {
     actions = [
       "s3:PutObject",
       "s3:GetObject",
-      "s3:DeleteObject"
+      "s3:DeleteObject",
+      "s3:HeadObject"
     ]
     resources = [
       for bucket_info in module.buckets.buckets_info : "${bucket_info.arn}/*"
