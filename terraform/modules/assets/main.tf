@@ -2,7 +2,7 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 locals {
-  asset_bucket_prefix = "${data.aws_caller_identity.current.account_id}-${var.ProjectId}"
+  asset_bucket_prefix = "${data.aws_caller_identity.current.account_id}-${var.ProjectId}-assets"
 }
 
 module "buckets" {
