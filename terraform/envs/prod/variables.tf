@@ -24,6 +24,12 @@ variable "CoreCertificateArn" {
   default = "arn:aws:acm:us-east-1:298118738376:certificate/aeb93d9e-b0b7-4272-9c12-24ca5058c77e"
 }
 
+// For acm.gg we need a seperate cert for Linkry
+variable "LinkryCertificateArn" {
+  type    = string
+  default = "arn:aws:acm:us-east-1:298118738376:certificate/aa58a5e8-49eb-44fb-b118-ab0a7ecd2054"
+}
+
 variable "EmailDomain" {
   type    = string
   default = "acm.illinois.edu"
