@@ -75,7 +75,7 @@ test_unit: install
 	terraform -chdir=terraform/envs/qa init -reconfigure -backend=false -upgrade
 	terraform -chdir=terraform/envs/qa fmt -check
 	terraform -chdir=terraform/envs/qa validate
-	terraform -chdir=terraform/envs/prod init -reconfigure -backend=false
+	terraform -chdir=terraform/envs/prod init -reconfigure -backend=false -upgrade
 	terraform -chdir=terraform/envs/prod fmt -check
 	terraform -chdir=terraform/envs/prod validate
 	yarn prettier
@@ -96,3 +96,7 @@ prod_health_check:
 lock_terraform:
 	terraform -chdir=terraform/envs/qa providers lock -platform=windows_amd64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=linux_amd64 -platform=linux_arm64
 	terraform -chdir=terraform/envs/prod providers lock -platform=windows_amd64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=linux_amd64 -platform=linux_arm64
+
+upgrade_terraform:
+	terraform -chdir=terraform/envs/qa init -reconfigure -backend=false -upgrade
+	terraform -chdir=terraform/envs/prod init -reconfigure -backend=false -upgrade
