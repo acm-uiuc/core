@@ -721,39 +721,72 @@ Please contact Officer Board with any questions.`,
 
           const amount = intent.amount_received;
           const currency = intent.currency;
-          const customerId = intent.customer?.toString() ?? "UNKNOWN";
-          const email =
-            intent.receipt_email ??
-            intent.metadata?.billing_email ??
-            "unknown@example.com";
-          const acmOrg = intent.metadata?.acm_org ?? "ACM@UIUC";
-          const domain = email.includes("@")
-            ? email.split("@")[1]
-            : "unknown.com";
+          const customerId = intent.customer?.toString();
+          const email = intent.receipt_email ?? intent.metadata?.billing_email;
+          const acmOrg = intent.metadata?.acm_org;
 
-          await fastify.dynamoClient.send(
-            new PutItemCommand({
-              TableName: genericConfig.StripePaymentsDynamoTableName,
-              Item: marshall({
-                primaryKey: `${acmOrg}#${domain}`,
-                sortKey: event.id,
-                amount,
-                currency,
-                status: "succeeded",
-                billingEmail: email,
-                createdAt: new Date().toISOString(),
-                eventId: event.id,
+          if (!customerId) {
+            request.log.info("Skipping payment intent with no customer ID.");
+            return reply
+              .code(200)
+              .send({ handled: false, requestId: request.id });
+          }
+
+          if (!email) {
+            request.log.warn("Missing email for payment intent.");
+            return reply
+              .code(200)
+              .send({ handled: false, requestId: request.id });
+          }
+
+          if (!acmOrg) {
+            request.log.warn("Missing acm_org for payment intent.");
+            return reply
+              .code(200)
+              .send({ handled: false, requestId: request.id });
+          }
+
+          if (!email.includes("@")) {
+            request.log.warn("Invalid email format for payment intent.");
+            return reply
+              .code(200)
+              .send({ handled: false, requestId: request.id });
+          }
+          const domain = email.split("@")[1];
+
+          try {
+            await fastify.dynamoClient.send(
+              new PutItemCommand({
+                TableName: genericConfig.StripePaymentsDynamoTableName,
+                Item: marshall({
+                  primaryKey: `${acmOrg}#${domain}`,
+                  sortKey: event.id,
+                  amount,
+                  currency,
+                  status: "succeeded",
+                  billingEmail: email,
+                  createdAt: new Date().toISOString(),
+                  eventId: event.id,
+                }),
               }),
-            }),
-          );
+            );
 
-          request.log.info(
-            `Recorded successful payment ${intent.id} from ${email} (${amount} ${currency})`,
-          );
+            request.log.info(
+              `Recorded successful payment ${intent.id} from ${email} (${amount} ${currency})`,
+            );
 
-          return reply
-            .status(200)
-            .send({ handled: true, requestId: request.id });
+            return reply
+              .status(200)
+              .send({ handled: true, requestId: request.id });
+          } catch (e) {
+            if (e instanceof BaseError) {
+              throw e;
+            }
+            request.log.error(e);
+            throw new DatabaseInsertError({
+              message: `Could not insert Stripe payment record: ${(e as Error).message}`,
+            });
+          }
         }
         default:
           request.log.warn(`Unhandled event type: ${event.type}`);
