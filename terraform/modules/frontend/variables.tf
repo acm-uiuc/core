@@ -28,9 +28,9 @@ variable "IcalPublicDomain" {
   description = "Ical Public Host"
 }
 
-variable "LinkryPublicDomain" {
-  type        = string
-  description = "Ical Public Host"
+variable "LinkryPublicDomains" {
+  type        = set(string)
+  description = "Linky Public Hosts"
 }
 
 
@@ -39,6 +39,10 @@ variable "CoreCertificateArn" {
   description = "Core ACM ARN"
 }
 
+variable "LinkryCertificateArn" {
+  type        = string
+  description = "Linkry ACM ARN"
+}
 
 variable "BucketPrefix" {
   type = string

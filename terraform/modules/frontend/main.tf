@@ -458,7 +458,7 @@ resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
       origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
     }
   }
-  aliases         = [var.LinkryPublicDomain]
+  aliases         = var.LinkryPublicDomains
   enabled         = true
   is_ipv6_enabled = true
   default_cache_behavior {
@@ -475,7 +475,7 @@ resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn      = var.CoreCertificateArn
+    acm_certificate_arn      = var.LinkryCertificateArn
     minimum_protocol_version = "TLSv1.2_2021"
     ssl_support_method       = "sni-only"
   }
