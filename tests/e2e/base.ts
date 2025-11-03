@@ -4,6 +4,9 @@ import {
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
 
+export interface RecursiveRecord
+  extends Record<string, any | RecursiveRecord> {}
+
 export const getSecretValue = async (
   secretId: string,
 ): Promise<Record<string, string | number | boolean> | null> => {
@@ -71,12 +74,12 @@ export async function getUpcomingEvents() {
   const data = await fetch(
     "https://core.aws.qa.acmuiuc.org/api/v1/events?upcomingOnly=true",
   );
-  return (await data.json()) as Record<string, string>[];
+  return (await data.json()) as RecursiveRecord[];
 }
 
 export async function getAllEvents() {
   const data = await fetch("https://core.aws.qa.acmuiuc.org/api/v1/events");
-  return (await data.json()) as Record<string, string>[];
+  return (await data.json()) as RecursiveRecord[];
 }
 
 export const test = base.extend<{ becomeUser: (page: Page) => Promise<void> }>({

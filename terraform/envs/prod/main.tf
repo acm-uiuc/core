@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 6.18.0"
+      version = "= 6.19.0"
     }
   }
 
@@ -124,7 +124,8 @@ module "frontend" {
   CoreCertificateArn    = var.CoreCertificateArn
   CorePublicDomain      = var.CorePublicDomain
   IcalPublicDomain      = var.IcalPublicDomain
-  LinkryPublicDomain    = var.LinkryPublicDomain
+  LinkryPublicDomains   = [var.LinkryPublicDomain, "acm.gg"]
+  LinkryCertificateArn  = var.LinkryCertificateArn
   LinkryEdgeFunctionArn = module.lambdas.linkry_redirect_function_arn
 }
 
