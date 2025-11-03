@@ -62,7 +62,7 @@ export const ManageRoomRequestsPage: React.FC = () => {
     } else {
       setSemester(nextSemesters[0].value);
     }
-  }, []);
+  }, [searchParams, semesterOptions, nextSemesters]);
   return (
     <AuthGuard
       resourceDef={{
