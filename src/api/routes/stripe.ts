@@ -746,13 +746,23 @@ Please contact Officer Board with any questions.`,
               .send({ handled: false, requestId: request.id });
           }
 
-          if (!email.includes("@")) {
+          const normalizedEmail = email.trim();
+          if (!normalizedEmail.includes("@")) {
             request.log.warn("Invalid email format for payment intent.");
             return reply
               .code(200)
               .send({ handled: false, requestId: request.id });
           }
-          const domain = email.split("@")[1];
+          const [, domainPart] = normalizedEmail.split("@");
+          if (!domainPart) {
+            request.log.warn(
+              "Could not derive email domain for payment intent.",
+            );
+            return reply
+              .code(200)
+              .send({ handled: false, requestId: request.id });
+          }
+          const domain = domainPart.toLowerCase();
 
           try {
             await fastify.dynamoClient.send(
@@ -764,7 +774,7 @@ Please contact Officer Board with any questions.`,
                   amount,
                   currency,
                   status: "succeeded",
-                  billingEmail: email,
+                  billingEmail: normalizedEmail,
                   createdAt: new Date().toISOString(),
                   eventId: event.id,
                 }),
@@ -772,7 +782,7 @@ Please contact Officer Board with any questions.`,
             );
 
             request.log.info(
-              `Recorded successful payment ${intent.id} from ${email} (${amount} ${currency})`,
+              `Recorded successful payment ${intent.id} from ${normalizedEmail} (${amount} ${currency})`,
             );
 
             return reply
