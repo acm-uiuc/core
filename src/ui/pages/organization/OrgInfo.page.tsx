@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { Title, Stack, Container, Select } from "@mantine/core";
-import { AuthGuard, getUserRoles } from "@ui/components/AuthGuard";
+import {
+  AuthGuard,
+  getUserRoles,
+  getCoreOrgRoles,
+} from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle } from "@tabler/icons-react";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AllOrganizationNameList, OrganizationName } from "@acm-uiuc/js-shared";
-import { useAuth } from "@ui/components/AuthContext";
 import { ManageOrganizationForm } from "./ManageOrganizationForm";
 import {
   LeadEntry,
@@ -21,7 +24,6 @@ type OrganizationData = z.infer<typeof setOrganizationMetaBody>;
 
 export const OrgInfoPage = () => {
   const api = useApi("core");
-  const { orgRoles } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [manageableOrgs, setManagableOrgs] = useState<
     OrganizationName[] | null
@@ -112,7 +114,11 @@ export const OrgInfoPage = () => {
   useEffect(() => {
     (async () => {
       const appRoles = await getUserRoles("core");
-      if (appRoles?.includes(AppRoles.ALL_ORG_MANAGER)) {
+      const orgRoles = await getCoreOrgRoles();
+      if (appRoles === null || orgRoles === null) {
+        return;
+      }
+      if (appRoles.includes(AppRoles.ALL_ORG_MANAGER)) {
         setManagableOrgs(AllOrganizationNameList);
         return;
       }
@@ -120,7 +126,7 @@ export const OrgInfoPage = () => {
         orgRoles.filter((x) => x.role === "LEAD").map((x) => x.org),
       );
     })();
-  }, [orgRoles]);
+  }, []);
 
   // Update URL when selected org changes
   const handleOrgChange = (org: OrganizationName | null) => {
