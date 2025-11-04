@@ -118,7 +118,7 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
           mt="lg"
           mb="lg"
           label="Enable ACH Payment (upcoming)"
-          description="Allow bank transfer payments for this link"
+          description="Accept only bank transfer payments for this link"
           disabled
           {...form.getInputProps("achPaymentsEnabled")}
         />
