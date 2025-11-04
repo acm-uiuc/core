@@ -6,6 +6,7 @@ import {
   Text,
   TextInput,
   NumberInput,
+  Switch,
   Title,
   Modal,
   Anchor,
@@ -42,6 +43,7 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
       invoiceAmountUsd: 100,
       contactName: "",
       contactEmail: "",
+      achPaymentsEnabled: false,
     },
     validate: {
       invoiceId: (value) =>
@@ -109,6 +111,13 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
           placeholder="email@illinois.edu"
           {...form.getInputProps("contactEmail")}
           required
+        />
+        <Switch
+          mt="lg"
+          mb="lg"
+          label="Enable ACH Payment"
+          description="Allow bank transfer payments for this link"
+          {...form.getInputProps("achPaymentsEnabled")}
         />
 
         <Button type="submit" fullWidth mt="md" disabled={isLoading}>
