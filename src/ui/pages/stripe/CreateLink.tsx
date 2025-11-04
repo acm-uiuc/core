@@ -54,6 +54,8 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
         value.length < 1 ? "Contact Name is required" : null,
       contactEmail: (value) =>
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? null : "Invalid email",
+      achPaymentsEnabled: (value) =>
+        value ? "Feature not yet available" : null,
     },
   });
 
@@ -115,8 +117,9 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
         <Switch
           mt="lg"
           mb="lg"
-          label="Enable ACH Payment"
+          label="Enable ACH Payment (upcoming)"
           description="Allow bank transfer payments for this link"
+          disabled
           {...form.getInputProps("achPaymentsEnabled")}
         />
 
