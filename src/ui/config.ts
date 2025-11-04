@@ -85,7 +85,7 @@ const environmentConfig: EnvironmentConfigType = {
   },
   prod: {
     AadValidClientId: "43fee67e-e383-4071-9233-ef33110e9386",
-    LinkryPublicUrl: "go.acm.illinois.edu",
+    LinkryPublicUrl: "acm.gg",
     ServiceConfiguration: {
       core: {
         friendlyName: "Core Management Service",

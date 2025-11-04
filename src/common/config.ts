@@ -33,6 +33,7 @@ export type ConfigType = {
   OrgAdminGithubParentTeam: number;
   GithubIdpSyncEnabled: boolean
   GithubOrgId: number;
+  AssetsBucketId: string;
 };
 
 export type GenericConfigType = {
@@ -40,6 +41,7 @@ export type GenericConfigType = {
   CacheDynamoTableName: string;
   LinkryDynamoTableName: string;
   StripeLinksDynamoTableName: string;
+  StripePaymentsDynamoTableName: string;
   EntraSecretName: string;
   UpcomingEventThresholdSeconds: number;
   AwsRegion: string;
@@ -85,6 +87,7 @@ export const commChairsGroupId = "105e7d32-7289-435e-a67a-552c7f215507";
 const genericConfig: GenericConfigType = {
   EventsDynamoTableName: "infra-core-api-events",
   StripeLinksDynamoTableName: "infra-core-api-stripe-links",
+  StripePaymentsDynamoTableName: "infra-core-api-stripe-payments",
   CacheDynamoTableName: "infra-core-api-cache",
   LinkryDynamoTableName: "infra-core-api-linkry",
   EntraSecretName: "infra-core-api-entra",
@@ -146,7 +149,8 @@ const environmentConfig: EnvironmentConfigType = {
     GithubOrgName: "acm-uiuc-testing",
     GithubOrgId: 235748315,
     OrgAdminGithubParentTeam: 14420860,
-    GithubIdpSyncEnabled: false
+    GithubIdpSyncEnabled: false,
+    AssetsBucketId: `427040638965-infra-core-api-assets-${genericConfig.AwsRegion}`
   },
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
@@ -162,7 +166,7 @@ const environmentConfig: EnvironmentConfigType = {
       /http:\/\/localhost:\d+$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
-    LinkryBaseUrl: "https://go.acm.illinois.edu/",
+    LinkryBaseUrl: "https://acm.gg/",
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
     PasskitSerialNumber: "0",
     EmailDomain: "acm.illinois.edu",
@@ -178,7 +182,8 @@ const environmentConfig: EnvironmentConfigType = {
     GithubOrgName: "acm-uiuc",
     GithubOrgId: 425738,
     OrgAdminGithubParentTeam: 12025214,
-    GithubIdpSyncEnabled: true
+    GithubIdpSyncEnabled: true,
+    AssetsBucketId: `298118738376-infra-core-api-assets-${genericConfig.AwsRegion}`
   },
 };
 
@@ -193,6 +198,7 @@ export type SecretConfig = {
   stripe_endpoint_secret: string;
   stripe_links_endpoint_secret: string;
   redis_url: string;
+  fallback_redis_url: string;
   encryption_key: string;
   UIN_HASHING_SECRET_PEPPER: string;
   github_pat: string;

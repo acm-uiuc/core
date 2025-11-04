@@ -5,10 +5,10 @@ import { AcmAppShell, AcmAppShellProps } from "@ui/components/AppShell";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { getRunEnvironmentConfig, ValidService } from "@ui/config";
 import { useApi } from "@ui/util/api";
-import { AppRoles } from "@common/roles";
+import { AppRoles, OrgRoleDefinition } from "@common/roles";
 
 export const CACHE_KEY_PREFIX = "auth_response_cache_";
-const CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 type CacheData = {
   data: any; // Just the JSON response data
@@ -87,7 +87,6 @@ export const clearAuthCache = () => {
 /**
  * Retrieves the user's roles from the session cache for a specific service.
  * @param service The service to check the cache for.
- * @param route The authentication check route.
  * @returns A promise that resolves to an array of roles, or null if not found in cache.
  */
 export const getUserRoles = async (
@@ -101,6 +100,25 @@ export const getUserRoles = async (
   const cachedData = await getCachedResponse(service, authCheckRoute);
   if (cachedData?.data?.roles && Array.isArray(cachedData.data.roles)) {
     return cachedData.data.roles;
+  }
+  return null;
+};
+
+/**
+ * Retrieves the user's org roles from the session cache for Core API.
+ * @returns A promise that resolves to an array of roles, or null if not found in cache.
+ */
+export const getCoreOrgRoles = async (): Promise<
+  OrgRoleDefinition[] | null
+> => {
+  const { authCheckRoute } =
+    getRunEnvironmentConfig().ServiceConfiguration.core;
+  if (!authCheckRoute) {
+    throw new Error("no auth check route");
+  }
+  const cachedData = await getCachedResponse("core", authCheckRoute);
+  if (cachedData?.data?.orgRoles && Array.isArray(cachedData.data.orgRoles)) {
+    return cachedData.data.orgRoles;
   }
   return null;
 };
@@ -211,10 +229,8 @@ export const AuthGuard: React.FC<
           <Title>Unauthorized</Title>
           <Text>
             You have not been granted access to this module. Please fill out the{" "}
-            <a href="https://go.acm.illinois.edu/access_request">
-              access request form
-            </a>{" "}
-            to request access to this module.
+            <a href="https://acm.gg/access_request">access request form</a> to
+            request access to this module.
           </Text>
           <Card withBorder>
             <Title order={3} mb="md">

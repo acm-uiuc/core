@@ -1,7 +1,6 @@
 import {
   checkExternalMembership,
   checkPaidMembershipFromTable,
-  setPaidMembershipInTable,
   MEMBER_CACHE_SECONDS,
   getExternalMemberList,
   patchExternalMemberList,
@@ -13,18 +12,9 @@ import {
   InternalServerError,
   ValidationError,
 } from "common/errors/index.js";
-import { getEntraIdToken } from "api/functions/entraId.js";
-import { genericConfig, roleArns } from "common/config.js";
-import { getRoleCredentials } from "api/functions/sts.js";
-import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import {
-  BatchWriteItemCommand,
-  DynamoDBClient,
-  QueryCommand,
-  ScanCommand,
-} from "@aws-sdk/client-dynamodb";
+import { genericConfig } from "common/config.js";
+import { ScanCommand } from "@aws-sdk/client-dynamodb";
 import rateLimiter from "api/plugins/rateLimiter.js";
-import { createCheckoutSession } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
 import stripe, { Stripe } from "stripe";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";

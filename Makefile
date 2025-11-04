@@ -1,6 +1,7 @@
 prod_aws_account = 298118738376
 dev_aws_account = 427040638965
 current_aws_account := $(shell aws sts get-caller-identity --query Account --output text)
+current_active_region = "us-east-2"
 
 src_directory_root = src/
 dist_ui_directory_root = dist_ui/
@@ -48,14 +49,14 @@ local:
 deploy_prod:
 	@echo "Deploying Terraform..."
 	terraform -chdir=terraform/envs/prod init -lockfile=readonly
-	terraform -chdir=terraform/envs/prod plan -out=tfplan
+	terraform -chdir=terraform/envs/prod plan -out=tfplan -var="current_active_region=$(current_active_region)"
 	terraform -chdir=terraform/envs/prod apply -auto-approve tfplan
 	rm terraform/envs/prod/tfplan
 
 deploy_qa:
 	@echo "Deploying Terraform..."
 	terraform -chdir=terraform/envs/qa init -lockfile=readonly
-	terraform -chdir=terraform/envs/qa plan -out=tfplan
+	terraform -chdir=terraform/envs/qa plan -out=tfplan -var="current_active_region=$(current_active_region)"
 	terraform -chdir=terraform/envs/qa apply -auto-approve tfplan
 	rm terraform/envs/qa/tfplan
 
@@ -74,7 +75,7 @@ test_unit: install
 	terraform -chdir=terraform/envs/qa init -reconfigure -backend=false -upgrade
 	terraform -chdir=terraform/envs/qa fmt -check
 	terraform -chdir=terraform/envs/qa validate
-	terraform -chdir=terraform/envs/prod init -reconfigure -backend=false
+	terraform -chdir=terraform/envs/prod init -reconfigure -backend=false -upgrade
 	terraform -chdir=terraform/envs/prod fmt -check
 	terraform -chdir=terraform/envs/prod validate
 	yarn prettier
@@ -95,3 +96,7 @@ prod_health_check:
 lock_terraform:
 	terraform -chdir=terraform/envs/qa providers lock -platform=windows_amd64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=linux_amd64 -platform=linux_arm64
 	terraform -chdir=terraform/envs/prod providers lock -platform=windows_amd64 -platform=darwin_amd64 -platform=darwin_arm64 -platform=linux_amd64 -platform=linux_arm64
+
+upgrade_terraform:
+	terraform -chdir=terraform/envs/qa init -reconfigure -backend=false -upgrade
+	terraform -chdir=terraform/envs/prod init -reconfigure -backend=false -upgrade

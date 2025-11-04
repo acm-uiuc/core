@@ -14,13 +14,21 @@ import {
   type RoomRequestStatus,
 } from "@common/types/roomRequest";
 import { OrganizationName } from "@acm-uiuc/js-shared";
+import { useSearchParams } from "react-router-dom";
 
 export const ManageRoomRequestsPage: React.FC = () => {
   const api = useApi("core");
-  const [semester, setSemester] = useState<string | null>(null); // TODO: Create a selector for this
+  const [semester, setSemesterState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const nextSemesters = getSemesters();
   const semesterOptions = [...getPreviousSemesters(), ...nextSemesters];
+  const [searchParams, setSearchParams] = useSearchParams();
+  const setSemester = (semester: string | null) => {
+    setSemesterState(semester);
+    if (semester) {
+      setSearchParams({ semester });
+    }
+  };
   const createRoomRequest = async (
     payload: RoomRequestFormValues,
   ): Promise<RoomRequestPostResponse> => {
@@ -45,8 +53,16 @@ export const ManageRoomRequestsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    setSemester(nextSemesters[0].value);
-  }, []);
+    const semeseterFromUrl = searchParams.get("semester") as string | null;
+    if (
+      semeseterFromUrl &&
+      semesterOptions.map((x) => x.value).includes(semeseterFromUrl)
+    ) {
+      setSemester(semeseterFromUrl);
+    } else {
+      setSemester(nextSemesters[0].value);
+    }
+  }, [searchParams, semesterOptions, nextSemesters]);
   return (
     <AuthGuard
       resourceDef={{

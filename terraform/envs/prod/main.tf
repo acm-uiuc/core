@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 6.18.0"
+      version = "= 6.19.0"
     }
   }
 
@@ -37,7 +37,12 @@ locals {
     main = module.sqs_queues.main_queue_arn
     sqs  = module.sqs_queues.sales_email_queue_arn
   }
+  queue_arns_usw2 = {
+    main = module.sqs_queues_usw2.main_queue_arn
+    sqs  = module.sqs_queues_usw2.sales_email_queue_arn
+  }
   DynamoReplicationRegions = toset(["us-west-2"])
+  deployment_env           = "prod"
 }
 
 module "sqs_queues" {
@@ -93,34 +98,41 @@ module "lambdas" {
   region                           = "us-east-2"
   source                           = "../../modules/lambdas"
   ProjectId                        = var.ProjectId
-  RunEnvironment                   = "prod"
+  RunEnvironment                   = local.deployment_env
   CurrentOriginVerifyKey           = module.origin_verify.current_origin_verify_key
   PreviousOriginVerifyKey          = module.origin_verify.previous_origin_verify_key
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
+  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn }
 }
 
 module "frontend" {
-  source                = "../../modules/frontend"
-  BucketPrefix          = local.primary_bucket_prefix
-  CoreLambdaHost        = module.lambdas.core_function_url
+  source       = "../../modules/frontend"
+  BucketPrefix = local.primary_bucket_prefix
+  CoreLambdaHost = {
+    "us-east-2" = module.lambdas.core_function_url
+    "us-west-2" = module.lambdas_usw2.core_function_url
+  }
+  CoreSlowLambdaHost = {
+    "us-east-2" = module.lambdas.core_slow_function_url
+    "us-west-2" = module.lambdas_usw2.core_slow_function_url
+  }
+  CurrentActiveRegion   = var.current_active_region
   OriginVerifyKey       = module.origin_verify.current_origin_verify_key
   ProjectId             = var.ProjectId
   CoreCertificateArn    = var.CoreCertificateArn
   CorePublicDomain      = var.CorePublicDomain
-  CoreSlowLambdaHost    = module.lambdas.core_slow_function_url
   IcalPublicDomain      = var.IcalPublicDomain
-  LinkryPublicDomain    = var.LinkryPublicDomain
+  LinkryPublicDomains   = [var.LinkryPublicDomain, "acm.gg"]
+  LinkryCertificateArn  = var.LinkryCertificateArn
   LinkryEdgeFunctionArn = module.lambdas.linkry_redirect_function_arn
 }
 
 module "assets" {
-  source             = "../../modules/assets"
-  BucketPrefix       = local.primary_bucket_prefix
-  AssetsPublicDomain = var.AssetsPublicDomain
-  ProjectId          = var.ProjectId
-  CoreCertificateArn = var.CoreCertificateArn
+  source                   = "../../modules/assets"
+  ProjectId                = var.ProjectId
+  BucketAllowedCorsOrigins = ["https://${var.CorePublicDomain}"]
 }
 
 resource "aws_lambda_event_source_mapping" "queue_consumer" {
@@ -132,6 +144,40 @@ resource "aws_lambda_event_source_mapping" "queue_consumer" {
   function_name           = module.lambdas.core_sqs_consumer_lambda_arn
   function_response_types = ["ReportBatchItemFailures"]
 }
+
+// Multi-Region Failover: us-west-2
+
+module "lambdas_usw2" {
+  region                           = "us-west-2"
+  source                           = "../../modules/lambdas"
+  ProjectId                        = var.ProjectId
+  RunEnvironment                   = local.deployment_env
+  CurrentOriginVerifyKey           = module.origin_verify.current_origin_verify_key
+  PreviousOriginVerifyKey          = module.origin_verify.previous_origin_verify_key
+  PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
+  LogRetentionDays                 = var.LogRetentionDays
+  EmailDomain                      = var.EmailDomain
+  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn }
+}
+
+module "sqs_queues_usw2" {
+  region                        = "us-west-2"
+  depends_on                    = [module.lambdas_usw2]
+  source                        = "../../modules/sqs"
+  resource_prefix               = var.ProjectId
+  core_sqs_consumer_lambda_name = module.lambdas_usw2.core_sqs_consumer_lambda_name
+}
+
+resource "aws_lambda_event_source_mapping" "queue_consumer_usw2" {
+  region                  = "us-west-2"
+  depends_on              = [module.lambdas_usw2, module.sqs_queues_usw2]
+  for_each                = local.queue_arns_usw2
+  batch_size              = 5
+  event_source_arn        = each.value
+  function_name           = module.lambdas_usw2.core_sqs_consumer_lambda_arn
+  function_response_types = ["ReportBatchItemFailures"]
+}
+
 
 // This section last: moved records into modules
 moved {
