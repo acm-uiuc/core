@@ -11,8 +11,9 @@ import {
   LoadingOverlay,
   Select,
   TextInput,
-  Checkbox, // Added
-  MantineColor, // Added
+  Checkbox,
+  MantineColor,
+  MantineTheme, // Added for v5 style prop
 } from "@mantine/core";
 import { IconAlertCircle, IconCheck, IconCamera } from "@tabler/icons-react";
 import jsQR from "jsqr";
@@ -997,7 +998,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                 key={`${ticket.ticketId}-${index}`}
                 p="md"
                 withBorder
-                sx={(theme) => ({
+                // --- FIXED for v5 ---
+                style={(theme: MantineTheme) => ({
                   borderLeft: `5px solid ${theme.colors.green[6]}`,
                 })}
               >
@@ -1060,8 +1062,10 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                   key={`${ticket.ticketId}-${index}`}
                   p="md"
                   withBorder
-                  style={{ cursor: "not-allowed", opacity: 0.6 }}
-                  sx={(theme) => ({
+                  // --- FIXED for v5 ---
+                  style={(theme: MantineTheme) => ({
+                    cursor: "not-allowed",
+                    opacity: 0.6,
                     borderLeft: `5px solid ${theme.colors[color][6]}`,
                   })}
                 >
