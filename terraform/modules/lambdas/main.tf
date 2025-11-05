@@ -18,7 +18,7 @@ data "archive_file" "linkry_edge_lambda_code" {
 
 locals {
   core_api_lambda_name          = "${var.ProjectId}-main-server"
-  core_api_slow_lambda_name     = "${var.ProjectId}-slow-server"
+  core_api_hicpu_lambda_name    = "${var.ProjectId}-hicpu-server"
   core_sqs_consumer_lambda_name = "${var.ProjectId}-sqs-consumer"
   entra_policies = {
     shared = aws_iam_policy.shared_iam_policy.arn
@@ -403,18 +403,18 @@ resource "aws_lambda_function_url" "api_lambda_function_url" {
   invoke_mode        = "RESPONSE_STREAM"
 }
 
-// Slow lambda - used for monitoring purposes to avoid triggering lamdba latency alarms
-resource "aws_lambda_function" "slow_lambda" {
+// hicpu lambda - used for monitoring purposes to avoid triggering lamdba latency alarms
+resource "aws_lambda_function" "hicpu_lambda" {
   region           = var.region
   depends_on       = [aws_cloudwatch_log_group.api_logs]
-  function_name    = local.core_api_slow_lambda_name
+  function_name    = local.core_api_hicpu_lambda_name
   role             = aws_iam_role.api_role.arn
   architectures    = ["arm64"]
   handler          = "lambda.handler"
   runtime          = "nodejs22.x"
   filename         = data.archive_file.api_lambda_code.output_path
   timeout          = 15
-  memory_size      = 2048
+  memory_size      = 4096 // This will get us 2 full CPU cores, which will speed up those cryptographic ops that require this server
   source_code_hash = data.archive_file.api_lambda_code.output_sha256
   logging_config {
     log_group  = aws_cloudwatch_log_group.api_logs.name
@@ -433,9 +433,9 @@ resource "aws_lambda_function" "slow_lambda" {
   }
 }
 
-resource "aws_lambda_function_url" "slow_api_lambda_function_url" {
+resource "aws_lambda_function_url" "hicpu_api_lambda_function_url" {
   region             = var.region
-  function_name      = aws_lambda_function.slow_lambda.function_name
+  function_name      = aws_lambda_function.hicpu_lambda.function_name
   authorization_type = "NONE"
   invoke_mode        = "RESPONSE_STREAM"
 }
@@ -447,10 +447,10 @@ module "lambda_warmer_main" {
   is_streaming_lambda = true
 }
 
-module "lambda_warmer_slow" {
+module "lambda_warmer_hicpu" {
   region              = var.region
   source              = "git::https://github.com/acm-uiuc/terraform-modules.git//lambda-warmer?ref=c1a2d3a474a719b0c1e46842e96056478e98c2c7"
-  function_to_warm    = local.core_api_slow_lambda_name
+  function_to_warm    = local.core_api_hicpu_lambda_name
   is_streaming_lambda = true
 }
 
@@ -523,16 +523,16 @@ output "core_function_url" {
   value = replace(replace(aws_lambda_function_url.api_lambda_function_url.function_url, "https://", ""), "/", "")
 }
 
-output "core_slow_function_url" {
-  value = replace(replace(aws_lambda_function_url.slow_api_lambda_function_url.function_url, "https://", ""), "/", "")
+output "core_hicpu_function_url" {
+  value = replace(replace(aws_lambda_function_url.hicpu_api_lambda_function_url.function_url, "https://", ""), "/", "")
 }
 
 output "core_api_lambda_name" {
   value = local.core_api_lambda_name
 }
 
-output "core_api_slow_lambda_name" {
-  value = local.core_api_slow_lambda_name
+output "core_api_hicpu_lambda_name" {
+  value = local.core_api_hicpu_lambda_name
 }
 
 

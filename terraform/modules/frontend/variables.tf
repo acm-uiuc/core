@@ -8,9 +8,9 @@ variable "CoreLambdaHost" {
   description = "Map of region to Lambda Function URL host"
 }
 
-variable "CoreSlowLambdaHost" {
+variable "CoreHiCpuLambdaHost" {
   type        = map(string)
-  description = "Map of region to Slow Lambda Function URL host"
+  description = "Map of region to HiCpu Lambda Function URL host"
 }
 
 variable "CurrentActiveRegion" {
