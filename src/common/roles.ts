@@ -21,7 +21,8 @@ export enum AppRoles {
   VIEW_EXTERNAL_MEMBERSHIP_LIST = "view:externalMembershipList",
   MANAGE_EXTERNAL_MEMBERSHIP_LIST = "manage:externalMembershipList",
   ALL_ORG_MANAGER = "manage:orgDefinitions",
-  AT_LEAST_ONE_ORG_MANAGER = "manage:someOrg" // THIS IS A FAKE ROLE - DO NOT ASSIGN IT MANUALLY - only used for permissioning
+  AT_LEAST_ONE_ORG_MANAGER = "manage:someOrg", // THIS IS A FAKE ROLE - DO NOT ASSIGN IT MANUALLY - only used for permissioning
+  VIEW_USER_INFO = "view:userInfo"
 }
 export const PSUEDO_ROLES = [AppRoles.AT_LEAST_ONE_ORG_MANAGER]
 export const orgRoles = ["LEAD", "MEMBER"] as const;
