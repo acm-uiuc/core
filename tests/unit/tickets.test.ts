@@ -26,6 +26,7 @@ import {
   merchMetadata,
   ticketsMetadata,
 } from "./data/mockTIcketsMerchMetadata.testdata.js";
+import { marshall } from "@aws-sdk/util-dynamodb";
 
 const ddbMock = mockClient(DynamoDBClient);
 const jwt_secret = testSecretObject["jwt_key"];
@@ -497,7 +498,7 @@ describe("Test getting all issued tickets", async () => {
     const testJwt = createJwt();
     await app.ready();
     const response = await supertest(app.server)
-      .get("/api/v1/tickets/2024_fa_barcrawl?type=merch")
+      .get("/api/v1/tickets/event/2024_fa_barcrawl?type=merch")
       .set("authorization", `Bearer ${testJwt}`);
     const responseDataJson = response.body;
     expect(response.statusCode).toEqual(200);
@@ -509,11 +510,260 @@ describe("Test getting all issued tickets", async () => {
     const testJwt = createJwt();
     await app.ready();
     const response = await supertest(app.server)
-      .get("/api/v1/tickets/2024_fa_barcrawl?type=ticket")
+      .get("/api/v1/tickets/event/2024_fa_barcrawl?type=ticket")
       .set("authorization", `Bearer ${testJwt}`);
     const responseDataJson = response.body;
     expect(response.statusCode).toEqual(400);
     expect(responseDataJson.id).toEqual(110);
+  });
+});
+
+describe("Test getting user purchases", () => {
+  const testEmail = "test@illinois.edu";
+
+  test("Happy path: get all purchases for a user", async () => {
+    ddbMock
+      .on(QueryCommand)
+      .resolvesOnce({
+        Items: [
+          marshall({
+            ticket_id: "ticket-123",
+            event_id: "event-456",
+            payment_method: "stripe",
+            purchase_time: "2024-01-01T00:00:00Z",
+            ticketholder_netid: testEmail,
+            used: false,
+          }),
+        ],
+      })
+      .resolvesOnce({
+        Items: [
+          marshall({
+            stripe_pi: "pi_123",
+            email: testEmail,
+            fulfilled: true,
+            item_id: "merch-001",
+            quantity: 2,
+            refunded: false,
+            size: "L",
+          }),
+        ],
+      });
+
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .get(`/api/v1/tickets/purchases/${testEmail}`)
+      .set("authorization", `Bearer ${testJwt}`);
+
+    const responseDataJson = response.body;
+    expect(response.statusCode).toEqual(200);
+    expect(responseDataJson).toHaveProperty("merch");
+    expect(responseDataJson).toHaveProperty("tickets");
+    expect(responseDataJson.tickets).toHaveLength(1);
+    expect(responseDataJson.merch).toHaveLength(1);
+    expect(responseDataJson.tickets[0]).toEqual({
+      valid: true,
+      type: "ticket",
+      ticketId: "ticket-123",
+      purchaserData: {
+        email: testEmail,
+        productId: "event-456",
+        quantity: 1,
+      },
+      refunded: false,
+      fulfilled: false,
+    });
+    expect(responseDataJson.merch[0]).toEqual({
+      valid: false,
+      type: "merch",
+      ticketId: "pi_123",
+      purchaserData: {
+        email: testEmail,
+        productId: "merch-001",
+        quantity: 2,
+      },
+      refunded: false,
+      fulfilled: true,
+    });
+  });
+
+  test("Happy path: user with no purchases", async () => {
+    ddbMock
+      .on(QueryCommand)
+      .resolvesOnce({ Items: [] })
+      .resolvesOnce({ Items: [] });
+
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .get(`/api/v1/tickets/purchases/${testEmail}`)
+      .set("authorization", `Bearer ${testJwt}`);
+
+    const responseDataJson = response.body;
+    expect(response.statusCode).toEqual(200);
+    expect(responseDataJson).toEqual({
+      merch: [],
+      tickets: [],
+    });
+  });
+
+  test("Happy path: user with only tickets", async () => {
+    ddbMock
+      .on(QueryCommand)
+      .resolvesOnce({
+        Items: [
+          marshall({
+            ticket_id: "ticket-789",
+            event_id: "event-101",
+            payment_method: "stripe",
+            purchase_time: "2024-01-02T00:00:00Z",
+            ticketholder_netid: testEmail,
+            used: true,
+          }),
+        ],
+      })
+      .resolvesOnce({ Items: [] });
+
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .get(`/api/v1/tickets/purchases/${testEmail}`)
+      .set("authorization", `Bearer ${testJwt}`);
+
+    const responseDataJson = response.body;
+    expect(response.statusCode).toEqual(200);
+    expect(responseDataJson.tickets).toHaveLength(1);
+    expect(responseDataJson.merch).toHaveLength(0);
+  });
+
+  test("Happy path: user with only merch", async () => {
+    ddbMock
+      .on(QueryCommand)
+      .resolvesOnce({ Items: [] })
+      .resolvesOnce({
+        Items: [
+          marshall({
+            stripe_pi: "pi_456",
+            email: testEmail,
+            fulfilled: false,
+            item_id: "merch-002",
+            quantity: 1,
+            refunded: true,
+            size: "M",
+          }),
+        ],
+      });
+
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .get(`/api/v1/tickets/purchases/${testEmail}`)
+      .set("authorization", `Bearer ${testJwt}`);
+
+    const responseDataJson = response.body;
+    expect(response.statusCode).toEqual(200);
+    expect(responseDataJson.tickets).toHaveLength(0);
+    expect(responseDataJson.merch).toHaveLength(1);
+  });
+
+  test("Happy path: user with multiple purchases of each type", async () => {
+    ddbMock
+      .on(QueryCommand)
+      .resolvesOnce({
+        Items: [
+          marshall({
+            ticket_id: "ticket-1",
+            event_id: "event-1",
+            payment_method: "stripe",
+            purchase_time: "2024-01-01T00:00:00Z",
+            ticketholder_netid: testEmail,
+            used: false,
+          }),
+          marshall({
+            ticket_id: "ticket-2",
+            event_id: "event-2",
+            payment_method: "stripe",
+            purchase_time: "2024-01-02T00:00:00Z",
+            ticketholder_netid: testEmail,
+            used: true,
+          }),
+        ],
+      })
+      .resolvesOnce({
+        Items: [
+          marshall({
+            stripe_pi: "pi_1",
+            email: testEmail,
+            fulfilled: true,
+            item_id: "merch-1",
+            quantity: 1,
+            refunded: false,
+            size: "S",
+          }),
+          marshall({
+            stripe_pi: "pi_2",
+            email: testEmail,
+            fulfilled: false,
+            item_id: "merch-2",
+            quantity: 3,
+            refunded: false,
+            size: "XL",
+          }),
+        ],
+      });
+
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .get(`/api/v1/tickets/purchases/${testEmail}`)
+      .set("authorization", `Bearer ${testJwt}`);
+
+    const responseDataJson = response.body;
+    expect(response.statusCode).toEqual(200);
+    expect(responseDataJson.tickets).toHaveLength(2);
+    expect(responseDataJson.merch).toHaveLength(2);
+  });
+
+  test("Sad path: invalid email format", async () => {
+    const invalidEmail = "not-an-email";
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .get(`/api/v1/tickets/purchases/${invalidEmail}`)
+      .set("authorization", `Bearer ${testJwt}`);
+
+    expect(response.statusCode).toEqual(400);
+    expect(response.body).toHaveProperty("error");
+  });
+
+  test("Sad path: database error on tickets query", async () => {
+    ddbMock.on(QueryCommand).rejectsOnce(new Error("Database error"));
+
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .get(`/api/v1/tickets/purchases/${testEmail}`)
+      .set("authorization", `Bearer ${testJwt}`);
+
+    expect(response.statusCode).toEqual(500);
+    expect(response.body).toHaveProperty("error");
+  });
+
+  test("Sad path: database error on merch query", async () => {
+    ddbMock
+      .on(QueryCommand)
+      .resolvesOnce({ Items: [] })
+      .rejectsOnce(new Error("Database error"));
+
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .get(`/api/v1/tickets/purchases/${testEmail}`)
+      .set("authorization", `Bearer ${testJwt}`);
+
+    expect(response.statusCode).toEqual(500);
+    expect(response.body).toHaveProperty("error");
   });
 });
 
