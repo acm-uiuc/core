@@ -227,7 +227,7 @@ describe("getUserMerchPurchases tests", () => {
       purchaserData: {
         email: testEmail,
         productId: "merch-001",
-        quantity: 1,
+        quantity: 2,
       },
       refunded: false,
       fulfilled: true,

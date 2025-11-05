@@ -121,7 +121,7 @@ export async function getUserMerchPurchases({
       purchaserData: {
         email: item.email,
         productId: item.item_id,
-        quantity: 1,
+        quantity: item.quantity,
       },
       refunded: item.refunded,
       fulfilled: item.fulfilled,
