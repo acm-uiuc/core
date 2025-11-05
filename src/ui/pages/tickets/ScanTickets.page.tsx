@@ -13,7 +13,7 @@ import {
   TextInput,
   Checkbox,
   MantineColor,
-  MantineTheme, // Added for v5 style prop
+  MantineTheme,
 } from "@mantine/core";
 import { IconAlertCircle, IconCheck, IconCamera } from "@tabler/icons-react";
 import jsQR from "jsqr";
@@ -134,9 +134,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   const [selectedTicketsToClaim, setSelectedTicketsToClaim] = useState(
     new Set<string>(),
   );
-  // State for bulk success message
-  const [bulkSuccessMessage, setBulkSuccessMessage] = useState<string | null>(
-    null,
+  // State for bulk success results
+  const [bulkScanResults, setBulkScanResults] = useState<APIResponseSchema[]>(
+    [],
   );
   const [ticketItems, setTicketItems] = useState<Array<{
     group: string;
@@ -144,6 +144,10 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   }> | null>(null);
   const [selectedItemFilter, setSelectedItemFilter] = useState<string | null>(
     null,
+  );
+  // **NEW**: State to hold the mapping of productId to friendly name
+  const [productNameMap, setProductNameMap] = useState<Map<string, string>>(
+    new Map(),
   );
 
   const api = useApi("core");
@@ -210,6 +214,11 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
   const getEmailFromUIN = getEmailFromUINProp || getEmailFromUINDefault;
 
+  // **NEW**: Helper function to get the friendly name
+  const getFriendlyName = (productId: string): string => {
+    return productNameMap.get(productId) || productId; // Fallback to the ID if not found
+  };
+
   const getVideoDevices = async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -260,11 +269,17 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         const activeMerch: Array<{ value: string; label: string }> = [];
         const inactiveMerch: Array<{ value: string; label: string }> = [];
 
+        // **NEW**: Create the product name map
+        const newProductMap = new Map<string, string>();
+
         const now = new Date();
 
         // Process all tickets
         if (response.tickets) {
           response.tickets.forEach((ticket: TicketItem) => {
+            // **NEW**: Add to map
+            newProductMap.set(ticket.itemId, ticket.itemName);
+
             const isActive =
               ticket.itemSalesActive !== false &&
               (typeof ticket.itemSalesActive === "string"
@@ -287,6 +302,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         // Process all merch
         if (response.merch) {
           response.merch.forEach((merch: TicketItem) => {
+            // **NEW**: Add to map
+            newProductMap.set(merch.itemId, merch.itemName);
+
             const isActive =
               merch.itemSalesActive !== false &&
               (typeof merch.itemSalesActive === "string"
@@ -305,6 +323,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
             }
           });
         }
+
+        // **NEW**: Set the product map state
+        setProductNameMap(newProductMap);
 
         // Build grouped data structure for Mantine Select
         const groups: Array<{
@@ -521,7 +542,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     setError("");
     setShowModal(false);
     setManualInput("");
-    setBulkSuccessMessage(null); // Clear bulk message
+    setBulkScanResults([]); // Clear bulk results
     setSelectedTicketsToClaim(new Set()); // Clear selection
     // Refocus the manual input field for easy card swiping
     setTimeout(() => {
@@ -760,10 +781,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         `Failed to claim ${failedClaims.length} ticket(s). First error: ${firstError}`,
       );
     } else if (successfulClaims.length > 0) {
-      // All succeeded
-      setBulkSuccessMessage(
-        `Successfully claimed ${successfulClaims.length} ticket(s).`,
-      );
+      // All succeeded - store results for detailed display
+      setBulkScanResults(successfulClaims.map((r) => r.value.result));
     }
     // (If successfulClaims.length === 0 and failedClaims.length === 0, nothing was selected, do nothing)
 
@@ -907,8 +926,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
             >
               {error}
             </Alert>
-          ) : bulkSuccessMessage ? (
-            // Bulk Success Message
+          ) : bulkScanResults.length > 0 ? (
+            // Bulk Success Message with Details
             <Stack>
               <Alert
                 icon={<IconCheck size={16} />}
@@ -916,8 +935,35 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                 color="green"
                 variant="filled"
               >
-                <Text fw={700}>{bulkSuccessMessage}</Text>
+                <Text fw={700}>
+                  Successfully claimed {bulkScanResults.length} ticket(s)!
+                </Text>
               </Alert>
+
+              {bulkScanResults.map((result, index) => (
+                <Paper p="md" withBorder key={`${result.ticketId}-${index}`}>
+                  <Stack>
+                    <Text fw={700}>
+                      Ticket {index + 1} of {bulkScanResults.length} Details:
+                    </Text>
+                    <Text>Type: {result.type.toLocaleUpperCase()}</Text>
+                    {result.purchaserData.productId && (
+                      <Text>
+                        Product:{" "}
+                        {getFriendlyName(result.purchaserData.productId)}
+                      </Text>
+                    )}
+                    <Text>Email: {result.purchaserData.email}</Text>
+                    {result.purchaserData.quantity && (
+                      <Text>Quantity: {result.purchaserData.quantity}</Text>
+                    )}
+                    {result.purchaserData.size && (
+                      <Text>Size: {result.purchaserData.size}</Text>
+                    )}
+                  </Stack>
+                </Paper>
+              ))}
+
               <Group justify="flex-end" mt="md">
                 <Button onClick={handleNextScan}>Close</Button>
               </Group>
@@ -940,7 +986,11 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                     <Text fw={700}>Ticket Details:</Text>
                     <Text>Type: {scanResult?.type.toLocaleUpperCase()}</Text>
                     {scanResult.purchaserData.productId && (
-                      <Text>Product: {scanResult.purchaserData.productId}</Text>
+                      <Text>
+                        {/* **MODIFIED** */}
+                        Product:{" "}
+                        {getFriendlyName(scanResult.purchaserData.productId)}
+                      </Text>
                     )}
                     <Text>
                       Token ID: <code>{scanResult?.ticketId}</code>
@@ -991,29 +1041,34 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                 key={`${ticket.ticketId}-${index}`}
                 p="md"
                 withBorder
-                // --- FIXED for v5 ---
+                // --- CLICKABLE CARD LOGIC ---
+                onClick={() => {
+                  const newSet = new Set(selectedTicketsToClaim);
+                  if (newSet.has(ticket.ticketId)) {
+                    newSet.delete(ticket.ticketId);
+                  } else {
+                    newSet.add(ticket.ticketId);
+                  }
+                  setSelectedTicketsToClaim(newSet);
+                }}
                 style={(theme: MantineTheme) => ({
                   borderLeft: `5px solid ${theme.colors.green[6]}`,
+                  cursor: "pointer",
+                  "&:hover": {
+                    backgroundColor: theme.colors.gray[0],
+                  },
                 })}
               >
                 <Group>
                   <Checkbox
                     checked={selectedTicketsToClaim.has(ticket.ticketId)}
-                    onChange={(event) => {
-                      const newSet = new Set(selectedTicketsToClaim);
-                      if (event.currentTarget.checked) {
-                        newSet.add(ticket.ticketId);
-                      } else {
-                        newSet.delete(ticket.ticketId);
-                      }
-                      setSelectedTicketsToClaim(newSet);
-                    }}
+                    readOnly
+                    tabIndex={-1} // Removed from tab order, card is the control
                     aria-label={`Select ticket ${ticket.ticketId}`}
                   />
                   <Stack gap="xs" style={{ flex: 1 }}>
                     <Text fw={700}>
-                      {ticket.type.toUpperCase()} -{" "}
-                      {ticket.purchaserData.productId}
+                      {getFriendlyName(ticket.purchaserData.productId)}
                     </Text>
                     <Text size="sm">Email: {ticket.purchaserData.email}</Text>
                     {ticket.purchaserData.quantity && (
@@ -1055,7 +1110,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                   key={`${ticket.ticketId}-${index}`}
                   p="md"
                   withBorder
-                  // --- FIXED for v5 ---
                   style={(theme: MantineTheme) => ({
                     cursor: "not-allowed",
                     opacity: 0.6,
@@ -1064,8 +1118,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                 >
                   <Stack gap="xs">
                     <Text fw={700} c="dimmed">
+                      {/* **MODIFIED** */}
                       {ticket.type.toUpperCase()} -{" "}
-                      {ticket.purchaserData.productId}
+                      {getFriendlyName(ticket.purchaserData.productId)}
                     </Text>
                     <Text size="sm" c="dimmed">
                       Email: {ticket.purchaserData.email}
