@@ -11,6 +11,8 @@ import {
   LoadingOverlay,
   Select,
   TextInput,
+  Checkbox, // Added
+  MantineColor, // Added
 } from "@mantine/core";
 import { IconAlertCircle, IconCheck, IconCamera } from "@tabler/icons-react";
 import jsQR from "jsqr";
@@ -127,6 +129,14 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   );
   const [unclaimableTicketsForSelection, setUnclaimableTicketsForSelection] =
     useState<APIResponseSchema[]>([]);
+  // State for multi-select
+  const [selectedTicketsToClaim, setSelectedTicketsToClaim] = useState(
+    new Set<string>(),
+  );
+  // State for bulk success message
+  const [bulkSuccessMessage, setBulkSuccessMessage] = useState<string | null>(
+    null,
+  );
   const [ticketItems, setTicketItems] = useState<Array<{
     group: string;
     items: Array<{ value: string; label: string }>;
@@ -510,6 +520,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     setError("");
     setShowModal(false);
     setManualInput("");
+    setBulkSuccessMessage(null); // Clear bulk message
+    setSelectedTicketsToClaim(new Set()); // Clear selection
     // Refocus the manual input field for easy card swiping
     setTimeout(() => {
       manualInputRef.current?.focus();
@@ -619,6 +631,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         // Show the selection modal to provide full context.
         setAvailableTickets(claimableTickets);
         setUnclaimableTicketsForSelection(unclaimableTickets);
+        setSelectedTicketsToClaim(new Set()); // Ensure selection is clear
         setShowTicketSelection(true);
       }
       // --- END REFACTORED LOGIC ---
@@ -641,12 +654,12 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     }
   };
 
-  const markTicket = async (ticket: APIResponseSchema) => {
+  /**
+   * Extracted helper function to just process the API call for a single ticket.
+   * Returns a success or error object. Does not set state.
+   */
+  const processTicketCheckIn = async (ticket: APIResponseSchema) => {
     try {
-      setIsLoading(true);
-
-      // Ensure the checkInTicket API can handle the data structure
-      // This assumes ticket.ticketId holds the unique identifier (stripe_pi for merch, ticket_id for ticket)
       const checkInData =
         ticket.type === ProductType.Merch
           ? {
@@ -661,31 +674,102 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
       if (!result.valid) {
         throw new Error("Ticket is invalid.");
       }
+      return { success: true, result };
+    } catch (err: any) {
+      let errorMessage = "Failed to process ticket";
+      if (err.response && err.response.data) {
+        errorMessage = err.response.data
+          ? `Error ${err.response.data.id} (${err.response.data.name}): ${err.response.data.message}`
+          : "System encountered a failure, please contact the ACM Infra Chairs.";
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      return { success: false, error: errorMessage, ticketId: ticket.ticketId };
+    }
+  };
 
+  /**
+   * Handles claiming a *single* ticket (e.g., from auto-claim).
+   * This function calls the helper and then sets state to show the modal.
+   */
+  const markTicket = async (ticket: APIResponseSchema) => {
+    setIsLoading(true);
+    setShowTicketSelection(false); // Close selection modal if open
+
+    const { success, result, error } = await processTicketCheckIn(ticket);
+
+    if (success && result) {
       setScanResult(result);
       setShowModal(true);
-      setShowTicketSelection(false);
-      setAvailableTickets([]);
-      setUnclaimableTicketsForSelection([]);
-      setIsLoading(false);
-    } catch (err: any) {
-      setIsLoading(false);
-      setShowTicketSelection(false);
-      setAvailableTickets([]);
-      setUnclaimableTicketsForSelection([]);
-      if (err.response && err.response.data) {
-        setError(
-          err.response.data
-            ? `Error ${err.response.data.id} (${err.response.data.name}): ${err.response.data.message}`
-            : "System encountered a failure, please contact the ACM Infra Chairs.",
-        );
-      } else {
-        setError(
-          err instanceof Error ? err.message : "Failed to process ticket",
-        );
-      }
+    } else {
+      setError(error || "Failed to process ticket");
       setShowModal(true);
     }
+
+    // Clear selection state regardless
+    setAvailableTickets([]);
+    setUnclaimableTicketsForSelection([]);
+    setSelectedTicketsToClaim(new Set());
+    setIsLoading(false);
+  };
+
+  /**
+   * Handles claiming all *selected* tickets from the multi-select modal.
+   */
+  const handleClaimSelectedTickets = async () => {
+    setIsLoading(true);
+
+    const ticketsToClaim = availableTickets.filter((t) =>
+      selectedTicketsToClaim.has(t.ticketId),
+    );
+
+    const results = await Promise.allSettled(
+      ticketsToClaim.map(processTicketCheckIn),
+    );
+
+    const successfulClaims = results.filter(
+      (r) => r.status === "fulfilled" && r.value.success,
+    ) as PromiseFulfilledResult<{ success: true; result: APIResponseSchema }>[];
+
+    const failedClaims = results.filter(
+      (r) =>
+        r.status === "rejected" ||
+        (r.status === "fulfilled" && !r.value.success),
+    );
+
+    // Close the selection modal and clear state
+    setShowTicketSelection(false);
+    setAvailableTickets([]);
+    setUnclaimableTicketsForSelection([]);
+    setSelectedTicketsToClaim(new Set());
+    setIsLoading(false);
+
+    if (failedClaims.length > 0) {
+      // Show the first error
+      let firstError = "An unknown error occurred.";
+      const firstFailure = failedClaims[0];
+      if (firstFailure.status === "rejected") {
+        firstError =
+          firstFailure.reason instanceof Error
+            ? firstFailure.reason.message
+            : String(firstFailure.reason);
+      } else if (firstFailure.status === "fulfilled") {
+        firstError = (
+          firstFailure.value as { success: false; error: string }
+        ).error;
+      }
+      setError(
+        `Failed to claim ${failedClaims.length} ticket(s). First error: ${firstError}`,
+      );
+    } else if (successfulClaims.length > 0) {
+      // All succeeded
+      setBulkSuccessMessage(
+        `Successfully claimed ${successfulClaims.length} ticket(s).`,
+      );
+    }
+    // (If successfulClaims.length === 0 and failedClaims.length === 0, nothing was selected, do nothing)
+
+    setShowModal(true); // Show the main modal with results
   };
 
   if (orgList === null || ticketItems === null) {
@@ -808,6 +892,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
           </Stack>
         </Paper>
 
+        {/* Main Result Modal */}
         <Modal
           opened={showModal}
           onClose={handleNextScan}
@@ -824,7 +909,23 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
             >
               {error}
             </Alert>
+          ) : bulkSuccessMessage ? (
+            // Bulk Success Message
+            <Stack>
+              <Alert
+                icon={<IconCheck size={16} />}
+                title={<Text fw={900}>Success</Text>}
+                color="green"
+                variant="filled"
+              >
+                <Text fw={700}>{bulkSuccessMessage}</Text>
+              </Alert>
+              <Group justify="flex-end" mt="md">
+                <Button onClick={handleNextScan}>Close</Button>
+              </Group>
+            </Stack>
           ) : (
+            // Single Scan Result
             scanResult && (
               <Stack>
                 <Alert
@@ -868,64 +969,81 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
           )}
         </Modal>
 
+        {/* Ticket Selection Modal (for multi-select) */}
         <Modal
           opened={showTicketSelection}
           onClose={() => {
             setShowTicketSelection(false);
             setAvailableTickets([]);
             setUnclaimableTicketsForSelection([]);
+            setSelectedTicketsToClaim(new Set()); // Clear selection
             setManualInput("");
           }}
-          title="Select a Ticket"
+          title="Select Ticket(s) to Claim"
           size="lg"
           centered
+          withCloseButton={!isLoading}
+          closeOnClickOutside={!isLoading}
+          closeOnEscape={!isLoading}
         >
+          <LoadingOverlay visible={isLoading} />
           <Stack>
             <Text>
-              Multiple purchases found. Please select an available one to mark:
+              Multiple purchases found. Please select which one(s) to claim:
             </Text>
+            {/* Render Claimable Tickets with Checkboxes */}
             {availableTickets.map((ticket, index) => (
               <Paper
                 key={`${ticket.ticketId}-${index}`}
                 p="md"
                 withBorder
-                style={{ cursor: "pointer" }}
-                onClick={() => markTicket(ticket)}
                 sx={(theme) => ({
                   borderLeft: `5px solid ${theme.colors.green[6]}`,
-                  "&:hover": {
-                    backgroundColor: theme.colors.gray[0],
-                  },
                 })}
               >
-                <Stack gap="xs">
-                  <Text fw={700}>
-                    {ticket.type.toUpperCase()} -{" "}
-                    {ticket.purchaserData.productId}
-                  </Text>
-                  <Text size="sm">Email: {ticket.purchaserData.email}</Text>
-                  {ticket.purchaserData.quantity && (
-                    <Text size="sm">
-                      Quantity: {ticket.purchaserData.quantity}
+                <Group>
+                  <Checkbox
+                    checked={selectedTicketsToClaim.has(ticket.ticketId)}
+                    onChange={(event) => {
+                      const newSet = new Set(selectedTicketsToClaim);
+                      if (event.currentTarget.checked) {
+                        newSet.add(ticket.ticketId);
+                      } else {
+                        newSet.delete(ticket.ticketId);
+                      }
+                      setSelectedTicketsToClaim(newSet);
+                    }}
+                    aria-label={`Select ticket ${ticket.ticketId}`}
+                  />
+                  <Stack gap="xs" style={{ flex: 1 }}>
+                    <Text fw={700}>
+                      {ticket.type.toUpperCase()} -{" "}
+                      {ticket.purchaserData.productId}
                     </Text>
-                  )}
-                  {ticket.purchaserData.size && (
-                    <Text size="sm">Size: {ticket.purchaserData.size}</Text>
-                  )}
-                  <Text size="xs" c="green" fw={700}>
-                    Status: AVAILABLE
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    Ticket ID: {ticket.ticketId}
-                  </Text>
-                </Stack>
+                    <Text size="sm">Email: {ticket.purchaserData.email}</Text>
+                    {ticket.purchaserData.quantity && (
+                      <Text size="sm">
+                        Quantity: {ticket.purchaserData.quantity}
+                      </Text>
+                    )}
+                    {ticket.purchaserData.size && (
+                      <Text size="sm">Size: {ticket.purchaserData.size}</Text>
+                    )}
+                    <Text size="xs" c="green" fw={700}>
+                      Status: AVAILABLE
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Ticket ID: {ticket.ticketId}
+                    </Text>
+                  </Stack>
+                </Group>
               </Paper>
             ))}
 
             {/* Render Unclaimable Tickets */}
             {unclaimableTicketsForSelection.map((ticket, index) => {
               let status = "Unknown";
-              let color = "gray";
+              let color: MantineColor = "gray";
               if (ticket.fulfilled) {
                 status = "ALREADY CLAIMED";
                 color = "orange";
@@ -978,14 +1096,23 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
             <Group justify="flex-end" mt="md">
               <Button
                 variant="subtle"
+                disabled={isLoading}
                 onClick={() => {
                   setShowTicketSelection(false);
                   setAvailableTickets([]);
                   setUnclaimableTicketsForSelection([]);
+                  setSelectedTicketsToClaim(new Set());
                   setManualInput("");
                 }}
               >
                 Cancel
+              </Button>
+              <Button
+                onClick={handleClaimSelectedTickets}
+                disabled={selectedTicketsToClaim.size === 0 || isLoading}
+                loading={isLoading}
+              >
+                Claim Selected ({selectedTicketsToClaim.size})
               </Button>
             </Group>
           </Stack>
