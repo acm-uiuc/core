@@ -1,15 +1,14 @@
-import React, { useState, useEffect, ReactNode } from "react";
+import React from "react";
 import {
   createBrowserRouter,
   Navigate,
   RouterProvider,
   useLocation,
 } from "react-router-dom";
-import { AcmAppShell } from "./components/AppShell";
 import { useAuth } from "./components/AuthContext";
 import AuthCallback from "./components/AuthContext/AuthCallbackHandler.page";
 import { Error404Page } from "./pages/Error404.page";
-import { Error500Page } from "./pages/Error500.page";
+import { ErrorPage } from "./pages/Error.page";
 import { HomePage } from "./pages/Home.page";
 import { LoginPage } from "./pages/Login.page";
 import { LogoutPage } from "./pages/Logout.page";
@@ -96,164 +95,147 @@ const commonRoutes = [
 ];
 
 const profileRouter = createBrowserRouter([
-  ...commonRoutes,
   {
-    path: "/profile",
-    element: <ManageProfilePage />,
-  },
-  {
-    path: "*",
-    element: <ProfileRediect />,
+    path: "/",
+    errorElement: <ErrorPage />,
+    children: [
+      ...commonRoutes,
+      {
+        path: "/profile",
+        element: <ManageProfilePage />,
+      },
+      {
+        path: "*",
+        element: <ProfileRediect />,
+      },
+    ],
   },
 ]);
 
 const unauthenticatedRouter = createBrowserRouter([
-  ...commonRoutes,
   {
     path: "/",
-    element: <Navigate to="/login" replace />,
-  },
-  {
-    path: "/login",
-    element: <LoginPage />,
-  },
-  {
-    path: "*",
-    element: <LoginRedirect />,
+    errorElement: <ErrorPage />,
+    children: [
+      ...commonRoutes,
+      {
+        path: "/",
+        element: <Navigate to="/login" replace />,
+      },
+      {
+        path: "/login",
+        element: <LoginPage />,
+      },
+      {
+        path: "*",
+        element: <LoginRedirect />,
+      },
+    ],
   },
 ]);
 
 const authenticatedRouter = createBrowserRouter([
-  ...commonRoutes,
   {
     path: "/",
-    element: <Navigate to="/home" replace />,
-  },
-  {
-    path: "/login",
-    element: <LoginPage />,
-  },
-  {
-    path: "/logout",
-    element: <LogoutPage />,
-  },
-  {
-    path: "/profile",
-    element: <ManageProfilePage />,
-  },
-  {
-    path: "/home",
-    element: <HomePage />,
-  },
-  {
-    path: "/events/add",
-    element: <ManageEventPage />,
-  },
-  {
-    path: "/events/edit/:eventId",
-    element: <ManageEventPage />,
-  },
-  {
-    path: "/events/manage",
-    element: <ViewEventsPage />,
-  },
-  {
-    path: "/linkry",
-    element: <LinkShortener />,
-  },
-  {
-    path: "/linkry/add",
-    element: <ManageLinkPage />,
-  },
-  {
-    path: "/linkry/edit/:slug",
-    element: <ManageLinkPage />,
-  },
-  {
-    path: "/tickets/scan",
-    element: <ScanTicketsPage />,
-  },
-  {
-    path: "/tickets",
-    element: <SelectTicketsPage />,
-  },
-  {
-    path: "/iam",
-    element: <ManageIamPage />,
-  },
-  {
-    path: "/membershipLists",
-    element: <ManageExternalMembershipPage />,
-  },
-  {
-    path: "/tickets/manage/:eventId",
-    element: <ViewTicketsPage />,
-  },
-  {
-    path: "/stripe",
-    element: <ManageStripeLinksPage />,
-  },
-  {
-    path: "/roomRequests",
-    element: <ManageRoomRequestsPage />,
-  },
-  {
-    path: "/roomRequests/:semesterId/:requestId",
-    element: <ViewRoomRequest />,
-  },
-  {
-    path: "/logs",
-    element: <ViewLogsPage />,
-  },
-  {
-    path: "/apiKeys",
-    element: <ManageApiKeysPage />,
-  },
-  {
-    path: "/orgInfo",
-    element: <OrgInfoPage />,
-  },
-  // Catch-all route for authenticated users shows 404 page
-  {
-    path: "*",
-    element: <Error404Page />,
+    errorElement: <ErrorPage />,
+    children: [
+      ...commonRoutes,
+      {
+        path: "/",
+        element: <Navigate to="/home" replace />,
+      },
+      {
+        path: "/login",
+        element: <LoginPage />,
+      },
+      {
+        path: "/logout",
+        element: <LogoutPage />,
+      },
+      {
+        path: "/profile",
+        element: <ManageProfilePage />,
+      },
+      {
+        path: "/home",
+        element: <HomePage />,
+      },
+      {
+        path: "/events/add",
+        element: <ManageEventPage />,
+      },
+      {
+        path: "/events/edit/:eventId",
+        element: <ManageEventPage />,
+      },
+      {
+        path: "/events/manage",
+        element: <ViewEventsPage />,
+      },
+      {
+        path: "/linkry",
+        element: <LinkShortener />,
+      },
+      {
+        path: "/linkry/add",
+        element: <ManageLinkPage />,
+      },
+      {
+        path: "/linkry/edit/:slug",
+        element: <ManageLinkPage />,
+      },
+      {
+        path: "/tickets/scan",
+        element: <ScanTicketsPage />,
+      },
+      {
+        path: "/tickets",
+        element: <SelectTicketsPage />,
+      },
+      {
+        path: "/iam",
+        element: <ManageIamPage />,
+      },
+      {
+        path: "/membershipLists",
+        element: <ManageExternalMembershipPage />,
+      },
+      {
+        path: "/tickets/manage/:eventId",
+        element: <ViewTicketsPage />,
+      },
+      {
+        path: "/stripe",
+        element: <ManageStripeLinksPage />,
+      },
+      {
+        path: "/roomRequests",
+        element: <ManageRoomRequestsPage />,
+      },
+      {
+        path: "/roomRequests/:semesterId/:requestId",
+        element: <ViewRoomRequest />,
+      },
+      {
+        path: "/logs",
+        element: <ViewLogsPage />,
+      },
+      {
+        path: "/apiKeys",
+        element: <ManageApiKeysPage />,
+      },
+      {
+        path: "/orgInfo",
+        element: <OrgInfoPage />,
+      },
+      // Catch-all route for authenticated users shows 404 page
+      {
+        path: "*",
+        element: <Error404Page />,
+      },
+    ],
   },
 ]);
-
-interface ErrorBoundaryProps {
-  children: ReactNode;
-}
-
-const ErrorBoundary: React.FC<ErrorBoundaryProps> = ({ children }) => {
-  const [hasError, setHasError] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const { isLoggedIn } = useAuth();
-
-  const onError = (errorObj: Error) => {
-    setHasError(true);
-    setError(errorObj);
-  };
-
-  useEffect(() => {
-    const errorHandler = (event: ErrorEvent) => {
-      onError(event.error);
-    };
-
-    window.addEventListener("error", errorHandler);
-    return () => {
-      window.removeEventListener("error", errorHandler);
-    };
-  }, []);
-
-  if (hasError && error) {
-    if (error.message === "404") {
-      return isLoggedIn ? <Error404Page /> : <LoginRedirect />;
-    }
-    return <Error500Page />;
-  }
-
-  return <>{children}</>;
-};
 
 export const Router: React.FC = () => {
   const { isLoggedIn } = useAuth();
@@ -263,9 +245,5 @@ export const Router: React.FC = () => {
       ? profileRouter
       : unauthenticatedRouter;
 
-  return (
-    <ErrorBoundary>
-      <RouterProvider router={router} />
-    </ErrorBoundary>
-  );
+  return <RouterProvider router={router} />;
 };

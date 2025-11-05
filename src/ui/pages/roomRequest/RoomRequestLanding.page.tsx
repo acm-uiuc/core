@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Container, Title, Tabs, Select, Loader } from "@mantine/core";
+import React, { useEffect, useMemo, useState } from "react";
+import { Container, Title, Tabs, Select } from "@mantine/core";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { AppRoles } from "@common/roles";
 import { useApi } from "@ui/util/api";
@@ -19,16 +19,20 @@ import { useSearchParams } from "react-router-dom";
 export const ManageRoomRequestsPage: React.FC = () => {
   const api = useApi("core");
   const [semester, setSemesterState] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const nextSemesters = getSemesters();
-  const semesterOptions = [...getPreviousSemesters(), ...nextSemesters];
+  const nextSemesters = useMemo(() => getSemesters(), []);
+  const semesterOptions = useMemo(
+    () => [...getPreviousSemesters(), ...nextSemesters],
+    [nextSemesters],
+  );
   const [searchParams, setSearchParams] = useSearchParams();
-  const setSemester = (semester: string | null) => {
-    setSemesterState(semester);
-    if (semester) {
-      setSearchParams({ semester });
+
+  const setSemester = (newSemester: string | null) => {
+    if (newSemester && newSemester !== semester) {
+      setSemesterState(newSemester);
+      setSearchParams({ semester: newSemester });
     }
   };
+
   const createRoomRequest = async (
     payload: RoomRequestFormValues,
   ): Promise<RoomRequestPostResponse> => {
@@ -53,16 +57,23 @@ export const ManageRoomRequestsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    const semeseterFromUrl = searchParams.get("semester") as string | null;
+    const semesterFromUrl = searchParams.get("semester");
     if (
-      semeseterFromUrl &&
-      semesterOptions.map((x) => x.value).includes(semeseterFromUrl)
+      semesterFromUrl &&
+      semesterOptions.map((x) => x.value).includes(semesterFromUrl)
     ) {
-      setSemester(semeseterFromUrl);
+      if (semesterFromUrl !== semester) {
+        setSemesterState(semesterFromUrl);
+      }
     } else {
-      setSemester(nextSemesters[0].value);
+      const defaultSemester = nextSemesters[0].value;
+      if (defaultSemester !== semester) {
+        setSemesterState(defaultSemester);
+        setSearchParams({ semester: defaultSemester });
+      }
     }
-  }, [searchParams, semesterOptions, nextSemesters]);
+  }, [searchParams, semester, semesterOptions, nextSemesters, setSearchParams]);
+
   return (
     <AuthGuard
       resourceDef={{
@@ -82,32 +93,24 @@ export const ManageRoomRequestsPage: React.FC = () => {
             <Tabs.Tab value="new_requests">New Request</Tabs.Tab>
           </Tabs.List>
 
-          {isLoading ? (
-            <Loader size={16} />
-          ) : (
-            <Tabs.Panel value="existing_requests">
-              <Select
-                label="Select Semester"
-                placeholder="Select semester to view room requests"
-                searchable
-                value={semester}
-                onChange={(val) => {
-                  setIsLoading(true);
-                  setSemester(val);
-                  setIsLoading(false);
-                }}
-                data={semesterOptions}
-                mt="sm"
-                mb="sm"
+          <Tabs.Panel value="existing_requests">
+            <Select
+              label="Select Semester"
+              placeholder="Select semester to view room requests"
+              searchable
+              value={semester}
+              onChange={setSemester}
+              data={semesterOptions}
+              mt="sm"
+              mb="sm"
+            />
+            {semester && (
+              <ExistingRoomRequests
+                getRoomRequests={getRoomRequests}
+                semester={semester}
               />
-              {semester && (
-                <ExistingRoomRequests
-                  getRoomRequests={getRoomRequests}
-                  semester={semester}
-                />
-              )}
-            </Tabs.Panel>
-          )}
+            )}
+          </Tabs.Panel>
 
           <Tabs.Panel value="new_requests">
             <br />
