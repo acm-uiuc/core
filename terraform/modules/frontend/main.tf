@@ -1,5 +1,5 @@
 locals {
-  all_regions = keys(var.CoreSlowLambdaHost)
+  all_regions = keys(var.CoreHiCpuLambdaHost)
 }
 
 data "aws_caller_identity" "current" {}
@@ -179,11 +179,11 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
     }
   }
 
-  # Dynamic origins for each region's Slow Lambda function
+  # Dynamic origins for each region's HiCpu Lambda function
   dynamic "origin" {
-    for_each = var.CoreSlowLambdaHost
+    for_each = var.CoreHiCpuLambdaHost
     content {
-      origin_id   = "SlowLambdaFunction-${origin.key}"
+      origin_id   = "HiCpuLambdaFunction-${origin.key}"
       domain_name = origin.value
       custom_origin_config {
         http_port              = 80
@@ -221,7 +221,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   }
   ordered_cache_behavior {
     path_pattern             = "/api/v1/syncIdentity"
-    target_origin_id         = "SlowLambdaFunction-${var.CurrentActiveRegion}"
+    target_origin_id         = "HiCpuLambdaFunction-${var.CurrentActiveRegion}"
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods           = ["GET", "HEAD"]
@@ -235,7 +235,7 @@ resource "aws_cloudfront_distribution" "app_cloudfront_distribution" {
   }
   ordered_cache_behavior {
     path_pattern             = "/api/v1/users/findUserByUin"
-    target_origin_id         = "SlowLambdaFunction-${var.CurrentActiveRegion}"
+    target_origin_id         = "HiCpuLambdaFunction-${var.CurrentActiveRegion}"
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods           = ["GET", "HEAD"]
