@@ -61,6 +61,7 @@ import membershipV2Plugin from "./routes/v2/membership.js";
 import { docsHtml, securitySchemes } from "./docs.js";
 import syncIdentityPlugin from "./routes/syncIdentity.js";
 import { createRedisModule } from "./redis.js";
+import userRoute from "./routes/user.js";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
@@ -373,6 +374,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       api.register(logsPlugin, { prefix: "/logs" });
       api.register(apiKeyRoute, { prefix: "/apiKey" });
       api.register(clearSessionRoute, { prefix: "/clearSession" });
+      api.register(userRoute, { prefix: "/users" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }

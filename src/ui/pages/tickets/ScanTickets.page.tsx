@@ -20,6 +20,7 @@ import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
+import { ValidationError } from "@common/errors";
 
 interface QRDataMerch {
   type: string;
@@ -78,11 +79,6 @@ export const recursiveToCamel = (item: unknown): unknown => {
   );
 };
 
-// TODO: Implement this function to call API to get NetID from UIN
-export const getNetIdFromUIN = async (uin: string): Promise<string> => {
-  throw new Error("UIN to NetID conversion not yet implemented");
-};
-
 interface TicketItem {
   itemId: string;
   itemName: string;
@@ -103,15 +99,15 @@ interface ScanTicketsPageProps {
       | QRData
       | { type: string; ticketId?: string; email?: string; stripePi?: string },
   ) => Promise<APIResponseSchema>;
-  getNetIdFromUIN?: (uin: string) => Promise<string>;
+  getEmailFromUIN?: (uin: string) => Promise<string>;
 }
 
-export const ScanTicketsPage: React.FC<ScanTicketsPageProps> = ({
+const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   getOrganizations: getOrganizationsProp,
   getTicketItems: getTicketItemsProp,
   getPurchasesByEmail: getPurchasesByEmailProp,
   checkInTicket: checkInTicketProp,
-  getNetIdFromUIN: getNetIdFromUINProp = getNetIdFromUIN,
+  getEmailFromUIN: getEmailFromUINProp,
 }) => {
   const [orgList, setOrgList] = useState<string[] | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -144,6 +140,7 @@ export const ScanTicketsPage: React.FC<ScanTicketsPageProps> = ({
   const animationFrameId = useRef<number>(0);
   const lastScanTime = useRef<number>(0);
   const isScanningRef = useRef(false); // Use ref for immediate updates
+  const manualInputRef = useRef<HTMLInputElement | null>(null);
 
   // Default API functions
   const getOrganizations =
@@ -178,6 +175,27 @@ export const ScanTicketsPage: React.FC<ScanTicketsPageProps> = ({
       );
       return response.data as APIResponseSchema;
     });
+
+  const getEmailFromUINDefault = async (uin: string): Promise<string> => {
+    try {
+      const response = await api.post(`/api/v1/users/findUserByUin`, { uin });
+      return response.data.email;
+    } catch (error: any) {
+      const samp = new ValidationError({
+        message: "Failed to convert UIN to email.",
+      });
+      if (
+        error.response?.status === samp.httpStatusCode &&
+        error.response?.data.id === samp.id
+      ) {
+        const validationData = error.response.data;
+        throw new ValidationError(validationData.message || samp.message);
+      }
+      throw error;
+    }
+  };
+
+  const getEmailFromUIN = getEmailFromUINProp || getEmailFromUINDefault;
 
   const getVideoDevices = async () => {
     try {
@@ -490,6 +508,10 @@ export const ScanTicketsPage: React.FC<ScanTicketsPageProps> = ({
     setError("");
     setShowModal(false);
     setManualInput("");
+    // Refocus the manual input field for easy card swiping
+    setTimeout(() => {
+      manualInputRef.current?.focus();
+    }, 100);
   };
 
   const handleManualInputSubmit = async () => {
@@ -497,22 +519,28 @@ export const ScanTicketsPage: React.FC<ScanTicketsPageProps> = ({
       return;
     }
 
+    const inputValue = manualInput.trim();
+    setManualInput(""); // Clear input immediately
+
     try {
       setIsLoading(true);
       setError("");
 
-      let email = manualInput.trim();
+      let email = inputValue;
 
       // Check if input is UIN (all digits)
       if (/^\d+$/.test(email)) {
         try {
-          const netId = await getNetIdFromUINProp(email);
-          email = `${netId}@illinois.edu`;
+          email = await getEmailFromUIN(email);
         } catch (err) {
-          setError(
-            "Failed to convert UIN to NetID. Please enter NetID or email instead.",
-          );
+          let errorMessage =
+            "Failed to convert UIN to email. Please enter NetID or email instead.";
+          if (err instanceof ValidationError) {
+            errorMessage = err.message;
+          }
+          setError(errorMessage);
           setIsLoading(false);
+          setShowModal(true);
           return;
         }
       }
@@ -654,7 +682,12 @@ export const ScanTicketsPage: React.FC<ScanTicketsPageProps> = ({
                       handleManualInputSubmit();
                     }
                   }}
+                  ref={manualInputRef}
                   disabled={isLoading}
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  autoFocus
+                  autoCorrect="off"
                   w="100%"
                 />
 
@@ -845,4 +878,9 @@ export const ScanTicketsPage: React.FC<ScanTicketsPageProps> = ({
       </Box>
     </AuthGuard>
   );
+};
+
+// Wrapper component that provides the default implementation
+export const ScanTicketsPage: React.FC<ScanTicketsPageProps> = (props) => {
+  return <ScanTicketsPageInternal {...props} />;
 };

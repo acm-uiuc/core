@@ -30,7 +30,7 @@ describe("ScanTicketsPage Tests", () => {
   const mockGetTicketItems = vi.fn();
   const mockGetPurchasesByEmail = vi.fn();
   const mockCheckInTicket = vi.fn();
-  const mockGetNetIdFromUIN = vi.fn();
+  const mockgetEmailFromUIN = vi.fn();
 
   const mockTicketItems = {
     tickets: [
@@ -109,7 +109,7 @@ describe("ScanTicketsPage Tests", () => {
               getTicketItems={mockGetTicketItems}
               getPurchasesByEmail={mockGetPurchasesByEmail}
               checkInTicket={mockCheckInTicket}
-              getNetIdFromUIN={mockGetNetIdFromUIN}
+              getEmailFromUIN={mockgetEmailFromUIN}
             />
           </MantineProvider>
         </MemoryRouter>,
@@ -274,7 +274,7 @@ describe("ScanTicketsPage Tests", () => {
 
   describe("Manual Entry - UIN", () => {
     it("converts UIN to NetID then email format", async () => {
-      mockGetNetIdFromUIN.mockResolvedValue("testuser");
+      mockgetEmailFromUIN.mockResolvedValue("testuser");
       mockGetPurchasesByEmail.mockResolvedValue({
         tickets: [mockPurchasesResponse.tickets[0]],
         merch: [],
@@ -302,7 +302,7 @@ describe("ScanTicketsPage Tests", () => {
       );
 
       await waitFor(() => {
-        expect(mockGetNetIdFromUIN).toHaveBeenCalledWith("123456789");
+        expect(mockgetEmailFromUIN).toHaveBeenCalledWith("123456789");
         expect(mockGetPurchasesByEmail).toHaveBeenCalledWith(
           "testuser@illinois.edu",
         );
@@ -310,7 +310,7 @@ describe("ScanTicketsPage Tests", () => {
     });
 
     it("shows error when UIN conversion fails", async () => {
-      mockGetNetIdFromUIN.mockRejectedValue(new Error("UIN not found"));
+      mockgetEmailFromUIN.mockRejectedValue(new Error("UIN not found"));
 
       const user = userEvent.setup();
       await renderComponent();
