@@ -233,7 +233,7 @@ describe("getUserMerchPurchases tests", () => {
       fulfilled: true,
     });
     expect(result[1]).toEqual({
-      valid: true,
+      valid: false,
       type: "merch",
       ticketId: "pi_456",
       purchaserData: {
