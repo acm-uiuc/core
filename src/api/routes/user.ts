@@ -17,6 +17,7 @@ import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { QueryCommand } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "common/config.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { AppRoles } from "common/roles.js";
 
 const userRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -29,7 +30,11 @@ const userRoute: FastifyPluginAsync = async (fastify, _options) => {
     "/findUserByUin",
     {
       schema: withRoles(
-        [],
+        [
+          AppRoles.VIEW_USER_INFO,
+          AppRoles.TICKETS_MANAGER,
+          AppRoles.TICKETS_SCANNER,
+        ],
         withTags(["Generic"], {
           summary: "Find a user by UIN.",
           body: searchUserByUinRequest,
