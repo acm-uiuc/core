@@ -575,7 +575,7 @@ describe("Test getting user purchases", () => {
       fulfilled: false,
     });
     expect(responseDataJson.merch[0]).toEqual({
-      valid: true,
+      valid: false,
       type: "merch",
       ticketId: "pi_123",
       purchaserData: {

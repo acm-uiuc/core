@@ -85,7 +85,7 @@ describe("getUserTicketingPurchases tests", () => {
       fulfilled: false,
     });
     expect(result[1]).toEqual({
-      valid: true,
+      valid: false,
       type: "ticket",
       ticketId: "ticket-789",
       purchaserData: {
@@ -221,7 +221,7 @@ describe("getUserMerchPurchases tests", () => {
 
     expect(result).toHaveLength(2);
     expect(result[0]).toEqual({
-      valid: true,
+      valid: false,
       type: "merch",
       ticketId: "pi_123",
       purchaserData: {

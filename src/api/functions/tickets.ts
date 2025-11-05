@@ -66,7 +66,7 @@ export async function getUserTicketingPurchases({
   );
   for (const item of ticketsResultsUnmarshalled) {
     issuedTickets.push({
-      valid: true,
+      valid: !item.used,
       type: "ticket",
       ticketId: item.ticket_id,
       purchaserData: {
@@ -115,7 +115,7 @@ export async function getUserMerchPurchases({
   );
   for (const item of ticketsResultsUnmarshalled) {
     issuedTickets.push({
-      valid: true,
+      valid: !item.refunded && !item.fulfilled,
       type: "merch",
       ticketId: item.stripe_pi,
       purchaserData: {
