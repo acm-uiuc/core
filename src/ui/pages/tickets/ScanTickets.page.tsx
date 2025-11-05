@@ -11,6 +11,9 @@ import {
   LoadingOverlay,
   Select,
   TextInput,
+  Checkbox,
+  MantineColor,
+  MantineTheme,
 } from "@mantine/core";
 import { IconAlertCircle, IconCheck, IconCamera } from "@tabler/icons-react";
 import jsQR from "jsqr";
@@ -125,12 +128,26 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   const [availableTickets, setAvailableTickets] = useState<APIResponseSchema[]>(
     [],
   );
+  const [unclaimableTicketsForSelection, setUnclaimableTicketsForSelection] =
+    useState<APIResponseSchema[]>([]);
+  // State for multi-select
+  const [selectedTicketsToClaim, setSelectedTicketsToClaim] = useState(
+    new Set<string>(),
+  );
+  // State for bulk success results
+  const [bulkScanResults, setBulkScanResults] = useState<APIResponseSchema[]>(
+    [],
+  );
   const [ticketItems, setTicketItems] = useState<Array<{
     group: string;
     items: Array<{ value: string; label: string }>;
   }> | null>(null);
   const [selectedItemFilter, setSelectedItemFilter] = useState<string | null>(
     null,
+  );
+  // **NEW**: State to hold the mapping of productId to friendly name
+  const [productNameMap, setProductNameMap] = useState<Map<string, string>>(
+    new Map(),
   );
 
   const api = useApi("core");
@@ -197,6 +214,11 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
   const getEmailFromUIN = getEmailFromUINProp || getEmailFromUINDefault;
 
+  // **NEW**: Helper function to get the friendly name
+  const getFriendlyName = (productId: string): string => {
+    return productNameMap.get(productId) || productId; // Fallback to the ID if not found
+  };
+
   const getVideoDevices = async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -247,11 +269,17 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         const activeMerch: Array<{ value: string; label: string }> = [];
         const inactiveMerch: Array<{ value: string; label: string }> = [];
 
+        // **NEW**: Create the product name map
+        const newProductMap = new Map<string, string>();
+
         const now = new Date();
 
         // Process all tickets
         if (response.tickets) {
           response.tickets.forEach((ticket: TicketItem) => {
+            // **NEW**: Add to map
+            newProductMap.set(ticket.itemId, ticket.itemName);
+
             const isActive =
               ticket.itemSalesActive !== false &&
               (typeof ticket.itemSalesActive === "string"
@@ -274,6 +302,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         // Process all merch
         if (response.merch) {
           response.merch.forEach((merch: TicketItem) => {
+            // **NEW**: Add to map
+            newProductMap.set(merch.itemId, merch.itemName);
+
             const isActive =
               merch.itemSalesActive !== false &&
               (typeof merch.itemSalesActive === "string"
@@ -292,6 +323,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
             }
           });
         }
+
+        // **NEW**: Set the product map state
+        setProductNameMap(newProductMap);
 
         // Build grouped data structure for Mantine Select
         const groups: Array<{
@@ -508,6 +542,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     setError("");
     setShowModal(false);
     setManualInput("");
+    setBulkScanResults([]); // Clear bulk results
+    setSelectedTicketsToClaim(new Set()); // Clear selection
     // Refocus the manual input field for easy card swiping
     setTimeout(() => {
       manualInputRef.current?.focus();
@@ -552,39 +588,73 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
       // Fetch purchases for this email
       const response = await getPurchasesByEmail(email);
 
-      // Combine all valid tickets (both merch and tickets) and filter by selected item
-      const allValidTickets = [
+      // --- REFACTORED LOGIC ---
+
+      // 1. Get ALL purchases for the selected item, regardless of status.
+      const allPurchasesForItem = [
         ...response.tickets.filter(
-          (t) =>
-            t.valid &&
-            !t.refunded &&
-            t.purchaserData.productId === selectedItemFilter,
+          (t) => t.purchaserData.productId === selectedItemFilter,
         ),
         ...response.merch.filter(
-          (m) =>
-            m.valid &&
-            !m.refunded &&
-            m.purchaserData.productId === selectedItemFilter,
+          (m) => m.purchaserData.productId === selectedItemFilter,
         ),
       ];
 
-      if (allValidTickets.length === 0) {
-        setError(
-          "No valid tickets found for this user and selected event/item.",
-        );
+      // 2. Check if we found anything at all.
+      if (allPurchasesForItem.length === 0) {
+        setError("No purchases found for this user and selected event/item.");
         setShowModal(true);
         setIsLoading(false);
         return;
       }
 
-      if (allValidTickets.length === 1) {
-        // Only one valid ticket, mark it automatically
-        await markTicket(allValidTickets[0]);
+      // 3. Partition these purchases.
+      // A "claimable" ticket is valid, not refunded, and not already fulfilled.
+      const claimableTickets = allPurchasesForItem.filter(
+        (p) => p.valid && !p.refunded && !p.fulfilled,
+      );
+
+      // An "unclaimable" ticket is everything else.
+      const unclaimableTickets = allPurchasesForItem.filter(
+        (p) => !p.valid || p.refunded || p.fulfilled,
+      );
+
+      // 4. Apply new logic based on the user's request.
+
+      // Case 1: No claimable tickets.
+      if (claimableTickets.length === 0) {
+        let errorMessage = "No valid, unclaimed tickets found for this user.";
+        if (unclaimableTickets.length > 0) {
+          // Provide a more specific error based on the first unclaimable ticket.
+          const firstReason = unclaimableTickets[0];
+          if (firstReason.fulfilled) {
+            errorMessage =
+              "All tickets for this event have already been claimed.";
+          } else if (firstReason.refunded) {
+            errorMessage = "This user's ticket has been refunded.";
+          } else if (!firstReason.valid) {
+            errorMessage = "This user's ticket is invalid.";
+          }
+        }
+        setError(errorMessage);
+        setShowModal(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Case 2: Exactly one claimable ticket AND no other context (unclaimable tickets) to show.
+      // We can auto-mark this one.
+      if (claimableTickets.length === 1 && unclaimableTickets.length === 0) {
+        await markTicket(claimableTickets[0]);
       } else {
-        // Multiple valid tickets, show selection modal
-        setAvailableTickets(allValidTickets);
+        // Case 3: Multiple claimable tickets OR a mix of claimable/unclaimable tickets.
+        // Show the selection modal to provide full context.
+        setAvailableTickets(claimableTickets);
+        setUnclaimableTicketsForSelection(unclaimableTickets);
+        setSelectedTicketsToClaim(new Set()); // Ensure selection is clear
         setShowTicketSelection(true);
       }
+      // --- END REFACTORED LOGIC ---
 
       setIsLoading(false);
     } catch (err: any) {
@@ -604,44 +674,119 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     }
   };
 
-  const markTicket = async (ticket: APIResponseSchema) => {
+  /**
+   * Extracted helper function to just process the API call for a single ticket.
+   * Returns a success or error object. Does not set state.
+   */
+  const processTicketCheckIn = async (ticket: APIResponseSchema) => {
     try {
-      setIsLoading(true);
-      const qrData =
-        ticket.type === ProductType.Ticket
-          ? { type: "ticket", ticketId: ticket.ticketId }
-          : {
+      const checkInData =
+        ticket.type === ProductType.Merch
+          ? {
               type: "merch",
               stripePi: ticket.ticketId,
               email: ticket.purchaserData.email,
-            };
+            }
+          : { type: "ticket", ticketId: ticket.ticketId };
 
-      const result = await checkInTicket(qrData);
+      const result = await checkInTicket(checkInData);
 
       if (!result.valid) {
         throw new Error("Ticket is invalid.");
       }
+      return { success: true, result };
+    } catch (err: any) {
+      let errorMessage = "Failed to process ticket";
+      if (err.response && err.response.data) {
+        errorMessage = err.response.data
+          ? `Error ${err.response.data.id} (${err.response.data.name}): ${err.response.data.message}`
+          : "System encountered a failure, please contact the ACM Infra Chairs.";
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      return { success: false, error: errorMessage, ticketId: ticket.ticketId };
+    }
+  };
 
+  /**
+   * Handles claiming a *single* ticket (e.g., from auto-claim).
+   * This function calls the helper and then sets state to show the modal.
+   */
+  const markTicket = async (ticket: APIResponseSchema) => {
+    setIsLoading(true);
+    setShowTicketSelection(false); // Close selection modal if open
+
+    const { success, result, error } = await processTicketCheckIn(ticket);
+
+    if (success && result) {
       setScanResult(result);
       setShowModal(true);
-      setShowTicketSelection(false);
-      setIsLoading(false);
-    } catch (err: any) {
-      setIsLoading(false);
-      setShowTicketSelection(false);
-      if (err.response && err.response.data) {
-        setError(
-          err.response.data
-            ? `Error ${err.response.data.id} (${err.response.data.name}): ${err.response.data.message}`
-            : "System encountered a failure, please contact the ACM Infra Chairs.",
-        );
-      } else {
-        setError(
-          err instanceof Error ? err.message : "Failed to process ticket",
-        );
-      }
+    } else {
+      setError(error || "Failed to process ticket");
       setShowModal(true);
     }
+
+    // Clear selection state regardless
+    setAvailableTickets([]);
+    setUnclaimableTicketsForSelection([]);
+    setSelectedTicketsToClaim(new Set());
+    setIsLoading(false);
+  };
+
+  /**
+   * Handles claiming all *selected* tickets from the multi-select modal.
+   */
+  const handleClaimSelectedTickets = async () => {
+    setIsLoading(true);
+
+    const ticketsToClaim = availableTickets.filter((t) =>
+      selectedTicketsToClaim.has(t.ticketId),
+    );
+
+    const results = await Promise.allSettled(
+      ticketsToClaim.map(processTicketCheckIn),
+    );
+
+    const successfulClaims = results.filter(
+      (r) => r.status === "fulfilled" && r.value.success,
+    ) as PromiseFulfilledResult<{ success: true; result: APIResponseSchema }>[];
+
+    const failedClaims = results.filter(
+      (r) =>
+        r.status === "rejected" ||
+        (r.status === "fulfilled" && !r.value.success),
+    );
+
+    // Close the selection modal and clear state
+    setShowTicketSelection(false);
+    setAvailableTickets([]);
+    setUnclaimableTicketsForSelection([]);
+    setSelectedTicketsToClaim(new Set());
+    setIsLoading(false);
+
+    if (failedClaims.length > 0) {
+      // Show the first error
+      let firstError = "An unknown error occurred.";
+      const firstFailure = failedClaims[0];
+      if (firstFailure.status === "rejected") {
+        firstError =
+          firstFailure.reason instanceof Error
+            ? firstFailure.reason.message
+            : String(firstFailure.reason);
+      } else if (firstFailure.status === "fulfilled") {
+        firstError = (firstFailure.value as { success: false; error: string })
+          .error;
+      }
+      setError(
+        `Failed to claim ${failedClaims.length} ticket(s). First error: ${firstError}`,
+      );
+    } else if (successfulClaims.length > 0) {
+      // All succeeded - store results for detailed display
+      setBulkScanResults(successfulClaims.map((r) => r.value.result));
+    }
+    // (If successfulClaims.length === 0 and failedClaims.length === 0, nothing was selected, do nothing)
+
+    setShowModal(true); // Show the main modal with results
   };
 
   if (orgList === null || ticketItems === null) {
@@ -764,6 +909,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
           </Stack>
         </Paper>
 
+        {/* Main Result Modal */}
         <Modal
           opened={showModal}
           onClose={handleNextScan}
@@ -780,7 +926,50 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
             >
               {error}
             </Alert>
+          ) : bulkScanResults.length > 0 ? (
+            // Bulk Success Message with Details
+            <Stack>
+              <Alert
+                icon={<IconCheck size={16} />}
+                title={<Text fw={900}>Success</Text>}
+                color="green"
+                variant="filled"
+              >
+                <Text fw={700}>
+                  Successfully claimed {bulkScanResults.length} ticket(s)!
+                </Text>
+              </Alert>
+
+              {bulkScanResults.map((result, index) => (
+                <Paper p="md" withBorder key={`${result.ticketId}-${index}`}>
+                  <Stack>
+                    <Text fw={700}>
+                      Ticket {index + 1} of {bulkScanResults.length} Details:
+                    </Text>
+                    <Text>Type: {result.type.toLocaleUpperCase()}</Text>
+                    {result.purchaserData.productId && (
+                      <Text>
+                        Product:{" "}
+                        {getFriendlyName(result.purchaserData.productId)}
+                      </Text>
+                    )}
+                    <Text>Email: {result.purchaserData.email}</Text>
+                    {result.purchaserData.quantity && (
+                      <Text>Quantity: {result.purchaserData.quantity}</Text>
+                    )}
+                    {result.purchaserData.size && (
+                      <Text>Size: {result.purchaserData.size}</Text>
+                    )}
+                  </Stack>
+                </Paper>
+              ))}
+
+              <Group justify="flex-end" mt="md">
+                <Button onClick={handleNextScan}>Close</Button>
+              </Group>
+            </Stack>
           ) : (
+            // Single Scan Result
             scanResult && (
               <Stack>
                 <Alert
@@ -797,7 +986,11 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                     <Text fw={700}>Ticket Details:</Text>
                     <Text>Type: {scanResult?.type.toLocaleUpperCase()}</Text>
                     {scanResult.purchaserData.productId && (
-                      <Text>Product: {scanResult.purchaserData.productId}</Text>
+                      <Text>
+                        {/* **MODIFIED** */}
+                        Product:{" "}
+                        {getFriendlyName(scanResult.purchaserData.productId)}
+                      </Text>
                     )}
                     <Text>
                       Token ID: <code>{scanResult?.ticketId}</code>
@@ -820,57 +1013,158 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
           )}
         </Modal>
 
+        {/* Ticket Selection Modal (for multi-select) */}
         <Modal
           opened={showTicketSelection}
           onClose={() => {
             setShowTicketSelection(false);
+            setAvailableTickets([]);
+            setUnclaimableTicketsForSelection([]);
+            setSelectedTicketsToClaim(new Set()); // Clear selection
             setManualInput("");
           }}
-          title="Select a Ticket"
+          title="Select Ticket(s) to Claim"
           size="lg"
           centered
+          withCloseButton={!isLoading}
+          closeOnClickOutside={!isLoading}
+          closeOnEscape={!isLoading}
         >
+          <LoadingOverlay visible={isLoading} />
           <Stack>
             <Text>
-              Multiple valid tickets found. Please select which one to mark:
+              Multiple purchases found. Please select which one(s) to claim:
             </Text>
+            {/* Render Claimable Tickets with Checkboxes */}
             {availableTickets.map((ticket, index) => (
               <Paper
                 key={`${ticket.ticketId}-${index}`}
                 p="md"
                 withBorder
-                style={{ cursor: "pointer" }}
-                onClick={() => markTicket(ticket)}
+                // --- CLICKABLE CARD LOGIC ---
+                onClick={() => {
+                  const newSet = new Set(selectedTicketsToClaim);
+                  if (newSet.has(ticket.ticketId)) {
+                    newSet.delete(ticket.ticketId);
+                  } else {
+                    newSet.add(ticket.ticketId);
+                  }
+                  setSelectedTicketsToClaim(newSet);
+                }}
+                style={(theme: MantineTheme) => ({
+                  borderLeft: `5px solid ${theme.colors.green[6]}`,
+                  cursor: "pointer",
+                  "&:hover": {
+                    backgroundColor: theme.colors.gray[0],
+                  },
+                })}
               >
-                <Stack gap="xs">
-                  <Text fw={700}>
-                    {ticket.type.toUpperCase()} -{" "}
-                    {ticket.purchaserData.productId}
-                  </Text>
-                  <Text size="sm">Email: {ticket.purchaserData.email}</Text>
-                  {ticket.purchaserData.quantity && (
-                    <Text size="sm">
-                      Quantity: {ticket.purchaserData.quantity}
+                <Group>
+                  <Checkbox
+                    checked={selectedTicketsToClaim.has(ticket.ticketId)}
+                    readOnly
+                    tabIndex={-1} // Removed from tab order, card is the control
+                    aria-label={`Select ticket ${ticket.ticketId}`}
+                  />
+                  <Stack gap="xs" style={{ flex: 1 }}>
+                    <Text fw={700}>
+                      {getFriendlyName(ticket.purchaserData.productId)}
                     </Text>
-                  )}
-                  {ticket.purchaserData.size && (
-                    <Text size="sm">Size: {ticket.purchaserData.size}</Text>
-                  )}
-                  <Text size="xs" c="dimmed">
-                    Ticket ID: {ticket.ticketId}
-                  </Text>
-                </Stack>
+                    <Text size="sm">Email: {ticket.purchaserData.email}</Text>
+                    {ticket.purchaserData.quantity && (
+                      <Text size="sm">
+                        Quantity: {ticket.purchaserData.quantity}
+                      </Text>
+                    )}
+                    {ticket.purchaserData.size && (
+                      <Text size="sm">Size: {ticket.purchaserData.size}</Text>
+                    )}
+                    <Text size="xs" c="green" fw={700}>
+                      Status: AVAILABLE
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Ticket ID: {ticket.ticketId}
+                    </Text>
+                  </Stack>
+                </Group>
               </Paper>
             ))}
+
+            {/* Render Unclaimable Tickets */}
+            {unclaimableTicketsForSelection.map((ticket, index) => {
+              let status = "Unknown";
+              let color: MantineColor = "gray";
+              if (ticket.fulfilled) {
+                status = "ALREADY CLAIMED";
+                color = "orange";
+              } else if (ticket.refunded) {
+                status = "REFUNDED";
+                color = "red";
+              } else if (!ticket.valid) {
+                status = "INVALID";
+                color = "red";
+              }
+
+              return (
+                <Paper
+                  key={`${ticket.ticketId}-${index}`}
+                  p="md"
+                  withBorder
+                  style={(theme: MantineTheme) => ({
+                    cursor: "not-allowed",
+                    opacity: 0.6,
+                    borderLeft: `5px solid ${theme.colors[color][6]}`,
+                  })}
+                >
+                  <Stack gap="xs">
+                    <Text fw={700} c="dimmed">
+                      {/* **MODIFIED** */}
+                      {ticket.type.toUpperCase()} -{" "}
+                      {getFriendlyName(ticket.purchaserData.productId)}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Email: {ticket.purchaserData.email}
+                    </Text>
+                    {ticket.purchaserData.quantity && (
+                      <Text size="sm" c="dimmed">
+                        Quantity: {ticket.purchaserData.quantity}
+                      </Text>
+                    )}
+                    {ticket.purchaserData.size && (
+                      <Text size="sm" c="dimmed">
+                        Size: {ticket.purchaserData.size}
+                      </Text>
+                    )}
+                    <Text size="xs" c={color} fw={700}>
+                      Status: {status}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Ticket ID: {ticket.ticketId}
+                    </Text>
+                  </Stack>
+                </Paper>
+              );
+            })}
             <Group justify="flex-end" mt="md">
               <Button
                 variant="subtle"
+                disabled={isLoading}
                 onClick={() => {
                   setShowTicketSelection(false);
+                  setAvailableTickets([]);
+                  setUnclaimableTicketsForSelection([]);
+                  setSelectedTicketsToClaim(new Set());
                   setManualInput("");
                 }}
               >
                 Cancel
+              </Button>
+              <Button
+                onClick={handleClaimSelectedTickets}
+                disabled={selectedTicketsToClaim.size === 0 || isLoading}
+                loading={isLoading}
+              >
+                Claim Selected ({selectedTicketsToClaim.size})
               </Button>
             </Group>
           </Stack>
