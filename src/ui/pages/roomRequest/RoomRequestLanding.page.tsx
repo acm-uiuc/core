@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Container, Title, Tabs, Select } from "@mantine/core";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { AppRoles } from "@common/roles";
@@ -19,8 +19,11 @@ import { useSearchParams } from "react-router-dom";
 export const ManageRoomRequestsPage: React.FC = () => {
   const api = useApi("core");
   const [semester, setSemesterState] = useState<string | null>(null);
-  const nextSemesters = getSemesters();
-  const semesterOptions = [...getPreviousSemesters(), ...nextSemesters];
+  const nextSemesters = useMemo(() => getSemesters(), []);
+  const semesterOptions = useMemo(
+    () => [...getPreviousSemesters(), ...nextSemesters],
+    [nextSemesters],
+  );
   const [searchParams, setSearchParams] = useSearchParams();
 
   const setSemester = (newSemester: string | null) => {
