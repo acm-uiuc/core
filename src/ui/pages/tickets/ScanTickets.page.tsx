@@ -125,6 +125,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   const [availableTickets, setAvailableTickets] = useState<APIResponseSchema[]>(
     [],
   );
+  const [unclaimableTicketsForSelection, setUnclaimableTicketsForSelection] =
+    useState<APIResponseSchema[]>([]);
   const [ticketItems, setTicketItems] = useState<Array<{
     group: string;
     items: Array<{ value: string; label: string }>;
@@ -552,39 +554,74 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
       // Fetch purchases for this email
       const response = await getPurchasesByEmail(email);
 
-      // Combine all valid tickets (both merch and tickets) and filter by selected item
-      const allValidTickets = [
+      // --- REFACTORED LOGIC ---
+
+      // 1. Get ALL purchases for the selected item, regardless of status.
+      const allPurchasesForItem = [
         ...response.tickets.filter(
-          (t) =>
-            t.valid &&
-            !t.refunded &&
-            t.purchaserData.productId === selectedItemFilter,
+          (t) => t.purchaserData.productId === selectedItemFilter,
         ),
         ...response.merch.filter(
-          (m) =>
-            m.valid &&
-            !m.refunded &&
-            m.purchaserData.productId === selectedItemFilter,
+          (m) => m.purchaserData.productId === selectedItemFilter,
         ),
       ];
 
-      if (allValidTickets.length === 0) {
+      // 2. Check if we found anything at all.
+      if (allPurchasesForItem.length === 0) {
         setError(
-          "No valid tickets found for this user and selected event/item.",
+          "No purchases found for this user and selected event/item.",
         );
         setShowModal(true);
         setIsLoading(false);
         return;
       }
 
-      if (allValidTickets.length === 1) {
-        // Only one valid ticket, mark it automatically
-        await markTicket(allValidTickets[0]);
+      // 3. Partition these purchases.
+      // A "claimable" ticket is valid, not refunded, and not already fulfilled.
+      const claimableTickets = allPurchasesForItem.filter(
+        (p) => p.valid && !p.refunded && !p.fulfilled,
+      );
+
+      // An "unclaimable" ticket is everything else.
+      const unclaimableTickets = allPurchasesForItem.filter(
+        (p) => !p.valid || p.refunded || p.fulfilled,
+      );
+
+      // 4. Apply new logic based on the user's request.
+
+      // Case 1: No claimable tickets.
+      if (claimableTickets.length === 0) {
+        let errorMessage = "No valid, unclaimed tickets found for this user.";
+        if (unclaimableTickets.length > 0) {
+          // Provide a more specific error based on the first unclaimable ticket.
+          const firstReason = unclaimableTickets[0];
+          if (firstReason.fulfilled) {
+            errorMessage =
+              "All tickets for this event have already been claimed.";
+          } else if (firstReason.refunded) {
+            errorMessage = "This user's ticket has been refunded.";
+          } else if (!firstReason.valid) {
+            errorMessage = "This user's ticket is invalid.";
+          }
+        }
+        setError(errorMessage);
+        setShowModal(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Case 2: Exactly one claimable ticket AND no other context (unclaimable tickets) to show.
+      // We can auto-mark this one.
+      if (claimableTickets.length === 1 && unclaimableTickets.length === 0) {
+        await markTicket(claimableTickets[0]);
       } else {
-        // Multiple valid tickets, show selection modal
-        setAvailableTickets(allValidTickets);
+        // Case 3: Multiple claimable tickets OR a mix of claimable/unclaimable tickets.
+        // Show the selection modal to provide full context.
+        setAvailableTickets(claimableTickets);
+        setUnclaimableTicketsForSelection(unclaimableTickets);
         setShowTicketSelection(true);
       }
+      // --- END REFACTORED LOGIC ---
 
       setIsLoading(false);
     } catch (err: any) {
@@ -607,16 +644,19 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   const markTicket = async (ticket: APIResponseSchema) => {
     try {
       setIsLoading(true);
-      const qrData =
-        ticket.type === ProductType.Ticket
-          ? { type: "ticket", ticketId: ticket.ticketId }
-          : {
+
+      // Ensure the checkInTicket API can handle the data structure
+      // This assumes ticket.ticketId holds the unique identifier (stripe_pi for merch, ticket_id for ticket)
+      const checkInData =
+        ticket.type === ProductType.Merch
+          ? {
               type: "merch",
               stripePi: ticket.ticketId,
               email: ticket.purchaserData.email,
-            };
+            }
+          : { type: "ticket", ticketId: ticket.ticketId };
 
-      const result = await checkInTicket(qrData);
+      const result = await checkInTicket(checkInData);
 
       if (!result.valid) {
         throw new Error("Ticket is invalid.");
@@ -625,10 +665,14 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
       setScanResult(result);
       setShowModal(true);
       setShowTicketSelection(false);
+      setAvailableTickets([]);
+      setUnclaimableTicketsForSelection([]);
       setIsLoading(false);
     } catch (err: any) {
       setIsLoading(false);
       setShowTicketSelection(false);
+      setAvailableTickets([]);
+      setUnclaimableTicketsForSelection([]);
       if (err.response && err.response.data) {
         setError(
           err.response.data
@@ -797,14 +841,18 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                     <Text fw={700}>Ticket Details:</Text>
                     <Text>Type: {scanResult?.type.toLocaleUpperCase()}</Text>
                     {scanResult.purchaserData.productId && (
-                      <Text>Product: {scanResult.purchaserData.productId}</Text>
+                      <Text>
+                        Product: {scanResult.purchaserData.productId}
+                      </Text>
                     )}
                     <Text>
                       Token ID: <code>{scanResult?.ticketId}</code>
                     </Text>
                     <Text>Email: {scanResult?.purchaserData.email}</Text>
                     {scanResult.purchaserData.quantity && (
-                      <Text>Quantity: {scanResult.purchaserData.quantity}</Text>
+                      <Text>
+                        Quantity: {scanResult.purchaserData.quantity}
+                      </Text>
                     )}
                     {scanResult.purchaserData.size && (
                       <Text>Size: {scanResult.purchaserData.size}</Text>
@@ -824,6 +872,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
           opened={showTicketSelection}
           onClose={() => {
             setShowTicketSelection(false);
+            setAvailableTickets([]);
+            setUnclaimableTicketsForSelection([]);
             setManualInput("");
           }}
           title="Select a Ticket"
@@ -832,7 +882,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         >
           <Stack>
             <Text>
-              Multiple valid tickets found. Please select which one to mark:
+              Multiple purchases found. Please select an available one to mark:
             </Text>
             {availableTickets.map((ticket, index) => (
               <Paper
@@ -841,6 +891,12 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                 withBorder
                 style={{ cursor: "pointer" }}
                 onClick={() => markTicket(ticket)}
+                sx={(theme) => ({
+                  borderLeft: `5px solid ${theme.colors.green[6]}`,
+                  "&:hover": {
+                    backgroundColor: theme.colors.gray[0],
+                  },
+                })}
               >
                 <Stack gap="xs">
                   <Text fw={700}>
@@ -856,17 +912,76 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                   {ticket.purchaserData.size && (
                     <Text size="sm">Size: {ticket.purchaserData.size}</Text>
                   )}
+                  <Text size="xs" c="green" fw={700}>
+                    Status: AVAILABLE
+                  </Text>
                   <Text size="xs" c="dimmed">
                     Ticket ID: {ticket.ticketId}
                   </Text>
                 </Stack>
               </Paper>
             ))}
+
+            {/* Render Unclaimable Tickets */}
+            {unclaimableTicketsForSelection.map((ticket, index) => {
+              let status = "Unknown";
+              let color = "gray";
+              if (ticket.fulfilled) {
+                status = "ALREADY CLAIMED";
+                color = "orange";
+              } else if (ticket.refunded) {
+                status = "REFUNDED";
+                color = "red";
+              } else if (!ticket.valid) {
+                status = "INVALID";
+                color = "red";
+              }
+
+              return (
+                <Paper
+                  key={`${ticket.ticketId}-${index}`}
+                  p="md"
+                  withBorder
+                  style={{ cursor: "not-allowed", opacity: 0.6 }}
+                  sx={(theme) => ({
+                    borderLeft: `5px solid ${theme.colors[color][6]}`,
+                  })}
+                >
+                  <Stack gap="xs">
+                    <Text fw={700} c="dimmed">
+                      {ticket.type.toUpperCase()} -{" "}
+                      {ticket.purchaserData.productId}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Email: {ticket.purchaserData.email}
+                    </Text>
+                    {ticket.purchaserData.quantity && (
+                      <Text size="sm" c="dimmed">
+                        Quantity: {ticket.purchaserData.quantity}
+                      </Text>
+                    )}
+                    {ticket.purchaserData.size && (
+                      <Text size="sm" c="dimmed">
+                        Size: {ticket.purchaserData.size}
+                      </Text>
+                    )}
+                    <Text size="xs" c={color} fw={700}>
+                      Status: {status}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Ticket ID: {ticket.ticketId}
+                    </Text>
+                  </Stack>
+                </Paper>
+              );
+            })}
             <Group justify="flex-end" mt="md">
               <Button
                 variant="subtle"
                 onClick={() => {
                   setShowTicketSelection(false);
+                  setAvailableTickets([]);
+                  setUnclaimableTicketsForSelection([]);
                   setManualInput("");
                 }}
               >
