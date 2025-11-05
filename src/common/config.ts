@@ -33,6 +33,7 @@ export type ConfigType = {
   OrgAdminGithubParentTeam: number;
   GithubIdpSyncEnabled: boolean
   GithubOrgId: number;
+  AssetsBucketId: string;
 };
 
 export type GenericConfigType = {
@@ -40,6 +41,7 @@ export type GenericConfigType = {
   CacheDynamoTableName: string;
   LinkryDynamoTableName: string;
   StripeLinksDynamoTableName: string;
+  StripePaymentsDynamoTableName: string;
   EntraSecretName: string;
   UpcomingEventThresholdSeconds: number;
   AwsRegion: string;
@@ -83,12 +85,13 @@ export const commChairsGroupId = "105e7d32-7289-435e-a67a-552c7f215507";
 const genericConfig: GenericConfigType = {
   EventsDynamoTableName: "infra-core-api-events",
   StripeLinksDynamoTableName: "infra-core-api-stripe-links",
+  StripePaymentsDynamoTableName: "infra-core-api-stripe-payments",
   CacheDynamoTableName: "infra-core-api-cache",
   LinkryDynamoTableName: "infra-core-api-linkry",
   EntraSecretName: "infra-core-api-entra",
   EntraReadOnlySecretName: "infra-core-api-ro-entra",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
-  AwsRegion: "us-east-2",
+  AwsRegion: process.env.AWS_REGION ?? "us-east-2",
   SesRegion: "us-east-1",
   EntraTenantId: "c8d9148f-9a59-4db3-827d-42ea0c2b6e2e",
   MerchStorePurchasesTableName: "infra-merchstore-purchase-history",
@@ -131,7 +134,7 @@ const environmentConfig: EnvironmentConfigType = {
     PasskitSerialNumber: "0",
     EmailDomain: "aws.qa.acmuiuc.org",
     SqsQueueUrl:
-      "https://sqs.us-east-2.amazonaws.com/427040638965/infra-core-api-sqs",
+      `https://sqs.${genericConfig.AwsRegion}.amazonaws.com/427040638965/infra-core-api-sqs`,
     PaidMemberGroupId: "9222451f-b354-4e64-ba28-c0f367a277c2",
     PaidMemberPriceId: "price_1S5eAqDGHrJxx3mKZYGoulj3",
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
@@ -142,7 +145,8 @@ const environmentConfig: EnvironmentConfigType = {
     GithubOrgName: "acm-uiuc-testing",
     GithubOrgId: 235748315,
     OrgAdminGithubParentTeam: 14420860,
-    GithubIdpSyncEnabled: false
+    GithubIdpSyncEnabled: false,
+    AssetsBucketId: `427040638965-infra-core-api-assets-${genericConfig.AwsRegion}`
   },
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
@@ -158,12 +162,12 @@ const environmentConfig: EnvironmentConfigType = {
       /http:\/\/localhost:\d+$/,
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
-    LinkryBaseUrl: "https://go.acm.illinois.edu/",
+    LinkryBaseUrl: "https://acm.gg/",
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
     PasskitSerialNumber: "0",
     EmailDomain: "acm.illinois.edu",
     SqsQueueUrl:
-      "https://sqs.us-east-2.amazonaws.com/298118738376/infra-core-api-sqs",
+      `https://sqs.${genericConfig.AwsRegion}.amazonaws.com/298118738376/infra-core-api-sqs`,
     PaidMemberGroupId: "172fd9ee-69f0-4384-9786-41ff1a43cf8e",
     PaidMemberPriceId: MembershipPriceIdStripe,
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
@@ -174,7 +178,8 @@ const environmentConfig: EnvironmentConfigType = {
     GithubOrgName: "acm-uiuc",
     GithubOrgId: 425738,
     OrgAdminGithubParentTeam: 12025214,
-    GithubIdpSyncEnabled: true
+    GithubIdpSyncEnabled: true,
+    AssetsBucketId: `298118738376-infra-core-api-assets-${genericConfig.AwsRegion}`
   },
 };
 
@@ -189,6 +194,7 @@ export type SecretConfig = {
   stripe_endpoint_secret: string;
   stripe_links_endpoint_secret: string;
   redis_url: string;
+  fallback_redis_url: string;
   encryption_key: string;
   UIN_HASHING_SECRET_PEPPER: string;
   github_pat: string;

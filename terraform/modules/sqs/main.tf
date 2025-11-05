@@ -7,14 +7,14 @@ terraform {
 }
 
 resource "aws_sqs_queue" "app_dlq" {
-  region                     = "us-east-2"
+  region                     = var.region
   name                       = "${var.resource_prefix}-sqs-dlq"
   visibility_timeout_seconds = var.sqs_message_timeout
   message_retention_seconds  = 1209600
 }
 
 resource "aws_sqs_queue" "app_queue" {
-  region                     = "us-east-2"
+  region                     = var.region
   name                       = "${var.resource_prefix}-sqs"
   visibility_timeout_seconds = var.sqs_message_timeout
   redrive_policy = jsonencode({
@@ -24,7 +24,7 @@ resource "aws_sqs_queue" "app_queue" {
 }
 
 resource "aws_sqs_queue" "sales_email_queue" {
-  region                     = "us-east-2"
+  region                     = var.region
   name                       = "${var.resource_prefix}-sqs-sales"
   visibility_timeout_seconds = var.sqs_message_timeout
   redrive_policy = jsonencode({

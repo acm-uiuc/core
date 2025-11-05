@@ -121,13 +121,13 @@ export const navItems = [
 
 export const extLinks = [
   {
-    link: "https://go.acm.illinois.edu/reimburse",
+    link: "https://acm.gg/reimburse",
     name: "Funding and Reimbursement Requests",
     icon: IconFileDollar,
     description: null,
   },
   {
-    link: "https://go.acm.illinois.edu/sigpizza",
+    link: "https://acm.gg/sigpizza",
     name: "Pizza Request Form",
     icon: IconPizza,
     description: null,

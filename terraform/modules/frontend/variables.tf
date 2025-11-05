@@ -4,13 +4,18 @@ variable "ProjectId" {
 }
 
 variable "CoreLambdaHost" {
-  type        = string
-  description = "Host for Lambda Function URL"
+  type        = map(string)
+  description = "Map of region to Lambda Function URL host"
 }
 
 variable "CoreSlowLambdaHost" {
+  type        = map(string)
+  description = "Map of region to Slow Lambda Function URL host"
+}
+
+variable "CurrentActiveRegion" {
   type        = string
-  description = "Host for Slow Lambda Function URL"
+  description = "Currently active AWS region for primary routing"
 }
 
 variable "CorePublicDomain" {
@@ -23,9 +28,9 @@ variable "IcalPublicDomain" {
   description = "Ical Public Host"
 }
 
-variable "LinkryPublicDomain" {
-  type        = string
-  description = "Ical Public Host"
+variable "LinkryPublicDomains" {
+  type        = set(string)
+  description = "Linky Public Hosts"
 }
 
 
@@ -34,6 +39,10 @@ variable "CoreCertificateArn" {
   description = "Core ACM ARN"
 }
 
+variable "LinkryCertificateArn" {
+  type        = string
+  description = "Linkry ACM ARN"
+}
 
 variable "BucketPrefix" {
   type = string

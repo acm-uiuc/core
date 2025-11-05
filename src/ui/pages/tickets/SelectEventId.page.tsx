@@ -129,7 +129,7 @@ const SelectTicketsPage: React.FC = () => {
         itemSalesActive: newIsActive,
         type: isTicketItem(item) ? "ticket" : "merch",
       };
-      await api.patch(`/api/v1/tickets/${item.itemId}`, data);
+      await api.patch(`/api/v1/tickets/event/${item.itemId}`, data);
       await fetchItems();
       notifications.show({
         title: "Changes saved",

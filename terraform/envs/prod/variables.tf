@@ -19,15 +19,15 @@ variable "PrioritySNSAlertArn" {
 }
 
 
-variable "AssetsPublicDomain" {
-  type    = string
-  default = "assets.acm.illinois.edu"
-}
-
-
 variable "CoreCertificateArn" {
   type    = string
   default = "arn:aws:acm:us-east-1:298118738376:certificate/aeb93d9e-b0b7-4272-9c12-24ca5058c77e"
+}
+
+// For acm.gg we need a seperate cert for Linkry
+variable "LinkryCertificateArn" {
+  type    = string
+  default = "arn:aws:acm:us-east-1:298118738376:certificate/aa58a5e8-49eb-44fb-b118-ab0a7ecd2054"
 }
 
 variable "EmailDomain" {
@@ -47,4 +47,14 @@ variable "LinkryPublicDomain" {
 variable "IcalPublicDomain" {
   type    = string
   default = "ical.acm.illinois.edu"
+}
+
+variable "current_active_region" {
+  type        = string
+  description = "Currently active AWS region"
+
+  validation {
+    condition     = contains(["us-east-2", "us-west-2"], var.current_active_region)
+    error_message = "Invalid value for current_active_region"
+  }
 }

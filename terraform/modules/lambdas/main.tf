@@ -33,18 +33,18 @@ locals {
     api    = aws_iam_policy.api_only_policy.arn
     shared = aws_iam_policy.shared_iam_policy.arn
   }
+  is_primary_deployment = var.region == "us-east-2"
 }
 data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
 
 resource "aws_cloudwatch_log_group" "api_logs" {
-  region            = "us-east-2"
+  region            = var.region
   name              = "/aws/lambda/${local.core_api_lambda_name}"
   retention_in_days = var.LogRetentionDays
 }
 
 resource "aws_iam_role" "api_role" {
-  name = "${local.core_api_lambda_name}-role"
+  name_prefix = "${local.core_api_lambda_name}-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -60,7 +60,7 @@ resource "aws_iam_role" "api_role" {
 }
 
 resource "aws_iam_role" "sqs_consumer_role" {
-  name = "${local.core_sqs_consumer_lambda_name}-role"
+  name_prefix = "${local.core_sqs_consumer_lambda_name}-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -76,7 +76,7 @@ resource "aws_iam_role" "sqs_consumer_role" {
 }
 
 resource "aws_iam_role" "entra_role" {
-  name = "${var.ProjectId}-entra-role"
+  name_prefix = "${var.ProjectId}-entra-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -101,7 +101,7 @@ resource "aws_iam_role" "entra_role" {
 }
 
 resource "aws_iam_policy" "entra_policy" {
-  name = "${var.ProjectId}-entra-policy"
+  name_prefix = "${var.ProjectId}-entra-policy"
   policy = jsonencode(({
     Version = "2012-10-17"
     Statement = [
@@ -109,8 +109,8 @@ resource "aws_iam_policy" "entra_policy" {
         Effect = "Allow",
         Action = ["secretsmanager:GetSecretValue"],
         Resource = [
-          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-entra*",
-          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-ro-entra*"
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-entra*",
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-ro-entra*"
         ]
       }
     ]
@@ -118,7 +118,7 @@ resource "aws_iam_policy" "entra_policy" {
 }
 
 resource "aws_iam_policy" "api_only_policy" {
-  name = "${var.ProjectId}-api-only-policy"
+  name_prefix = "${var.ProjectId}-api-only-policy"
   policy = jsonencode(({
     Version = "2012-10-17"
     Statement = [
@@ -126,16 +126,15 @@ resource "aws_iam_policy" "api_only_policy" {
         Effect = "Allow",
         Action = ["sqs:SendMessage"],
         Resource = [
-          "arn:aws:sqs:us-east-2:${data.aws_caller_identity.current.account_id}:${var.ProjectId}-*",
+          "arn:aws:sqs:${var.region}:${data.aws_caller_identity.current.account_id}:${var.ProjectId}-*",
         ]
       }
     ]
   }))
 }
 
-
 resource "aws_iam_policy" "sqs_policy" {
-  name = "${var.ProjectId}-sqs-consumer-policy"
+  name_prefix = "${var.ProjectId}-sqs-consumer-policy"
   policy = jsonencode(({
     Version = "2012-10-17"
     Statement = [
@@ -182,7 +181,7 @@ resource "aws_iam_policy" "sqs_policy" {
 
 
 resource "aws_iam_policy" "shared_iam_policy" {
-  name = "${var.ProjectId}-lambda-shared-policy"
+  name_prefix = "${var.ProjectId}-lambda-shared-policy"
   policy = jsonencode(({
     Version = "2012-10-17"
     Statement = [
@@ -195,9 +194,9 @@ resource "aws_iam_policy" "shared_iam_policy" {
         Action = ["secretsmanager:GetSecretValue"],
         Effect = "Allow",
         Resource = [
-          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-config*",
-          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-testing-credentials*",
-          "arn:aws:secretsmanager:us-east-2:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-uin-pepper*"
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-config*",
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-testing-credentials*",
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-uin-pepper*"
         ]
       },
       {
@@ -223,33 +222,32 @@ resource "aws_iam_policy" "shared_iam_policy" {
         Resource = [
           // Tickets is still in us-east-1!
           "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-events-tickets",
+          "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-events-tickets/index/*",
           "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-events-ticketing-metadata",
           "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-purchase-history",
           "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-purchase-history/index/*",
           "arn:aws:dynamodb:us-east-1:${data.aws_caller_identity.current.account_id}:table/infra-merchstore-metadata",
 
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events/index/*",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-assignments",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links/index/*",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-external-v3",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-external-v3/index/*",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests/index/*",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests-status",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests-status/index/*",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry/index/*",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-keys",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs/index/*",
-
-          // added permissions for 3 new tables
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-inventory",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders/index/*",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-limits"
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-iam-assignments",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-external-v3",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-membership-external-v3/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests-status",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-room-requests-status/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-linkry/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-keys",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-sigs/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-inventory",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-limits"
         ]
       },
       {
@@ -265,7 +263,7 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "dynamodb:UpdateItem"
         ],
         Resource = [
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-cache",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-cache",
         ]
       },
       {
@@ -277,8 +275,8 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "dynamodb:Query",
         ],
         Resource = [
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-audit-log",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-audit-log/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-audit-log",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-audit-log/index/*",
         ]
       },
       {
@@ -293,8 +291,8 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "dynamodb:Query",
         ],
         Resource = [
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-user-info",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-user-info/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-user-info",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-user-info/index/*",
         ]
       },
       {
@@ -307,8 +305,8 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "dynamodb:ListStreams"
         ],
         Resource = [
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links/stream/*",
-          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events/stream/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-links/stream/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events/stream/*",
         ]
       },
     ]
@@ -322,19 +320,32 @@ resource "aws_iam_role_policy_attachment" "api_attach" {
   policy_arn = each.value
 }
 
+resource "aws_iam_role_policy_attachment" "api_attach_addl" {
+  for_each   = var.AdditionalIamPolicies
+  role       = aws_iam_role.api_role.name
+  policy_arn = each.value
+}
+
 resource "aws_iam_role_policy_attachment" "entra_attach" {
   for_each   = local.entra_policies
   role       = aws_iam_role.entra_role.name
   policy_arn = each.value
 }
+
 resource "aws_iam_role_policy_attachment" "sqs_attach_shared" {
   for_each   = local.sqs_policies
   role       = aws_iam_role.sqs_consumer_role.name
   policy_arn = each.value
 }
 
+resource "aws_iam_role_policy_attachment" "sqs_attach_addl" {
+  for_each   = var.AdditionalIamPolicies
+  role       = aws_iam_role.sqs_consumer_role.name
+  policy_arn = each.value
+}
+
 resource "aws_lambda_function" "api_lambda" {
-  region           = "us-east-2"
+  region           = var.region
   depends_on       = [aws_cloudwatch_log_group.api_logs]
   function_name    = local.core_api_lambda_name
   role             = aws_iam_role.api_role.arn
@@ -359,7 +370,7 @@ resource "aws_lambda_function" "api_lambda" {
 }
 
 resource "aws_lambda_function" "sqs_lambda" {
-  region     = "us-east-2"
+  region     = var.region
   depends_on = [aws_cloudwatch_log_group.api_logs]
   logging_config {
     log_format = "JSON"
@@ -386,7 +397,7 @@ resource "aws_lambda_function" "sqs_lambda" {
 }
 
 resource "aws_lambda_function_url" "api_lambda_function_url" {
-  region             = "us-east-2"
+  region             = var.region
   function_name      = aws_lambda_function.api_lambda.function_name
   authorization_type = "NONE"
   invoke_mode        = "RESPONSE_STREAM"
@@ -394,7 +405,7 @@ resource "aws_lambda_function_url" "api_lambda_function_url" {
 
 // Slow lambda - used for monitoring purposes to avoid triggering lamdba latency alarms
 resource "aws_lambda_function" "slow_lambda" {
-  region           = "us-east-2"
+  region           = var.region
   depends_on       = [aws_cloudwatch_log_group.api_logs]
   function_name    = local.core_api_slow_lambda_name
   role             = aws_iam_role.api_role.arn
@@ -423,27 +434,30 @@ resource "aws_lambda_function" "slow_lambda" {
 }
 
 resource "aws_lambda_function_url" "slow_api_lambda_function_url" {
+  region             = var.region
   function_name      = aws_lambda_function.slow_lambda.function_name
   authorization_type = "NONE"
   invoke_mode        = "RESPONSE_STREAM"
-  region             = "us-east-2"
 }
 
 module "lambda_warmer_main" {
-  source              = "git::https://github.com/acm-uiuc/terraform-modules.git//lambda-warmer?ref=b52f22e32c6c07af9b1b4750a226882aaccc769d"
+  region              = var.region
+  source              = "git::https://github.com/acm-uiuc/terraform-modules.git//lambda-warmer?ref=c1a2d3a474a719b0c1e46842e96056478e98c2c7"
   function_to_warm    = local.core_api_lambda_name
   is_streaming_lambda = true
 }
 
 module "lambda_warmer_slow" {
-  source              = "git::https://github.com/acm-uiuc/terraform-modules.git//lambda-warmer?ref=b52f22e32c6c07af9b1b4750a226882aaccc769d"
+  region              = var.region
+  source              = "git::https://github.com/acm-uiuc/terraform-modules.git//lambda-warmer?ref=c1a2d3a474a719b0c1e46842e96056478e98c2c7"
   function_to_warm    = local.core_api_slow_lambda_name
   is_streaming_lambda = true
 }
 
 // Linkry Lambda @ Edge
 resource "aws_iam_role" "linkry_lambda_edge_role" {
-  name = "${var.ProjectId}-linkry-edge-role"
+  count       = local.is_primary_deployment ? 1 : 0
+  name_prefix = "${var.ProjectId}-linkry-edge-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -462,13 +476,15 @@ resource "aws_iam_role" "linkry_lambda_edge_role" {
 }
 
 resource "aws_iam_role_policy_attachment" "linkry_lambda_edge_basic" {
-  role       = aws_iam_role.linkry_lambda_edge_role.name
+  count      = local.is_primary_deployment ? 1 : 0
+  role       = aws_iam_role.linkry_lambda_edge_role[0].name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_iam_role_policy" "linkry_lambda_edge_dynamodb" {
-  name = "${var.ProjectId}-linkry-edge-dynamodb"
-  role = aws_iam_role.linkry_lambda_edge_role.id
+  count       = local.is_primary_deployment ? 1 : 0
+  name_prefix = "${var.ProjectId}-linkry-edge-dynamodb"
+  role        = aws_iam_role.linkry_lambda_edge_role[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -488,10 +504,11 @@ resource "aws_iam_role_policy" "linkry_lambda_edge_dynamodb" {
 }
 
 resource "aws_lambda_function" "linkry_edge" {
+  count            = local.is_primary_deployment ? 1 : 0
   region           = "us-east-1"
   filename         = data.archive_file.linkry_edge_lambda_code.output_path
   function_name    = "${var.ProjectId}-linkry-edge"
-  role             = aws_iam_role.linkry_lambda_edge_role.arn
+  role             = aws_iam_role.linkry_lambda_edge_role[0].arn
   handler          = "main.handler"
   runtime          = "python3.12"
   publish          = true
@@ -499,6 +516,7 @@ resource "aws_lambda_function" "linkry_edge" {
   memory_size      = 128
   source_code_hash = data.archive_file.linkry_edge_lambda_code.output_base64sha256
 }
+
 // Outputs
 
 output "core_function_url" {
@@ -528,5 +546,5 @@ output "core_sqs_consumer_lambda_name" {
 }
 
 output "linkry_redirect_function_arn" {
-  value = aws_lambda_function.linkry_edge.qualified_arn
+  value = local.is_primary_deployment ? aws_lambda_function.linkry_edge[0].qualified_arn : ""
 }

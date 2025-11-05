@@ -1,6 +1,8 @@
 import * as z from "zod/v4";
 import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
 import { illinoisSemesterId } from "./generic.js"
+export const validMimeTypes = ['application/pdf', 'image/jpeg', 'image/heic', 'image/png']
+export const maxAttachmentSizeBytes = 1e7; // 10MB
 
 export const eventThemeOptions = [
   "Arts & Music",
@@ -130,14 +132,22 @@ export enum RoomRequestStatus {
   REJECTED_BY_UIUC = "rejected_by_uiuc",
 }
 
+export const roomRequestStatusAttachmentInfo = z.object({
+  filename: z.string().min(1).max(100),
+  fileSizeBytes: z.number().min(1).max(maxAttachmentSizeBytes),
+  contentType: z.enum(validMimeTypes)
+})
+
 export const roomRequestStatusUpdateRequest = z.object({
-  status: z.nativeEnum(RoomRequestStatus),
+  status: z.enum(RoomRequestStatus),
+  attachmentInfo: z.optional(roomRequestStatusAttachmentInfo),
   notes: z.string().min(1).max(1000)
 });
 
 export const roomRequestStatusUpdate = roomRequestStatusUpdateRequest.extend({
-  createdAt: z.string().datetime(),
-  createdBy: z.string().email()
+  createdAt: z.iso.datetime(),
+  createdBy: z.email(),
+  attachmentFilename: z.optional(z.string())
 });
 
 export const roomRequestPostResponse = z.object({

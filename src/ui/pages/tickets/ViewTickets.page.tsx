@@ -135,7 +135,9 @@ const ViewTicketsPage: React.FC = () => {
   const getTickets = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/v1/tickets/${eventId}?type=merch`);
+      const response = await api.get(
+        `/api/v1/tickets/event/${eventId}?type=merch`,
+      );
       const parsedResponse = ticketsResponseSchema.parse(response.data);
       let localQuantitySold = 0;
       for (const item of parsedResponse.tickets) {

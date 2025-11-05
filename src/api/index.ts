@@ -24,7 +24,6 @@ import {
 } from "fastify-zod-openapi";
 import { type ZodOpenApiVersion } from "zod-openapi";
 import { withTags } from "./components/index.js";
-import RedisModule from "ioredis";
 
 /** BEGIN EXTERNAL PLUGINS */
 import fastifyIp from "fastify-ip";
@@ -61,6 +60,8 @@ import mobileWalletV2Route from "./routes/v2/mobileWallet.js";
 import membershipV2Plugin from "./routes/v2/membership.js";
 import { docsHtml, securitySchemes } from "./docs.js";
 import syncIdentityPlugin from "./routes/syncIdentity.js";
+import { createRedisModule } from "./redis.js";
+import userRoute from "./routes/user.js";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
@@ -309,7 +310,11 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       ) as SecretConfig;
     };
     await app.refreshSecretConfig();
-    app.redisClient = new RedisModule.default(app.secretConfig.redis_url);
+    app.redisClient = await createRedisModule(
+      app.secretConfig.redis_url,
+      app.secretConfig.fallback_redis_url,
+      app.log,
+    );
   }
   if (isRunningInLambda) {
     await app.register(fastifyIp.default, {
@@ -369,6 +374,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       api.register(logsPlugin, { prefix: "/logs" });
       api.register(apiKeyRoute, { prefix: "/apiKey" });
       api.register(clearSessionRoute, { prefix: "/clearSession" });
+      api.register(userRoute, { prefix: "/users" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }
