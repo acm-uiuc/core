@@ -28,6 +28,10 @@ import { Modules } from "common/modules.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { withRoles, withTags } from "api/components/index.js";
 import { FULFILLED_PURCHASES_RETENTION_DAYS } from "common/constants.js";
+import {
+  getUserMerchPurchases,
+  getUserTicketingPurchases,
+} from "api/functions/tickets.js";
 
 const postMerchSchema = z.object({
   type: z.literal("merch"),
@@ -56,18 +60,16 @@ const ticketEntryZod = z.object({
   purchaserData: purchaseSchema,
 });
 
-const ticketInfoEntryZod = ticketEntryZod.extend({
-  refunded: z.boolean(),
-  fulfilled: z.boolean(),
-});
+const ticketInfoEntryZod = ticketEntryZod
+  .extend({
+    refunded: z.boolean(),
+    fulfilled: z.boolean(),
+  })
+  .meta({
+    description: "An entry describing one merch or tickets transaction.",
+  });
 
-type TicketInfoEntry = z.infer<typeof ticketInfoEntryZod>;
-
-const responseJsonSchema = ticketEntryZod;
-
-const getTicketsResponse = z.object({
-  tickets: z.array(ticketInfoEntryZod),
-});
+export type TicketInfoEntry = z.infer<typeof ticketInfoEntryZod>;
 
 const baseItemMetadata = z.object({
   itemId: z.string().min(1),
@@ -87,11 +89,6 @@ const ticketingItemMetadata = baseItemMetadata.extend({
 type ItemMetadata = z.infer<typeof baseItemMetadata>;
 type TicketItemMetadata = z.infer<typeof ticketingItemMetadata>;
 
-const listMerchItemsResponse = z.object({
-  merch: z.array(baseItemMetadata),
-  tickets: z.array(ticketingItemMetadata),
-});
-
 const postSchema = z.union([postMerchSchema, postTicketSchema]);
 
 const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
@@ -106,6 +103,19 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
         withTags(["Tickets/Merchandise"], {
           summary: "Retrieve metadata about tickets/merchandise items.",
+          response: {
+            200: {
+              description: "The available items were retrieved.",
+              content: {
+                "application/json": {
+                  schema: z.object({
+                    merch: z.array(baseItemMetadata),
+                    tickets: z.array(ticketingItemMetadata),
+                  }),
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -198,7 +208,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/:eventId",
+    "/event/:eventId",
     {
       schema: withRoles(
         [AppRoles.TICKETS_MANAGER],
@@ -210,6 +220,18 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           params: z.object({
             eventId: z.string().min(1),
           }),
+          response: {
+            200: {
+              description: "All issued tickets for this event were retrieved.",
+              content: {
+                "application/json": {
+                  schema: z.object({
+                    tickets: z.array(ticketInfoEntryZod),
+                  }),
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -231,7 +253,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           const response = await UsEast1DynamoClient.send(command);
           if (!response.Items) {
             throw new NotFoundError({
-              endpointName: `/api/v1/tickets/${eventId}`,
+              endpointName: request.url,
             });
           }
           for (const item of response.Items) {
@@ -271,6 +293,16 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             eventId: z.string().min(1),
           }),
           body: postMetadataSchema,
+          response: {
+            201: {
+              description: "The item has been modified.",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -478,6 +510,60 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           requestId: request.id,
         },
       });
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "/purchases/:email",
+    {
+      schema: withRoles(
+        [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
+        withTags(["Tickets/Merchandise"], {
+          summary: "Get all purchases (merch and tickets) for a given user.",
+          params: z.object({
+            email: z.email(),
+          }),
+          response: {
+            200: {
+              description: "The user's purchases were retrieved.",
+              content: {
+                "application/json": {
+                  schema: z.object({
+                    merch: z.array(ticketInfoEntryZod),
+                    tickets: z.array(ticketInfoEntryZod),
+                  }),
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      const userEmail = request.params.email;
+      try {
+        const [ticketsResult, merchResult] = await Promise.all([
+          getUserTicketingPurchases({
+            dynamoClient: UsEast1DynamoClient,
+            email: userEmail,
+            logger: request.log,
+          }),
+          getUserMerchPurchases({
+            dynamoClient: UsEast1DynamoClient,
+            email: userEmail,
+            logger: request.log,
+          }),
+        ]);
+        await reply.send({ merch: merchResult, tickets: ticketsResult });
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        request.log.error(e);
+        throw new DatabaseFetchError({
+          message: "Failed to get user purchases.",
+        });
+      }
     },
   );
 };

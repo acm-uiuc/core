@@ -30,4 +30,25 @@ describe("Tickets live API tests", async () => {
     expect(Array.isArray(responseBody["merch"])).toBe(true);
     expect(Array.isArray(responseBody["tickets"])).toBe(true);
   });
+  test(
+    "Test that getting user purchases succeeds",
+    { timeout: 10000 },
+    async () => {
+      const response = await fetch(
+        `${baseEndpoint}/api/v1/tickets/purchases/acm@illinois.edu`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      expect(response.status).toBe(200);
+      const responseBody = await response.json();
+      expect(responseBody).toHaveProperty("merch");
+      expect(responseBody).toHaveProperty("tickets");
+      expect(Array.isArray(responseBody["merch"])).toBe(true);
+      expect(Array.isArray(responseBody["tickets"])).toBe(true);
+    },
+  );
 });
