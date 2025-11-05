@@ -581,9 +581,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
       // 2. Check if we found anything at all.
       if (allPurchasesForItem.length === 0) {
-        setError(
-          "No purchases found for this user and selected event/item.",
-        );
+        setError("No purchases found for this user and selected event/item.");
         setShowModal(true);
         setIsLoading(false);
         return;
@@ -755,9 +753,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
             ? firstFailure.reason.message
             : String(firstFailure.reason);
       } else if (firstFailure.status === "fulfilled") {
-        firstError = (
-          firstFailure.value as { success: false; error: string }
-        ).error;
+        firstError = (firstFailure.value as { success: false; error: string })
+          .error;
       }
       setError(
         `Failed to claim ${failedClaims.length} ticket(s). First error: ${firstError}`,
@@ -943,18 +940,14 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                     <Text fw={700}>Ticket Details:</Text>
                     <Text>Type: {scanResult?.type.toLocaleUpperCase()}</Text>
                     {scanResult.purchaserData.productId && (
-                      <Text>
-                        Product: {scanResult.purchaserData.productId}
-                      </Text>
+                      <Text>Product: {scanResult.purchaserData.productId}</Text>
                     )}
                     <Text>
                       Token ID: <code>{scanResult?.ticketId}</code>
                     </Text>
                     <Text>Email: {scanResult?.purchaserData.email}</Text>
                     {scanResult.purchaserData.quantity && (
-                      <Text>
-                        Quantity: {scanResult.purchaserData.quantity}
-                      </Text>
+                      <Text>Quantity: {scanResult.purchaserData.quantity}</Text>
                     )}
                     {scanResult.purchaserData.size && (
                       <Text>Size: {scanResult.purchaserData.size}</Text>
