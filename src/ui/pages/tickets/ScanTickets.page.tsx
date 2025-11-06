@@ -17,7 +17,10 @@ import {
 } from "@mantine/core";
 import { IconAlertCircle, IconCheck, IconCamera } from "@tabler/icons-react";
 import jsQR from "jsqr";
-import React, { useEffect, useState, useRef } from "react";
+// **MODIFIED**: Added useCallback
+import React, { useEffect, useState, useRef, useCallback } from "react";
+// **NEW**: Import useSearchParams to manage URL state
+import { useSearchParams } from "react-router-dom";
 
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";
@@ -112,6 +115,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   checkInTicket: checkInTicketProp,
   getEmailFromUIN: getEmailFromUINProp,
 }) => {
+  // **NEW**: Initialize searchParams hooks
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [orgList, setOrgList] = useState<string[] | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [scanResult, setScanResult] = useState<APIResponseSchema | null>(null);
@@ -142,8 +148,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     group: string;
     items: Array<{ value: string; label: string }>;
   }> | null>(null);
+  // **NEW**: Read initial value from URL search param "itemId"
   const [selectedItemFilter, setSelectedItemFilter] = useState<string | null>(
-    null,
+    searchParams.get("itemId") || null,
   );
   // **NEW**: State to hold the mapping of productId to friendly name
   const [productNameMap, setProductNameMap] = useState<Map<string, string>>(
@@ -159,58 +166,66 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   const isScanningRef = useRef(false); // Use ref for immediate updates
   const manualInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Default API functions
   const getOrganizations =
     getOrganizationsProp ||
-    (async () => {
+    useCallback(async () => {
       const response = await api.get("/api/v1/organizations");
       return response.data;
-    });
+    }, [api]);
 
   const getTicketItems =
     getTicketItemsProp ||
-    (async () => {
+    useCallback(async () => {
       const response = await api.get("/api/v1/tickets");
       return response.data;
-    });
+    }, [api]);
 
   const getPurchasesByEmail =
     getPurchasesByEmailProp ||
-    (async (email: string) => {
-      const response = await api.get<PurchasesByEmailResponse>(
-        `/api/v1/tickets/purchases/${encodeURIComponent(email)}`,
-      );
-      return response.data;
-    });
+    useCallback(
+      async (email: string) => {
+        const response = await api.get<PurchasesByEmailResponse>(
+          `/api/v1/tickets/purchases/${encodeURIComponent(email)}`,
+        );
+        return response.data;
+      },
+      [api],
+    );
 
   const checkInTicket =
     checkInTicketProp ||
-    (async (data: any) => {
-      const response = await api.post(
-        `/api/v1/tickets/checkIn`,
-        recursiveToCamel(data),
-      );
-      return response.data as APIResponseSchema;
-    });
+    useCallback(
+      async (data: any) => {
+        const response = await api.post(
+          `/api/v1/tickets/checkIn`,
+          recursiveToCamel(data),
+        );
+        return response.data as APIResponseSchema;
+      },
+      [api],
+    );
 
-  const getEmailFromUINDefault = async (uin: string): Promise<string> => {
-    try {
-      const response = await api.post(`/api/v1/users/findUserByUin`, { uin });
-      return response.data.email;
-    } catch (error: any) {
-      const samp = new ValidationError({
-        message: "Failed to convert UIN to email.",
-      });
-      if (
-        error.response?.status === samp.httpStatusCode &&
-        error.response?.data.id === samp.id
-      ) {
-        const validationData = error.response.data;
-        throw new ValidationError(validationData.message || samp.message);
+  const getEmailFromUINDefault = useCallback(
+    async (uin: string): Promise<string> => {
+      try {
+        const response = await api.post(`/api/v1/users/findUserByUin`, { uin });
+        return response.data.email;
+      } catch (error: any) {
+        const samp = new ValidationError({
+          message: "Failed to convert UIN to email.",
+        });
+        if (
+          error.response?.status === samp.httpStatusCode &&
+          error.response?.data.id === samp.id
+        ) {
+          const validationData = error.response.data;
+          throw new ValidationError(validationData.message || samp.message);
+        }
+        throw error;
       }
-      throw error;
-    }
-  };
+    },
+    [api],
+  );
 
   const getEmailFromUIN = getEmailFromUINProp || getEmailFromUINDefault;
 
@@ -346,6 +361,18 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         }
 
         setTicketItems(groups);
+
+        // After loading items, validate the item from the URL
+        const itemIdFromUrl = searchParams.get("itemId");
+        if (itemIdFromUrl) {
+          const allItems = groups.flatMap((g) => g.items);
+          if (allItems.some((item) => item.value === itemIdFromUrl)) {
+            setSelectedItemFilter(itemIdFromUrl);
+          } else {
+            setSelectedItemFilter(null);
+            setSearchParams({}, { replace: true });
+          }
+        }
       } catch (err) {
         console.error("Failed to fetch ticket items:", err);
         setTicketItems([]);
@@ -363,7 +390,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         cancelAnimationFrame(animationFrameId.current);
       }
     };
-  }, []);
+    // **MODIFIED**: Added dependencies to useEffect
+  }, [getOrganizations, getTicketItems, searchParams, setSearchParams]);
 
   const processVideoFrame = async (
     video: HTMLVideoElement,
@@ -801,6 +829,19 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     setShowModal(true); // Show the main modal with results
   };
 
+  // **NEW**: Memoize the onChange handler for the item filter Select
+  const handleItemFilterChange = useCallback(
+    (value: string | null) => {
+      setSelectedItemFilter(value);
+      if (value) {
+        setSearchParams({ itemId: value }, { replace: true });
+      } else {
+        setSearchParams({}, { replace: true });
+      }
+    },
+    [setSearchParams], // setSearchParams is stable
+  );
+
   if (orgList === null || ticketItems === null) {
     return <FullScreenLoader />;
   }
@@ -819,7 +860,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                 placeholder="Select an event or item to begin"
                 data={ticketItems}
                 value={selectedItemFilter}
-                onChange={setSelectedItemFilter}
+                // **MODIFIED**: Use the memoized handler
+                onChange={handleItemFilterChange}
                 searchable
                 disabled={isLoading}
                 w="100%"
