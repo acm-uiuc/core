@@ -564,6 +564,18 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
       let email = inputValue;
 
+      // Check if input is from ACM card swiper (format: ACMCARD followed by 4 digits, followed by 9 digits)
+      if (email.startsWith("ACMCARD")) {
+        const uinMatch = email.match(/^ACMCARD(\d{4})(\d{9})/);
+        if (!uinMatch) {
+          setError("Invalid card swipe. Please try again.");
+          setIsLoading(false);
+          setShowModal(true);
+          return;
+        }
+        email = uinMatch[2]; // Extract the 9-digit UIN
+      }
+
       // Check if input is UIN (all digits)
       if (/^\d+$/.test(email)) {
         try {
