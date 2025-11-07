@@ -1,3 +1,4 @@
+import { Organizations } from "@acm-uiuc/js-shared";
 import * as z from "zod/v4";
 
 
@@ -23,3 +24,9 @@ export const illinoisNetId = z
     example: "rjjones",
     id: "IllinoisNetId",
   });
+
+export const OrgUniqueId = z.enum(Object.keys(Organizations)).meta({
+  description: "The unique org ID for a given ACM sub-organization. See https://github.com/acm-uiuc/js-shared/blob/main/src/orgs.ts#L15",
+  examples: ["A01", "C01"],
+  id: "OrgUniqueId"
+})

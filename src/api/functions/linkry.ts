@@ -5,7 +5,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { LinkryGroupUUIDToGroupNameMap } from "common/config.js";
-import { DelegatedLinkRecord, LinkRecord } from "common/types/linkry.js";
+import { LinkRecord } from "common/types/linkry.js";
 import { FastifyRequest } from "fastify";
 
 export async function fetchLinkEntry(
@@ -255,7 +255,7 @@ export async function getDelegatedLinks(
               ...ownerRecord,
               access: groupIds,
               owner: ownerRecord.access.replace("OWNER#", ""),
-            } as DelegatedLinkRecord;
+            } as LinkRecord;
           } catch (error) {
             console.error(`Error processing delegated slug ${slug}:`, error);
             return null;
