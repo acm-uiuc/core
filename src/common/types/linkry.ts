@@ -1,4 +1,5 @@
 import * as z from "zod/v4";
+import { OrgUniqueId } from "./generic.js";
 
 export type ShortLinkEntry = {
   slug: string;
@@ -6,7 +7,7 @@ export type ShortLinkEntry = {
   redir?: string;
 };
 
-export const LINKRY_MAX_SLUG_LENGTH = 1000;
+export const LINKRY_MAX_SLUG_LENGTH = 100;
 
 export const getRequest = z.object({
   slug: z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH).optional()
@@ -19,7 +20,10 @@ export const linkryAccessList = z.array(z.string().min(1)).meta({
 
 
 export const createRequest = z.object({
-  slug: linkrySlug,
+  slug: linkrySlug.refine((url) => !url.includes('#'), {
+    message: "Slug must not contain a hashtag"
+  }),
+  orgId: z.optional(OrgUniqueId),
   access: linkryAccessList,
   redirect: z.url().min(1).meta({ description: "Full URL to redirect to when the short URL is visited.", example: "https://google.com" })
 });
@@ -33,13 +37,7 @@ export const linkRecord = z.object({
   owner: z.string().min(1)
 });
 
-export const delegatedLinkRecord = linkRecord.extend({
-  owner: z.string().min(1)
-});
-
 export type LinkRecord = z.infer<typeof linkRecord>;
-
-export type DelegatedLinkRecord = z.infer<typeof delegatedLinkRecord>;
 
 export const getLinksResponse = z.object({
   ownedLinks: z.array(linkRecord),

@@ -12,7 +12,7 @@ data "archive_file" "sqs_lambda_code" {
 
 data "archive_file" "linkry_edge_lambda_code" {
   type        = "zip"
-  source_dir  = "${path.module}/../../../src/linkryEdgeFunction/"
+  source_dir  = "${path.module}/../../../dist/linkryEdgeFunction/"
   output_path = "${path.module}/../../../dist/terraform/linkryEdgeFunction.zip"
 }
 
@@ -509,8 +509,8 @@ resource "aws_lambda_function" "linkry_edge" {
   filename         = data.archive_file.linkry_edge_lambda_code.output_path
   function_name    = "${var.ProjectId}-linkry-edge"
   role             = aws_iam_role.linkry_lambda_edge_role[0].arn
-  handler          = "main.handler"
-  runtime          = "python3.12"
+  handler          = "index.handler"
+  runtime          = "nodejs22.x"
   publish          = true
   timeout          = 5
   memory_size      = 128
