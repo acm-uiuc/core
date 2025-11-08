@@ -180,32 +180,26 @@ const EventFormComponent: React.FC<EventFormProps> = ({
     Array<{ id: string; key: string; value: string }>
   >([]);
 
-  // Sync metadata entries with form values
+  // Track if we've initialized from form data to avoid re-syncing on user edits
+  const initializedRef = React.useRef(false);
+
+  // Sync metadata entries with form values only when loading/initializing
   useEffect(() => {
     const currentMetadata = form.values.metadata || {};
     const currentKeys = Object.keys(currentMetadata);
 
-    // Only update if keys have changed
-    const entriesKeys = metadataEntries.map((e) => e.key);
-    const keysChanged =
-      currentKeys.length !== entriesKeys.length ||
-      !currentKeys.every((k) => entriesKeys.includes(k));
-
-    if (keysChanged) {
+    // Only sync if we haven't initialized yet and there's metadata to load
+    if (!initializedRef.current && currentKeys.length > 0) {
       setMetadataEntries(
-        currentKeys.map((key) => {
-          const existing = metadataEntries.find((e) => e.key === key);
-          return {
-            id:
-              existing?.id ||
-              `meta-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            key,
-            value: currentMetadata[key],
-          };
-        }),
+        currentKeys.map((key) => ({
+          id: `meta-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          key,
+          value: currentMetadata[key],
+        })),
       );
+      initializedRef.current = true;
     }
-  }, [Object.keys(form.values.metadata || {}).join(",")]);
+  }, [form.values.metadata]);
 
   const addMetadataField = () => {
     const currentMetadata = { ...form.values.metadata };
@@ -221,49 +215,74 @@ const EventFormComponent: React.FC<EventFormProps> = ({
       tempKey = `key${parseInt(tempKey.replace("key", ""), 10) + 1}`;
     }
 
-    form.setValues({
-      ...form.values,
-      metadata: {
-        ...currentMetadata,
-        [tempKey]: "",
-      },
+    const newId = `meta-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Update both form metadata and entries together
+    form.setFieldValue("metadata", {
+      ...currentMetadata,
+      [tempKey]: "",
     });
+
+    setMetadataEntries([
+      ...metadataEntries,
+      { id: newId, key: tempKey, value: "" },
+    ]);
   };
 
-  const updateMetadataValue = (oldKey: string, value: string) => {
-    form.setValues({
-      ...form.values,
-      metadata: {
-        ...form.values.metadata,
-        [oldKey]: value,
-      },
-    });
-  };
-
-  const updateMetadataKey = (oldKey: string, newKey: string) => {
-    if (oldKey === newKey) {
+  const updateMetadataValue = (entryId: string, value: string) => {
+    const entry = metadataEntries.find((e) => e.id === entryId);
+    if (!entry) {
       return;
     }
 
-    const metadata = { ...form.values.metadata };
-    const value = metadata[oldKey];
-    delete metadata[oldKey];
-    metadata[newKey] = value;
-
-    form.setValues({
-      ...form.values,
-      metadata,
+    // Update form metadata
+    form.setFieldValue("metadata", {
+      ...form.values.metadata,
+      [entry.key]: value,
     });
+
+    // Update entry value
+    setMetadataEntries(
+      metadataEntries.map((e) => (e.id === entryId ? { ...e, value } : e)),
+    );
   };
 
-  const removeMetadataField = (key: string) => {
-    const currentMetadata = { ...form.values.metadata };
-    delete currentMetadata[key];
+  const updateMetadataKey = (entryId: string, newKey: string) => {
+    const entry = metadataEntries.find((e) => e.id === entryId);
+    if (!entry || entry.key === newKey) {
+      return;
+    }
 
-    form.setValues({
-      ...form.values,
-      metadata: currentMetadata,
-    });
+    // Update form metadata
+    const metadata = { ...form.values.metadata };
+    const value = metadata[entry.key];
+    delete metadata[entry.key];
+    metadata[newKey] = value;
+
+    form.setFieldValue("metadata", metadata);
+
+    // Update entry key
+    setMetadataEntries(
+      metadataEntries.map((e) =>
+        e.id === entryId ? { ...e, key: newKey } : e,
+      ),
+    );
+  };
+
+  const removeMetadataField = (entryId: string) => {
+    const entry = metadataEntries.find((e) => e.id === entryId);
+    if (!entry) {
+      return;
+    }
+
+    // Update form metadata
+    const currentMetadata = { ...form.values.metadata };
+    delete currentMetadata[entry.key];
+
+    form.setFieldValue("metadata", currentMetadata);
+
+    // Remove entry
+    setMetadataEntries(metadataEntries.filter((e) => e.id !== entryId));
   };
 
   return (
@@ -452,7 +471,7 @@ const EventFormComponent: React.FC<EventFormProps> = ({
               <TextInput
                 label="Key"
                 value={key}
-                onChange={(e) => updateMetadataKey(key, e.currentTarget.value)}
+                onChange={(e) => updateMetadataKey(id, e.currentTarget.value)}
                 error={keyError}
                 style={{ flex: 1 }}
               />
@@ -462,7 +481,7 @@ const EventFormComponent: React.FC<EventFormProps> = ({
                   label="Value"
                   value={value}
                   onChange={(e) =>
-                    updateMetadataValue(key, e.currentTarget.value)
+                    updateMetadataValue(id, e.currentTarget.value)
                   }
                   error={valueError}
                 />
@@ -472,7 +491,7 @@ const EventFormComponent: React.FC<EventFormProps> = ({
               <ActionIcon
                 color="red"
                 variant="light"
-                onClick={() => removeMetadataField(key)}
+                onClick={() => removeMetadataField(id)}
                 mt={30}
               >
                 <IconTrash size={16} />
