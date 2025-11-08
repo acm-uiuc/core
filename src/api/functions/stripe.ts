@@ -2,6 +2,16 @@ import { isProd } from "api/utils.js";
 import { InternalServerError, ValidationError } from "common/errors/index.js";
 import { capitalizeFirstLetter } from "common/types/roomRequest.js";
 import Stripe from "stripe";
+import { createLock, IoredisAdapter, type SimpleLock } from "redlock-universal";
+import { Redis } from "api/types.js";
+import {
+  TransactWriteItemsCommand,
+  QueryCommand,
+  UpdateItemCommand,
+  DynamoDBClient,
+} from "@aws-sdk/client-dynamodb";
+import { genericConfig } from "common/config.js";
+import { marshall } from "@aws-sdk/util-dynamodb";
 
 export type StripeLinkCreateParams = {
   invoiceId: string;
@@ -324,4 +334,147 @@ export const createStripeCustomer = async ({
     idempotencyKey ? { idempotencyKey } : undefined,
   );
   return customer.id;
+};
+
+export type checkCustomerParams = {
+  acmOrg: string;
+  emailDomain: string;
+  redisClient: Redis;
+  dynamoClient: DynamoDBClient;
+  customerEmail: string;
+  customerName: string;
+  stripeApiKey: string;
+};
+
+export const checkOrCreateCustomer = async ({
+  acmOrg,
+  emailDomain,
+  redisClient,
+  dynamoClient,
+  customerEmail,
+  customerName,
+  stripeApiKey,
+}: checkCustomerParams): Promise<string> => {
+  const lock = createLock({
+    adapter: new IoredisAdapter(redisClient),
+    key: `stripe:${acmOrg}:${emailDomain}`,
+    retryAttempts: 5,
+    retryDelay: 300,
+  }) as SimpleLock;
+
+  const pk = `${acmOrg}#${emailDomain}`;
+
+  return await lock.using(async () => {
+    const checkCustomer = new QueryCommand({
+      TableName: genericConfig.StripePaymentsDynamoTableName,
+      KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+      ExpressionAttributeValues: {
+        ":pk": { S: pk },
+        ":sk": { S: "CUSTOMER" },
+      },
+      ConsistentRead: true,
+    });
+
+    const customerResponse = await dynamoClient.send(checkCustomer);
+
+    if (customerResponse.Count === 0) {
+      const customer = await createStripeCustomer({
+        email: customerEmail,
+        name: customerName,
+        stripeApiKey,
+      });
+      const createCustomer = new TransactWriteItemsCommand({
+        TransactItems: [
+          {
+            Put: {
+              TableName: genericConfig.StripePaymentsDynamoTableName,
+              Item: marshall(
+                {
+                  primaryKey: pk,
+                  sortKey: "CUSTOMER",
+                  stripeCustomerId: customer,
+                  totalAmount: 0,
+                  createdAt: new Date().toISOString(),
+                },
+                { removeUndefinedValues: true },
+              ),
+            },
+          },
+        ],
+      });
+      await dynamoClient.send(createCustomer);
+      return customer;
+    }
+
+    return customerResponse.Items![0].stripeCustomerId.S!;
+  });
+};
+
+export type InvoiceAddParams = {
+  acmOrg: string;
+  emailDomain: string;
+  invoiceId: string;
+  invoiceAmountUsd: number;
+  redisClient: Redis;
+  dynamoClient: DynamoDBClient;
+  contactEmail: string;
+  contactName: string;
+  stripeApiKey: string;
+};
+
+export const addInvoice = async ({
+  contactName,
+  contactEmail,
+  acmOrg,
+  invoiceId,
+  invoiceAmountUsd,
+  emailDomain,
+  redisClient,
+  dynamoClient,
+  stripeApiKey,
+}: InvoiceAddParams): Promise<string> => {
+  const pk = `${acmOrg}#${emailDomain}`;
+
+  const customerId = await checkOrCreateCustomer({
+    acmOrg,
+    emailDomain,
+    redisClient,
+    dynamoClient,
+    customerEmail: contactEmail,
+    customerName: contactName,
+    stripeApiKey,
+  });
+
+  const dynamoCommand = new TransactWriteItemsCommand({
+    TransactItems: [
+      {
+        Put: {
+          TableName: genericConfig.StripePaymentsDynamoTableName,
+          Item: marshall(
+            {
+              primaryKey: pk,
+              sortKey: `CHARGE#${invoiceId}`,
+              invoiceAmtUsd: invoiceAmountUsd,
+              createdAt: new Date().toISOString(),
+            },
+            { removeUndefinedValues: true },
+          ),
+        },
+        Update: {
+          TableName: genericConfig.StripePaymentsDynamoTableName,
+          Key: {
+            primaryKey: { S: pk },
+            sortKey: { S: "CUSTOMER" },
+          },
+          UpdateExpression: "SET totalAmount = totalAmount + :inc",
+          ExpressionAttributeValues: {
+            ":inc": { N: invoiceAmountUsd.toString() },
+          },
+        },
+      },
+    ],
+  });
+
+  await dynamoClient.send(dynamoCommand);
+  return customerId;
 };

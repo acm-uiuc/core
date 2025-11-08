@@ -9,6 +9,7 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
 import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import {
+  addInvoice,
   createStripeLink,
   deactivateStripeLink,
   deactivateStripeProduct,
@@ -16,6 +17,7 @@ import {
   getPaymentMethodForPaymentIntent,
   paymentMethodTypeToFriendlyName,
   StripeLinkCreateParams,
+  InvoiceAddParams,
   SupportedStripePaymentMethod,
   supportedStripePaymentMethods,
 } from "api/functions/stripe.js";
@@ -36,6 +38,7 @@ import { AppRoles } from "common/roles.js";
 import {
   invoiceLinkPostResponseSchema,
   invoiceLinkPostRequestSchema,
+  createInvoicePostRequestSchema,
   invoiceLinkGetResponseSchema,
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
@@ -108,6 +111,35 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }),
       );
       reply.status(200).send(parsed);
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/createInvoice",
+    {
+      schema: withRoles(
+        [AppRoles.STRIPE_LINK_CREATOR],
+        withTags(["Stripe"], {
+          summary: "Create a new invoice.",
+          body: createInvoicePostRequestSchema,
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      const emailDomain = request.body.contactEmail.split("@").at(-1);
+
+      const secretApiConfig = fastify.secretConfig;
+      const payload: InvoiceAddParams = {
+        ...request.body,
+        emailDomain: emailDomain!,
+        redisClient: fastify.redisClient,
+        dynamoClient: fastify.dynamoClient,
+        stripeApiKey: secretApiConfig.stripe_secret_key as string,
+      };
+
+      const stripeCustomer = await addInvoice(payload);
+
+      reply.status(201).send({ link: "<dummy link here>" });
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
