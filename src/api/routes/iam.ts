@@ -215,7 +215,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
         const groupMembers = listGroupMembers(entraIdToken, groupId);
         const command = new PutItemCommand({
-          TableName: `${genericConfig.IAMTablePrefix}-grouproles`,
+          TableName: `${genericConfig.IAMTablePrefix}-assignments`,
           Item: marshall({
             id: `GROUP#${groupId}`,
             roles: request.body.roles,
@@ -247,7 +247,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
         reply.send({ message: "OK" });
       } catch (e: unknown) {
-        fastify.nodeCache.del(`grouproles - ${groupId}`);
+        fastify.nodeCache.del(`grouproles-${groupId}`);
         if (e instanceof BaseError) {
           throw e;
         }
