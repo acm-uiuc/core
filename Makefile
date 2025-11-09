@@ -45,6 +45,7 @@ build: src/
 				rm -rf node_modules/argon2/prebuilds/linux-arm64/argon2.armv8.musl.node"
 
 local:
+	mkdir -p dist_devel/
 	VITE_BUILD_HASH=$(GIT_HASH) yarn run dev
 
 deploy_prod:
