@@ -28,7 +28,7 @@ describe("Docs tests", () => {
       page.getByRole("heading", { name: "ACM @ UIUC Core API" }),
     ).toBeDefined();
     await page
-      .getByRole("link", { name: "Retrieve calendar events with" })
+      .getByRole("button", { name: "Retrieve calendar events with" })
       .click();
     await page
       .getByRole("button", { name: "Test Request (get /api/v1/events)" })
