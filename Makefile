@@ -6,7 +6,8 @@ current_active_region = "us-east-2"
 src_directory_root = src/
 dist_ui_directory_root = dist_ui/
 integration_test_directory_root = tests/live_integration/
-npm_install_params = --omit=dev --target_arch=arm64 --target_platform=linux --target_libc=glibc --cpu arm64 --os linux --arch=arm64
+yarn_install_params = --production --frozen-lockfile
+yarn_env = npm_config_arch=arm64 npm_config_platform=linux npm_config_libc=glibc
 GIT_HASH := $(shell git rev-parse --short HEAD)
 
 .PHONY: clean
@@ -32,13 +33,13 @@ build: src/
 	cp -r src/api/resources/ dist/api/resources
 	rm -rf dist/lambda/sqs
 	docker run --rm -v "$(shell pwd)/dist/lambda":/var/task public.ecr.aws/sam/build-nodejs22.x:latest \
-	sh -c "npm install $(npm_install_params) && \
+	sh -c "npm i -g yarn && $(yarn_env) yarn $(yarn_install_params) && \
 			rm -rf node_modules/aws-crt/dist/bin/{darwin*,linux-x64*,linux-arm64-musl} && \
 			rm -rf node_modules/argon2/prebuilds/{darwin*,freebsd*,linux-arm,linux-x64*,win32-x64*} && \
 			rm -rf node_modules/argon2/prebuilds/linux-arm64/argon2.armv8.musl.node"
 
 	docker run --rm -v "$(shell pwd)/dist/sqsConsumer":/var/task public.ecr.aws/sam/build-nodejs22.x:latest \
-	sh -c "npm install $(npm_install_params) && \
+	sh -c "npm i -g yarn && $(yarn_env) yarn $(yarn_install_params) && \
 				rm -rf node_modules/aws-crt/dist/bin/{darwin*,linux-x64*,linux-arm64-musl} && \
 				rm -rf node_modules/argon2/prebuilds/{darwin*,freebsd*,linux-arm,linux-x64*,win32-x64*} && \
 				rm -rf node_modules/argon2/prebuilds/linux-arm64/argon2.armv8.musl.node"
