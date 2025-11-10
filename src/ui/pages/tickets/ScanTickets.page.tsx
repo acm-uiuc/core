@@ -19,7 +19,6 @@ import { IconAlertCircle, IconCheck, IconCamera } from "@tabler/icons-react";
 import jsQR from "jsqr";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
@@ -111,9 +110,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   getPurchasesByUin: getPurchasesByUinProp,
   checkInTicket: checkInTicketProp,
 }) => {
-  // **NEW**: Initialize searchParams hooks
   const [searchParams, setSearchParams] = useSearchParams();
-
   const [orgList, setOrgList] = useState<string[] | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [scanResult, setScanResult] = useState<APIResponseSchema | null>(null);
@@ -132,11 +129,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   );
   const [unclaimableTicketsForSelection, setUnclaimableTicketsForSelection] =
     useState<APIResponseSchema[]>([]);
-  // State for multi-select
   const [selectedTicketsToClaim, setSelectedTicketsToClaim] = useState(
     new Set<string>(),
   );
-  // State for bulk success results
   const [bulkScanResults, setBulkScanResults] = useState<APIResponseSchema[]>(
     [],
   );
@@ -144,11 +139,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     group: string;
     items: Array<{ value: string; label: string }>;
   }> | null>(null);
-  // **NEW**: Read initial value from URL search param "itemId"
   const [selectedItemFilter, setSelectedItemFilter] = useState<string | null>(
     searchParams.get("itemId") || null,
   );
-  // **NEW**: State to hold the mapping of productId to friendly name
   const [productNameMap, setProductNameMap] = useState<Map<string, string>>(
     new Map(),
   );
@@ -159,7 +152,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameId = useRef<number>(0);
   const lastScanTime = useRef<number>(0);
-  const isScanningRef = useRef(false); // Use ref for immediate updates
+  const isScanningRef = useRef(false);
   const manualInputRef = useRef<HTMLInputElement | null>(null);
 
   const getOrganizations =
@@ -219,16 +212,12 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
               ? `Camera ${device.deviceId.slice(0, 4)}...`
               : "Unknown Camera"),
         }));
-
       setVideoDevices(videoDevices);
-
-      // Try to find and select a back-facing camera by default
       const backCamera = videoDevices.find(
         (device) =>
           device.label.toLowerCase().includes("back") ||
           device.label.toLowerCase().includes("environment"),
       );
-
       if (backCamera) {
         setSelectedDevice(backCamera.value);
       } else if (videoDevices.length > 0) {
@@ -256,28 +245,21 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         const activeMerch: Array<{ value: string; label: string }> = [];
         const inactiveMerch: Array<{ value: string; label: string }> = [];
 
-        // **NEW**: Create the product name map
         const newProductMap = new Map<string, string>();
-
         const now = new Date();
 
-        // Process all tickets
         if (response.tickets) {
           response.tickets.forEach((ticket: TicketItem) => {
-            // **NEW**: Add to map
             newProductMap.set(ticket.itemId, ticket.itemName);
-
             const isActive =
               ticket.itemSalesActive !== false &&
               (typeof ticket.itemSalesActive === "string"
                 ? new Date(ticket.itemSalesActive) <= now
                 : false);
-
             const item = {
               value: ticket.itemId,
               label: ticket.itemName,
             };
-
             if (isActive) {
               activeTickets.push(item);
             } else {
@@ -286,23 +268,18 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
           });
         }
 
-        // Process all merch
         if (response.merch) {
           response.merch.forEach((merch: TicketItem) => {
-            // **NEW**: Add to map
             newProductMap.set(merch.itemId, merch.itemName);
-
             const isActive =
               merch.itemSalesActive !== false &&
               (typeof merch.itemSalesActive === "string"
                 ? new Date(merch.itemSalesActive) <= now
                 : false);
-
             const item = {
               value: merch.itemId,
               label: merch.itemName,
             };
-
             if (isActive) {
               activeMerch.push(item);
             } else {
@@ -311,14 +288,13 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
           });
         }
 
-        // **NEW**: Set the product map state
         setProductNameMap(newProductMap);
 
-        // Build grouped data structure for Mantine Select
         const groups: Array<{
           group: string;
           items: Array<{ value: string; label: string }>;
         }> = [];
+
         if (activeMerch.length > 0) {
           groups.push({ group: "Active Merch", items: activeMerch });
         }
@@ -334,7 +310,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
         setTicketItems(groups);
 
-        // After loading items, validate the item from the URL
         const itemIdFromUrl = searchParams.get("itemId");
         if (itemIdFromUrl) {
           const allItems = groups.flatMap((g) => g.items);
@@ -352,17 +327,15 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     };
 
     fetchData();
-
-    // Initialize canvas
     canvasRef.current = document.createElement("canvas");
     getVideoDevices();
+
     return () => {
       stopScanning();
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
     };
-    // **MODIFIED**: Added dependencies to useEffect
   }, [getOrganizations, getTicketItems, searchParams, setSearchParams]);
 
   const processVideoFrame = async (
@@ -375,7 +348,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
     const width = video.videoWidth;
     const height = video.videoHeight;
-
     canvas.width = width;
     canvas.height = height;
 
@@ -386,12 +358,103 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
     ctx.drawImage(video, 0, 0, width, height);
     const imageData = ctx.getImageData(0, 0, width, height);
-
     const code = jsQR(imageData.data, imageData.width, imageData.height, {
       inversionAttempts: "dontInvert",
     });
 
     return code?.data || null;
+  };
+
+  /**
+   * Reusable function to handle UIN-based ticket lookup and claiming
+   */
+  const handleUinLookup = async (uin: string) => {
+    if (!selectedItemFilter) {
+      setError("Please select an event/item before scanning.");
+      setShowModal(true);
+      return;
+    }
+
+    if (!/^\d{9}$/.test(uin)) {
+      setError("Invalid input - UIN must be exactly 9 digits.");
+      setShowModal(true);
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await getPurchasesByUin(uin, selectedItemFilter);
+
+      const allPurchasesForItem = [
+        ...response.tickets.filter(
+          (t) => t.purchaserData.productId === selectedItemFilter,
+        ),
+        ...response.merch.filter(
+          (m) => m.purchaserData.productId === selectedItemFilter,
+        ),
+      ];
+
+      if (allPurchasesForItem.length === 0) {
+        setError("No purchases found for this user and selected event/item.");
+        setShowModal(true);
+        setIsLoading(false);
+        return;
+      }
+
+      const claimableTickets = allPurchasesForItem.filter(
+        (p) => p.valid && !p.refunded && !p.fulfilled,
+      );
+
+      const unclaimableTickets = allPurchasesForItem.filter(
+        (p) => !p.valid || p.refunded || p.fulfilled,
+      );
+
+      if (claimableTickets.length === 0) {
+        let errorMessage = "No valid, unclaimed tickets found for this user.";
+        if (unclaimableTickets.length > 0) {
+          const firstReason = unclaimableTickets[0];
+          if (firstReason.fulfilled) {
+            errorMessage =
+              "All tickets for this event have already been claimed.";
+          } else if (firstReason.refunded) {
+            errorMessage = "This user's ticket has been refunded.";
+          } else if (!firstReason.valid) {
+            errorMessage = "This user's ticket is invalid.";
+          }
+        }
+        setError(errorMessage);
+        setShowModal(true);
+        setIsLoading(false);
+        return;
+      }
+
+      if (claimableTickets.length === 1 && unclaimableTickets.length === 0) {
+        await markTicket(claimableTickets[0]);
+      } else {
+        setAvailableTickets(claimableTickets);
+        setUnclaimableTicketsForSelection(unclaimableTickets);
+        setSelectedTicketsToClaim(new Set());
+        setShowTicketSelection(true);
+      }
+
+      setIsLoading(false);
+    } catch (err: any) {
+      setIsLoading(false);
+      if (err.response && err.response.data) {
+        setError(
+          err.response.data
+            ? `Error ${err.response.data.id} (${err.response.data.name}): ${err.response.data.message}`
+            : "System encountered a failure, please contact the ACM Infra Chairs.",
+        );
+      } else {
+        setError(
+          "Failed to fetch ticket information. Please check your connection and try again.",
+        );
+      }
+      setShowModal(true);
+    }
   };
 
   const processFrame = async () => {
@@ -407,27 +470,41 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     try {
       const qrCode = await processVideoFrame(videoRef.current);
       if (qrCode && qrCode !== lastScannedCode) {
-        try {
-          const parsedData = JSON.parse(qrCode);
-          if (["merch", "ticket"].includes(parsedData.type)) {
-            const now = Date.now();
-            if (now - lastScanTime.current > 2000) {
-              lastScanTime.current = now;
-              setLastScannedCode(qrCode);
-              setIsLoading(true);
-              await handleSuccessfulScan(parsedData);
-              setIsLoading(false);
-            }
+        // Check if it's an iCard QR code (4 digits, UIN, 3 digits digits followed by =)
+        const isICardQR = /^\d{16}=/.test(qrCode);
+
+        if (isICardQR) {
+          const now = Date.now();
+          if (now - lastScanTime.current > 2000) {
+            lastScanTime.current = now;
+            setLastScannedCode(qrCode);
+            setIsLoading(true);
+            await handleSuccessfulScan(qrCode);
+            setIsLoading(false);
           }
-        } catch (err) {
-          console.warn("Invalid QR code format:", err);
+        } else {
+          // Try to parse as JSON for pickup QR codes
+          try {
+            const parsedData = JSON.parse(qrCode);
+            if (["merch", "ticket"].includes(parsedData.type)) {
+              const now = Date.now();
+              if (now - lastScanTime.current > 2000) {
+                lastScanTime.current = now;
+                setLastScannedCode(qrCode);
+                setIsLoading(true);
+                await handleSuccessfulScan(parsedData);
+                setIsLoading(false);
+              }
+            }
+          } catch (err) {
+            console.warn("Invalid QR code format:", err);
+          }
         }
       }
     } catch (err) {
       console.error("Frame processing error:", err);
     }
 
-    // Schedule next frame if still scanning
     if (isScanningRef.current) {
       animationFrameId.current = requestAnimationFrame(processFrame);
     }
@@ -458,7 +535,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
-      // After getting stream, refresh device list to get labels
       if (!videoDevices.some((device) => device.label)) {
         getVideoDevices();
       }
@@ -467,7 +543,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-
         await new Promise<void>((resolve) => {
           if (videoRef.current) {
             videoRef.current.onloadeddata = () => {
@@ -475,10 +550,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
             };
           }
         });
-
         await videoRef.current.play();
         setIsLoading(false);
-
         animationFrameId.current = requestAnimationFrame(processFrame);
       }
     } catch (err) {
@@ -496,7 +569,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
   const stopScanning = () => {
     setIsScanning(false);
-    isScanningRef.current = false; // Immediate update
+    isScanningRef.current = false;
     setIsLoading(false);
 
     if (streamRef.current) {
@@ -513,14 +586,27 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     }
   };
 
-  const handleSuccessfulScan = async (parsedData: QRData) => {
+  const handleSuccessfulScan = async (parsedData: QRData | string) => {
     try {
-      const result = await checkInTicket(parsedData);
-      if (!result.valid) {
-        throw new Error("Ticket is invalid.");
+      // Check if this is an iCard QR scan (16 digits followed by =)
+      if (typeof parsedData === "string" && /^\d{16}=/.test(parsedData)) {
+        // Extract UIN (digits 5-13, which is positions 4-12 in 0-indexed)
+        const uin = parsedData.substring(4, 13);
+        await handleUinLookup(uin);
+        return;
       }
-      setScanResult(result);
-      setShowModal(true);
+
+      // Original logic for pickup QR codes
+      if (typeof parsedData === "object") {
+        const result = await checkInTicket(parsedData);
+        if (!result.valid) {
+          throw new Error("Ticket is invalid.");
+        }
+        setScanResult(result);
+        setShowModal(true);
+      } else {
+        throw new Error("Invalid QR code format.");
+      }
     } catch (err: any) {
       if (err.response && err.response.data) {
         setError(
@@ -542,9 +628,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     setError("");
     setShowModal(false);
     setManualInput("");
-    setBulkScanResults([]); // Clear bulk results
-    setSelectedTicketsToClaim(new Set()); // Clear selection
-    // Refocus the manual input field for easy card swiping
+    setBulkScanResults([]);
+    setSelectedTicketsToClaim(new Set());
+
     setTimeout(() => {
       manualInputRef.current?.focus();
     }, 100);
@@ -556,7 +642,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     }
 
     const inputValue = manualInput.trim();
-    setManualInput(""); // Clear input immediately
+    setManualInput("");
 
     try {
       setIsLoading(true);
@@ -564,7 +650,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
       let inp = inputValue;
 
-      // Check if input is from ACM card swiper (format: ACMCARD followed by 4 digits, followed by 9 digits)
+      // Check if input is from ACM card swiper
       if (inp.startsWith("ACMCARD")) {
         const uinMatch = inp.match(/^ACMCARD(\d{4})(\d{9})/);
         if (!uinMatch) {
@@ -573,86 +659,11 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
           setShowModal(true);
           return;
         }
-        inp = uinMatch[2]; // Extract the 9-digit UIN
+        inp = uinMatch[2];
       }
 
-      // Check if input is UIN (all digits)
-      if (!/^\d{9}$/.test(inp)) {
-        setError("Invalid input - UIN must be exactly 9 digits.");
-        setIsLoading(false);
-        setShowModal(true);
-        return;
-      }
-      // Fetch purchases for this UIN
-      const response = await getPurchasesByUin(inp, selectedItemFilter);
-
-      // 1. Get ALL purchases for the selected item, regardless of status.
-      const allPurchasesForItem = [
-        ...response.tickets.filter(
-          (t) => t.purchaserData.productId === selectedItemFilter,
-        ),
-        ...response.merch.filter(
-          (m) => m.purchaserData.productId === selectedItemFilter,
-        ),
-      ];
-
-      // 2. Check if we found anything at all.
-      if (allPurchasesForItem.length === 0) {
-        setError("No purchases found for this user and selected event/item.");
-        setShowModal(true);
-        setIsLoading(false);
-        return;
-      }
-
-      // 3. Partition these purchases.
-      // A "claimable" ticket is valid, not refunded, and not already fulfilled.
-      const claimableTickets = allPurchasesForItem.filter(
-        (p) => p.valid && !p.refunded && !p.fulfilled,
-      );
-
-      // An "unclaimable" ticket is everything else.
-      const unclaimableTickets = allPurchasesForItem.filter(
-        (p) => !p.valid || p.refunded || p.fulfilled,
-      );
-
-      // 4. Apply new logic based on the user's request.
-
-      // Case 1: No claimable tickets.
-      if (claimableTickets.length === 0) {
-        let errorMessage = "No valid, unclaimed tickets found for this user.";
-        if (unclaimableTickets.length > 0) {
-          // Provide a more specific error based on the first unclaimable ticket.
-          const firstReason = unclaimableTickets[0];
-          if (firstReason.fulfilled) {
-            errorMessage =
-              "All tickets for this event have already been claimed.";
-          } else if (firstReason.refunded) {
-            errorMessage = "This user's ticket has been refunded.";
-          } else if (!firstReason.valid) {
-            errorMessage = "This user's ticket is invalid.";
-          }
-        }
-        setError(errorMessage);
-        setShowModal(true);
-        setIsLoading(false);
-        return;
-      }
-
-      // Case 2: Exactly one claimable ticket AND no other context (unclaimable tickets) to show.
-      // We can auto-mark this one.
-      if (claimableTickets.length === 1 && unclaimableTickets.length === 0) {
-        await markTicket(claimableTickets[0]);
-      } else {
-        // Case 3: Multiple claimable tickets OR a mix of claimable/unclaimable tickets.
-        // Show the selection modal to provide full context.
-        setAvailableTickets(claimableTickets);
-        setUnclaimableTicketsForSelection(unclaimableTickets);
-        setSelectedTicketsToClaim(new Set()); // Ensure selection is clear
-        setShowTicketSelection(true);
-      }
-      // --- END REFACTORED LOGIC ---
-
-      setIsLoading(false);
+      // Use the reusable function
+      await handleUinLookup(inp);
     } catch (err: any) {
       setIsLoading(false);
       if (err.response && err.response.data) {
@@ -670,10 +681,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     }
   };
 
-  /**
-   * Extracted helper function to just process the API call for a single ticket.
-   * Returns a success or error object. Does not set state.
-   */
   const processTicketCheckIn = async (ticket: APIResponseSchema) => {
     try {
       const checkInData =
@@ -686,7 +693,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
           : { type: "ticket", ticketId: ticket.ticketId };
 
       const result = await checkInTicket(checkInData);
-
       if (!result.valid) {
         throw new Error("Ticket is invalid.");
       }
@@ -704,13 +710,9 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     }
   };
 
-  /**
-   * Handles claiming a *single* ticket (e.g., from auto-claim).
-   * This function calls the helper and then sets state to show the modal.
-   */
   const markTicket = async (ticket: APIResponseSchema) => {
     setIsLoading(true);
-    setShowTicketSelection(false); // Close selection modal if open
+    setShowTicketSelection(false);
 
     const { success, result, error } = await processTicketCheckIn(ticket);
 
@@ -722,16 +724,12 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
       setShowModal(true);
     }
 
-    // Clear selection state regardless
     setAvailableTickets([]);
     setUnclaimableTicketsForSelection([]);
     setSelectedTicketsToClaim(new Set());
     setIsLoading(false);
   };
 
-  /**
-   * Handles claiming all *selected* tickets from the multi-select modal.
-   */
   const handleClaimSelectedTickets = async () => {
     setIsLoading(true);
 
@@ -753,7 +751,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         (r.status === "fulfilled" && !r.value.success),
     );
 
-    // Close the selection modal and clear state
     setShowTicketSelection(false);
     setAvailableTickets([]);
     setUnclaimableTicketsForSelection([]);
@@ -761,7 +758,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     setIsLoading(false);
 
     if (failedClaims.length > 0) {
-      // Show the first error
       let firstError = "An unknown error occurred.";
       const firstFailure = failedClaims[0];
       if (firstFailure.status === "rejected") {
@@ -777,15 +773,12 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         `Failed to claim ${failedClaims.length} ticket(s). First error: ${firstError}`,
       );
     } else if (successfulClaims.length > 0) {
-      // All succeeded - store results for detailed display
       setBulkScanResults(successfulClaims.map((r) => r.value.result));
     }
-    // (If successfulClaims.length === 0 and failedClaims.length === 0, nothing was selected, do nothing)
 
-    setShowModal(true); // Show the main modal with results
+    setShowModal(true);
   };
 
-  // **NEW**: Memoize the onChange handler for the item filter Select
   const handleItemFilterChange = useCallback(
     (value: string | null) => {
       setSelectedItemFilter(value);
@@ -795,7 +788,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
         setSearchParams({}, { replace: true });
       }
     },
-    [setSearchParams], // setSearchParams is stable
+    [setSearchParams],
   );
 
   if (orgList === null || ticketItems === null) {
@@ -816,7 +809,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                 placeholder="Select an event or item to begin"
                 data={ticketItems}
                 value={selectedItemFilter}
-                // **MODIFIED**: Use the memoized handler
                 onChange={handleItemFilterChange}
                 searchable
                 disabled={isLoading}
@@ -878,6 +870,12 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                   <LoadingOverlay visible={isLoading} />
                 </div>
 
+                <Text c="dimmed" size="xs" ta="center" mb="xs">
+                  Scan the <strong>Pickup QR Code</strong> from their pickup
+                  email, or their <strong>iCard QR Code</strong> from the
+                  Illinois app.
+                </Text>
+
                 <Select
                   label="Select Camera"
                   placeholder="Choose a camera"
@@ -937,7 +935,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
               {error}
             </Alert>
           ) : bulkScanResults.length > 0 ? (
-            // Bulk Success Message with Details
             <Stack>
               <Alert
                 icon={<IconCheck size={16} />}
@@ -949,7 +946,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                   Successfully claimed {bulkScanResults.length} ticket(s)!
                 </Text>
               </Alert>
-
               {bulkScanResults.map((result, index) => (
                 <Paper p="md" withBorder key={`${result.ticketId}-${index}`}>
                   <Stack>
@@ -973,13 +969,11 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                   </Stack>
                 </Paper>
               ))}
-
               <Group justify="flex-end" mt="md">
                 <Button onClick={handleNextScan}>Close</Button>
               </Group>
             </Stack>
           ) : (
-            // Single Scan Result
             scanResult && (
               <Stack>
                 <Alert
@@ -990,14 +984,12 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                 >
                   <Text fw={700}>Ticket verified successfully!</Text>
                 </Alert>
-
                 <Paper p="md" withBorder>
                   <Stack>
                     <Text fw={700}>Ticket Details:</Text>
                     <Text>Type: {scanResult?.type.toLocaleUpperCase()}</Text>
                     {scanResult.purchaserData.productId && (
                       <Text>
-                        {/* **MODIFIED** */}
                         Product:{" "}
                         {getFriendlyName(scanResult.purchaserData.productId)}
                       </Text>
@@ -1011,7 +1003,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                     )}
                   </Stack>
                 </Paper>
-
                 <Group justify="flex-end" mt="md">
                   <Button onClick={handleNextScan}>Close</Button>
                 </Group>
@@ -1020,14 +1011,14 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
           )}
         </Modal>
 
-        {/* Ticket Selection Modal (for multi-select) */}
+        {/* Ticket Selection Modal */}
         <Modal
           opened={showTicketSelection}
           onClose={() => {
             setShowTicketSelection(false);
             setAvailableTickets([]);
             setUnclaimableTicketsForSelection([]);
-            setSelectedTicketsToClaim(new Set()); // Clear selection
+            setSelectedTicketsToClaim(new Set());
             setManualInput("");
           }}
           title="Select Ticket(s) to Claim"
@@ -1042,13 +1033,12 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
             <Text>
               Multiple purchases found. Please select which one(s) to claim:
             </Text>
-            {/* Render Claimable Tickets with Checkboxes */}
+
             {availableTickets.map((ticket, index) => (
               <Paper
                 key={`${ticket.ticketId}-${index}`}
                 p="md"
                 withBorder
-                // --- CLICKABLE CARD LOGIC ---
                 onClick={() => {
                   const newSet = new Set(selectedTicketsToClaim);
                   if (newSet.has(ticket.ticketId)) {
@@ -1070,7 +1060,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                   <Checkbox
                     checked={selectedTicketsToClaim.has(ticket.ticketId)}
                     readOnly
-                    tabIndex={-1} // Removed from tab order, card is the control
+                    tabIndex={-1}
                     aria-label={`Select ticket ${ticket.ticketId}`}
                   />
                   <Stack gap="xs" style={{ flex: 1 }}>
@@ -1094,7 +1084,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
               </Paper>
             ))}
 
-            {/* Render Unclaimable Tickets */}
             {unclaimableTicketsForSelection.map((ticket, index) => {
               let status = "Unknown";
               let color: MantineColor = "gray";
@@ -1122,7 +1111,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                 >
                   <Stack gap="xs">
                     <Text fw={700} c="dimmed">
-                      {/* **MODIFIED** */}
                       {ticket.type.toUpperCase()} -{" "}
                       {getFriendlyName(ticket.purchaserData.productId)}
                     </Text>
@@ -1146,6 +1134,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                 </Paper>
               );
             })}
+
             <Group justify="flex-end" mt="md">
               <Button
                 variant="subtle"
@@ -1175,7 +1164,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   );
 };
 
-// Wrapper component that provides the default implementation
 export const ScanTicketsPage: React.FC<ScanTicketsPageProps> = (props) => {
   return <ScanTicketsPageInternal {...props} />;
 };
