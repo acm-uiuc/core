@@ -17,9 +17,7 @@ import {
 } from "@mantine/core";
 import { IconAlertCircle, IconCheck, IconCamera } from "@tabler/icons-react";
 import jsQR from "jsqr";
-// **MODIFIED**: Added useCallback
 import React, { useEffect, useState, useRef, useCallback } from "react";
-// **NEW**: Import useSearchParams to manage URL state
 import { useSearchParams } from "react-router-dom";
 
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
@@ -99,21 +97,19 @@ interface TicketItemsResponse {
 interface ScanTicketsPageProps {
   getOrganizations?: () => Promise<string[]>;
   getTicketItems?: () => Promise<TicketItemsResponse>;
-  getPurchasesByEmail?: (email: string) => Promise<PurchasesByEmailResponse>;
+  getPurchasesByUin?: (email: string) => Promise<PurchasesByEmailResponse>;
   checkInTicket?: (
     data:
       | QRData
       | { type: string; ticketId?: string; email?: string; stripePi?: string },
   ) => Promise<APIResponseSchema>;
-  getEmailFromUIN?: (uin: string) => Promise<string>;
 }
 
 const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   getOrganizations: getOrganizationsProp,
   getTicketItems: getTicketItemsProp,
-  getPurchasesByEmail: getPurchasesByEmailProp,
+  getPurchasesByUin: getPurchasesByUinProp,
   checkInTicket: checkInTicketProp,
-  getEmailFromUIN: getEmailFromUINProp,
 }) => {
   // **NEW**: Initialize searchParams hooks
   const [searchParams, setSearchParams] = useSearchParams();
@@ -180,12 +176,13 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
       return response.data;
     }, [api]);
 
-  const getPurchasesByEmail =
-    getPurchasesByEmailProp ||
+  const getPurchasesByUin =
+    getPurchasesByUinProp ||
     useCallback(
-      async (email: string) => {
-        const response = await api.get<PurchasesByEmailResponse>(
-          `/api/v1/tickets/purchases/${encodeURIComponent(email)}`,
+      async (uin: string, productId: string) => {
+        const response = await api.post<PurchasesByEmailResponse>(
+          `/api/v1/tickets/getPurchasesByUser`,
+          { uin, productId },
         );
         return response.data;
       },
@@ -205,33 +202,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
       [api],
     );
 
-  const getEmailFromUINDefault = useCallback(
-    async (uin: string): Promise<string> => {
-      try {
-        const response = await api.post(`/api/v1/users/findUserByUin`, { uin });
-        return response.data.email;
-      } catch (error: any) {
-        const samp = new ValidationError({
-          message: "Failed to convert UIN to email.",
-        });
-        if (
-          error.response?.status === samp.httpStatusCode &&
-          error.response?.data.id === samp.id
-        ) {
-          const validationData = error.response.data;
-          throw new ValidationError(validationData.message || samp.message);
-        }
-        throw error;
-      }
-    },
-    [api],
-  );
-
-  const getEmailFromUIN = getEmailFromUINProp || getEmailFromUINDefault;
-
-  // **NEW**: Helper function to get the friendly name
   const getFriendlyName = (productId: string): string => {
-    return productNameMap.get(productId) || productId; // Fallback to the ID if not found
+    return productNameMap.get(productId) || productId;
   };
 
   const getVideoDevices = async () => {
@@ -590,45 +562,29 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
       setIsLoading(true);
       setError("");
 
-      let email = inputValue;
+      let inp = inputValue;
 
       // Check if input is from ACM card swiper (format: ACMCARD followed by 4 digits, followed by 9 digits)
-      if (email.startsWith("ACMCARD")) {
-        const uinMatch = email.match(/^ACMCARD(\d{4})(\d{9})/);
+      if (inp.startsWith("ACMCARD")) {
+        const uinMatch = inp.match(/^ACMCARD(\d{4})(\d{9})/);
         if (!uinMatch) {
           setError("Invalid card swipe. Please try again.");
           setIsLoading(false);
           setShowModal(true);
           return;
         }
-        email = uinMatch[2]; // Extract the 9-digit UIN
+        inp = uinMatch[2]; // Extract the 9-digit UIN
       }
 
       // Check if input is UIN (all digits)
-      if (/^\d+$/.test(email)) {
-        try {
-          email = await getEmailFromUIN(email);
-        } catch (err) {
-          let errorMessage =
-            "Failed to convert UIN to email. Please enter NetID or email instead.";
-          if (err instanceof ValidationError) {
-            errorMessage = err.message;
-          }
-          setError(errorMessage);
-          setIsLoading(false);
-          setShowModal(true);
-          return;
-        }
+      if (!/^\d{9}$/.test(inp)) {
+        setError("Invalid input - UIN must be exactly 9 digits.");
+        setIsLoading(false);
+        setShowModal(true);
+        return;
       }
-      // Check if input is NetID (no @ symbol)
-      else if (!email.includes("@")) {
-        email = `${email}@illinois.edu`;
-      }
-
-      // Fetch purchases for this email
-      const response = await getPurchasesByEmail(email);
-
-      // --- REFACTORED LOGIC ---
+      // Fetch purchases for this UIN
+      const response = await getPurchasesByUin(inp, selectedItemFilter);
 
       // 1. Get ALL purchases for the selected item, regardless of status.
       const allPurchasesForItem = [
@@ -872,8 +828,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
             {selectedItemFilter && (
               <>
                 <TextInput
-                  label="Manual Entry (UIN, NetID, or Email)"
-                  placeholder="Enter UIN, NetID, or Email"
+                  label="Enter UIN or Swipe iCard"
+                  placeholder="Enter UIN or Swipe iCard"
                   value={manualInput}
                   onChange={(e) => setManualInput(e.currentTarget.value)}
                   onKeyDown={(e) => {
@@ -895,7 +851,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                   disabled={isLoading || !manualInput.trim()}
                   fullWidth
                 >
-                  Submit Manual Entry
+                  Submit UIN
                 </Button>
 
                 <div
@@ -1046,9 +1002,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                         {getFriendlyName(scanResult.purchaserData.productId)}
                       </Text>
                     )}
-                    <Text>
-                      Token ID: <code>{scanResult?.ticketId}</code>
-                    </Text>
                     <Text>Email: {scanResult?.purchaserData.email}</Text>
                     {scanResult.purchaserData.quantity && (
                       <Text>Quantity: {scanResult.purchaserData.quantity}</Text>
@@ -1136,9 +1089,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                     <Text size="xs" c="green" fw={700}>
                       Status: AVAILABLE
                     </Text>
-                    <Text size="xs" c="dimmed">
-                      Ticket ID: {ticket.ticketId}
-                    </Text>
                   </Stack>
                 </Group>
               </Paper>
@@ -1191,9 +1141,6 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
                     )}
                     <Text size="xs" c={color} fw={700}>
                       Status: {status}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      Ticket ID: {ticket.ticketId}
                     </Text>
                   </Stack>
                 </Paper>

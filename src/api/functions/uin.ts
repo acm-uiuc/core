@@ -1,13 +1,15 @@
 import {
   DynamoDBClient,
   PutItemCommand,
+  QueryCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { argon2id, hash } from "argon2";
 import { genericConfig } from "common/config.js";
 import {
   BaseError,
+  DatabaseFetchError,
   EntraFetchError,
   InternalServerError,
   UnauthenticatedError,
@@ -183,4 +185,53 @@ export async function saveHashedUserUin({
       },
     }),
   );
+}
+
+export async function getUserIdByUin({
+  dynamoClient,
+  uin,
+  pepper,
+}: {
+  dynamoClient: DynamoDBClient;
+  uin: string;
+  pepper: string;
+}): Promise<{ id: string }> {
+  const uinHash = await getUinHash({
+    pepper,
+    uin,
+  });
+
+  const queryCommand = new QueryCommand({
+    TableName: genericConfig.UserInfoTable,
+    IndexName: "UinHashIndex",
+    KeyConditionExpression: "uinHash = :hash",
+    ExpressionAttributeValues: {
+      ":hash": { S: uinHash },
+    },
+  });
+
+  const response = await dynamoClient.send(queryCommand);
+
+  if (!response || !response.Items) {
+    throw new DatabaseFetchError({
+      message: "Failed to retrieve user from database.",
+    });
+  }
+
+  if (response.Items.length === 0) {
+    throw new ValidationError({
+      message:
+        "Failed to find user in database. Please have the user run sync and try again.",
+    });
+  }
+
+  if (response.Items.length > 1) {
+    throw new ValidationError({
+      message:
+        "Multiple users tied to this UIN. This user probably had a NetID change. Please contact support.",
+    });
+  }
+
+  const data = unmarshall(response.Items[0]) as { id: string };
+  return data;
 }

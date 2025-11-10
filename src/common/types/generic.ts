@@ -25,6 +25,19 @@ export const illinoisNetId = z
     id: "IllinoisNetId",
   });
 
+export const illinoisUin = z
+  .string()
+  .length(9, { message: "UIN must be 9 characters." })
+  .regex(/^\d{9}$/i, {
+    message: "UIN is malformed.",
+  })
+  .meta({
+    description: "Valid Illinois UIN.",
+    example: "627838939",
+    id: "IllinoisUin",
+  });
+
+
 export const OrgUniqueId = z.enum(Object.keys(Organizations)).meta({
   description: "The unique org ID for a given ACM sub-organization. See https://github.com/acm-uiuc/js-shared/blob/main/src/orgs.ts#L15",
   examples: ["A01", "C01"],
