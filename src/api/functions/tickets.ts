@@ -9,6 +9,7 @@ export type GetUserPurchasesInputs = {
   dynamoClient: DynamoDBClient;
   email: string;
   logger: ValidLoggers;
+  productId?: string;
 };
 
 export type RawTicketEntry = {
@@ -36,6 +37,7 @@ export async function getUserTicketingPurchases({
   dynamoClient,
   email,
   logger,
+  productId,
 }: GetUserPurchasesInputs) {
   const issuedTickets: TicketInfoEntry[] = [];
   const ticketCommand = new QueryCommand({
@@ -44,7 +46,9 @@ export async function getUserTicketingPurchases({
     KeyConditionExpression: "ticketholder_netid = :email",
     ExpressionAttributeValues: {
       ":email": { S: email },
+      ...(productId && { ":productId": { S: productId } }),
     },
+    ...(productId && { FilterExpression: "event_id = :productId" }),
   });
   let ticketResults;
   try {
@@ -85,6 +89,7 @@ export async function getUserMerchPurchases({
   dynamoClient,
   email,
   logger,
+  productId,
 }: GetUserPurchasesInputs) {
   const issuedTickets: TicketInfoEntry[] = [];
   const merchCommand = new QueryCommand({
@@ -93,7 +98,9 @@ export async function getUserMerchPurchases({
     KeyConditionExpression: "email = :email",
     ExpressionAttributeValues: {
       ":email": { S: email },
+      ...(productId && { ":productId": { S: productId } }),
     },
+    ...(productId && { FilterExpression: "item_id = :productId" }),
   });
   let ticketsResult;
   try {
@@ -122,6 +129,7 @@ export async function getUserMerchPurchases({
         email: item.email,
         productId: item.item_id,
         quantity: item.quantity,
+        size: item.size,
       },
       refunded: item.refunded,
       fulfilled: item.fulfilled,

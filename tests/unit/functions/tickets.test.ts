@@ -228,6 +228,7 @@ describe("getUserMerchPurchases tests", () => {
         email: testEmail,
         productId: "merch-001",
         quantity: 2,
+        size: "L"
       },
       refunded: false,
       fulfilled: true,
@@ -240,6 +241,7 @@ describe("getUserMerchPurchases tests", () => {
         email: testEmail,
         productId: "merch-002",
         quantity: 1,
+        size: "M"
       },
       refunded: true,
       fulfilled: false,
@@ -348,6 +350,7 @@ describe("getUserMerchPurchases tests", () => {
         email: testEmail,
         productId: "merch-003",
         quantity: 1,
+        size: "S",
       },
       refunded: false,
       fulfilled: false,

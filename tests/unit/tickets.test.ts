@@ -520,15 +520,31 @@ describe("Test getting all issued tickets", async () => {
 
 describe("Test getting user purchases", () => {
   const testEmail = "test@illinois.edu";
+  const testUin = "123456789";
+  const testProductId = "event-456";
+
+  beforeEach(() => {
+    // Mock the getUserIdByUin function
+    vi.mock("../../src/api/functions/uin.js", () => ({
+      getUserIdByUin: vi.fn(),
+      getUinHash: vi.fn(),
+      verifyUiucAccessToken: vi.fn(),
+      getHashedUserUin: vi.fn(),
+      saveHashedUserUin: vi.fn(),
+    }));
+  });
 
   test("Happy path: get all purchases for a user", async () => {
+    const { getUserIdByUin } = await import("../../src/api/functions/uin.js");
+    vi.mocked(getUserIdByUin).mockResolvedValueOnce({ id: testEmail });
+
     ddbMock
       .on(QueryCommand)
       .resolvesOnce({
         Items: [
           marshall({
             ticket_id: "ticket-123",
-            event_id: "event-456",
+            event_id: testProductId,
             payment_method: "stripe",
             purchase_time: "2024-01-01T00:00:00Z",
             ticketholder_netid: testEmail,
@@ -553,8 +569,9 @@ describe("Test getting user purchases", () => {
     const testJwt = createJwt();
     await app.ready();
     const response = await supertest(app.server)
-      .get(`/api/v1/tickets/purchases/${testEmail}`)
-      .set("authorization", `Bearer ${testJwt}`);
+      .post("/api/v1/tickets/getPurchasesByUser")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({ uin: testUin, productId: testProductId });
 
     const responseDataJson = response.body;
     expect(response.statusCode).toEqual(200);
@@ -568,7 +585,7 @@ describe("Test getting user purchases", () => {
       ticketId: "ticket-123",
       purchaserData: {
         email: testEmail,
-        productId: "event-456",
+        productId: testProductId,
         quantity: 1,
       },
       refunded: false,
@@ -582,6 +599,7 @@ describe("Test getting user purchases", () => {
         email: testEmail,
         productId: "merch-001",
         quantity: 2,
+        size: "L",
       },
       refunded: false,
       fulfilled: true,
@@ -589,6 +607,9 @@ describe("Test getting user purchases", () => {
   });
 
   test("Happy path: user with no purchases", async () => {
+    const { getUserIdByUin } = await import("../../src/api/functions/uin.js");
+    vi.mocked(getUserIdByUin).mockResolvedValueOnce({ id: testEmail });
+
     ddbMock
       .on(QueryCommand)
       .resolvesOnce({ Items: [] })
@@ -597,8 +618,9 @@ describe("Test getting user purchases", () => {
     const testJwt = createJwt();
     await app.ready();
     const response = await supertest(app.server)
-      .get(`/api/v1/tickets/purchases/${testEmail}`)
-      .set("authorization", `Bearer ${testJwt}`);
+      .post("/api/v1/tickets/getPurchasesByUser")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({ uin: testUin, productId: testProductId });
 
     const responseDataJson = response.body;
     expect(response.statusCode).toEqual(200);
@@ -609,6 +631,9 @@ describe("Test getting user purchases", () => {
   });
 
   test("Happy path: user with only tickets", async () => {
+    const { getUserIdByUin } = await import("../../src/api/functions/uin.js");
+    vi.mocked(getUserIdByUin).mockResolvedValueOnce({ id: testEmail });
+
     ddbMock
       .on(QueryCommand)
       .resolvesOnce({
@@ -628,8 +653,9 @@ describe("Test getting user purchases", () => {
     const testJwt = createJwt();
     await app.ready();
     const response = await supertest(app.server)
-      .get(`/api/v1/tickets/purchases/${testEmail}`)
-      .set("authorization", `Bearer ${testJwt}`);
+      .post("/api/v1/tickets/getPurchasesByUser")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({ uin: testUin, productId: testProductId });
 
     const responseDataJson = response.body;
     expect(response.statusCode).toEqual(200);
@@ -638,6 +664,9 @@ describe("Test getting user purchases", () => {
   });
 
   test("Happy path: user with only merch", async () => {
+    const { getUserIdByUin } = await import("../../src/api/functions/uin.js");
+    vi.mocked(getUserIdByUin).mockResolvedValueOnce({ id: testEmail });
+
     ddbMock
       .on(QueryCommand)
       .resolvesOnce({ Items: [] })
@@ -658,8 +687,9 @@ describe("Test getting user purchases", () => {
     const testJwt = createJwt();
     await app.ready();
     const response = await supertest(app.server)
-      .get(`/api/v1/tickets/purchases/${testEmail}`)
-      .set("authorization", `Bearer ${testJwt}`);
+      .post("/api/v1/tickets/getPurchasesByUser")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({ uin: testUin, productId: testProductId });
 
     const responseDataJson = response.body;
     expect(response.statusCode).toEqual(200);
@@ -668,6 +698,9 @@ describe("Test getting user purchases", () => {
   });
 
   test("Happy path: user with multiple purchases of each type", async () => {
+    const { getUserIdByUin } = await import("../../src/api/functions/uin.js");
+    vi.mocked(getUserIdByUin).mockResolvedValueOnce({ id: testEmail });
+
     ddbMock
       .on(QueryCommand)
       .resolvesOnce({
@@ -716,8 +749,9 @@ describe("Test getting user purchases", () => {
     const testJwt = createJwt();
     await app.ready();
     const response = await supertest(app.server)
-      .get(`/api/v1/tickets/purchases/${testEmail}`)
-      .set("authorization", `Bearer ${testJwt}`);
+      .post("/api/v1/tickets/getPurchasesByUser")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({ uin: testUin, productId: testProductId });
 
     const responseDataJson = response.body;
     expect(response.statusCode).toEqual(200);
@@ -725,32 +759,93 @@ describe("Test getting user purchases", () => {
     expect(responseDataJson.merch).toHaveLength(2);
   });
 
-  test("Sad path: invalid email format", async () => {
-    const invalidEmail = "not-an-email";
+  test("Happy path: productId filtering returns only matching items", async () => {
+    const { getUserIdByUin } = await import("../../src/api/functions/uin.js");
+    vi.mocked(getUserIdByUin).mockResolvedValueOnce({ id: testEmail });
+
+    const filterProductId = "event-specific";
+
+    ddbMock
+      .on(QueryCommand)
+      .resolvesOnce({
+        Items: [
+          marshall({
+            ticket_id: "ticket-filtered",
+            event_id: filterProductId,
+            payment_method: "stripe",
+            purchase_time: "2024-01-01T00:00:00Z",
+            ticketholder_netid: testEmail,
+            used: false,
+          }),
+        ],
+      })
+      .resolvesOnce({
+        Items: [
+          marshall({
+            stripe_pi: "pi_filtered",
+            email: testEmail,
+            fulfilled: false,
+            item_id: filterProductId,
+            quantity: 1,
+            refunded: false,
+            size: "M",
+          }),
+        ],
+      });
+
     const testJwt = createJwt();
     await app.ready();
     const response = await supertest(app.server)
-      .get(`/api/v1/tickets/purchases/${invalidEmail}`)
-      .set("authorization", `Bearer ${testJwt}`);
+      .post("/api/v1/tickets/getPurchasesByUser")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({ uin: testUin, productId: filterProductId });
+
+    const responseDataJson = response.body;
+    expect(response.statusCode).toEqual(200);
+    expect(responseDataJson.tickets).toHaveLength(1);
+    expect(responseDataJson.merch).toHaveLength(1);
+    expect(responseDataJson.tickets[0].purchaserData.productId).toEqual(
+      filterProductId,
+    );
+    expect(responseDataJson.merch[0].purchaserData.productId).toEqual(
+      filterProductId,
+    );
+  });
+
+  test("Sad path: invalid UIN format", async () => {
+    const invalidUin = "not-a-uin";
+    const testJwt = createJwt();
+    await app.ready();
+    const response = await supertest(app.server)
+      .post("/api/v1/tickets/getPurchasesByUser")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({ uin: invalidUin, productId: testProductId });
 
     expect(response.statusCode).toEqual(400);
     expect(response.body).toHaveProperty("error");
   });
 
   test("Sad path: database error on tickets query", async () => {
+    const { getUserIdByUin } = await import("../../src/api/functions/uin.js");
+    vi.mocked(getUserIdByUin).mockResolvedValueOnce({ id: testEmail });
+
     ddbMock.on(QueryCommand).rejectsOnce(new Error("Database error"));
 
     const testJwt = createJwt();
     await app.ready();
     const response = await supertest(app.server)
-      .get(`/api/v1/tickets/purchases/${testEmail}`)
-      .set("authorization", `Bearer ${testJwt}`);
+      .post("/api/v1/tickets/getPurchasesByUser")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({ uin: testUin, productId: testProductId });
 
     expect(response.statusCode).toEqual(500);
     expect(response.body).toHaveProperty("error");
   });
 
   test("Sad path: database error on merch query", async () => {
+    const { getUserIdByUin } = await import("../../src/api/functions/uin.js");
+    vi.mocked(getUserIdByUin).mockResolvedValueOnce({ id: testEmail });
+
     ddbMock
       .on(QueryCommand)
       .resolvesOnce({ Items: [] })
@@ -759,8 +854,9 @@ describe("Test getting user purchases", () => {
     const testJwt = createJwt();
     await app.ready();
     const response = await supertest(app.server)
-      .get(`/api/v1/tickets/purchases/${testEmail}`)
-      .set("authorization", `Bearer ${testJwt}`);
+      .post("/api/v1/tickets/getPurchasesByUser")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({ uin: testUin, productId: testProductId });
 
     expect(response.statusCode).toEqual(500);
     expect(response.body).toHaveProperty("error");

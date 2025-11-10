@@ -32,6 +32,8 @@ import {
   getUserMerchPurchases,
   getUserTicketingPurchases,
 } from "api/functions/tickets.js";
+import { illinoisUin } from "common/types/generic.js";
+import { getUserIdByUin } from "api/functions/uin.js";
 
 const postMerchSchema = z.object({
   type: z.literal("merch"),
@@ -512,15 +514,18 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       });
     },
   );
-  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/purchases/:email",
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/getPurchasesByUser",
     {
       schema: withRoles(
         [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
         withTags(["Tickets/Merchandise"], {
           summary: "Get all purchases (merch and tickets) for a given user.",
-          params: z.object({
-            email: z.email(),
+          body: z.object({
+            productId: z.string().min(1).meta({
+              description: "The product ID currently being verified",
+            }),
+            uin: illinoisUin,
           }),
           response: {
             200: {
@@ -540,18 +545,24 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
-      const userEmail = request.params.email;
+      const { id: userEmail } = await getUserIdByUin({
+        dynamoClient: fastify.dynamoClient,
+        uin: request.body.uin,
+        pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
+      });
       try {
         const [ticketsResult, merchResult] = await Promise.all([
           getUserTicketingPurchases({
             dynamoClient: UsEast1DynamoClient,
             email: userEmail,
             logger: request.log,
+            productId: request.body.productId,
           }),
           getUserMerchPurchases({
             dynamoClient: UsEast1DynamoClient,
             email: userEmail,
             logger: request.log,
+            productId: request.body.productId,
           }),
         ]);
         await reply.send({ merch: merchResult, tickets: ticketsResult });
