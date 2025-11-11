@@ -92,6 +92,7 @@ const genericConfig: GenericConfigType = {
   EntraTenantId: "c8d9148f-9a59-4db3-827d-42ea0c2b6e2e",
   MerchStorePurchasesTableName: "infra-merchstore-purchase-history",
   MerchStoreMetadataTableName: "infra-merchstore-metadata",
+  StoreInventoryTableName: "infra-merchstore-inventory",
   TicketPurchasesTableName: "infra-events-tickets",
   TicketMetadataTableName: "infra-events-ticketing-metadata",
   IAMTablePrefix: "infra-core-api-iam",
@@ -107,8 +108,7 @@ const genericConfig: GenericConfigType = {
   UinExtendedAttributeName: "extension_a70c2e1556954056a6a8edfb1f42f556_uiucEduUIN",
   UserInfoTable: "infra-core-api-user-info",
   SigInfoTableName: "infra-core-api-sigs",
-  EntraHostedDomainName: "acmillinois.onmicrosoft.com",
-  StoreInventoryTableName: "infra-core-api-store-inventory"
+  EntraHostedDomainName: "acmillinois.onmicrosoft.com"
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {

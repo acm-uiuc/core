@@ -107,6 +107,17 @@ export class ValidationError extends BaseError<"ValidationError"> {
   }
 }
 
+export class ItemNotSellableError extends BaseError<"ItemNotSellableError"> {
+  constructor({ message }: { message: string }) {
+    super({
+      name: "ItemNotSellableError",
+      id: 115,
+      message: message || "Item is not sellable.",
+      httpStatusCode: 400,
+    });
+  }
+}
+
 export class DatabaseInsertError extends BaseError<"DatabaseInsertError"> {
   constructor({ message }: { message: string }) {
     super({
