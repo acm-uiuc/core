@@ -10,6 +10,12 @@ describe("Linkry live tests", async () => {
     expect(response.redirected).toBe(true);
     expect(response.url).toBe("https://www.google.com/");
   });
+  test("Org-scoped linkry health check", async () => {
+    const response = await fetch(`infra.${baseEndpoint}/healthz`);
+    expect(response.status).toBe(200);
+    expect(response.redirected).toBe(true);
+    expect(response.url).toBe("https://www.google.com/");
+  });
   test("Linkry 404 redirect", async () => {
     const response = await fetch(`${baseEndpoint}/${makeRandomString(16)}`);
     expect(response.status).toBe(200);
