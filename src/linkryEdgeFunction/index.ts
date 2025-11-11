@@ -15,7 +15,11 @@ const DYNAMODB_TABLE = "infra-core-api-linkry";
 const FALLBACK_URL = process.env.FALLBACK_URL || "https://acm.illinois.edu/404";
 const DEFAULT_URL = process.env.DEFAULT_URL || "https://www.acm.illinois.edu";
 const CACHE_TTL = "30"; // seconds to hold response in PoP
-const BASE_DOMAINS = [".acm.illinois.edu", ".aws.qa.acmuiuc.org", ".acm.gg"];
+const BASE_DOMAINS = [
+  ".go.acm.illinois.edu",
+  ".go.aws.qa.acmuiuc.org",
+  ".acm.gg",
+];
 
 const entries = Object.entries(Organizations);
 const shortToOrgCodeMapper: Record<string, string> = {};
@@ -37,8 +41,7 @@ function getSlugToQuery(path: string, host: string): string {
   }
 
   const hostParts = cleanedHost.split(".");
-
-  if (hostParts.length > 1 && host !== "acm") {
+  if (hostParts.length === 1 && host !== "acm") {
     const short = hostParts[0];
     if (shortToOrgCodeMapper[short]) {
       return `${shortToOrgCodeMapper[short]}#${path}`.replace("A01#", "");
