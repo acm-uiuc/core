@@ -91,8 +91,8 @@ jobs:
         run: sudo rm -rf dist/ && sudo rm -rf dist_ui/ && make build
         env:
           HUSKY: "0"
-          VITE_RUN_ENVIRONMENT: qa
-          RunEnvironment: qa
+          VITE_RUN_ENVIRONMENT: dev
+          RunEnvironment: dev
 
       - name: Upload Build files
         uses: actions/upload-artifact@v4
