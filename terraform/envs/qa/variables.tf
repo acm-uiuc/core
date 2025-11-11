@@ -16,7 +16,7 @@ variable "CoreCertificateArn" {
 
 variable "LinkryCertificateArn" {
   type    = string
-  default = "arn:aws:acm:us-east-1:427040638965:certificate/63ccdf0b-d2b5-44f0-b589-eceffb935c23"
+  default = "arn:aws:acm:us-east-1:427040638965:certificate/1aecf0c6-a204-440f-ad0b-fc9157ad93a9"
 }
 
 variable "CorePublicDomain" {

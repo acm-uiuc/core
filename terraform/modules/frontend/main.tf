@@ -486,7 +486,10 @@ resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
       origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
     }
   }
-  aliases         = var.LinkryPublicDomains
+  aliases = concat(
+    var.LinkryPublicDomains,
+    [for domain in var.LinkryPublicDomains : "*.${domain}"]
+  )
   enabled         = true
   is_ipv6_enabled = true
   default_cache_behavior {
