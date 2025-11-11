@@ -84,12 +84,11 @@ jobs:
           include-hidden-files: true
           name: build-prod
           path: |
-            .aws-sam/
             dist/
             dist_ui/
 
       - name: Clean and run QA build
-        run: rm -rf dist/ && rm -rf dist_ui/ && make build
+        run: sudo rm -rf dist/ && sudo rm -rf dist_ui/ && make build
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: qa
@@ -101,7 +100,6 @@ jobs:
           include-hidden-files: true
           name: build-qa
           path: |
-            .aws-sam/
             dist/
             dist_ui/
 

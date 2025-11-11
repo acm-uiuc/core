@@ -80,7 +80,6 @@ jobs:
           include-hidden-files: true
           name: build
           path: |
-            .aws-sam/
             dist/
             dist_ui/
 
