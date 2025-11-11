@@ -27,7 +27,7 @@ export const createRequest = z.object({
   redirect: z.url().min(1).meta({ description: "Full URL to redirect to when the short URL is visited.", example: "https://google.com" })
 });
 
-export const createOrgLinkRequest = createRequest.omit({ access: true })
+export const createOrgLinkRequest = createRequest.omit({ access: true });
 
 export const linkRecord = z.object({
   access: linkryAccessList,
