@@ -487,7 +487,7 @@ resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
     }
   }
   aliases = concat(
-    var.LinkryPublicDomains,
+    tolist(var.LinkryPublicDomains),
     [for domain in var.LinkryPublicDomains : "*.${domain}"]
   )
   enabled         = true
