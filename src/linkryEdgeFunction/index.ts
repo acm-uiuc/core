@@ -41,7 +41,8 @@ function getSlugToQuery(path: string, host: string): string {
   if (hostParts.length > 1 && host !== "acm") {
     const short = hostParts[0];
     if (shortToOrgCodeMapper[short]) {
-      return `${shortToOrgCodeMapper[short]}#${path}`;
+      return `${shortToOrgCodeMapper[short]}#${path}`.replace("A01#", "");
+      // A01 is ACM, so there's no prefix.
     }
   }
 
