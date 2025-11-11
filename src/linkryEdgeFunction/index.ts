@@ -1,3 +1,4 @@
+import { Organizations } from "@acm-uiuc/js-shared";
 import {
   DynamoDBClient,
   QueryCommand,
@@ -14,6 +15,38 @@ const DYNAMODB_TABLE = "infra-core-api-linkry";
 const FALLBACK_URL = process.env.FALLBACK_URL || "https://acm.illinois.edu/404";
 const DEFAULT_URL = process.env.DEFAULT_URL || "https://www.acm.illinois.edu";
 const CACHE_TTL = "30"; // seconds to hold response in PoP
+const BASE_DOMAINS = [".acm.illinois.edu", ".aws.qa.acmuiuc.org", ".acm.gg"];
+
+const entries = Object.entries(Organizations);
+const shortToOrgCodeMapper: Record<string, string> = {};
+for (const item of entries) {
+  shortToOrgCodeMapper[item[1].shortcode] = item[0];
+}
+
+function getSlugToQuery(path: string, host: string): string {
+  let cleanedHost = host.toLowerCase();
+
+  for (const domain of BASE_DOMAINS) {
+    if (cleanedHost.endsWith(domain)) {
+      cleanedHost = cleanedHost.substring(
+        0,
+        cleanedHost.length - domain.length,
+      );
+      break;
+    }
+  }
+
+  const hostParts = cleanedHost.split(".");
+
+  if (hostParts.length > 1 && host !== "acm") {
+    const short = hostParts[0];
+    if (shortToOrgCodeMapper[short]) {
+      return `${shortToOrgCodeMapper[short]}#${path}`;
+    }
+  }
+
+  return path;
+}
 
 /**
  * Determine which DynamoDB replica to use based on Lambda execution region
@@ -50,8 +83,9 @@ export const handler = async (
 ): Promise<CloudFrontRequestResult> => {
   const request = event.Records[0].cf.request;
   const path = request.uri.replace(/^\/+/, "");
-
-  console.log(`Processing path: ${path}`);
+  const host = request.headers.host?.[0]?.value || "";
+  const slugToQuery = getSlugToQuery(path, host);
+  console.log(`Host: ${host}, Path: ${path}, Querying Slug: ${slugToQuery}`);
 
   if (!path) {
     return {
@@ -73,7 +107,7 @@ export const handler = async (
       KeyConditionExpression:
         "slug = :slug AND begins_with(access, :owner_prefix)",
       ExpressionAttributeValues: {
-        ":slug": { S: path },
+        ":slug": { S: slugToQuery },
         ":owner_prefix": { S: "OWNER#" },
       },
       ProjectionExpression: "redirect",

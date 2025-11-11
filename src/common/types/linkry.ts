@@ -23,10 +23,11 @@ export const createRequest = z.object({
   slug: linkrySlug.refine((url) => !url.includes('#'), {
     message: "Slug must not contain a hashtag"
   }),
-  orgId: z.optional(OrgUniqueId),
   access: linkryAccessList,
   redirect: z.url().min(1).meta({ description: "Full URL to redirect to when the short URL is visited.", example: "https://google.com" })
 });
+
+export const createOrgLinkRequest = createRequest.omit({ access: true });
 
 export const linkRecord = z.object({
   access: linkryAccessList,
@@ -34,10 +35,19 @@ export const linkRecord = z.object({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   redirect: z.url(),
-  owner: z.string().min(1)
+  owner: z.string().min(1),
+});
+
+export const orgLinkRecord = z.object({
+  slug: linkrySlug,
+  lastModifiedBy: z.string().min(1),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  redirect: z.url(),
 });
 
 export type LinkRecord = z.infer<typeof linkRecord>;
+export type OrgLinkRecord = z.infer<typeof orgLinkRecord>;
 
 export const getLinksResponse = z.object({
   ownedLinks: z.array(linkRecord),
