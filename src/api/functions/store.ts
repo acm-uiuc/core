@@ -40,7 +40,9 @@ export async function checkItemSellable({
   });
   const getResp = await dynamoClient.send(getCmd);
   if (!getResp.Item) {
-    throw new ItemNotSellableError(`Product ${productId} does not exist.`);
+    throw new ItemNotSellableError({
+      message: `Product ${productId} does not exist.`,
+    });
   }
   const item = unmarshall(getResp.Item) as Record<string, any>;
 
@@ -50,16 +52,16 @@ export async function checkItemSellable({
   if (typeof salesActiveRaw !== "undefined") {
     const salesActiveNum = Number(salesActiveRaw);
     if (salesActiveNum === -1) {
-      throw new ItemNotSellableError(
-        "This item is not currently available for purchase.",
-      );
+      throw new ItemNotSellableError({
+        message: "This item is not currently available for purchase.",
+      });
     }
     const nowSeconds = Math.floor(Date.now() / 1000);
     if (!Number.isNaN(salesActiveNum) && salesActiveNum > nowSeconds) {
       const salesDate = new Date(salesActiveNum * 1000);
-      throw new ItemNotSellableError(
-        `Sales for this item begin on ${salesDate.toLocaleString()}.`,
-      );
+      throw new ItemNotSellableError({
+        message: `Sales for this item begin on ${salesDate.toLocaleString()}.`,
+      });
     }
   }
 
@@ -70,9 +72,9 @@ export async function checkItemSellable({
     const availForVariant = totalAvail[variantId];
     const availNum = availForVariant ? Number(availForVariant) : 0;
     if (!availForVariant || Number.isNaN(availNum) || availNum <= 0) {
-      throw new ItemNotSellableError(
-        `Variant ${variantId} is currently out of stock.`,
-      );
+      throw new ItemNotSellableError({
+        message: `Variant ${variantId} is currently out of stock.`,
+      });
     }
   }
 
@@ -126,9 +128,9 @@ export async function checkItemSellable({
       }
     }
     if (userPurchased >= perUserLimit) {
-      throw new ItemNotSellableError(
-        `You have reached the maximum purchase limit (${perUserLimit}) for this item.`,
-      );
+      throw new ItemNotSellableError({
+        message: `You have reached the maximum purchase limit (${perUserLimit}) for this item.`,
+      });
     }
   }
 
@@ -183,9 +185,9 @@ export async function checkItemSellable({
   const selected = isMember ? memberPriceId : nonmemberPriceId;
   if (!selected) {
     // If no price id found, not sellable
-    throw new ItemNotSellableError(
-      "Price information is not configured for this item.",
-    );
+    throw new ItemNotSellableError({
+      message: "Price information is not configured for this item.",
+    });
   }
 
   return selected;

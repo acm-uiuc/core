@@ -92,7 +92,6 @@ const genericConfig: GenericConfigType = {
   EntraTenantId: "c8d9148f-9a59-4db3-827d-42ea0c2b6e2e",
   MerchStorePurchasesTableName: "infra-merchstore-purchase-history",
   MerchStoreMetadataTableName: "infra-merchstore-metadata",
-  StoreInventoryTableName: "infra-merchstore-inventory",
   TicketPurchasesTableName: "infra-events-tickets",
   TicketMetadataTableName: "infra-events-ticketing-metadata",
   IAMTablePrefix: "infra-core-api-iam",
