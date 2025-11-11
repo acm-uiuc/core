@@ -8,10 +8,10 @@ import {
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 import { getBaseEndpoint } from "./utils.js";
 import { environmentConfig, genericConfig } from "../../src/common/config.js";
-
+const token = await createJwt();
 const baseEndpoint = getBaseEndpoint();
+
 test("getting groups", { timeout: 10000 }, async () => {
-  const token = await createJwt();
   const response = await fetch(`${baseEndpoint}/api/v1/iam/groups`, {
     method: "GET",
     headers: {
@@ -35,7 +35,6 @@ test("getting groups", { timeout: 10000 }, async () => {
 });
 
 test("getting members of a group", async () => {
-  const token = await createJwt();
   const response = await fetch(
     `${baseEndpoint}/api/v1/iam/groups/ff25ec56-6a33-420d-bdb0-51d8a3920e46`,
     {
@@ -59,7 +58,6 @@ test("getting members of a group", async () => {
 });
 
 test("inviting users to tenant", { timeout: 60000 }, async () => {
-  const token = await createJwt();
   const response = await fetch(`${baseEndpoint}/api/v1/iam/inviteUsers`, {
     method: "POST",
     headers: {
@@ -79,7 +77,6 @@ test("inviting users to tenant", { timeout: 60000 }, async () => {
 });
 
 test("getting group roles", async () => {
-  const token = await createJwt();
   const response = await fetch(`${baseEndpoint}/api/v1/iam/groups/0/roles`, {
     method: "GET",
     headers: {
