@@ -87,8 +87,6 @@ test_e2e: install
 	yarn playwright install
 	yarn test:e2e
 
-test_post_deploy: test_live_integration test_e2e
-
 dev_health_check:
 	curl -f https://core.aws.qa.acmuiuc.org/api/v1/healthz && curl -f https://core.aws.qa.acmuiuc.org/
 
