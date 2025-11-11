@@ -15,11 +15,19 @@ import {
   TransactWriteItemsCommand,
   TransactWriteItem,
   TransactionCanceledException,
+  PutItemCommand,
+  PutItemCommandInput,
+  ConditionalCheckFailedException,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import rateLimiter from "api/plugins/rateLimiter.js";
-import { createRequest, linkrySlug } from "common/types/linkry.js";
+import {
+  createOrgLinkRequest,
+  createRequest,
+  linkrySlug,
+  orgLinkRecord,
+} from "common/types/linkry.js";
 import {
   extractUniqueSlugs,
   fetchOwnerRecords,
@@ -28,12 +36,15 @@ import {
   getDelegatedLinks,
   fetchLinkEntry,
   getAllLinks,
+  fetchOrgRecords,
 } from "api/functions/linkry.js";
 import { intersection } from "api/plugins/auth.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { withRoles, withTags } from "api/components/index.js";
+import { AllOrganizationNameList, Organizations } from "@acm-uiuc/js-shared";
+import { authorizeByOrgRoleOrSchema } from "api/functions/authorization.js";
 
 type OwnerRecord = {
   slug: string;
@@ -41,6 +52,15 @@ type OwnerRecord = {
   access: string;
   updatedAt: string;
   createdAt: string;
+};
+
+type OrgRecord = {
+  slug: string;
+  redirect: string;
+  access: string;
+  updatedAt: string;
+  createdAt: string;
+  lastModifiedBy: string;
 };
 
 type AccessRecord = {
@@ -585,6 +605,186 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           },
         });
         reply.code(204).send();
+      },
+    );
+
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+      "/orgs/:orgId/redir",
+      {
+        schema: withRoles(
+          [AppRoles.AT_LEAST_ONE_ORG_MANAGER],
+          withTags(["Linkry"], {
+            body: createOrgLinkRequest,
+            params: z.object({
+              orgId: z.enum(Object.keys(Organizations)).meta({
+                description: "ACM @ UIUC unique organization ID.",
+                examples: ["A01"],
+              }),
+            }),
+            summary: "Create a short link for a specific org",
+            response: {
+              201: {
+                description: "The short link was modified.",
+                content: {
+                  "application/json": {
+                    schema: z.null(),
+                  },
+                },
+              },
+            },
+          }),
+        ),
+        preValidation: async (request, reply) => {
+          const routeAlreadyExists = fastify.hasRoute({
+            url: `/${request.params.orgId}#${request.body.slug}`,
+            method: "GET",
+          });
+
+          if (routeAlreadyExists) {
+            throw new ValidationError({
+              message: `Slug ${request.params.orgId}#${request.body.slug} is reserved by the system.`,
+            });
+          }
+        },
+        onRequest: async (request, reply) => {
+          await authorizeByOrgRoleOrSchema(fastify, request, reply, {
+            validRoles: [
+              { org: Organizations[request.params.orgId].name, role: "LEAD" },
+            ],
+          });
+        },
+      },
+      async (request, reply) => {
+        const { slug, redirect } = request.body;
+        const tableName = genericConfig.LinkryDynamoTableName;
+        const realSlug = `${request.params.orgId}#${slug}`;
+        const currentRecord = await fetchLinkEntry(
+          realSlug,
+          tableName,
+          fastify.dynamoClient,
+        );
+
+        try {
+          const mode = currentRecord ? "modify" : "create";
+          request.log.info(`Operating in ${mode} mode.`);
+          const currentUpdatedAt =
+            currentRecord && currentRecord.updatedAt
+              ? currentRecord.updatedAt
+              : null;
+          const currentCreatedAt =
+            currentRecord && currentRecord.createdAt
+              ? currentRecord.createdAt
+              : null;
+
+          const creationTime: Date = new Date();
+          const newUpdatedAt = creationTime.toISOString();
+          const newCreatedAt = currentCreatedAt || newUpdatedAt;
+
+          const ownerRecord: OrgRecord = {
+            slug: realSlug,
+            redirect,
+            access: `OWNER#${request.params.orgId}`, // org records are owned by the org
+            updatedAt: newUpdatedAt,
+            createdAt: newCreatedAt,
+            lastModifiedBy: request.username!,
+          };
+
+          // Add the OWNER record with a condition check to ensure it hasn't been modified
+          const ownerPutParams: PutItemCommandInput = {
+            TableName: genericConfig.LinkryDynamoTableName,
+            Item: marshall(ownerRecord, { removeUndefinedValues: true }),
+            ...(mode === "modify"
+              ? {
+                  ConditionExpression: "updatedAt = :updatedAt",
+                  ExpressionAttributeValues: marshall({
+                    ":updatedAt": currentUpdatedAt,
+                  }),
+                }
+              : {}),
+          };
+
+          await fastify.dynamoClient.send(new PutItemCommand(ownerPutParams));
+        } catch (e) {
+          fastify.log.error(e);
+          if (e instanceof ConditionalCheckFailedException) {
+            throw new ValidationError({
+              message:
+                "The record was modified by another process. Please try again.",
+            });
+          }
+
+          if (e instanceof BaseError) {
+            throw e;
+          }
+
+          throw new DatabaseInsertError({
+            message: "Failed to save data to DynamoDB.",
+          });
+        }
+        await createAuditLogEntry({
+          dynamoClient: fastify.dynamoClient,
+          entry: {
+            module: Modules.LINKRY,
+            actor: request.username!,
+            target: `${Organizations[request.params.orgId].name}/${request.body.slug}`,
+            message: `Created redirect to "${request.body.redirect}"`,
+          },
+        });
+        const newResourceUrl = `${request.url}/slug/${request.body.slug}`;
+        return reply.status(201).headers({ location: newResourceUrl }).send();
+      },
+    );
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+      "/orgs/:orgId/redir",
+      {
+        schema: withRoles(
+          [AppRoles.AT_LEAST_ONE_ORG_MANAGER],
+          withTags(["Linkry"], {
+            params: z.object({
+              orgId: z.enum(Object.keys(Organizations)).meta({
+                description: "ACM @ UIUC organization ID.",
+                examples: ["A01"],
+              }),
+            }),
+            summary: "Retrieve short link for a specific org",
+            response: {
+              200: {
+                description: "The short links were retrieved.",
+                content: {
+                  "application/json": {
+                    schema: z.array(orgLinkRecord),
+                  },
+                },
+              },
+            },
+          }),
+        ),
+        onRequest: async (request, reply) => {
+          await authorizeByOrgRoleOrSchema(fastify, request, reply, {
+            validRoles: [
+              { org: Organizations[request.params.orgId].name, role: "LEAD" },
+            ],
+          });
+        },
+      },
+      async (request, reply) => {
+        let orgRecords;
+        try {
+          orgRecords = await fetchOrgRecords(
+            request.params.orgId,
+            genericConfig.LinkryDynamoTableName,
+            fastify.dynamoClient,
+          );
+        } catch (e) {
+          if (e instanceof BaseError) {
+            throw e;
+          }
+          request.log.error(e);
+          throw new DatabaseFetchError({
+            message: "Failed to get links for org.",
+          });
+        }
+        return reply.status(200).send(orgRecords);
       },
     );
   };
