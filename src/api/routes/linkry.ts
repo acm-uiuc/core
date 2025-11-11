@@ -39,7 +39,10 @@ import {
   fetchOrgRecords,
 } from "api/functions/linkry.js";
 import { intersection } from "api/plugins/auth.js";
-import { createAuditLogEntry } from "api/functions/auditLog.js";
+import {
+  buildAuditLogTransactPut,
+  createAuditLogEntry,
+} from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { withRoles, withTags } from "api/components/index.js";
@@ -612,7 +615,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       "/orgs/:orgId/redir",
       {
         schema: withRoles(
-          [AppRoles.AT_LEAST_ONE_ORG_MANAGER],
+          [AppRoles.AT_LEAST_ONE_ORG_MANAGER, AppRoles.LINKS_ADMIN],
           withTags(["Linkry"], {
             body: createOrgLinkRequest,
             params: z.object({
@@ -738,7 +741,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       "/orgs/:orgId/redir",
       {
         schema: withRoles(
-          [AppRoles.AT_LEAST_ONE_ORG_MANAGER],
+          [AppRoles.AT_LEAST_ONE_ORG_MANAGER, AppRoles.LINKS_ADMIN],
           withTags(["Linkry"], {
             params: z.object({
               orgId: z.enum(Object.keys(Organizations)).meta({
@@ -785,6 +788,99 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
         return reply.status(200).send(orgRecords);
+      },
+    );
+    fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
+      "/orgs/:orgId/redir/:slug",
+      {
+        schema: withRoles(
+          [AppRoles.AT_LEAST_ONE_ORG_MANAGER, AppRoles.LINKS_ADMIN],
+          withTags(["Linkry"], {
+            params: z.object({
+              orgId: z.enum(Object.keys(Organizations)).meta({
+                description: "ACM @ UIUC organization ID.",
+                examples: ["A01"],
+              }),
+              slug: linkrySlug,
+            }),
+            summary: "Delete a short link for a specific org",
+            response: {
+              204: {
+                description: "The short links was deleted.",
+                content: {
+                  "application/json": {
+                    schema: z.null(),
+                  },
+                },
+              },
+            },
+          }),
+        ),
+        onRequest: async (request, reply) => {
+          await authorizeByOrgRoleOrSchema(fastify, request, reply, {
+            validRoles: [
+              { org: Organizations[request.params.orgId].name, role: "LEAD" },
+            ],
+          });
+        },
+      },
+      async (request, reply) => {
+        const realSlug = `${request.params.orgId}#${request.params.slug}`;
+        try {
+          const tableName = genericConfig.LinkryDynamoTableName;
+          const currentRecord = await fetchLinkEntry(
+            realSlug,
+            tableName,
+            fastify.dynamoClient,
+          );
+          if (!currentRecord) {
+            throw new NotFoundError({ endpointName: request.url });
+          }
+        } catch (e) {
+          if (e instanceof BaseError) {
+            throw e;
+          }
+          request.log.error(e);
+          throw new DatabaseFetchError({
+            message: "Failed to get link.",
+          });
+        }
+        const logStatement = buildAuditLogTransactPut({
+          entry: {
+            module: Modules.LINKRY,
+            actor: request.username!,
+            target: `${Organizations[request.params.orgId].name}/${request.params.slug}`,
+            message: `Deleted short link redirect.`,
+          },
+        });
+        const TransactItems: TransactWriteItem[] = [
+          ...(logStatement ? [logStatement] : []),
+          {
+            Delete: {
+              TableName: genericConfig.LinkryDynamoTableName,
+              Key: {
+                slug: { S: realSlug },
+                access: { S: `OWNER#${request.params.orgId}` },
+              },
+            },
+          },
+        ];
+
+        try {
+          await fastify.dynamoClient.send(
+            new TransactWriteItemsCommand({ TransactItems }),
+          );
+        } catch (e) {
+          fastify.log.error(e);
+          if (e instanceof BaseError) {
+            throw e;
+          }
+
+          throw new DatabaseDeleteError({
+            message: "Failed to delete data from DynamoDB.",
+          });
+        }
+        return reply.status(204).send();
       },
     );
   };
