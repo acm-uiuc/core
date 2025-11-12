@@ -31,6 +31,7 @@ export type RawMerchEntry = {
   scanIsoTimestamp?: string;
   scannerEmail?: string;
   size: string;
+  total_paid?: number;
 };
 
 export async function getUserTicketingPurchases({
@@ -133,6 +134,7 @@ export async function getUserMerchPurchases({
       },
       refunded: item.refunded,
       fulfilled: item.fulfilled,
+      totalPaid: item.total_paid,
     });
   }
   return issuedTickets;

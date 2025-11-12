@@ -60,6 +60,7 @@ const ticketEntryZod = z.object({
   type: z.enum(["merch", "ticket"]),
   ticketId: z.string().min(1),
   purchaserData: purchaseSchema,
+  totalPaid: z.optional(z.number()),
 });
 
 const ticketInfoEntryZod = ticketEntryZod
