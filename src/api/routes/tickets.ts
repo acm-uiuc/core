@@ -55,22 +55,37 @@ const purchaseSchema = z.object({
 
 type PurchaseData = z.infer<typeof purchaseSchema>;
 
-const ticketEntryZod = z.object({
-  valid: z.boolean(),
-  type: z.enum(["merch", "ticket"]),
-  ticketId: z.string().min(1),
-  purchaserData: purchaseSchema,
-  totalPaid: z.optional(z.number()),
-});
-
-const ticketInfoEntryZod = ticketEntryZod
-  .extend({
-    refunded: z.boolean(),
-    fulfilled: z.boolean(),
+const ticketEntryZod = z
+  .object({
+    valid: z.boolean().meta({
+      description:
+        "Determines whether or not this ticket is still valid to be fulfilled.",
+    }),
+    type: z.enum(["merch", "ticket"]),
+    ticketId: z.string().min(1).meta({
+      description: "A string uniquely identifying the purchase.",
+    }),
+    purchaserData: purchaseSchema,
+    totalPaid: z.optional(z.number()).meta({
+      description:
+        "The total amount paid by the customer, in cents, net of refunds.",
+    }),
   })
   .meta({
     description: "An entry describing one merch or tickets transaction.",
+    id: "StoreTicketEntryV1",
   });
+
+const ticketInfoEntryZod = ticketEntryZod.extend({
+  refunded: z.boolean().meta({
+    description:
+      "Determines whether or not this purchase has been fully refunded to the customer.",
+  }),
+  fulfilled: z.boolean().meta({
+    description:
+      "Determines whether or not this purchase's services/items has already been provided to the customer.",
+  }),
+});
 
 export type TicketInfoEntry = z.infer<typeof ticketInfoEntryZod>;
 
@@ -273,6 +288,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 quantity: unmarshalled.quantity,
                 size: unmarshalled.size,
               },
+              totalPaid: unmarshalled.total_paid,
             });
           }
           break;
