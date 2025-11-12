@@ -378,7 +378,9 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       api.register(apiKeyRoute, { prefix: "/apiKey" });
       api.register(clearSessionRoute, { prefix: "/clearSession" });
       api.register(userRoute, { prefix: "/users" });
-      api.register(rsvpRoutes, { prefix: "/rsvp" });
+      if (app.runEnvironment === "dev") {
+        api.register(rsvpRoutes, { prefix: "/rsvp" });
+      }
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }
