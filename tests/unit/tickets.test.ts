@@ -503,6 +503,61 @@ describe("Test getting all issued tickets", async () => {
     const responseDataJson = response.body;
     expect(response.statusCode).toEqual(200);
     expect(responseDataJson.tickets).toHaveLength(4);
+    expect(responseDataJson.tickets).toEqual([
+      {
+        fulfilled: true,
+        purchaserData: {
+          email: "testing0@illinois.edu",
+          productId: "2024_fa_barcrawl",
+          quantity: 1,
+          size: "M",
+        },
+        refunded: false,
+        ticketId: "pi_3Q5GewDiGOXU9RuS16txRR5D",
+        type: "merch",
+        valid: true,
+      },
+      {
+        fulfilled: false,
+        purchaserData: {
+          email: "testing1@illinois.edu",
+          productId: "2024_fa_barcrawl",
+          quantity: 3,
+          size: "L",
+        },
+        refunded: false,
+        ticketId: "pi_8J4NrYdA3S7cW8Ty92FnGJ6L",
+        type: "merch",
+        valid: true,
+      },
+      {
+        fulfilled: false,
+        purchaserData: {
+          email: "testing2@illinois.edu",
+          productId: "2024_fa_barcrawl",
+          quantity: 3,
+          size: "L",
+        },
+        refunded: true,
+        ticketId: "pi_6T9QvUwR2IOj4CyF35DsXK7P",
+        type: "merch",
+        valid: true,
+      },
+      {
+        fulfilled: true,
+        purchaserData: {
+          email: "testing2@illinois.edu",
+          productId: "2024_fa_barcrawl",
+          quantity: 1,
+          size: "XS",
+        },
+        refunded: false,
+        ticketId: "pi_5L8SwOdN9PXu6RyV83FgQK1C",
+        totalPaid: 500,
+        type: "merch",
+        valid: true,
+      },
+    ]);
   });
   test("Sad path: fail on type 'ticket'", async () => {
     ddbMock.on(QueryCommand).rejects();
@@ -562,6 +617,7 @@ describe("Test getting user purchases", () => {
             quantity: 2,
             refunded: false,
             size: "L",
+            total_paid: 500,
           }),
         ],
       });
@@ -603,6 +659,7 @@ describe("Test getting user purchases", () => {
       },
       refunded: false,
       fulfilled: true,
+      totalPaid: 500,
     });
   });
 

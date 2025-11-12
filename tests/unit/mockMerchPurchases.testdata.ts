@@ -96,6 +96,9 @@ const fulfilledMerchItem2 = {
   size: {
     S: "XS",
   },
+  total_paid: {
+    N: 500,
+  },
 };
 
 const dynamoTableData = [
