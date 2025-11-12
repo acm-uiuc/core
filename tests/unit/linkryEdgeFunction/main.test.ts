@@ -86,7 +86,7 @@ describe("CloudFront Lambda@Edge Handler", () => {
   });
 
   describe("Successful redirect from DynamoDB", () => {
-    it("should return 302 redirect when link is found in DynamoDB", async () => {
+    it("should return 302 redirect when link is found in DynamoDB for go.acm", async () => {
       const redirectUrl = "https://example.com/target";
       dynamoMock.on(QueryCommand).resolves({
         Items: [
@@ -98,7 +98,35 @@ describe("CloudFront Lambda@Edge Handler", () => {
         ],
       });
 
-      const event = createEvent("/test-link");
+      const event = createEvent("/test-link", "go.acm.illinois.edu");
+      const result = await handler(event);
+      assertIsResponse(result);
+
+      expect(result).toEqual({
+        status: "302",
+        statusDescription: "Found",
+        headers: {
+          location: [{ key: "Location", value: redirectUrl }],
+          "cache-control": [
+            { key: "Cache-Control", value: "public, max-age=30" },
+          ],
+        },
+      });
+    });
+
+    it("should return 302 redirect when link is found in DynamoDB for acm.gg", async () => {
+      const redirectUrl = "https://example.com/target";
+      dynamoMock.on(QueryCommand).resolves({
+        Items: [
+          {
+            slug: { S: "testgg" },
+            access: { S: "OWNER#user123" },
+            redirect: { S: redirectUrl },
+          },
+        ],
+      });
+
+      const event = createEvent("/testgg", "acm.gg");
       const result = await handler(event);
       assertIsResponse(result);
 
