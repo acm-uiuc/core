@@ -513,14 +513,8 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not set ticket to used - database operation failed",
         });
       }
-      reply.send({
-        valid: true,
-        type: request.body.type,
-        ticketId,
-        purchaserData,
-      });
       await createAuditLogEntry({
-        dynamoClient: UsEast1DynamoClient,
+        dynamoClient: fastify.dynamoClient,
         entry: {
           module: Modules.TICKETS,
           actor: request.username!,
@@ -528,6 +522,12 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           message: `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
           requestId: request.id,
         },
+      });
+      return reply.send({
+        valid: true,
+        type: request.body.type,
+        ticketId,
+        purchaserData,
       });
     },
   );
