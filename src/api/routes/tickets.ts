@@ -392,6 +392,12 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Tickets/Merchandise"], {
           summary: "Mark a ticket/merch item as fulfilled by QR code data.",
           body: postSchema,
+          headers: z.object({
+            "x-auditlog-context": z.optional(z.string().min(1)).meta({
+              description:
+                "optional additional context to add to the audit log.",
+            }),
+          }),
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -513,13 +519,14 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not set ticket to used - database operation failed",
         });
       }
+      const headerReason = request.headers["x-auditlog-context"];
       await createAuditLogEntry({
         dynamoClient: fastify.dynamoClient,
         entry: {
           module: Modules.TICKETS,
           actor: request.username!,
           target: ticketId,
-          message: `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
+          message: `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}${headerReason ? `\nUser-provided context: "${headerReason}"` : ""}`,
           requestId: request.id,
         },
       });
