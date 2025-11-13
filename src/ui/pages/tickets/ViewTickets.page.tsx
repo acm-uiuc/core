@@ -7,7 +7,12 @@ import {
   Badge,
   Title,
   Button,
+  Modal,
+  Stack,
+  TextInput,
+  Alert,
 } from "@mantine/core";
+import { IconAlertCircle } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import pluralize from "pluralize";
 import React, { useEffect, useState } from "react";
@@ -59,6 +64,7 @@ enum TicketsCopyMode {
   FULFILLED,
   UNFULFILLED,
 }
+const WAIT_BEFORE_FULFILLING_SECS = 15;
 
 const ViewTicketsPage: React.FC = () => {
   const { eventId } = useParams();
@@ -71,6 +77,57 @@ const ViewTicketsPage: React.FC = () => {
   const [totalQuantitySold, setTotalQuantitySold] = useState(0);
   const [pageSize, setPageSize] = useState<string>("10");
   const pageSizeOptions = ["10", "25", "50", "100"];
+
+  // Confirmation modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [ticketToFulfill, setTicketToFulfill] = useState<TicketEntry | null>(
+    null,
+  );
+  const [confirmError, setConfirmError] = useState("");
+  const [confirmButtonEnabled, setConfirmButtonEnabled] = useState(false);
+  const [countdown, setCountdown] = useState(3);
+
+  useEffect(() => {
+    if (showConfirmModal) {
+      setConfirmButtonEnabled(false);
+      setCountdown(WAIT_BEFORE_FULFILLING_SECS);
+
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          // Reset the timer when user leaves the page
+          setCountdown(WAIT_BEFORE_FULFILLING_SECS + 1);
+          setConfirmButtonEnabled(false);
+        }
+      };
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      const countdownInterval = setInterval(() => {
+        // Only count down if the page is focused
+        if (document.hidden) {
+          return;
+        }
+
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            setConfirmButtonEnabled(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        clearInterval(countdownInterval);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+        );
+      };
+    }
+  }, [showConfirmModal]);
 
   const copyEmails = (mode: TicketsCopyMode) => {
     try {
@@ -109,20 +166,60 @@ const ViewTicketsPage: React.FC = () => {
     }
   };
 
-  async function checkInUser(ticket: TicketEntry) {
+  const handleOpenConfirmModal = (ticket: TicketEntry) => {
+    setTicketToFulfill(ticket);
+    setConfirmEmail("");
+    setConfirmError("");
+    setShowConfirmModal(true);
+  };
+
+  const handleCloseConfirmModal = () => {
+    setShowConfirmModal(false);
+    setTicketToFulfill(null);
+    setConfirmEmail("");
+    setConfirmError("");
+    setConfirmButtonEnabled(false);
+    setCountdown(WAIT_BEFORE_FULFILLING_SECS);
+  };
+
+  const handleConfirmFulfillment = async () => {
+    if (!ticketToFulfill) {
+      return;
+    }
+
+    // Validate email matches
+    if (
+      confirmEmail.toLowerCase().trim() !==
+      ticketToFulfill.purchaserData.email.toLowerCase().trim()
+    ) {
+      setConfirmError(
+        "Email does not match. Please enter the exact email address.",
+      );
+      return;
+    }
+
     try {
-      const response = await api.post(`/api/v1/tickets/checkIn`, {
-        type: ticket.type,
-        email: ticket.purchaserData.email,
-        stripePi: ticket.ticketId,
-      });
+      const response = await api.post(
+        `/api/v1/tickets/checkIn`,
+        {
+          type: ticketToFulfill.type,
+          email: ticketToFulfill.purchaserData.email,
+          stripePi: ticketToFulfill.ticketId,
+        },
+        {
+          headers: {
+            "x-auditlog-context": "Manually marked as fulfilled.",
+          },
+        },
+      );
       if (!response.data.valid) {
         throw new Error("Ticket is invalid.");
       }
       notifications.show({
         title: "Fulfilled",
-        message: "Marked item as fulfilled.",
+        message: "Marked item as fulfilled. This action has been logged.",
       });
+      handleCloseConfirmModal();
       await getTickets();
     } catch {
       notifications.show({
@@ -130,7 +227,12 @@ const ViewTicketsPage: React.FC = () => {
         message: "Failed to fulfill item. Please try again later.",
         color: "red",
       });
+      handleCloseConfirmModal();
     }
+  };
+
+  async function checkInUser(ticket: TicketEntry) {
+    handleOpenConfirmModal(ticket);
   }
   const getTickets = async () => {
     try {
@@ -280,6 +382,83 @@ const ViewTicketsPage: React.FC = () => {
           />
         </Group>
       </div>
+
+      {/* Confirmation Modal */}
+      <Modal
+        opened={showConfirmModal}
+        onClose={handleCloseConfirmModal}
+        title="Confirm Fulfillment"
+        size="md"
+        centered
+      >
+        <Stack>
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            title="Warning"
+            color="red"
+            variant="light"
+          >
+            <Text size="sm" fw={500}>
+              This action cannot be undone and will be logged!
+            </Text>
+          </Alert>
+
+          {ticketToFulfill && (
+            <>
+              <Text size="sm" fw={600}>
+                Purchase Details:
+              </Text>
+              <Text size="sm">
+                <strong>Email:</strong> {ticketToFulfill.purchaserData.email}
+              </Text>
+              <Text size="sm">
+                <strong>Quantity:</strong>{" "}
+                {ticketToFulfill.purchaserData.quantity}
+              </Text>
+              {ticketToFulfill.purchaserData.size && (
+                <Text size="sm">
+                  <strong>Size:</strong> {ticketToFulfill.purchaserData.size}
+                </Text>
+              )}
+            </>
+          )}
+
+          <TextInput
+            label="Confirm Email Address"
+            placeholder="Enter the email address to confirm"
+            value={confirmEmail}
+            onChange={(e) => {
+              setConfirmEmail(e.currentTarget.value);
+              setConfirmError("");
+            }}
+            error={confirmError}
+            required
+            autoComplete="off"
+            data-autofocus
+          />
+
+          <Text size="xs" c="dimmed">
+            Please enter the email address{" "}
+            <strong>{ticketToFulfill?.purchaserData.email}</strong> to confirm
+            that you want to mark this purchase as fulfilled.
+          </Text>
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="subtle" onClick={handleCloseConfirmModal}>
+              Cancel
+            </Button>
+            <Button
+              color="blue"
+              onClick={handleConfirmFulfillment}
+              disabled={!confirmEmail.trim() || !confirmButtonEnabled}
+            >
+              {!confirmButtonEnabled
+                ? `Wait ${countdown}s to confirm...`
+                : "Confirm Fulfillment"}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </AuthGuard>
   );
 };
