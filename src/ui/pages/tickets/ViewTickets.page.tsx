@@ -11,6 +11,7 @@ import {
   Stack,
   TextInput,
   Alert,
+  Tooltip,
 } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
@@ -30,6 +31,7 @@ const purchaseSchema = z.object({
   productId: z.string(),
   quantity: z.number().int().positive(),
   size: z.string().optional(),
+  purchasedAt: z.number().optional(),
 });
 
 const ticketEntrySchema = z.object({
@@ -57,6 +59,13 @@ const getTicketStatus = (
     return { status: "fulfilled", color: "green" };
   }
   return { status: "unfulfilled", color: "orange" };
+};
+
+const formatPurchaseTime = (timestamp?: number): string => {
+  if (!timestamp) {
+    return "N/A";
+  }
+  return new Date(timestamp * 1000).toLocaleString();
 };
 
 enum TicketsCopyMode {
@@ -257,6 +266,14 @@ const ViewTicketsPage: React.FC = () => {
   async function checkInUser(ticket: TicketEntry) {
     handleOpenConfirmModal(ticket);
   }
+
+  const copyTicketId = (ticketId: string) => {
+    navigator.clipboard.writeText(ticketId);
+    notifications.show({
+      message: "Ticket ID copied to clipboard!",
+    });
+  };
+
   const getTickets = async () => {
     try {
       setLoading(true);
@@ -335,7 +352,7 @@ const ViewTicketsPage: React.FC = () => {
               <Table.Th>Status</Table.Th>
               <Table.Th>Quantity</Table.Th>
               <Table.Th>Size</Table.Th>
-              <Table.Th>Ticket ID</Table.Th>
+              <Table.Th>Purchased At</Table.Th>
               <Table.Th>Actions</Table.Th>
             </Table.Tr>
           </Table.Thead>
@@ -344,13 +361,29 @@ const ViewTicketsPage: React.FC = () => {
               const { status, color } = getTicketStatus(ticket);
               return (
                 <Table.Tr key={ticket.ticketId}>
-                  <Table.Td>{ticket.purchaserData.email}</Table.Td>
+                  <Table.Td>
+                    <Tooltip
+                      label="Click to copy ticket ID"
+                      position="top"
+                      withArrow
+                    >
+                      <Text
+                        style={{ cursor: "pointer" }}
+                        onClick={() => copyTicketId(ticket.ticketId)}
+                        size="sm"
+                      >
+                        {ticket.purchaserData.email}
+                      </Text>
+                    </Tooltip>
+                  </Table.Td>
                   <Table.Td>
                     <Badge color={color}>{status}</Badge>
                   </Table.Td>
                   <Table.Td>{ticket.purchaserData.quantity}</Table.Td>
                   <Table.Td>{ticket.purchaserData.size || "N/A"}</Table.Td>
-                  <Table.Td>{ticket.ticketId}</Table.Td>
+                  <Table.Td>
+                    {formatPurchaseTime(ticket.purchaserData.purchasedAt)}
+                  </Table.Td>
                   <Table.Td>
                     {!(ticket.fulfilled || ticket.refunded) && (
                       <AuthGuard

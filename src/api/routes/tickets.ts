@@ -70,6 +70,10 @@ const ticketEntryZod = z
       description:
         "The total amount paid by the customer, in cents, net of refunds.",
     }),
+    purchasedAt: z.optional(z.number()).meta({
+      description:
+        "The time at which the user's checkout session completed, in seconds since Epoch.",
+    }),
   })
   .meta({
     description: "An entry describing one merch or tickets transaction.",
@@ -297,7 +301,25 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             message: `Retrieving tickets currently only supported on type "merch"!`,
           });
       }
-      const response = { tickets: issuedTickets };
+      const response = {
+        tickets: issuedTickets.sort((a, b) => {
+          // Valid tickets first
+          if (a.valid !== b.valid) {
+            return a.valid ? -1 : 1;
+          }
+
+          if (a.purchasedAt === undefined && b.purchasedAt === undefined) {
+            return 0;
+          }
+          if (a.purchasedAt === undefined) {
+            return 1;
+          }
+          if (b.purchasedAt === undefined) {
+            return -1;
+          }
+          return b.purchasedAt - a.purchasedAt;
+        }),
+      };
       return reply.send(response);
     },
   );
