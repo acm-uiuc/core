@@ -88,6 +88,11 @@ const ViewTicketsPage: React.FC = () => {
   const [confirmButtonEnabled, setConfirmButtonEnabled] = useState(false);
   const [countdown, setCountdown] = useState(3);
 
+  // Email copy confirmation modal states
+  const [showCopyEmailModal, setShowCopyEmailModal] = useState(false);
+  const [pendingCopyMode, setPendingCopyMode] =
+    useState<TicketsCopyMode | null>(null);
+
   useEffect(() => {
     if (showConfirmModal) {
       setConfirmButtonEnabled(false);
@@ -128,6 +133,24 @@ const ViewTicketsPage: React.FC = () => {
       };
     }
   }, [showConfirmModal]);
+
+  const handleCopyEmailsClick = (mode: TicketsCopyMode) => {
+    setPendingCopyMode(mode);
+    setShowCopyEmailModal(true);
+  };
+
+  const handleCloseCopyEmailModal = () => {
+    setShowCopyEmailModal(false);
+    setPendingCopyMode(null);
+  };
+
+  const handleConfirmCopyEmails = () => {
+    if (pendingCopyMode === null) {
+      return;
+    }
+    copyEmails(pendingCopyMode);
+    handleCloseCopyEmailModal();
+  };
 
   const copyEmails = (mode: TicketsCopyMode) => {
     try {
@@ -280,21 +303,21 @@ const ViewTicketsPage: React.FC = () => {
       <Group mt="md">
         <Button
           onClick={() => {
-            copyEmails(TicketsCopyMode.ALL);
+            handleCopyEmailsClick(TicketsCopyMode.ALL);
           }}
         >
           Copy All Emails
         </Button>
         <Button
           onClick={() => {
-            copyEmails(TicketsCopyMode.FULFILLED);
+            handleCopyEmailsClick(TicketsCopyMode.FULFILLED);
           }}
         >
           Copy Fulfilled Emails
         </Button>
         <Button
           onClick={() => {
-            copyEmails(TicketsCopyMode.UNFULFILLED);
+            handleCopyEmailsClick(TicketsCopyMode.UNFULFILLED);
           }}
         >
           Copy Unfulfilled Emails
@@ -455,6 +478,40 @@ const ViewTicketsPage: React.FC = () => {
               {!confirmButtonEnabled
                 ? `Wait ${countdown}s to confirm...`
                 : "Confirm Fulfillment"}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Copy Emails Confirmation Modal */}
+      <Modal
+        opened={showCopyEmailModal}
+        onClose={handleCloseCopyEmailModal}
+        title="Copy Emails"
+        size="md"
+        centered
+      >
+        <Stack>
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            title="Privacy Notice"
+            color="yellow"
+            variant="light"
+          >
+            <Text size="sm" fw={500}>
+              Be sure to BCC all recipients to avoid leaking the purchase list
+            </Text>
+          </Alert>
+
+          <Text size="sm">
+            When composing your email, make sure to add all email addresses to
+            the BCC field (not To or CC) to protect the privacy of your
+            recipients.
+          </Text>
+
+          <Group justify="flex-end" mt="md">
+            <Button color="blue" onClick={handleConfirmCopyEmails}>
+              I understand, copy emails
             </Button>
           </Group>
         </Stack>
