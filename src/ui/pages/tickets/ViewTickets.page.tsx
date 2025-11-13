@@ -64,6 +64,7 @@ enum TicketsCopyMode {
   FULFILLED,
   UNFULFILLED,
 }
+const WAIT_BEFORE_FULFILLING_SECS = 15;
 
 const ViewTicketsPage: React.FC = () => {
   const { eventId } = useParams();
@@ -84,6 +85,49 @@ const ViewTicketsPage: React.FC = () => {
     null,
   );
   const [confirmError, setConfirmError] = useState("");
+  const [confirmButtonEnabled, setConfirmButtonEnabled] = useState(false);
+  const [countdown, setCountdown] = useState(3);
+
+  useEffect(() => {
+    if (showConfirmModal) {
+      setConfirmButtonEnabled(false);
+      setCountdown(WAIT_BEFORE_FULFILLING_SECS);
+
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          // Reset the timer when user leaves the page
+          setCountdown(WAIT_BEFORE_FULFILLING_SECS + 1);
+          setConfirmButtonEnabled(false);
+        }
+      };
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      const countdownInterval = setInterval(() => {
+        // Only count down if the page is focused
+        if (document.hidden) {
+          return;
+        }
+
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            setConfirmButtonEnabled(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        clearInterval(countdownInterval);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+        );
+      };
+    }
+  }, [showConfirmModal]);
 
   const copyEmails = (mode: TicketsCopyMode) => {
     try {
@@ -134,6 +178,8 @@ const ViewTicketsPage: React.FC = () => {
     setTicketToFulfill(null);
     setConfirmEmail("");
     setConfirmError("");
+    setConfirmButtonEnabled(false);
+    setCountdown(WAIT_BEFORE_FULFILLING_SECS);
   };
 
   const handleConfirmFulfillment = async () => {
@@ -404,9 +450,11 @@ const ViewTicketsPage: React.FC = () => {
             <Button
               color="blue"
               onClick={handleConfirmFulfillment}
-              disabled={!confirmEmail.trim()}
+              disabled={!confirmEmail.trim() || !confirmButtonEnabled}
             >
-              Confirm Fulfillment
+              {!confirmButtonEnabled
+                ? `Wait ${countdown}s to confirm...`
+                : "Confirm Fulfillment"}
             </Button>
           </Group>
         </Stack>
