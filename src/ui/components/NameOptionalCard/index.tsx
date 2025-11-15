@@ -32,6 +32,7 @@ interface UserResolverContextType {
   resolveUser: (email: string) => UserData | undefined;
   requestUser: (email: string) => void;
   isResolving: (email: string) => boolean;
+  resolutionDisabled: boolean;
 }
 
 // Context
@@ -41,10 +42,7 @@ const UserResolverContext = createContext<UserResolverContextType | null>(null);
 interface UserResolverProviderProps {
   children: ReactNode;
   batchDelay?: number;
-}
-
-interface UserDataResponse {
-  name?: string;
+  resolutionDisabled?: boolean;
 }
 
 // Sentinel value to indicate we've checked and there's no name
@@ -53,6 +51,7 @@ const NO_NAME_FOUND = Symbol("NO_NAME_FOUND");
 export function UserResolverProvider({
   children,
   batchDelay = 50,
+  resolutionDisabled = false,
 }: UserResolverProviderProps) {
   const api = useApi("core");
   const [userCache, setUserCache] = useState<
@@ -107,6 +106,12 @@ export function UserResolverProvider({
   };
 
   const requestUser = (email: string) => {
+    // If resolution is disabled, mark as NO_NAME_FOUND immediately
+    if (resolutionDisabled) {
+      setUserCache((prev) => ({ ...prev, [email]: NO_NAME_FOUND }));
+      return;
+    }
+
     // Skip if already cached (including NO_NAME_FOUND sentinel)
     if (email in userCache) {
       return;
@@ -144,13 +149,12 @@ export function UserResolverProvider({
 
   return (
     <UserResolverContext.Provider
-      value={{ resolveUser, requestUser, isResolving }}
+      value={{ resolveUser, requestUser, isResolving, resolutionDisabled }}
     >
       {children}
     </UserResolverContext.Provider>
   );
 }
-
 // Hook
 function useUserResolver() {
   const context = useContext(UserResolverContext);
@@ -166,6 +170,7 @@ interface NameOptionalUserCardProps {
   name?: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   fallback?: (email: string) => ReactNode;
+  resolutionDisabled?: boolean;
 }
 
 // Component
@@ -175,23 +180,20 @@ export function NameOptionalUserCard({
   size = "sm",
   fallback,
 }: NameOptionalUserCardProps) {
-  const { resolveUser, requestUser, isResolving } = useUserResolver();
+  const { resolveUser, requestUser, isResolving, resolutionDisabled } =
+    useUserResolver();
   const [resolvedUser, setResolvedUser] = useState<UserData | undefined>();
   const { userData } = useAuth();
 
-  // Check if this is actually an email
   const isValidEmail = EMAIL_REGEX.test(email);
 
   useEffect(() => {
-    // If name is already provided or not a valid email, don't resolve
-    if (providedName || !isValidEmail) {
+    if (resolutionDisabled || providedName || !isValidEmail) {
       return;
     }
 
-    // Request the user (will be batched)
     requestUser(email);
 
-    // Set up polling to check if user has been resolved
     const interval = setInterval(() => {
       const user = resolveUser(email);
       if (user) {
@@ -201,38 +203,42 @@ export function NameOptionalUserCard({
     }, 10);
 
     return () => clearInterval(interval);
-  }, [email, providedName, isValidEmail, resolveUser, requestUser]);
+  }, [
+    email,
+    providedName,
+    isValidEmail,
+    resolutionDisabled,
+    resolveUser,
+    requestUser,
+  ]);
 
-  // If not a valid email, render fallback or default text
   if (!isValidEmail) {
     return fallback ? <>{fallback(email)}</> : <Text fz="sm">{email}</Text>;
   }
 
   const displayName = providedName || resolvedUser?.name || email;
-  const isLoading = !providedName && isResolving(email);
-
+  const isLoading = !resolutionDisabled && !providedName && isResolving(email);
   const isCurrentUser = !!userData && userData.email === email;
 
   return (
-    <Group gap="sm">
+    <Group gap="sm" wrap="nowrap">
       {isLoading ? (
         <Skeleton circle height={AVATAR_SIZES[size]} />
       ) : (
         <Avatar name={displayName} color="initials" size={size} />
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <Group gap="xs" align="center">
-          <Text fz="sm" fw={500}>
+        <Group gap="xs" align="center" wrap="nowrap">
+          <Text fz="sm" fw={500} component="span">
             {isLoading ? <Skeleton height={16} width="60%" /> : displayName}
           </Text>
-
           {isCurrentUser && !isLoading && (
             <Badge size="sm" variant="light">
               You
             </Badge>
           )}
         </Group>
-        <Text fz="xs" c="dimmed">
+        <Text fz="xs" c="dimmed" component="span">
           {isLoading ? <Skeleton height={12} width="80%" /> : email}
         </Text>
       </div>

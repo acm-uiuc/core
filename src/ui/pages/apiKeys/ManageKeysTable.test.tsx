@@ -8,6 +8,7 @@ import { OrgApiKeyTable } from "./ManageKeysTable";
 import { MemoryRouter } from "react-router-dom";
 import { ApiKeyMaskedEntry, ApiKeyPostBody } from "@common/types/apiKey";
 import { AppRoles } from "@common/roles";
+import { UserResolverProvider } from "@ui/components/NameOptionalCard";
 
 // Mock the notifications module
 vi.mock("@mantine/notifications", () => ({
@@ -83,11 +84,13 @@ describe("OrgApiKeyTable Tests", () => {
             withCssVariables
             forceColorScheme="light"
           >
-            <OrgApiKeyTable
-              createApiKey={createApiKey}
-              getApiKeys={getApiKeys}
-              deleteApiKeys={deleteApiKeys}
-            />
+            <UserResolverProvider resolutionDisabled>
+              <OrgApiKeyTable
+                createApiKey={createApiKey}
+                getApiKeys={getApiKeys}
+                deleteApiKeys={deleteApiKeys}
+              />
+            </UserResolverProvider>
           </MantineProvider>
         </MemoryRouter>,
       );
@@ -129,8 +132,8 @@ describe("OrgApiKeyTable Tests", () => {
     });
 
     expect(screen.getByText("Test API Key 1")).toBeInTheDocument();
-    expect(screen.getByText("You")).toBeInTheDocument(); // Current user's key
-    expect(screen.getByText("other@example.com")).toBeInTheDocument();
+    expect(screen.getAllByText("test@example.com")).length(2);
+    expect(screen.getAllByText("other@example.com")).length(2);
     expect(screen.getByText("Never")).toBeInTheDocument(); // For key that never expires
   });
 

@@ -7,13 +7,13 @@ import { notifications } from "@mantine/notifications";
 import { LogRenderer } from "./LogRenderer";
 import { Modules, ModulesToHumanName } from "@common/modules";
 import { MemoryRouter } from "react-router-dom";
+import { UserResolverProvider } from "@ui/components/NameOptionalCard";
 
 describe("LogRenderer Tests", () => {
   const getLogsMock = vi.fn();
 
   // Mock date for consistent testing
   const mockCurrentDate = new Date("2023-01-15T12:00:00Z");
-  const mockPastDate = new Date("2023-01-14T12:00:00Z");
 
   // Sample log data for testing
   const sampleLogs = [
@@ -46,7 +46,9 @@ describe("LogRenderer Tests", () => {
             withCssVariables
             forceColorScheme="light"
           >
-            <LogRenderer getLogs={getLogsMock} />
+            <UserResolverProvider resolutionDisabled>
+              <LogRenderer getLogs={getLogsMock} />
+            </UserResolverProvider>
           </MantineProvider>
         </MemoryRouter>,
       );
@@ -112,7 +114,7 @@ describe("LogRenderer Tests", () => {
     // Verify logs are displayed
     await screen.findByText("User created");
     expect(screen.getByText("admin")).toBeInTheDocument();
-    expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    expect(screen.getAllByText("user@example.com")).length(2);
     expect(screen.getByText("req-123")).toBeInTheDocument();
   });
 

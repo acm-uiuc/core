@@ -232,16 +232,16 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
     {
       key: "target",
       label: "Target",
-      render: (log) => (
-        <Text size="sm">
-          {selectedModule === Modules.AUDIT_LOG &&
-          Object.values(Modules).includes(log.target as Modules) ? (
-            ModulesToHumanName[log.target as Modules]
-          ) : (
-            <NameOptionalUserCard email={log.target} />
-          )}
-        </Text>
-      ),
+      render: (log) =>
+        selectedModule === Modules.AUDIT_LOG &&
+        Object.values(Modules).includes(log.target as Modules) ? (
+          ModulesToHumanName[log.target as Modules]
+        ) : (
+          <NameOptionalUserCard
+            email={log.target}
+            fallback={(email) => <>{email}</>}
+          />
+        ),
     },
     {
       key: "requestId",
