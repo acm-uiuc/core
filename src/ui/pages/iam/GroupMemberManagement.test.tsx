@@ -5,6 +5,7 @@ import GroupMemberManagement from "./GroupMemberManagement";
 import { MantineProvider } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import userEvent from "@testing-library/user-event";
+import { UserResolverProvider } from "@ui/components/NameOptionalCard";
 
 describe("Exec Group Management Panel tests", () => {
   const renderComponent = async (
@@ -19,10 +20,12 @@ describe("Exec Group Management Panel tests", () => {
             withCssVariables
             forceColorScheme="light"
           >
-            <GroupMemberManagement
-              fetchMembers={fetchMembers}
-              updateMembers={updateMembers}
-            />
+            <UserResolverProvider resolutionDisabled>
+              <GroupMemberManagement
+                fetchMembers={fetchMembers}
+                updateMembers={updateMembers}
+              />
+            </UserResolverProvider>
           </MantineProvider>
         </MemoryRouter>,
       );

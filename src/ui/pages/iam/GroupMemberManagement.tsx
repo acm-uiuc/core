@@ -22,6 +22,7 @@ import {
 import { notifications } from "@mantine/notifications";
 import { GroupMemberGetResponse, EntraActionResponse } from "@common/types/iam";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
+import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 
 interface GroupMemberManagementProps {
   fetchMembers: () => Promise<GroupMemberGetResponse>;
@@ -188,21 +189,7 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
       label: "Member",
       isPrimaryColumn: true,
       render: (member) => (
-        <Group gap="sm">
-          <Avatar
-            name={member.name || member.email[0]}
-            color="initials"
-            size="sm"
-          />
-          <div>
-            <Text fz="sm" fw={500}>
-              {member.name}
-            </Text>
-            <Text fz="xs" c="dimmed">
-              {member.email}
-            </Text>
-          </div>
-        </Group>
+        <NameOptionalUserCard name={member.name} email={member.email} />
       ),
     },
     {
