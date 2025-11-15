@@ -49,6 +49,7 @@ import {
   downloadFromS3PresignedUrl,
   uploadToS3PresignedUrl,
 } from "@ui/util/s3";
+import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 
 export const ViewRoomRequest: React.FC = () => {
   const { semesterId, requestId } = useParams();
@@ -446,17 +447,19 @@ export const ViewRoomRequest: React.FC = () => {
             <>
               <Timeline
                 active={data.updates.length}
-                bulletSize={28}
+                bulletSize={32}
                 lineWidth={4}
               >
                 {data.updates.map((x) => (
                   <Timeline.Item
                     bullet={getStatusIcon(x.status)}
-                    title={formatStatus(x.status)}
+                    title={<Text size="md">{formatStatus(x.status)}</Text>}
                   >
-                    {x.createdBy && <Text size="xs">{x.createdBy}</Text>}
+                    {x.createdBy && (
+                      <NameOptionalUserCard email={x.createdBy} />
+                    )}
                     {x.notes && (
-                      <Text c="dimmed" size="sm">
+                      <Text c="dimmed" size="sm" mt="xs">
                         {x.notes}
                       </Text>
                     )}
@@ -464,6 +467,7 @@ export const ViewRoomRequest: React.FC = () => {
                       <Button
                         size="xs"
                         variant="light"
+                        mt="xs"
                         leftSection={
                           downloadingAttachment ===
                           `${x.createdAt}#${x.status}` ? (
@@ -496,7 +500,7 @@ export const ViewRoomRequest: React.FC = () => {
                         position="top"
                         withArrow
                       >
-                        <Text c="dimmed" size="xs">
+                        <Text c="dimmed" size="xs" mt="xs">
                           {moment.tz(x.createdAt, "America/Chicago").fromNow()}
                         </Text>
                       </Tooltip>

@@ -23,6 +23,7 @@ import { illinoisNetId } from "@common/types/generic";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { AppRoles } from "@common/roles";
 import pluralize from "pluralize";
+import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 
 interface ExternalMemberListManagementProps {
   fetchMembers: (listId: string) => Promise<string[]>;
@@ -327,12 +328,7 @@ const ExternalMemberListManagement: React.FC<
     return (
       <Table.Tr key={member} style={{ opacity: isQueuedForRemoval ? 0.5 : 1 }}>
         <Table.Td>
-          <Group gap="sm">
-            <Avatar name={member} color="initials" />
-            <Text fz="sm" fw={500}>
-              {member}
-            </Text>
-          </Group>
+          <NameOptionalUserCard email={`${member}@illinois.edu`} />
         </Table.Td>
         <Table.Td>{statusBadge}</Table.Td>
         <Table.Td>{actionButton}</Table.Td>
@@ -379,7 +375,7 @@ const ExternalMemberListManagement: React.FC<
       <Table verticalSpacing="sm" highlightOnHover>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th>Member NetID</Table.Th>
+            <Table.Th>Member</Table.Th>
             <Table.Th>Status</Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>

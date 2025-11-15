@@ -38,6 +38,7 @@ import { AppRoles } from "@common/roles";
 import { BlurredTextDisplay } from "../../components/BlurredTextDisplay";
 import * as z from "zod/v4";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
+import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 
 const HumanFriendlyDate = ({ date }: { date: number }) => {
   return (
@@ -208,11 +209,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
     {
       key: "owner",
       label: "Owner",
-      render: (key) => (
-        <Text size="sm">
-          {key.owner === userData?.email ? "You" : key.owner}
-        </Text>
-      ),
+      render: (key) => <NameOptionalUserCard size="sm" email={key.owner} />,
     },
     {
       key: "created",

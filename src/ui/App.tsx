@@ -8,6 +8,7 @@ import { Notifications } from "@mantine/notifications";
 
 import ColorSchemeContext from "./ColorSchemeContext";
 import { Router } from "./Router";
+import { UserResolverProvider } from "./components/NameOptionalCard";
 
 export default function App() {
   const preferredColorScheme = useColorScheme();
@@ -25,7 +26,9 @@ export default function App() {
         forceColorScheme={colorScheme}
       >
         <Notifications position="top-right" />
-        <Router />
+        <UserResolverProvider>
+          <Router />
+        </UserResolverProvider>
       </MantineProvider>
     </ColorSchemeContext.Provider>
   );

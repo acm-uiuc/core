@@ -11,6 +11,8 @@ import {
   Stack,
   TextInput,
   Alert,
+  Tooltip,
+  Box,
 } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
@@ -23,6 +25,7 @@ import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
+import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 
 // Define the schemas
 const purchaseSchema = z.object({
@@ -295,6 +298,20 @@ const ViewTicketsPage: React.FC = () => {
   const startIndex = (currentPage - 1) * parseInt(pageSize, 10);
   const endIndex = startIndex + parseInt(pageSize, 10);
   const currentTickets = allTickets.slice(startIndex, endIndex);
+  const copyTicketId = (ticketId: string) => {
+    try {
+      navigator.clipboard.writeText(ticketId);
+      notifications.show({
+        message: "Ticket ID copied!",
+      });
+    } catch (e) {
+      notifications.show({
+        title: "Failed to copy ticket ID",
+        message: "Please try again or contact support.",
+        color: "red",
+      });
+    }
+  };
   return (
     <AuthGuard
       resourceDef={{ service: "core", validRoles: [AppRoles.TICKETS_MANAGER] }}
@@ -335,7 +352,6 @@ const ViewTicketsPage: React.FC = () => {
               <Table.Th>Status</Table.Th>
               <Table.Th>Quantity</Table.Th>
               <Table.Th>Size</Table.Th>
-              <Table.Th>Ticket ID</Table.Th>
               <Table.Th>Actions</Table.Th>
             </Table.Tr>
           </Table.Thead>
@@ -344,13 +360,28 @@ const ViewTicketsPage: React.FC = () => {
               const { status, color } = getTicketStatus(ticket);
               return (
                 <Table.Tr key={ticket.ticketId}>
-                  <Table.Td>{ticket.purchaserData.email}</Table.Td>
+                  <Table.Td>
+                    <Tooltip
+                      label="Click to copy ticket ID"
+                      position="top"
+                      withArrow
+                    >
+                      <Box
+                        style={{ cursor: "pointer" }}
+                        onClick={() => copyTicketId(ticket.ticketId)}
+                      >
+                        <NameOptionalUserCard
+                          email={ticket.purchaserData.email}
+                          size="sm"
+                        />
+                      </Box>
+                    </Tooltip>
+                  </Table.Td>
                   <Table.Td>
                     <Badge color={color}>{status}</Badge>
                   </Table.Td>
                   <Table.Td>{ticket.purchaserData.quantity}</Table.Td>
                   <Table.Td>{ticket.purchaserData.size || "N/A"}</Table.Td>
-                  <Table.Td>{ticket.ticketId}</Table.Td>
                   <Table.Td>
                     {!(ticket.fulfilled || ticket.refunded) && (
                       <AuthGuard
