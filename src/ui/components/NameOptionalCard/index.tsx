@@ -33,6 +33,7 @@ interface UserResolverContextType {
   requestUser: (email: string) => void;
   isResolving: (email: string) => boolean;
   resolutionDisabled: boolean;
+  cacheVersion: number;
 }
 
 // Context
@@ -57,6 +58,7 @@ export function UserResolverProvider({
   const [userCache, setUserCache] = useState<
     Record<string, string | typeof NO_NAME_FOUND>
   >({});
+  const [cacheVersion, setCacheVersion] = useState(0);
   const pendingRequests = useRef<Set<string>>(new Set());
   const batchTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -94,21 +96,30 @@ export function UserResolverProvider({
 
     try {
       const results = await fetchUsers(emailsToFetch);
-      setUserCache((prev) => ({ ...prev, ...results }));
+      setUserCache((prev) => {
+        setCacheVersion((v) => v + 1);
+        return { ...prev, ...results };
+      });
     } catch (error) {
       console.error("Failed to fetch users:", error);
       const failedCache: Record<string, typeof NO_NAME_FOUND> = {};
       emailsToFetch.forEach((email) => {
         failedCache[email] = NO_NAME_FOUND;
       });
-      setUserCache((prev) => ({ ...prev, ...failedCache }));
+      setUserCache((prev) => {
+        setCacheVersion((v) => v + 1);
+        return { ...prev, ...failedCache };
+      });
     }
   };
 
   const requestUser = (email: string) => {
     // If resolution is disabled, mark as NO_NAME_FOUND immediately
     if (resolutionDisabled) {
-      setUserCache((prev) => ({ ...prev, [email]: NO_NAME_FOUND }));
+      setUserCache((prev) => {
+        setCacheVersion((v) => v + 1);
+        return { ...prev, [email]: NO_NAME_FOUND };
+      });
       return;
     }
 
@@ -119,7 +130,10 @@ export function UserResolverProvider({
 
     // Validate email format - if invalid, mark as NO_NAME_FOUND immediately
     if (!EMAIL_REGEX.test(email)) {
-      setUserCache((prev) => ({ ...prev, [email]: NO_NAME_FOUND }));
+      setUserCache((prev) => {
+        setCacheVersion((v) => v + 1);
+        return { ...prev, [email]: NO_NAME_FOUND };
+      });
       return;
     }
 
@@ -149,12 +163,19 @@ export function UserResolverProvider({
 
   return (
     <UserResolverContext.Provider
-      value={{ resolveUser, requestUser, isResolving, resolutionDisabled }}
+      value={{
+        resolveUser,
+        requestUser,
+        isResolving,
+        resolutionDisabled,
+        cacheVersion,
+      }}
     >
       {children}
     </UserResolverContext.Provider>
   );
 }
+
 // Hook
 function useUserResolver() {
   const context = useContext(UserResolverContext);
@@ -179,9 +200,21 @@ export function NameOptionalUserCard({
   email,
   size = "sm",
   fallback,
+  resolutionDisabled: resolutionDisabledProp,
 }: NameOptionalUserCardProps) {
-  const { resolveUser, requestUser, isResolving, resolutionDisabled } =
-    useUserResolver();
+  const {
+    resolveUser,
+    requestUser,
+    isResolving,
+    resolutionDisabled: contextResolutionDisabled,
+    cacheVersion,
+  } = useUserResolver();
+
+  const resolutionDisabled =
+    typeof resolutionDisabledProp === "boolean"
+      ? resolutionDisabledProp
+      : contextResolutionDisabled;
+
   const [resolvedUser, setResolvedUser] = useState<UserData | undefined>();
   const { userData } = useAuth();
 
@@ -193,21 +226,16 @@ export function NameOptionalUserCard({
     }
 
     requestUser(email);
-
-    const interval = setInterval(() => {
-      const user = resolveUser(email);
-      if (user) {
-        setResolvedUser(user);
-        clearInterval(interval);
-      }
-    }, 10);
-
-    return () => clearInterval(interval);
+    const user = resolveUser(email);
+    if (user) {
+      setResolvedUser(user);
+    }
   }, [
     email,
     providedName,
     isValidEmail,
     resolutionDisabled,
+    cacheVersion,
     resolveUser,
     requestUser,
   ]);

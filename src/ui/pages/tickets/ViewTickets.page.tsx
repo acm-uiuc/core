@@ -298,9 +298,9 @@ const ViewTicketsPage: React.FC = () => {
   const startIndex = (currentPage - 1) * parseInt(pageSize, 10);
   const endIndex = startIndex + parseInt(pageSize, 10);
   const currentTickets = allTickets.slice(startIndex, endIndex);
-  const copyTicketId = (ticketId: string) => {
+  const copyTicketId = async (ticketId: string) => {
     try {
-      navigator.clipboard.writeText(ticketId);
+      await navigator.clipboard.writeText(ticketId);
       notifications.show({
         message: "Ticket ID copied!",
       });
