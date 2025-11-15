@@ -16,6 +16,7 @@ describe("User info live tests", async () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             emails: ["invalid"],
@@ -32,6 +33,7 @@ describe("User info live tests", async () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           emails: ["testinguser@illinois.edu"],

@@ -37,8 +37,7 @@ describe("External Membership tests", () => {
       .getByRole("textbox", { name: "Initial Member NetID" })
       .fill("corete5");
     await page.getByRole("button", { name: "Create List" }).click();
-    await expect(page.getByText("corete5")).toBeVisible();
-    await expect(page.locator("tbody")).toContainText("corete5");
+    await expect(page.locator("tbody").getByText("corete5")).toHaveCount(2);
     await expect(page.locator("tbody")).toContainText("Active");
     await expect(page.getByText("Found 1 member.")).toBeVisible();
     await page.getByRole("button", { name: "Replace List" }).click();
@@ -46,7 +45,7 @@ describe("External Membership tests", () => {
       .getByRole("textbox", { name: "jdoe2 asmith3@illinois.edu" })
       .fill("corete5\ncorete6");
     await page.getByRole("button", { name: "Compute Changes" }).click();
-    await expect(page.locator("tbody")).toContainText("corete6");
+    await expect(page.locator("tbody").getByText("corete6")).toHaveCount(2);
     await expect(page.locator("tbody")).toContainText("Queued for addition");
     await expect(page.locator("tbody")).toContainText("Cancel Add");
     await page.getByRole("button", { name: "Save Changes" }).click();
@@ -55,7 +54,9 @@ describe("External Membership tests", () => {
     await page.getByRole("button", { name: "Save Changes" }).click();
     await page.getByRole("button", { name: "Confirm and Save" }).click();
     await page
-      .getByRole("row", { name: "CO corete5 Active Remove" })
+      .getByRole("row", {
+        name: "CO corete5@illinois.edu corete5@illinois.edu",
+      })
       .getByRole("button")
       .click();
     await page.getByRole("button", { name: "Remove" }).click();

@@ -20,7 +20,9 @@ describe("Audit Log tests", () => {
     await expect(page.getByRole("cell", { name: "Request ID" })).toBeVisible();
     await page.getByRole("button", { name: "Fetch Logs" }).click();
     await page.getByRole("button", { name: "Fetch Logs" }).click();
+    await page.waitForTimeout(500);
     await page.getByRole("button", { name: "Fetch Logs" }).click();
+
     await expect(page.locator("tbody")).toContainText(
       "core-e2e-testing@illinois.edu",
     );
