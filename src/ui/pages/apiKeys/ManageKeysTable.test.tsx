@@ -132,8 +132,8 @@ describe("OrgApiKeyTable Tests", () => {
     });
 
     expect(screen.getByText("Test API Key 1")).toBeInTheDocument();
-    expect(screen.getAllByText("test@example.com")).length(2);
-    expect(screen.getAllByText("other@example.com")).length(2);
+    expect(screen.getAllByText("test@example.com")).toHaveLength(2);
+    expect(screen.getAllByText("other@example.com")).toHaveLength(2);
     expect(screen.getByText("Never")).toBeInTheDocument(); // For key that never expires
   });
 
