@@ -6,6 +6,7 @@ import { MantineProvider } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { ManageOrganizationForm } from "./ManageOrganizationForm";
 import { MemoryRouter } from "react-router-dom";
+import { UserResolverProvider } from "@ui/components/NameOptionalCard";
 
 // Mock the notifications module
 vi.mock("@mantine/notifications", () => ({
@@ -36,12 +37,14 @@ describe("ManageOrganizationForm Tests", () => {
             withCssVariables
             forceColorScheme="light"
           >
-            <ManageOrganizationForm
-              organizationId="ACM"
-              getOrganizationData={getOrganizationDataMock}
-              updateOrganizationData={updateOrganizationDataMock}
-              {...props}
-            />
+            <UserResolverProvider resolutionDisabled>
+              <ManageOrganizationForm
+                organizationId="ACM"
+                getOrganizationData={getOrganizationDataMock}
+                updateOrganizationData={updateOrganizationDataMock}
+                {...props}
+              />
+            </UserResolverProvider>
           </MantineProvider>
         </MemoryRouter>,
       );
@@ -242,11 +245,13 @@ describe("ManageOrganizationForm Tests", () => {
           withCssVariables
           forceColorScheme="light"
         >
-          <ManageOrganizationForm
-            organizationId="ACM"
-            getOrganizationData={getOrganizationDataMock}
-            updateOrganizationData={updateOrganizationDataMock}
-          />
+          <UserResolverProvider resolutionDisabled>
+            <ManageOrganizationForm
+              organizationId="ACM"
+              getOrganizationData={getOrganizationDataMock}
+              updateOrganizationData={updateOrganizationDataMock}
+            />
+          </UserResolverProvider>
         </MantineProvider>
       </MemoryRouter>,
     );
@@ -273,11 +278,13 @@ describe("ManageOrganizationForm Tests", () => {
             withCssVariables
             forceColorScheme="light"
           >
-            <ManageOrganizationForm
-              organizationId="SIGWeb"
-              getOrganizationData={getOrganizationDataMock}
-              updateOrganizationData={updateOrganizationDataMock}
-            />
+            <UserResolverProvider resolutionDisabled>
+              <ManageOrganizationForm
+                organizationId="SIGWeb"
+                getOrganizationData={getOrganizationDataMock}
+                updateOrganizationData={updateOrganizationDataMock}
+              />
+            </UserResolverProvider>
           </MantineProvider>
         </MemoryRouter>,
       );
@@ -421,13 +428,15 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
             withCssVariables
             forceColorScheme="light"
           >
-            <ManageOrganizationForm
-              organizationId="ACM"
-              getOrganizationData={getOrganizationDataMock}
-              updateOrganizationData={updateOrganizationDataMock}
-              updateLeads={updateLeadsMock}
-              {...props}
-            />
+            <UserResolverProvider resolutionDisabled>
+              <ManageOrganizationForm
+                organizationId="ACM"
+                getOrganizationData={getOrganizationDataMock}
+                updateOrganizationData={updateOrganizationDataMock}
+                updateLeads={updateLeadsMock}
+                {...props}
+              />
+            </UserResolverProvider>
           </MantineProvider>
         </MemoryRouter>,
       );
@@ -443,17 +452,15 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
-      expect(screen.getByText("jdoe@illinois.edu")).toBeInTheDocument();
-      expect(screen.getByText("Jane Smith")).toBeInTheDocument();
-      expect(screen.getByText("jsmith@illinois.edu")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
+      expect(screen.getAllByText("jsmith@illinois.edu").length).toEqual(2);
       expect(screen.getByText("Vice Chair")).toBeInTheDocument();
     });
 
     const table = screen.getByRole("table");
-    expect(table).toHaveTextContent("John Doe");
+    expect(table).toHaveTextContent("jdoe@illinois.edu");
     expect(table).toHaveTextContent("Chair");
-    expect(table).toHaveTextContent("Jane Smith");
+    expect(table).toHaveTextContent("jsmith@illinois.edu");
     expect(table).toHaveTextContent("Vice Chair");
   });
 
@@ -477,11 +484,10 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
     });
 
     // Fill in new lead form
-    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
     await user.type(
       screen.getByLabelText("Lead Email"),
       "bwilson@illinois.edu",
@@ -494,8 +500,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
 
     // Check that the lead is queued
     await waitFor(() => {
-      expect(screen.getByText("Bob Wilson")).toBeInTheDocument();
-      expect(screen.getByText("bwilson@illinois.edu")).toBeInTheDocument();
+      expect(screen.getAllByText("bwilson@illinois.edu").length).toEqual(2);
       expect(screen.getByText("Treasurer")).toBeInTheDocument();
       expect(screen.getByText("Queued for addition")).toBeInTheDocument();
     });
@@ -508,11 +513,10 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
     });
 
     // Fill in form with invalid email
-    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
     await user.type(screen.getByLabelText("Lead Email"), "invalid-email");
     await user.type(screen.getByLabelText("Lead Title"), "Treasurer");
 
@@ -539,11 +543,10 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
     });
 
     // Try to add existing lead
-    await user.type(screen.getByLabelText("Lead Name"), "John Doe");
     await user.type(screen.getByLabelText("Lead Email"), "jdoe@illinois.edu");
     await user.type(screen.getByLabelText("Lead Title"), "Member");
 
@@ -569,10 +572,10 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
     });
 
-    // Find and click the Remove button for John Doe
+    // Find and click the Remove button for the first lead
     const removeButtons = screen.getAllByRole("button", { name: "Remove" });
     await user.click(removeButtons[0]);
 
@@ -588,7 +591,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
     });
 
     // Queue for removal
@@ -605,7 +608,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
 
     await waitFor(() => {
       expect(screen.queryByText("Queued for removal")).not.toBeInTheDocument();
-      expect(screen.getAllByText("Active").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Active").length).toEqual(2);
     });
   });
 
@@ -615,11 +618,10 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
     });
 
     // Add a new lead
-    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
     await user.type(
       screen.getByLabelText("Lead Email"),
       "bwilson@illinois.edu",
@@ -628,7 +630,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await user.click(screen.getByRole("button", { name: "Add Lead" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Bob Wilson")).toBeInTheDocument();
+      expect(screen.getAllByText("bwilson@illinois.edu").length).toEqual(2);
     });
 
     // Cancel the addition
@@ -636,7 +638,9 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await user.click(cancelAddButton);
 
     await waitFor(() => {
-      expect(screen.queryByText("Bob Wilson")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("bwilson@illinois.edu"),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -646,11 +650,10 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
     });
 
     // Add a new lead
-    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
     await user.type(
       screen.getByLabelText("Lead Email"),
       "bwilson@illinois.edu",
@@ -676,11 +679,10 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
     });
 
     // Add a new lead
-    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
     await user.type(
       screen.getByLabelText("Lead Email"),
       "bwilson@illinois.edu",
@@ -710,7 +712,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
       expect(updateLeadsMock).toHaveBeenCalledWith(
         [
           {
-            name: "Bob Wilson",
+            name: "",
             nonVotingMember: false,
             username: "bwilson@illinois.edu",
             title: "Treasurer",
@@ -726,7 +728,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
     });
 
     const saveButton = screen.getByTestId("save-lead-changes");
@@ -739,22 +741,19 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
     });
 
     // Fill in and submit form
-    const nameInput = screen.getByLabelText("Lead Name");
     const emailInput = screen.getByLabelText("Lead Email");
     const titleInput = screen.getByLabelText("Lead Title");
 
-    await user.type(nameInput, "Bob Wilson");
     await user.type(emailInput, "bwilson@illinois.edu");
     await user.type(titleInput, "Treasurer");
     await user.click(screen.getByRole("button", { name: "Add Lead" }));
 
     // Check that fields are cleared
     await waitFor(() => {
-      expect(nameInput).toHaveValue("");
       expect(emailInput).toHaveValue("");
       expect(titleInput).toHaveValue("");
     });
@@ -767,11 +766,14 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(screen.getAllByText("jdoe@illinois.edu").length).toEqual(2);
     });
 
     // Try to add without filling all fields
-    await user.type(screen.getByLabelText("Lead Name"), "Bob Wilson");
+    await user.type(
+      screen.getByLabelText("Lead Email"),
+      "bwilson@illinois.edu",
+    );
     await user.click(screen.getByRole("button", { name: "Add Lead" }));
 
     await waitFor(() => {
@@ -797,11 +799,13 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
             withCssVariables
             forceColorScheme="light"
           >
-            <ManageOrganizationForm
-              organizationId="ACM"
-              getOrganizationData={getOrganizationDataMock}
-              updateOrganizationData={updateOrganizationDataMock}
-            />
+            <UserResolverProvider resolutionDisabled>
+              <ManageOrganizationForm
+                organizationId="ACM"
+                getOrganizationData={getOrganizationDataMock}
+                updateOrganizationData={updateOrganizationDataMock}
+              />
+            </UserResolverProvider>
           </MantineProvider>
         </MemoryRouter>,
       );
