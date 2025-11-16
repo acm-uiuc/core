@@ -41,6 +41,7 @@ import {
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 import * as z from "zod/v4";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
+import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 
 type OrganizationData = z.infer<typeof setOrganizationMetaBody>;
 
@@ -142,7 +143,7 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
   }, [organizationId]);
 
   const handleAddLead = () => {
-    if (!newLeadName.trim() || !newLeadEmail.trim() || !newLeadTitle.trim()) {
+    if (!newLeadEmail.trim() || !newLeadTitle.trim()) {
       notifications.show({
         title: "Invalid Input",
         message: "All fields are required to add a lead.",
@@ -278,23 +279,13 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
       label: "Lead",
       isPrimaryColumn: true,
       render: (lead) => (
-        <Group gap="sm">
-          <Avatar name={lead.name} color="initials" size="sm" />
-          <div>
-            <Group gap="xs">
-              <Text fz="sm" fw={500}>
-                {lead.name}
-              </Text>
-              {lead.nonVotingMember && (
-                <Badge color="gray" variant="light" size="sm">
-                  Non-Voting
-                </Badge>
-              )}
-            </Group>
-            <Text fz="xs" c="dimmed">
-              {lead.username}
-            </Text>
-          </div>
+        <Group>
+          <NameOptionalUserCard email={lead.username} />
+          {lead.nonVotingMember && (
+            <Badge color="gray" variant="light" size="sm" ml="xs">
+              Non-Voting
+            </Badge>
+          )}
         </Group>
       ),
     },
@@ -515,12 +506,6 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
               )}
 
               <Stack gap="xs" mt="xl">
-                <TextInput
-                  label="Lead Name"
-                  placeholder="John Doe"
-                  value={newLeadName}
-                  onChange={(e) => setNewLeadName(e.currentTarget.value)}
-                />
                 <TextInput
                   label="Lead Email"
                   description="The lead's @illinois.edu email"

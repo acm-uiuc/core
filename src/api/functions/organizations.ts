@@ -25,6 +25,7 @@ import { Modules } from "common/modules.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 import { Redis, ValidLoggers } from "api/types.js";
 import { createLock, IoredisAdapter, type SimpleLock } from "redlock-universal";
+import { batchGetUserInfo } from "./uin.js";
 
 export interface GetOrgInfoInputs {
   id: string;
@@ -54,7 +55,7 @@ export async function getOrgInfo({
     ConsistentRead: true,
   });
   let response = { leads: [] } as {
-    leads: { name: string; username: string; title: string | undefined }[];
+    leads: { name?: string; username: string; title: string | undefined }[];
   };
   try {
     const responseMarshall = await dynamoClient.send(query);
@@ -98,18 +99,39 @@ export async function getOrgInfo({
         .map(
           (x) =>
             ({
-              name: x.name,
               username: x.username,
               title: x.title,
               nonVotingMember: x.nonVotingMember || false,
             }) as {
-              name: string;
               username: string;
               title: string | undefined;
               nonVotingMember: boolean;
             },
         );
-      response = { ...response, leads: unmarshalledLeads };
+
+      // Resolve usernames to names
+      const emails = unmarshalledLeads.map((lead) => lead.username);
+      const userInfo = await batchGetUserInfo({
+        emails,
+        dynamoClient,
+        logger,
+      });
+
+      // Add names to leads
+      const leadsWithNames = unmarshalledLeads.map((lead) => {
+        const info = userInfo[lead.username];
+        const name =
+          info?.firstName || info?.lastName
+            ? [info.firstName, info.lastName].filter(Boolean).join(" ")
+            : undefined;
+
+        return {
+          ...lead,
+          name,
+        };
+      });
+
+      response = { ...response, leads: leadsWithNames };
     }
   } catch (e) {
     if (e instanceof BaseError) {
