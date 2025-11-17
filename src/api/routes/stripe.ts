@@ -11,6 +11,7 @@ import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import {
   addInvoice,
   createStripeLink,
+  createCheckoutSessionWithCustomer,
   deactivateStripeLink,
   deactivateStripeProduct,
   getPaymentMethodDescriptionString,
@@ -137,9 +138,42 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         stripeApiKey: secretApiConfig.stripe_secret_key as string,
       };
 
-      const stripeCustomer = await addInvoice(payload);
+      const result = await addInvoice(payload);
 
-      reply.status(201).send({ link: "<dummy link here>" });
+      if (result.needsConfirmation) {
+        return reply.status(409).send({
+          needsConfirmation: true,
+          customerId: result.customerId,
+          current: result.current,
+          incoming: result.incoming,
+          message: "Customer info differs. Confirm update before proceeding.",
+        });
+      }
+
+      const checkoutUrl = await createCheckoutSessionWithCustomer({
+        customerId: result.customerId,
+        stripeApiKey: secretApiConfig.stripe_secret_key as string,
+        items: [
+          {
+            price: "<PRICE_ID_OR_DYNAMICALLY_CREATED_PRICE>",
+            quantity: 1,
+          },
+        ],
+        initiator: request.username || "system",
+        allowPromotionCodes: true,
+        successUrl: `${fastify.environmentConfig.UserFacingUrl}/success`,
+        returnUrl: `${fastify.environmentConfig.UserFacingUrl}/cancel`,
+        metadata: {
+          acm_org: request.body.acmOrg,
+          billing_email: request.body.contactEmail,
+          invoice_id: request.body.invoiceId,
+        },
+      });
+
+      reply.status(201).send({
+        id: request.body.invoiceId,
+        link: checkoutUrl,
+      });
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(

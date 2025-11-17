@@ -346,6 +346,13 @@ export type checkCustomerParams = {
   stripeApiKey: string;
 };
 
+export type CheckOrCreateResult = {
+  customerId: string;
+  needsConfirmation?: boolean;
+  current?: { name?: string | null; email?: string | null };
+  incoming?: { name: string; email: string };
+};
+
 export const checkOrCreateCustomer = async ({
   acmOrg,
   emailDomain,
@@ -354,7 +361,7 @@ export const checkOrCreateCustomer = async ({
   customerEmail,
   customerName,
   stripeApiKey,
-}: checkCustomerParams): Promise<string> => {
+}: checkCustomerParams): Promise<CheckOrCreateResult> => {
   const lock = createLock({
     adapter: new IoredisAdapter(redisClient),
     key: `stripe:${acmOrg}:${emailDomain}`,
@@ -363,6 +370,7 @@ export const checkOrCreateCustomer = async ({
   }) as SimpleLock;
 
   const pk = `${acmOrg}#${emailDomain}`;
+  const normalizedEmail = customerEmail.trim().toLowerCase();
 
   return await lock.using(async () => {
     const checkCustomer = new QueryCommand({
@@ -379,10 +387,11 @@ export const checkOrCreateCustomer = async ({
 
     if (customerResponse.Count === 0) {
       const customer = await createStripeCustomer({
-        email: customerEmail,
+        email: normalizedEmail,
         name: customerName,
         stripeApiKey,
       });
+
       const createCustomer = new TransactWriteItemsCommand({
         TransactItems: [
           {
@@ -398,15 +407,84 @@ export const checkOrCreateCustomer = async ({
                 },
                 { removeUndefinedValues: true },
               ),
+              ConditionExpression:
+                "attribute_not_exists(primaryKey) AND attribute_not_exists(sortKey)",
+            },
+          },
+          {
+            Put: {
+              TableName: genericConfig.StripePaymentsDynamoTableName,
+              Item: marshall(
+                {
+                  primaryKey: pk,
+                  sortKey: `EMAIL#${normalizedEmail}`,
+                  stripeCustomerId: customer,
+                  createdAt: new Date().toISOString(),
+                },
+                { removeUndefinedValues: true },
+              ),
+              ConditionExpression:
+                "attribute_not_exists(primaryKey) AND attribute_not_exists(sortKey)",
             },
           },
         ],
       });
       await dynamoClient.send(createCustomer);
-      return customer;
+      return { customerId: customer };
     }
 
-    return customerResponse.Items![0].stripeCustomerId.S!;
+    const existingCustomerId = (customerResponse.Items![0] as any)
+      .stripeCustomerId.S as string;
+
+    const stripeClient = new Stripe(stripeApiKey);
+    const stripeCustomer =
+      await stripeClient.customers.retrieve(existingCustomerId);
+
+    const liveName =
+      "name" in stripeCustomer ? (stripeCustomer as any).name : null;
+    const liveEmail =
+      "email" in stripeCustomer ? (stripeCustomer as any).email : null;
+
+    const needsConfirmation =
+      (!!liveName && liveName !== customerName) ||
+      (!!liveEmail && liveEmail.toLowerCase() !== normalizedEmail);
+
+    const ensureEmailMap = new TransactWriteItemsCommand({
+      TransactItems: [
+        {
+          Put: {
+            TableName: genericConfig.StripePaymentsDynamoTableName,
+            Item: marshall(
+              {
+                primaryKey: pk,
+                sortKey: `EMAIL#${normalizedEmail}`,
+                stripeCustomerId: existingCustomerId,
+                createdAt: new Date().toISOString(),
+              },
+              { removeUndefinedValues: true },
+            ),
+            ConditionExpression:
+              "attribute_not_exists(primaryKey) AND attribute_not_exists(sortKey)",
+          },
+        },
+      ],
+    });
+    try {
+      await dynamoClient.send(ensureEmailMap);
+    } catch (e) {
+      // ignore
+    }
+
+    if (needsConfirmation) {
+      return {
+        customerId: existingCustomerId,
+        needsConfirmation: true,
+        current: { name: liveName ?? null, email: liveEmail ?? null },
+        incoming: { name: customerName, email: normalizedEmail },
+      };
+    }
+
+    return { customerId: existingCustomerId };
   });
 };
 
@@ -432,10 +510,10 @@ export const addInvoice = async ({
   redisClient,
   dynamoClient,
   stripeApiKey,
-}: InvoiceAddParams): Promise<string> => {
+}: InvoiceAddParams): Promise<CheckOrCreateResult> => {
   const pk = `${acmOrg}#${emailDomain}`;
 
-  const customerId = await checkOrCreateCustomer({
+  const result = await checkOrCreateCustomer({
     acmOrg,
     emailDomain,
     redisClient,
@@ -444,6 +522,10 @@ export const addInvoice = async ({
     customerName: contactName,
     stripeApiKey,
   });
+
+  if (result.needsConfirmation) {
+    return result;
+  }
 
   const dynamoCommand = new TransactWriteItemsCommand({
     TransactItems: [
@@ -476,5 +558,5 @@ export const addInvoice = async ({
   });
 
   await dynamoClient.send(dynamoCommand);
-  return customerId;
+  return { customerId: result.customerId };
 };
