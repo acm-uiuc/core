@@ -17,12 +17,12 @@ jobs:
     timeout-minutes: 15
     name: Run Unit Tests
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         env:
           HUSKY: "0"
 
       - name: Set up Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22.x
           cache: "yarn"
@@ -50,12 +50,12 @@ jobs:
     timeout-minutes: 15
     name: Build Application
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         env:
           HUSKY: "0"
 
       - name: Set up Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22.x
           cache: "yarn"
@@ -77,7 +77,7 @@ jobs:
           VITE_BUILD_HASH: ${{ inputs.api_version }}
 
       - name: Upload Build files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           include-hidden-files: true
           name: build-prod
@@ -102,7 +102,7 @@ jobs:
     environment: "AWS PROD"
     steps:
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22.x
 
@@ -111,12 +111,12 @@ jobs:
         with:
           terraform_version: 1.12.2
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         env:
           HUSKY: "0"
 
       - name: Download Build files
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: build-prod
       - uses: aws-actions/configure-aws-credentials@v5
