@@ -1,6 +1,8 @@
 import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { withRoles, withTags } from "api/components/index.js";
+import { QueryCommand } from "@aws-sdk/client-dynamodb";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { getUserOrgRoles } from "api/functions/organizations.js";
 import {
   UnauthenticatedError,
@@ -11,6 +13,15 @@ import * as z from "zod/v4";
 import { verifyUiucAccessToken } from "api/functions/uin.js";
 import { checkPaidMembership } from "api/functions/membership.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
+import { genericConfig } from "common/config.js";
+
+const rsvpItemSchema = z.object({
+  eventId: z.string(),
+  userId: z.string(),
+  isPaidMember: z.boolean(),
+  createdAt: z.string(),
+});
+const rsvpListSchema = z.array(rsvpItemSchema);
 
 const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -65,6 +76,41 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         isPaidMember,
         createdAt: "",
       };
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "/:orgId/event/:eventId",
+    {
+      schema: withTags(["RSVP"], {
+        summary: "Get all RSVPs for an event.",
+        params: z.object({
+          eventId: z.string().min(1).meta({
+            description: "The previously-created event ID in the events API.",
+          }),
+          orgId: z.string().min(1).meta({
+            description: "The organization ID the event belongs to.",
+          }),
+        }),
+        headers: z.object({
+          "x-uiuc-token": z.jwt().min(1).meta({
+            description:
+              "An access token for the user in the UIUC Entra ID tenant.",
+          }),
+        }),
+      }),
+    },
+    async (request, reply) => {
+      const commnand = new QueryCommand({
+        TableName: genericConfig.EventsDynamoTableName,
+        IndexName: "EventIdIndex",
+        KeyConditionExpression: "eventId = :eid",
+        ExpressionAttributeValues: {
+          ":eid": { S: request.params.eventId },
+        },
+      });
+      const response = await fastify.dynamoClient.send(commnand);
+      const items = response.Items?.map((item) => unmarshall(item)) || [];
+      return reply.send(items as z.infer<typeof rsvpListSchema>);
     },
   );
 };
