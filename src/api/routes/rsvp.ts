@@ -116,7 +116,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       const rsvps = response.Items.map((x) => unmarshall(x));
       const uniqueRsvps = [
-        ...new Map(rsvps.map((item) => [item.userId, item])).values()
+        ...new Map(rsvps.map((item) => [item.userId, item])).values(),
       ];
       return reply.send(uniqueRsvps);
     },
