@@ -51,6 +51,8 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.VIEW_RSVPS]: "RSVPs Viewer",
   [AppRoles.TICKETS_SCANNER]: "Tickets Scanner",
   [AppRoles.TICKETS_MANAGER]: "Tickets Manager",
+  [AppRoles.RSVPS_MANAGER]: "RSVPs Manager",
+  [AppRoles.VIEW_RSVPS]: "RSVPs Viewer",
   [AppRoles.IAM_ADMIN]: "IAM Admin",
   [AppRoles.IAM_INVITE_ONLY]: "IAM Inviter",
   [AppRoles.LINKS_MANAGER]: "Links Manager",
