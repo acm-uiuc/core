@@ -568,7 +568,7 @@ resource "aws_dynamodb_table" "store_limits" {
   }
 }
 
-resource "aws_dynamodb_table" "store_limits" {
+resource "aws_dynamodb_table" "events_rsvp" {
   region                      = "us-east-2"
   billing_mode                = "PAY_PER_REQUEST"
   name                        = "${var.ProjectId}-events-rsvp"

@@ -7,6 +7,8 @@ export const META_ROLE_PREFIX = "__metaRole:"
 
 export enum BaseRoles {
   EVENTS_MANAGER = "manage:events",
+  RSVPS_MANAGER = "manage:rsvps",
+  VIEW_RSVPS = "view:rsvps",
   TICKETS_SCANNER = "scan:tickets",
   TICKETS_MANAGER = "manage:tickets",
   IAM_ADMIN = "admin:iam",
