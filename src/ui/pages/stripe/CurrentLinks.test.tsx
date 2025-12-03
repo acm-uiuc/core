@@ -5,6 +5,7 @@ import { MantineProvider } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { MemoryRouter } from "react-router-dom";
 import StripeCurrentLinksPanel from "./CurrentLinks";
+import { UserResolverProvider } from "@ui/components/NameOptionalCard";
 
 vi.mock("@ui/components/AuthContext", async () => {
   return {
@@ -27,10 +28,12 @@ describe("StripeCurrentLinksPanel Tests", () => {
             withCssVariables
             forceColorScheme="light"
           >
-            <StripeCurrentLinksPanel
-              getLinks={getLinksMock}
-              deactivateLink={deactivateLinkMock}
-            />
+            <UserResolverProvider resolutionDisabled>
+              <StripeCurrentLinksPanel
+                getLinks={getLinksMock}
+                deactivateLink={deactivateLinkMock}
+              />
+            </UserResolverProvider>
           </MantineProvider>
         </MemoryRouter>,
       );
@@ -82,7 +85,6 @@ describe("StripeCurrentLinksPanel Tests", () => {
     expect(rows[1]).toHaveTextContent("$50");
     expect(rows[2]).toHaveTextContent("INV-002");
     expect(rows[2]).toHaveTextContent("$75");
-    expect(screen.getByText("You")).toBeInTheDocument();
     expect(screen.getByText("Unknown")).toBeInTheDocument();
     const user = userEvent.setup();
     const copyButtons = screen.getAllByRole("button", { name: /copy/i });
@@ -96,24 +98,6 @@ describe("StripeCurrentLinksPanel Tests", () => {
       const clipboardText = await navigator.clipboard.readText();
       expect(clipboardText).toBe("http://example.com/2");
     });
-  });
-
-  it('correctly replaces the user email with "You"', async () => {
-    getLinksMock.mockResolvedValue([
-      {
-        id: "3",
-        active: true,
-        invoiceId: "INV-003",
-        invoiceAmountUsd: 10000,
-        userId: "infraunittests@acm.illinois.edu",
-        createdAt: "2024-02-05",
-        link: "http://example.com/3",
-      },
-    ]);
-    await renderComponent();
-
-    expect(getLinksMock).toHaveBeenCalledOnce();
-    expect(await screen.findByText("You")).toBeInTheDocument();
   });
 
   it("handles API failure gracefully", async () => {

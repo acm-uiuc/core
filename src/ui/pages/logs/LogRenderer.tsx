@@ -24,6 +24,7 @@ import {
 import { Modules, ModulesToHumanName } from "@common/modules";
 import { notifications } from "@mantine/notifications";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
+import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 
 interface LogEntry {
   actor: string;
@@ -211,7 +212,7 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
     {
       key: "actor",
       label: "Actor",
-      render: (log) => <Text size="sm">{log.actor}</Text>,
+      render: (log) => <NameOptionalUserCard email={log.actor} />,
     },
     {
       key: "action",
@@ -231,14 +232,16 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
     {
       key: "target",
       label: "Target",
-      render: (log) => (
-        <Text size="sm">
-          {selectedModule === Modules.AUDIT_LOG &&
-          Object.values(Modules).includes(log.target as Modules)
-            ? ModulesToHumanName[log.target as Modules]
-            : log.target}
-        </Text>
-      ),
+      render: (log) =>
+        selectedModule === Modules.AUDIT_LOG &&
+        Object.values(Modules).includes(log.target as Modules) ? (
+          ModulesToHumanName[log.target as Modules]
+        ) : (
+          <NameOptionalUserCard
+            email={log.target}
+            fallback={(email) => <>{email}</>}
+          />
+        ),
     },
     {
       key: "requestId",

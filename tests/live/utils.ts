@@ -72,7 +72,7 @@ export async function createJwt(
   return token;
 }
 
-type Service = "core" | "go" | "ical";
+type Service = "core" | "go" | "ical" | "infra.go";
 
 export function getBaseEndpoint(service?: Service) {
   const base = process.env.CORE_BASE_URL ?? "https://core.aws.qa.acmuiuc.org";
@@ -96,4 +96,8 @@ export function makeRandomString(length: number) {
     result += characters.charAt(Math.floor(Math.random() * charactersLength));
   }
   return result;
+}
+
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

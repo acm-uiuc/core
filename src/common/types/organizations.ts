@@ -6,7 +6,7 @@ import { z } from "zod/v4";
 export const orgLeadEntry = z.object({
   name: z.optional(z.string()),
   username: z.email().refine(
-    (email) => email.endsWith('@illinois.edu'),
+    (email) => email.endsWith('@illinois.edu') || email.endsWith('@acm.illinois.edu'),
     { message: 'Email must be from the @illinois.edu domain' }
   ),
   title: z.optional(z.string()),
@@ -25,7 +25,7 @@ export const orgLinkEntry = z.object({
   url: z.url()
 })
 
-export const enforcedOrgLeadEntry = orgLeadEntry.extend({ name: z.string().min(1), title: z.string().min(1) })
+export const enforcedOrgLeadEntry = orgLeadEntry.extend({ title: z.string().min(1) })
 
 export const getOrganizationInfoResponse = z.object({
   id: z.enum(AllOrganizationNameList),

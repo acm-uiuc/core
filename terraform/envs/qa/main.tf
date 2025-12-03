@@ -207,6 +207,19 @@ resource "aws_route53_record" "linkry" {
     evaluate_target_health = false
   }
 }
+
+resource "aws_route53_record" "linkry_wildcard" {
+  for_each = toset(["A", "AAAA"])
+  zone_id  = "Z04502822NVIA85WM2SML"
+  type     = each.key
+  name     = "*.${var.LinkryPublicDomain}"
+  alias {
+    name                   = module.frontend.linkry_cloudfront_domain_name
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
+}
+
 resource "aws_lambda_event_source_mapping" "queue_consumer" {
   region                  = "us-east-2"
   depends_on              = [module.lambdas, module.sqs_queues]

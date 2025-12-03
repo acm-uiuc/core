@@ -32,6 +32,8 @@ import {
   getUserMerchPurchases,
   getUserTicketingPurchases,
 } from "api/functions/tickets.js";
+import { illinoisUin } from "common/types/generic.js";
+import { getUserIdByUin } from "api/functions/uin.js";
 
 const postMerchSchema = z.object({
   type: z.literal("merch"),
@@ -53,21 +55,37 @@ const purchaseSchema = z.object({
 
 type PurchaseData = z.infer<typeof purchaseSchema>;
 
-const ticketEntryZod = z.object({
-  valid: z.boolean(),
-  type: z.enum(["merch", "ticket"]),
-  ticketId: z.string().min(1),
-  purchaserData: purchaseSchema,
-});
-
-const ticketInfoEntryZod = ticketEntryZod
-  .extend({
-    refunded: z.boolean(),
-    fulfilled: z.boolean(),
+const ticketEntryZod = z
+  .object({
+    valid: z.boolean().meta({
+      description:
+        "Determines whether or not this ticket is still valid to be fulfilled.",
+    }),
+    type: z.enum(["merch", "ticket"]),
+    ticketId: z.string().min(1).meta({
+      description: "A string uniquely identifying the purchase.",
+    }),
+    purchaserData: purchaseSchema,
+    totalPaid: z.optional(z.number()).meta({
+      description:
+        "The total amount paid by the customer, in cents, net of refunds.",
+    }),
   })
   .meta({
     description: "An entry describing one merch or tickets transaction.",
+    id: "StoreTicketEntryV1",
   });
+
+const ticketInfoEntryZod = ticketEntryZod.extend({
+  refunded: z.boolean().meta({
+    description:
+      "Determines whether or not this purchase has been fully refunded to the customer.",
+  }),
+  fulfilled: z.boolean().meta({
+    description:
+      "Determines whether or not this purchase's services/items has already been provided to the customer.",
+  }),
+});
 
 export type TicketInfoEntry = z.infer<typeof ticketInfoEntryZod>;
 
@@ -270,6 +288,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 quantity: unmarshalled.quantity,
                 size: unmarshalled.size,
               },
+              totalPaid: unmarshalled.total_paid,
             });
           }
           break;
@@ -373,6 +392,12 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Tickets/Merchandise"], {
           summary: "Mark a ticket/merch item as fulfilled by QR code data.",
           body: postSchema,
+          headers: z.object({
+            "x-auditlog-context": z.optional(z.string().min(1)).meta({
+              description:
+                "optional additional context to add to the audit log.",
+            }),
+          }),
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -494,33 +519,37 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not set ticket to used - database operation failed",
         });
       }
-      reply.send({
+      const headerReason = request.headers["x-auditlog-context"];
+      await createAuditLogEntry({
+        dynamoClient: fastify.dynamoClient,
+        entry: {
+          module: Modules.TICKETS,
+          actor: request.username!,
+          target: ticketId,
+          message: `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}${headerReason ? `\nUser-provided context: "${headerReason}"` : ""}`,
+          requestId: request.id,
+        },
+      });
+      return reply.send({
         valid: true,
         type: request.body.type,
         ticketId,
         purchaserData,
       });
-      await createAuditLogEntry({
-        dynamoClient: UsEast1DynamoClient,
-        entry: {
-          module: Modules.TICKETS,
-          actor: request.username!,
-          target: ticketId,
-          message: `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}`,
-          requestId: request.id,
-        },
-      });
     },
   );
-  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/purchases/:email",
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/getPurchasesByUser",
     {
       schema: withRoles(
         [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
         withTags(["Tickets/Merchandise"], {
           summary: "Get all purchases (merch and tickets) for a given user.",
-          params: z.object({
-            email: z.email(),
+          body: z.object({
+            productId: z.string().min(1).meta({
+              description: "The product ID currently being verified",
+            }),
+            uin: illinoisUin,
           }),
           response: {
             200: {
@@ -540,18 +569,24 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
-      const userEmail = request.params.email;
+      const { id: userEmail } = await getUserIdByUin({
+        dynamoClient: fastify.dynamoClient,
+        uin: request.body.uin,
+        pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
+      });
       try {
         const [ticketsResult, merchResult] = await Promise.all([
           getUserTicketingPurchases({
             dynamoClient: UsEast1DynamoClient,
             email: userEmail,
             logger: request.log,
+            productId: request.body.productId,
           }),
           getUserMerchPurchases({
             dynamoClient: UsEast1DynamoClient,
             email: userEmail,
             logger: request.log,
+            productId: request.body.productId,
           }),
         ]);
         await reply.send({ merch: merchResult, tickets: ticketsResult });

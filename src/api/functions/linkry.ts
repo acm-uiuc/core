@@ -5,7 +5,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { LinkryGroupUUIDToGroupNameMap } from "common/config.js";
-import { LinkRecord } from "common/types/linkry.js";
+import { LinkRecord, OrgLinkRecord } from "common/types/linkry.js";
 import { FastifyRequest } from "fastify";
 
 export async function fetchLinkEntry(
@@ -69,6 +69,40 @@ export async function fetchOwnerRecords(
     }
 
     return unmarshalledItem as LinkRecord;
+  });
+}
+
+export async function fetchOrgRecords(
+  orgId: string,
+  tableName: string,
+  dynamoClient: DynamoDBClient,
+) {
+  const fetchAllOwnerRecords = new QueryCommand({
+    TableName: tableName,
+    IndexName: "AccessIndex",
+    KeyConditionExpression: "#access = :accessVal",
+    ExpressionAttributeNames: {
+      "#access": "access",
+    },
+    ExpressionAttributeValues: {
+      ":accessVal": { S: `OWNER#${orgId}` },
+    },
+    ScanIndexForward: false,
+  });
+
+  const result = await dynamoClient.send(fetchAllOwnerRecords);
+
+  // Process the results
+  return (result.Items || []).map((item) => {
+    const unmarshalledItem = unmarshall(item);
+
+    // Strip '#' from access field
+    if (unmarshalledItem.access) {
+      unmarshalledItem.access =
+        unmarshalledItem.access.split("#")[1] || unmarshalledItem.access;
+    }
+
+    return unmarshalledItem as OrgLinkRecord;
   });
 }
 

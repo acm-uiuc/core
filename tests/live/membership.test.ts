@@ -1,6 +1,5 @@
 import { expect, test, describe } from "vitest";
 import { createJwt, getBaseEndpoint } from "./utils.js";
-import { randomUUID } from "node:crypto";
 
 const baseEndpoint = getBaseEndpoint();
 const token = await createJwt();
@@ -234,76 +233,91 @@ describe("Membership API basic checks", async () => {
   );
 });
 
-test("External Membership List lifecycle test", async () => {
+describe("External Membership List lifecycle", { sequential: true }, () => {
   const unixTimestampSeconds = Math.floor(Date.now() / 1000);
   const listId = `livetest-${unixTimestampSeconds}`;
-  let response = await fetch(
-    `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
-    {
-      method: "PATCH",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json",
+
+  test("should create list and add initial member", async () => {
+    const response = await fetch(
+      `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
+      {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          add: ["acmtest2"],
+          remove: [],
+        }),
       },
-      body: JSON.stringify({
-        add: ["acmtest2"],
-        remove: [],
-      }),
-    },
-  );
-  expect(response.status).toBe(201);
-  response = await fetch(
-    `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
-    {
-      method: "GET",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json",
+    );
+    expect(response.status).toBe(201);
+  });
+
+  test("should retrieve list with initial member", async () => {
+    const response = await fetch(
+      `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
+      {
+        method: "GET",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
       },
-    },
-  );
-  let responseJson = await response.json();
-  expect(responseJson).toStrictEqual(["acmtest2"]);
-  response = await fetch(
-    `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
-    {
-      method: "PATCH",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json",
+    );
+    const responseJson = await response.json();
+    expect(responseJson).toStrictEqual(["acmtest2"]);
+  });
+
+  test("should add new member and remove existing member", async () => {
+    const response = await fetch(
+      `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
+      {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          add: ["acmtest3"],
+          remove: ["acmtest2"],
+        }),
       },
-      body: JSON.stringify({
-        add: ["acmtest3"],
-        remove: ["acmtest2"],
-      }),
-    },
-  );
-  expect(response.status).toEqual(201);
-  response = await fetch(
-    `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
-    {
-      method: "GET",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json",
+    );
+    expect(response.status).toEqual(201);
+  });
+
+  test("should retrieve list with updated member", async () => {
+    const response = await fetch(
+      `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
+      {
+        method: "GET",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
       },
-    },
-  );
-  responseJson = await response.json();
-  expect(responseJson).toStrictEqual(["acmtest3"]);
-  response = await fetch(
-    `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
-    {
-      method: "PATCH",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json",
+    );
+    const responseJson = await response.json();
+    expect(responseJson).toStrictEqual(["acmtest3"]);
+  });
+
+  test("should remove final member", async () => {
+    const response = await fetch(
+      `${baseEndpoint}/api/v1/membership/externalList/${listId}`,
+      {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          remove: ["acmtest3"],
+          add: [],
+        }),
       },
-      body: JSON.stringify({
-        remove: ["acmtest3"],
-        add: [],
-      }),
-    },
-  );
-  expect(response.status).toEqual(201);
+    );
+    expect(response.status).toEqual(201);
+  });
 });

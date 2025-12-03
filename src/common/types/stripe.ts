@@ -9,7 +9,8 @@ export const invoiceLinkPostRequestSchema = z.object({
   invoiceId: z.string().min(1),
   invoiceAmountUsd: z.number().min(50),
   contactName: z.string().min(1),
-  contactEmail: z.string().email()
+  contactEmail: z.string().email(),
+  achPaymentsEnabled: z.optional(z.boolean()).default(false),
 });
 
 export type PostInvoiceLinkRequest = z.infer<

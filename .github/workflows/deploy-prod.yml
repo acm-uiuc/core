@@ -8,7 +8,7 @@ on:
       - 'v*'
 
 jobs:
-  test:
+  test-unit:
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -70,7 +70,7 @@ jobs:
         id: get_version
         run: echo "VITE_BUILD_HASH=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
 
-      - name: Run build
+      - name: Run Prod build
         run: make build
         env:
           HUSKY: "0"
@@ -84,9 +84,88 @@ jobs:
           include-hidden-files: true
           name: build-prod
           path: |
-            .aws-sam/
             dist/
             dist_ui/
+
+      - name: Clean and run QA build
+        run: sudo rm -rf dist/ && sudo rm -rf dist_ui/ && make build
+        env:
+          HUSKY: "0"
+          VITE_RUN_ENVIRONMENT: dev
+          RunEnvironment: dev
+
+      - name: Upload Build files
+        uses: actions/upload-artifact@v4
+        with:
+          include-hidden-files: true
+          name: build-qa
+          path: |
+            dist/
+            dist_ui/
+
+  test-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    name: Run E2E testing
+    concurrency:
+      group: ${{ github.event.repository.name }}-dev-env
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: read
+    needs:
+      - build
+    environment: "AWS QA"
+    steps:
+      - uses: actions/checkout@v5
+        env:
+          HUSKY: "0"
+
+      - name: Set up Node for testing
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22.x
+          cache: "yarn"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+
+      - name: Restore Yarn Cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
+          restore-keys: |
+            yarn-modules-${{ runner.arch }}-${{ runner.os }}-
+
+      - name: Download Build files
+        uses: actions/download-artifact@v5
+        with:
+          name: build-qa
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
+          role-session-name: Core_QA_Deployment_${{ github.run_id }}
+          aws-region: us-east-2
+
+      - name: Publish to AWS
+        run: make deploy_qa
+        env:
+          HUSKY: "0"
+          VITE_RUN_ENVIRONMENT: dev
+
+      - name: Run health check
+        run: make dev_health_check
+
+      - name: Run E2E testing
+        run: make test_e2e
+        env:
+          JWT_KEY: ${{ secrets.JWT_KEY }}
+          PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME }}
+          PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD }}
 
   deploy-prod:
     runs-on: ubuntu-latest
@@ -99,8 +178,8 @@ jobs:
       id-token: write
       contents: read
     needs:
-      - test
-      - build
+      - test-unit
+      - test-e2e
     environment: "AWS PROD"
     steps:
       - name: Set up Node for testing

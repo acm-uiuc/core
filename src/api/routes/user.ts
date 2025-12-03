@@ -9,10 +9,16 @@ import {
 } from "common/errors/index.js";
 import * as z from "zod/v4";
 import {
+  batchResolveUserInfoRequest,
+  batchResolveUserInfoResponse,
   searchUserByUinRequest,
   searchUserByUinResponse,
 } from "common/types/user.js";
-import { getUinHash } from "api/functions/uin.js";
+import {
+  batchGetUserInfo,
+  getUinHash,
+  getUserIdByUin,
+} from "api/functions/uin.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { QueryCommand } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "common/config.js";
@@ -30,11 +36,7 @@ const userRoute: FastifyPluginAsync = async (fastify, _options) => {
     "/findUserByUin",
     {
       schema: withRoles(
-        [
-          AppRoles.VIEW_USER_INFO,
-          AppRoles.TICKETS_MANAGER,
-          AppRoles.TICKETS_SCANNER,
-        ],
+        [AppRoles.VIEW_USER_INFO],
         withTags(["Generic"], {
           summary: "Find a user by UIN.",
           body: searchUserByUinRequest,
@@ -53,40 +55,45 @@ const userRoute: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
-      const uinHash = await getUinHash({
-        pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
-        uin: request.body.uin,
-      });
-      const queryCommand = new QueryCommand({
-        TableName: genericConfig.UserInfoTable,
-        IndexName: "UinHashIndex",
-        KeyConditionExpression: "uinHash = :hash",
-        ExpressionAttributeValues: {
-          ":hash": { S: uinHash },
-        },
-      });
-      const response = await fastify.dynamoClient.send(queryCommand);
-      if (!response || !response.Items) {
-        throw new DatabaseFetchError({
-          message: "Failed to retrieve user from database.",
-        });
-      }
-      if (response.Items.length === 0) {
-        throw new ValidationError({
-          message:
-            "Failed to find user in database. Please have the user run sync and try again.",
-        });
-      }
-      if (response.Items.length > 1) {
-        throw new ValidationError({
-          message:
-            "Multiple users tied to this UIN. This user probably had a NetID change. Please contact support.",
-        });
-      }
-      const data = unmarshall(response.Items[0]) as { id: string };
-      return reply.send({
-        email: data.id,
-      });
+      return reply.send(
+        await getUserIdByUin({
+          dynamoClient: fastify.dynamoClient,
+          uin: request.body.uin,
+          pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
+        }),
+      );
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/batchResolveInfo",
+    {
+      schema: withRoles(
+        [],
+        withTags(["Generic"], {
+          summary: "Resolve user emails to user info.",
+          body: batchResolveUserInfoRequest,
+          response: {
+            200: {
+              description: "The search was performed.",
+              content: {
+                "application/json": {
+                  schema: batchResolveUserInfoResponse,
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      return reply.send(
+        await batchGetUserInfo({
+          dynamoClient: fastify.dynamoClient,
+          emails: request.body.emails,
+          logger: request.log,
+        }),
+      );
     },
   );
 };

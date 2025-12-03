@@ -1,13 +1,18 @@
 import {
+  BatchGetItemCommand,
   DynamoDBClient,
   PutItemCommand,
+  QueryCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { ValidLoggers } from "api/types.js";
+import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 import { argon2id, hash } from "argon2";
 import { genericConfig } from "common/config.js";
 import {
   BaseError,
+  DatabaseFetchError,
   EntraFetchError,
   InternalServerError,
   UnauthenticatedError,
@@ -183,4 +188,130 @@ export async function saveHashedUserUin({
       },
     }),
   );
+}
+
+export async function getUserIdByUin({
+  dynamoClient,
+  uin,
+  pepper,
+}: {
+  dynamoClient: DynamoDBClient;
+  uin: string;
+  pepper: string;
+}): Promise<{ id: string }> {
+  const uinHash = await getUinHash({
+    pepper,
+    uin,
+  });
+
+  const queryCommand = new QueryCommand({
+    TableName: genericConfig.UserInfoTable,
+    IndexName: "UinHashIndex",
+    KeyConditionExpression: "uinHash = :hash",
+    ExpressionAttributeValues: {
+      ":hash": { S: uinHash },
+    },
+  });
+
+  const response = await dynamoClient.send(queryCommand);
+
+  if (!response || !response.Items) {
+    throw new DatabaseFetchError({
+      message: "Failed to retrieve user from database.",
+    });
+  }
+
+  if (response.Items.length === 0) {
+    throw new ValidationError({
+      message:
+        "Failed to find user in database. Please have the user run sync and try again.",
+    });
+  }
+
+  if (response.Items.length > 1) {
+    throw new ValidationError({
+      message:
+        "Multiple users tied to this UIN. This user probably had a NetID change. Please contact support.",
+    });
+  }
+
+  const data = unmarshall(response.Items[0]) as { id: string };
+  return data;
+}
+
+export async function batchGetUserInfo({
+  emails,
+  dynamoClient,
+  logger,
+}: {
+  emails: string[];
+  dynamoClient: DynamoDBClient;
+  logger: ValidLoggers;
+}) {
+  const results: Record<
+    string,
+    {
+      firstName?: string;
+      lastName?: string;
+    }
+  > = {};
+
+  // DynamoDB BatchGetItem has a limit of 100 items per request
+  const BATCH_SIZE = 100;
+
+  for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+    const batch = emails.slice(i, i + BATCH_SIZE);
+
+    try {
+      await retryDynamoTransactionWithBackoff(
+        async () => {
+          const response = await dynamoClient.send(
+            new BatchGetItemCommand({
+              RequestItems: {
+                [genericConfig.UserInfoTable]: {
+                  Keys: batch.map((email) => ({
+                    id: { S: email },
+                  })),
+                  ProjectionExpression: "id, firstName, lastName",
+                },
+              },
+            }),
+          );
+
+          // Process responses
+          const items = response.Responses?.[genericConfig.UserInfoTable] || [];
+          for (const item of items) {
+            const email = item.id?.S;
+            if (email) {
+              results[email] = {
+                firstName: item.firstName?.S,
+                lastName: item.lastName?.S,
+              };
+            }
+          }
+
+          // If there are unprocessed keys, throw to trigger retry
+          if (
+            response.UnprocessedKeys &&
+            Object.keys(response.UnprocessedKeys).length > 0
+          ) {
+            const error = new Error(
+              "UnprocessedKeys present - triggering retry",
+            );
+            error.name = "TransactionCanceledException";
+            throw error;
+          }
+        },
+        logger,
+        `batchGetUserInfo (batch ${i / BATCH_SIZE + 1})`,
+      );
+    } catch (error) {
+      logger.warn(
+        `Failed to fetch batch ${i / BATCH_SIZE + 1} after retries, returning partial results`,
+        { error },
+      );
+    }
+  }
+
+  return results;
 }

@@ -27,7 +27,7 @@ variable "CoreCertificateArn" {
 // For acm.gg we need a seperate cert for Linkry
 variable "LinkryCertificateArn" {
   type    = string
-  default = "arn:aws:acm:us-east-1:298118738376:certificate/aa58a5e8-49eb-44fb-b118-ab0a7ecd2054"
+  default = "arn:aws:acm:us-east-1:298118738376:certificate/2b6a2570-53a5-42c6-ba73-3822e6b9691d"
 }
 
 variable "EmailDomain" {
