@@ -16,7 +16,7 @@ export const ManageApiKeysPage: React.FC = () => {
       }}
       showSidebar
     >
-      <Container>
+      <Container size="lg">
         <Title>API Keys</Title>
         <Text>Manage organization API keys.</Text>
         <Text size="xs" c="dimmed">

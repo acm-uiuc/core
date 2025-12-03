@@ -14,11 +14,11 @@ import { IconAlertCircle } from "@tabler/icons-react";
 import React, { useEffect, useState } from "react";
 import { GetInvoiceLinksResponse } from "@common/types/stripe";
 import { notifications } from "@mantine/notifications";
-import { useAuth } from "@ui/components/AuthContext";
 import pluralize from "pluralize";
 import dayjs from "dayjs";
 import { STRIPE_LINK_RETENTION_DAYS } from "@common/constants";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
+import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 
 const HumanFriendlyDate = ({ date }: { date: string | Date }) => {
   return <Text size="sm">{dayjs(date).format("MMMM D, YYYY")}</Text>;
@@ -41,7 +41,6 @@ export const StripeCurrentLinksPanel: React.FC<
   const [selectedRows, setSelectedRows] = useState<
     { id: string; active: boolean }[]
   >([]);
-  const { userData } = useAuth();
 
   const deleteLinks = async (linkIds: string[]) => {
     const promises = linkIds.map((x) => deactivateLink(x));
@@ -185,7 +184,7 @@ export const StripeCurrentLinksPanel: React.FC<
     {
       key: "createdBy",
       label: "Created By",
-      render: (link) => link.userId.replace(userData!.email!, "You"),
+      render: (link) => <NameOptionalUserCard email={link.userId} />,
     },
     {
       key: "createdAt",

@@ -25,47 +25,13 @@ import {
 } from "api/components/index.js";
 import { verifyUiucAccessToken, getHashedUserUin } from "api/functions/uin.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
-import { getEntraIdToken } from "api/functions/entraId.js";
-import { genericConfig, roleArns } from "common/config.js";
-import { getRoleCredentials } from "api/functions/sts.js";
-import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import { BatchGetItemCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { genericConfig } from "common/config.js";
+import { BatchGetItemCommand } from "@aws-sdk/client-dynamodb";
 import { AppRoles } from "common/roles.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { syncFullProfile } from "api/functions/sync.js";
 
 const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
-  const getAuthorizedClients = async () => {
-    if (roleArns.Entra) {
-      fastify.log.info(
-        `Attempting to assume Entra role ${roleArns.Entra} to get the Entra token...`,
-      );
-      const credentials = await getRoleCredentials(roleArns.Entra);
-      const clients = {
-        smClient: new SecretsManagerClient({
-          region: genericConfig.AwsRegion,
-          credentials,
-        }),
-        dynamoClient: new DynamoDBClient({
-          region: genericConfig.AwsRegion,
-          credentials,
-        }),
-        redisClient: fastify.redisClient,
-      };
-      fastify.log.info(
-        `Assumed Entra role ${roleArns.Entra} to get the Entra token.`,
-      );
-      return clients;
-    }
-    fastify.log.debug(
-      "Did not assume Entra role as no env variable was present",
-    );
-    return {
-      smClient: fastify.secretsManagerClient,
-      dynamoClient: fastify.dynamoClient,
-      redisClient: fastify.redisClient,
-    };
-  };
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
     await fastify.register(rateLimiter, {
       limit: 15,
@@ -150,11 +116,11 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           throw new InternalServerError({});
         }
         request.log.debug("Saved user hashed UIN!");
-        // if (isPaidMember) {
-        //   throw new ValidationError({
-        //     message: `${upn} is already a paid member.`,
-        //   });
-        // }
+        if (isPaidMember) {
+          throw new ValidationError({
+            message: `${upn} is already a paid member.`,
+          });
+        }
         return reply.status(200).send(
           await createCheckoutSessionWithCustomer({
             successUrl: "https://acm.illinois.edu/paid",

@@ -7,7 +7,14 @@ import {
   Badge,
   Title,
   Button,
+  Modal,
+  Stack,
+  TextInput,
+  Alert,
+  Tooltip,
+  Box,
 } from "@mantine/core";
+import { IconAlertCircle } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import pluralize from "pluralize";
 import React, { useEffect, useState } from "react";
@@ -18,6 +25,7 @@ import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
+import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 
 // Define the schemas
 const purchaseSchema = z.object({
@@ -59,6 +67,7 @@ enum TicketsCopyMode {
   FULFILLED,
   UNFULFILLED,
 }
+const WAIT_BEFORE_FULFILLING_SECS = 15;
 
 const ViewTicketsPage: React.FC = () => {
   const { eventId } = useParams();
@@ -71,6 +80,80 @@ const ViewTicketsPage: React.FC = () => {
   const [totalQuantitySold, setTotalQuantitySold] = useState(0);
   const [pageSize, setPageSize] = useState<string>("10");
   const pageSizeOptions = ["10", "25", "50", "100"];
+
+  // Confirmation modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [ticketToFulfill, setTicketToFulfill] = useState<TicketEntry | null>(
+    null,
+  );
+  const [confirmError, setConfirmError] = useState("");
+  const [confirmButtonEnabled, setConfirmButtonEnabled] = useState(false);
+  const [countdown, setCountdown] = useState(3);
+
+  // Email copy confirmation modal states
+  const [showCopyEmailModal, setShowCopyEmailModal] = useState(false);
+  const [pendingCopyMode, setPendingCopyMode] =
+    useState<TicketsCopyMode | null>(null);
+
+  useEffect(() => {
+    if (showConfirmModal) {
+      setConfirmButtonEnabled(false);
+      setCountdown(WAIT_BEFORE_FULFILLING_SECS);
+
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          // Reset the timer when user leaves the page
+          setCountdown(WAIT_BEFORE_FULFILLING_SECS + 1);
+          setConfirmButtonEnabled(false);
+        }
+      };
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      const countdownInterval = setInterval(() => {
+        // Only count down if the page is focused
+        if (document.hidden) {
+          return;
+        }
+
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            setConfirmButtonEnabled(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        clearInterval(countdownInterval);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+        );
+      };
+    }
+  }, [showConfirmModal]);
+
+  const handleCopyEmailsClick = (mode: TicketsCopyMode) => {
+    setPendingCopyMode(mode);
+    setShowCopyEmailModal(true);
+  };
+
+  const handleCloseCopyEmailModal = () => {
+    setShowCopyEmailModal(false);
+    setPendingCopyMode(null);
+  };
+
+  const handleConfirmCopyEmails = () => {
+    if (pendingCopyMode === null) {
+      return;
+    }
+    copyEmails(pendingCopyMode);
+    handleCloseCopyEmailModal();
+  };
 
   const copyEmails = (mode: TicketsCopyMode) => {
     try {
@@ -109,20 +192,60 @@ const ViewTicketsPage: React.FC = () => {
     }
   };
 
-  async function checkInUser(ticket: TicketEntry) {
+  const handleOpenConfirmModal = (ticket: TicketEntry) => {
+    setTicketToFulfill(ticket);
+    setConfirmEmail("");
+    setConfirmError("");
+    setShowConfirmModal(true);
+  };
+
+  const handleCloseConfirmModal = () => {
+    setShowConfirmModal(false);
+    setTicketToFulfill(null);
+    setConfirmEmail("");
+    setConfirmError("");
+    setConfirmButtonEnabled(false);
+    setCountdown(WAIT_BEFORE_FULFILLING_SECS);
+  };
+
+  const handleConfirmFulfillment = async () => {
+    if (!ticketToFulfill) {
+      return;
+    }
+
+    // Validate email matches
+    if (
+      confirmEmail.toLowerCase().trim() !==
+      ticketToFulfill.purchaserData.email.toLowerCase().trim()
+    ) {
+      setConfirmError(
+        "Email does not match. Please enter the exact email address.",
+      );
+      return;
+    }
+
     try {
-      const response = await api.post(`/api/v1/tickets/checkIn`, {
-        type: ticket.type,
-        email: ticket.purchaserData.email,
-        stripePi: ticket.ticketId,
-      });
+      const response = await api.post(
+        `/api/v1/tickets/checkIn`,
+        {
+          type: ticketToFulfill.type,
+          email: ticketToFulfill.purchaserData.email,
+          stripePi: ticketToFulfill.ticketId,
+        },
+        {
+          headers: {
+            "x-auditlog-context": "Manually marked as fulfilled.",
+          },
+        },
+      );
       if (!response.data.valid) {
         throw new Error("Ticket is invalid.");
       }
       notifications.show({
         title: "Fulfilled",
-        message: "Marked item as fulfilled.",
+        message: "Marked item as fulfilled. This action has been logged.",
       });
+      handleCloseConfirmModal();
       await getTickets();
     } catch {
       notifications.show({
@@ -130,7 +253,12 @@ const ViewTicketsPage: React.FC = () => {
         message: "Failed to fulfill item. Please try again later.",
         color: "red",
       });
+      handleCloseConfirmModal();
     }
+  };
+
+  async function checkInUser(ticket: TicketEntry) {
+    handleOpenConfirmModal(ticket);
   }
   const getTickets = async () => {
     try {
@@ -170,6 +298,20 @@ const ViewTicketsPage: React.FC = () => {
   const startIndex = (currentPage - 1) * parseInt(pageSize, 10);
   const endIndex = startIndex + parseInt(pageSize, 10);
   const currentTickets = allTickets.slice(startIndex, endIndex);
+  const copyTicketId = async (ticketId: string) => {
+    try {
+      await navigator.clipboard.writeText(ticketId);
+      notifications.show({
+        message: "Ticket ID copied!",
+      });
+    } catch (e) {
+      notifications.show({
+        title: "Failed to copy ticket ID",
+        message: "Please try again or contact support.",
+        color: "red",
+      });
+    }
+  };
   return (
     <AuthGuard
       resourceDef={{ service: "core", validRoles: [AppRoles.TICKETS_MANAGER] }}
@@ -178,21 +320,21 @@ const ViewTicketsPage: React.FC = () => {
       <Group mt="md">
         <Button
           onClick={() => {
-            copyEmails(TicketsCopyMode.ALL);
+            handleCopyEmailsClick(TicketsCopyMode.ALL);
           }}
         >
           Copy All Emails
         </Button>
         <Button
           onClick={() => {
-            copyEmails(TicketsCopyMode.FULFILLED);
+            handleCopyEmailsClick(TicketsCopyMode.FULFILLED);
           }}
         >
           Copy Fulfilled Emails
         </Button>
         <Button
           onClick={() => {
-            copyEmails(TicketsCopyMode.UNFULFILLED);
+            handleCopyEmailsClick(TicketsCopyMode.UNFULFILLED);
           }}
         >
           Copy Unfulfilled Emails
@@ -210,7 +352,6 @@ const ViewTicketsPage: React.FC = () => {
               <Table.Th>Status</Table.Th>
               <Table.Th>Quantity</Table.Th>
               <Table.Th>Size</Table.Th>
-              <Table.Th>Ticket ID</Table.Th>
               <Table.Th>Actions</Table.Th>
             </Table.Tr>
           </Table.Thead>
@@ -219,13 +360,28 @@ const ViewTicketsPage: React.FC = () => {
               const { status, color } = getTicketStatus(ticket);
               return (
                 <Table.Tr key={ticket.ticketId}>
-                  <Table.Td>{ticket.purchaserData.email}</Table.Td>
+                  <Table.Td>
+                    <Tooltip
+                      label="Click to copy ticket ID"
+                      position="top"
+                      withArrow
+                    >
+                      <Box
+                        style={{ cursor: "pointer" }}
+                        onClick={() => copyTicketId(ticket.ticketId)}
+                      >
+                        <NameOptionalUserCard
+                          email={ticket.purchaserData.email}
+                          size="sm"
+                        />
+                      </Box>
+                    </Tooltip>
+                  </Table.Td>
                   <Table.Td>
                     <Badge color={color}>{status}</Badge>
                   </Table.Td>
                   <Table.Td>{ticket.purchaserData.quantity}</Table.Td>
                   <Table.Td>{ticket.purchaserData.size || "N/A"}</Table.Td>
-                  <Table.Td>{ticket.ticketId}</Table.Td>
                   <Table.Td>
                     {!(ticket.fulfilled || ticket.refunded) && (
                       <AuthGuard
@@ -280,6 +436,117 @@ const ViewTicketsPage: React.FC = () => {
           />
         </Group>
       </div>
+
+      {/* Confirmation Modal */}
+      <Modal
+        opened={showConfirmModal}
+        onClose={handleCloseConfirmModal}
+        title="Confirm Fulfillment"
+        size="md"
+        centered
+      >
+        <Stack>
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            title="Warning"
+            color="red"
+            variant="light"
+          >
+            <Text size="sm" fw={500}>
+              This action cannot be undone and will be logged!
+            </Text>
+          </Alert>
+
+          {ticketToFulfill && (
+            <>
+              <Text size="sm" fw={600}>
+                Purchase Details:
+              </Text>
+              <Text size="sm">
+                <strong>Email:</strong> {ticketToFulfill.purchaserData.email}
+              </Text>
+              <Text size="sm">
+                <strong>Quantity:</strong>{" "}
+                {ticketToFulfill.purchaserData.quantity}
+              </Text>
+              {ticketToFulfill.purchaserData.size && (
+                <Text size="sm">
+                  <strong>Size:</strong> {ticketToFulfill.purchaserData.size}
+                </Text>
+              )}
+            </>
+          )}
+
+          <TextInput
+            label="Confirm Email Address"
+            placeholder="Enter the email address to confirm"
+            value={confirmEmail}
+            onChange={(e) => {
+              setConfirmEmail(e.currentTarget.value);
+              setConfirmError("");
+            }}
+            error={confirmError}
+            required
+            autoComplete="off"
+            data-autofocus
+          />
+
+          <Text size="xs" c="dimmed">
+            Please enter the email address{" "}
+            <strong>{ticketToFulfill?.purchaserData.email}</strong> to confirm
+            that you want to mark this purchase as fulfilled.
+          </Text>
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="subtle" onClick={handleCloseConfirmModal}>
+              Cancel
+            </Button>
+            <Button
+              color="blue"
+              onClick={handleConfirmFulfillment}
+              disabled={!confirmEmail.trim() || !confirmButtonEnabled}
+            >
+              {!confirmButtonEnabled
+                ? `Wait ${countdown}s to confirm...`
+                : "Confirm Fulfillment"}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Copy Emails Confirmation Modal */}
+      <Modal
+        opened={showCopyEmailModal}
+        onClose={handleCloseCopyEmailModal}
+        title="Copy Emails"
+        size="md"
+        centered
+      >
+        <Stack>
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            title="Privacy Notice"
+            color="yellow"
+            variant="light"
+          >
+            <Text size="sm" fw={500}>
+              Be sure to BCC all recipients to avoid leaking the purchase list
+            </Text>
+          </Alert>
+
+          <Text size="sm">
+            When composing your email, make sure to add all email addresses to
+            the BCC field (not To or CC) to protect the privacy of your
+            recipients.
+          </Text>
+
+          <Group justify="flex-end" mt="md">
+            <Button color="blue" onClick={handleConfirmCopyEmails}>
+              I understand, copy emails
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </AuthGuard>
   );
 };
