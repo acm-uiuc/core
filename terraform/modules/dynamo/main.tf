@@ -567,3 +567,36 @@ resource "aws_dynamodb_table" "store_limits" {
     }
   }
 }
+
+resource "aws_dynamodb_table" "events_rsvp" {
+  region                      = "us-east-2"
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-events-rsvp"
+  deletion_protection_enabled = true
+  hash_key                    = "partitionKey"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "partitionKey"
+    type = "S"
+  }
+  attribute {
+    name = "eventId"
+    type = "S"
+  }
+  global_secondary_index {
+    name            = "EventIdIndex"
+    hash_key        = "eventId"
+    projection_type = "ALL"
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
+}
