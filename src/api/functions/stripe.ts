@@ -362,15 +362,23 @@ export const checkOrCreateCustomer = async ({
   customerName,
   stripeApiKey,
 }: checkCustomerParams): Promise<CheckOrCreateResult> => {
+  const normalizedEmail = customerEmail.trim().toLowerCase();
+  const [, domainPart] = normalizedEmail.split("@");
+
+  if (!domainPart) {
+    throw new Error(`Could not derive email domain for "${customerEmail}".`);
+  }
+
+  const normalizedDomain = domainPart.toLowerCase();
+
   const lock = createLock({
     adapter: new IoredisAdapter(redisClient),
-    key: `stripe:${acmOrg}:${emailDomain}`,
+    key: `stripe:${acmOrg}:${normalizedDomain}`,
     retryAttempts: 5,
     retryDelay: 300,
   }) as SimpleLock;
 
-  const pk = `${acmOrg}#${emailDomain}`;
-  const normalizedEmail = customerEmail.trim().toLowerCase();
+  const pk = `${acmOrg}#${normalizedDomain}`;
 
   return await lock.using(async () => {
     const checkCustomer = new QueryCommand({
@@ -511,11 +519,19 @@ export const addInvoice = async ({
   dynamoClient,
   stripeApiKey,
 }: InvoiceAddParams): Promise<CheckOrCreateResult> => {
-  const pk = `${acmOrg}#${emailDomain}`;
+  const normalizedEmail = contactEmail.trim().toLowerCase();
+  const [, domainPart] = normalizedEmail.split("@");
+
+  if (!domainPart) {
+    throw new Error(`Could not derive email domain for "${contactEmail}".`);
+  }
+
+  const normalizedDomain = domainPart.toLowerCase();
+  const pk = `${acmOrg}#${normalizedDomain}`;
 
   const result = await checkOrCreateCustomer({
     acmOrg,
-    emailDomain,
+    emailDomain: normalizedDomain,
     redisClient,
     dynamoClient,
     customerEmail: contactEmail,
@@ -541,7 +557,11 @@ export const addInvoice = async ({
             },
             { removeUndefinedValues: true },
           ),
+          ConditionExpression:
+            "attribute_not_exists(primaryKey) AND attribute_not_exists(sortKey)",
         },
+      },
+      {
         Update: {
           TableName: genericConfig.StripePaymentsDynamoTableName,
           Key: {

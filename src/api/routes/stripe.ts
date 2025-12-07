@@ -150,12 +150,21 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
 
+      const stripe = new Stripe(secretApiConfig.stripe_secret_key as string);
+
+      const dynamicPrice = await stripe.prices.create({
+        unit_amount: request.body.invoiceAmountUsd * 100, // USD → cents
+        currency: "usd",
+        product_data: {
+          name: `Invoice ${request.body.invoiceId}`,
+        },
+      });
       const checkoutUrl = await createCheckoutSessionWithCustomer({
         customerId: result.customerId,
         stripeApiKey: secretApiConfig.stripe_secret_key as string,
         items: [
           {
-            price: "<PRICE_ID_OR_DYNAMICALLY_CREATED_PRICE>",
+            price: dynamicPrice.id,
             quantity: 1,
           },
         ],
