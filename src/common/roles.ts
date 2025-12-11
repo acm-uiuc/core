@@ -7,6 +7,8 @@ export const META_ROLE_PREFIX = "__metaRole:"
 
 export enum BaseRoles {
   EVENTS_MANAGER = "manage:events",
+  RSVPS_MANAGER = "manage:rsvps",
+  VIEW_RSVPS = "view:rsvps",
   TICKETS_SCANNER = "scan:tickets",
   TICKETS_MANAGER = "manage:tickets",
   IAM_ADMIN = "admin:iam",
@@ -47,6 +49,8 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.EVENTS_MANAGER]: "Events Manager",
   [AppRoles.TICKETS_SCANNER]: "Tickets Scanner",
   [AppRoles.TICKETS_MANAGER]: "Tickets Manager",
+  [AppRoles.RSVPS_MANAGER]: "RSVPs Manager",
+  [AppRoles.VIEW_RSVPS]: "RSVPs Viewer",
   [AppRoles.IAM_ADMIN]: "IAM Admin",
   [AppRoles.IAM_INVITE_ONLY]: "IAM Inviter",
   [AppRoles.LINKS_MANAGER]: "Links Manager",
