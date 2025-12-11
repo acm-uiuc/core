@@ -305,7 +305,7 @@ resource "aws_lambda_function" "api_lambda" {
   role             = aws_iam_role.archive_role.arn
   architectures    = ["arm64"]
   handler          = "dynamoStream.handler"
-  runtime          = "nodejs22.x"
+  runtime          = "nodejs24.x"
   filename         = data.archive_file.api_lambda_code.output_path
   timeout          = 90
   memory_size      = 512

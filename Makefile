@@ -32,13 +32,13 @@ build: src/
 	make build_swagger
 	cp -r src/api/resources/ dist/api/resources
 	rm -rf dist/lambda/sqs
-	docker run --rm -v "$(shell pwd)/dist/lambda":/var/task public.ecr.aws/sam/build-nodejs22.x:latest \
+	docker run --rm -v "$(shell pwd)/dist/lambda":/var/task public.ecr.aws/sam/build-nodejs24.x:latest \
 	sh -c "npm i -g yarn && $(yarn_env) yarn $(yarn_install_params) && \
 			rm -rf node_modules/aws-crt/dist/bin/{darwin*,linux-x64*,linux-arm64-musl} && \
 			rm -rf node_modules/argon2/prebuilds/{darwin*,freebsd*,linux-arm,linux-x64*,win32-x64*} && \
 			rm -rf node_modules/argon2/prebuilds/linux-arm64/argon2.armv8.musl.node"
 
-	docker run --rm -v "$(shell pwd)/dist/sqsConsumer":/var/task public.ecr.aws/sam/build-nodejs22.x:latest \
+	docker run --rm -v "$(shell pwd)/dist/sqsConsumer":/var/task public.ecr.aws/sam/build-nodejs24.x:latest \
 	sh -c "npm i -g yarn && $(yarn_env) yarn $(yarn_install_params) && \
 				rm -rf node_modules/aws-crt/dist/bin/{darwin*,linux-x64*,linux-arm64-musl} && \
 				rm -rf node_modules/argon2/prebuilds/{darwin*,freebsd*,linux-arm,linux-x64*,win32-x64*} && \
