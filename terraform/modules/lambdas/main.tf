@@ -351,7 +351,7 @@ resource "aws_lambda_function" "api_lambda" {
   role             = aws_iam_role.api_role.arn
   architectures    = ["arm64"]
   handler          = "lambda.handler"
-  runtime          = "nodejs22.x"
+  runtime          = "nodejs24.x"
   filename         = data.archive_file.api_lambda_code.output_path
   timeout          = 15
   memory_size      = 2048
@@ -380,7 +380,7 @@ resource "aws_lambda_function" "sqs_lambda" {
   role             = aws_iam_role.sqs_consumer_role.arn
   architectures    = ["arm64"]
   handler          = "index.handler"
-  runtime          = "nodejs22.x"
+  runtime          = "nodejs24.x"
   filename         = data.archive_file.sqs_lambda_code.output_path
   timeout          = 300
   memory_size      = 2048
@@ -411,7 +411,7 @@ resource "aws_lambda_function" "hicpu_lambda" {
   role             = aws_iam_role.api_role.arn
   architectures    = ["arm64"]
   handler          = "lambda.handler"
-  runtime          = "nodejs22.x"
+  runtime          = "nodejs24.x"
   filename         = data.archive_file.api_lambda_code.output_path
   timeout          = 15
   memory_size      = 4096 // This will get us 2 full CPU cores, which will speed up those cryptographic ops that require this server
@@ -510,7 +510,7 @@ resource "aws_lambda_function" "linkry_edge" {
   function_name    = "${var.ProjectId}-linkry-edge"
   role             = aws_iam_role.linkry_lambda_edge_role[0].arn
   handler          = "index.handler"
-  runtime          = "nodejs22.x"
+  runtime          = "nodejs24.x"
   publish          = true
   timeout          = 5
   memory_size      = 128
