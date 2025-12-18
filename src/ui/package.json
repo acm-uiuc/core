@@ -80,7 +80,7 @@
     "postcss-simple-vars": "^7.0.1",
     "prettier": "^3.5.3",
     "prop-types": "^15.8.1",
-    "storybook": "^9.1.0",
+    "storybook": "^9.1.17",
     "storybook-dark-mode": "^4.0.2",
     "stylelint": "^16.19.1",
     "stylelint-config-standard-scss": "^15.0.1",
