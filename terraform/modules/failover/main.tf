@@ -1,12 +1,18 @@
 locals {
-  # Flatten the map to create a list of secondary objects (index 1 and beyond)
+  lambda_url_zone_ids = {
+    us-east-1 = "Z3DZXE0Q79N41H"
+    us-east-2 = "Z2OU6JVYJXRXFB"
+    us-west-1 = "Z2LSA7GYHVR9KC"
+    us-west-2 = "Z1UJRXOUMOOFQ8"
+  }
+
   secondary_list = flatten([
     for key, cfg in var.configs : [
       for idx, url in slice(tolist(cfg.url), 1, length(cfg.url)) : {
         record_name = key
-        target_url  = replace(url, "/^https?:\\/\\//", "")
-        # Unique identifier for the set
-        unique_id = "${key}-secondary-${idx}"
+        target_url  = url
+        unique_id   = "${key}-secondary-${idx}"
+        region      = regex("lambda-url\\.([a-z0-9-]+)\\.on\\.aws", url)[0]
       }
     ]
   ])
@@ -15,7 +21,7 @@ locals {
 resource "aws_route53_health_check" "endpoint_advanced" {
   for_each = var.configs
 
-  fqdn              = replace(tolist(each.value.url)[0], "/^https?:\\/\\//", "")
+  fqdn              = tolist(each.value.url)[0]
   port              = 443
   type              = "HTTPS"
   resource_path     = each.value.healthcheckEndpoint
@@ -30,18 +36,17 @@ resource "aws_route53_health_check" "endpoint_advanced" {
   }
 }
 
-
 # Primary Records
 resource "aws_route53_record" "primary" {
   for_each = var.configs
 
   zone_id = var.route53_zone
   name    = each.key
-  type    = "CNAME"
+  type    = "A"
 
   alias {
-    name                   = replace(tolist(each.value.url)[0], "/^https?:\\/\\//", "")
-    zone_id                = var.route53_zone
+    name                   = tolist(each.value.url)[0]
+    zone_id                = local.lambda_url_zone_ids[regex("lambda-url\\.([a-z0-9-]+)\\.on\\.aws", tolist(each.value.url)[0])[0]]
     evaluate_target_health = true
   }
 
@@ -61,11 +66,11 @@ resource "aws_route53_record" "secondary" {
 
   zone_id = var.route53_zone
   name    = each.value.record_name
-  type    = "CNAME"
+  type    = "A"
 
   alias {
     name                   = each.value.target_url
-    zone_id                = var.route53_zone
+    zone_id                = local.lambda_url_zone_ids[each.value.region]
     evaluate_target_health = true
   }
 
