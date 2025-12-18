@@ -23,7 +23,7 @@ resource "aws_route53_health_check" "endpoint_advanced" {
   request_interval  = 30
   measure_latency   = true
   enable_sni        = true
-  search_string     = "OK"
+  search_string     = "UP"
 
   tags = {
     Name = "${each.key}-primary-hc"
