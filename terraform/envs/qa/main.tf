@@ -171,6 +171,16 @@ resource "aws_lambda_event_source_mapping" "queue_consumer_usw2" {
   function_response_types = ["ReportBatchItemFailures"]
 }
 
+module "failover_configuration" {
+  source       = "../../modules/failover"
+  route53_zone = var.route53_zone
+  configs = map({
+    "core-qa-root" : {
+      "url" : set([module.lambdas.core_function_url, module.lambdas_usw2.core_function_url]),
+      "healthcheckEndpoint" : "/api/v1/healthz"
+    }
+  })
+}
 // QA only - setup Route 53 records
 resource "aws_route53_record" "frontend" {
   for_each = toset(["A", "AAAA"])

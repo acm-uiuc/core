@@ -58,3 +58,9 @@ variable "current_active_region" {
     error_message = "Invalid value for current_active_region"
   }
 }
+
+variable "route53_zone" {
+  type        = string
+  description = "Route 53 zone which API backend maps to for failover health checks"
+  default     = "Z04502822NVIA85WM2SML"
+}
