@@ -30,21 +30,18 @@ resource "aws_route53_health_check" "endpoint_advanced" {
   }
 }
 
-data "aws_route53_zone" "selected" {
-  name = var.route53_zone
-}
 
 # Primary Records
 resource "aws_route53_record" "primary" {
   for_each = var.configs
 
-  zone_id = data.aws_route53_zone.selected.zone_id
+  zone_id = var.route53_zone
   name    = each.key
-  type    = "A"
+  type    = "CNAME"
 
   alias {
     name                   = replace(tolist(each.value.url)[0], "/^https?:\\/\\//", "")
-    zone_id                = data.aws_route53_zone.selected.zone_id
+    zone_id                = var.route53_zone
     evaluate_target_health = true
   }
 
@@ -62,13 +59,13 @@ resource "aws_route53_record" "secondary" {
     for item in local.secondary_list : item.unique_id => item
   }
 
-  zone_id = data.aws_route53_zone.selected.zone_id
+  zone_id = var.route53_zone
   name    = each.value.record_name
-  type    = "A"
+  type    = "CNAME"
 
   alias {
     name                   = each.value.target_url
-    zone_id                = data.aws_route53_zone.selected.zone_id
+    zone_id                = var.route53_zone
     evaluate_target_health = true
   }
 

@@ -174,7 +174,7 @@ resource "aws_lambda_event_source_mapping" "queue_consumer_usw2" {
 module "failover_configuration" {
   source       = "../../modules/failover"
   route53_zone = var.route53_zone
-  configs = map({
+  configs = tomap({
     "core-qa-root" : {
       "url" : toset([module.lambdas.core_function_url, module.lambdas_usw2.core_function_url]),
       "healthcheckEndpoint" : "/api/v1/healthz"
