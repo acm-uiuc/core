@@ -176,7 +176,7 @@ module "failover_configuration" {
   route53_zone = var.route53_zone
   configs = map({
     "core-qa-root" : {
-      "url" : set([module.lambdas.core_function_url, module.lambdas_usw2.core_function_url]),
+      "url" : toset([module.lambdas.core_function_url, module.lambdas_usw2.core_function_url]),
       "healthcheckEndpoint" : "/api/v1/healthz"
     }
   })
