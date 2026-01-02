@@ -8,11 +8,7 @@ import {
 import { mockClient } from "aws-sdk-client-mock";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
-import {
-  secretJson,
-  testSecretJson,
-  uinSecretJson,
-} from "./secret.testdata.js";
+import { secretJson, uinSecretJson } from "./secret.testdata.js";
 import {
   UnauthenticatedError,
   ValidationError,
@@ -183,9 +179,6 @@ ddbMock.on(QueryCommand).callsFake((command) => {
 smMock.on(GetSecretValueCommand).callsFake((command) => {
   if (command.SecretId == genericConfig.ConfigSecretName) {
     return Promise.resolve({ SecretString: secretJson });
-  }
-  if (command.SecretId == genericConfig.TestingCredentialsSecret) {
-    return Promise.resolve({ SecretString: testSecretJson });
   }
   if (command.SecretId == genericConfig.UinHashingSecret) {
     return Promise.resolve({ SecretString: uinSecretJson });

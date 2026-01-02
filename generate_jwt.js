@@ -7,7 +7,7 @@ import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import { randomUUID } from "crypto";
 
 export const getSecretValue = async (secretId) => {
-  const smClient = new SecretsManagerClient({region: "us-east-2"});
+  const smClient = new SecretsManagerClient({ region: "us-east-2" });
   const data = await smClient.send(
     new GetSecretValueCommand({ SecretId: secretId }),
   );
@@ -21,7 +21,7 @@ export const getSecretValue = async (secretId) => {
   }
 };
 
-const secrets = await getSecretValue("infra-core-api-testing-credentials");
+const secrets = await getSecretValue("infra-core-api-config");
 const client = new STSClient({ region: "us-east-2" });
 const command = new GetCallerIdentityCommand({});
 let data;

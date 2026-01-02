@@ -4,14 +4,14 @@ import {
   secretObject,
   jwtPayload,
   jwtPayloadNoGroups,
-  testSecretObject,
+  secretObject,
 } from "./secret.testdata.js";
 import jwt from "jsonwebtoken";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
 import { beforeEach, describe } from "node:test";
 
 const app = await init();
-const jwt_secret = testSecretObject["jwt_key"];
+const jwt_secret = secretObject["jwt_key"];
 export function createJwt(date?: Date, groups?: string[], email?: string) {
   let modifiedPayload = {
     ...jwtPayload,
