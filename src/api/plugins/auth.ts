@@ -18,11 +18,7 @@ import {
   UnauthenticatedError,
   UnauthorizedError,
 } from "../../common/errors/index.js";
-import {
-  SecretConfig,
-  SecretTesting,
-  GENERIC_CACHE_SECONDS,
-} from "../../common/config.js";
+import { SecretConfig, GENERIC_CACHE_SECONDS } from "../../common/config.js";
 import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
 import { getApiKeyData, getApiKeyParts } from "api/functions/apiKey.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
@@ -239,7 +235,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
           }
           signingKey =
             process.env.JwtSigningKey ||
-            ((fastify.secretConfig as SecretTesting).jwt_key as string) ||
+            ((fastify.secretConfig as SecretConfig).jwt_key as string) ||
             "";
           if (signingKey === "") {
             throw new UnauthenticatedError({

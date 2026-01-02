@@ -60,7 +60,6 @@ export type GenericConfigType = {
   AuditLogTable: string;
   ApiKeyTable: string;
   ConfigSecretName: string;
-  TestingCredentialsSecret: string;
   UinHashingSecret: string;
   UinExtendedAttributeName: string;
   UserInfoTable: string;
@@ -106,7 +105,6 @@ const genericConfig: GenericConfigType = {
   AuditLogTable: "infra-core-api-audit-log",
   ApiKeyTable: "infra-core-api-keys",
   ConfigSecretName: "infra-core-api-config",
-  TestingCredentialsSecret: "infra-core-api-testing-credentials",
   UinHashingSecret: "infra-core-api-uin-pepper",
   UinExtendedAttributeName: "extension_a70c2e1556954056a6a8edfb1f42f556_uiucEduUIN",
   UserInfoTable: "infra-core-api-user-info",
@@ -127,7 +125,7 @@ const environmentConfig: EnvironmentConfigType = {
       /^https?:\/\/([a-zA-Z0-9-]+\.)*acmuiuc\.workers\.dev$/,
       /http:\/\/localhost:\d+$/,
     ],
-    ConfigurationSecretIds: [genericConfig.TestingCredentialsSecret, genericConfig.ConfigSecretName, genericConfig.UinHashingSecret],
+    ConfigurationSecretIds: [genericConfig.ConfigSecretName, genericConfig.UinHashingSecret],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
@@ -198,11 +196,8 @@ export type SecretConfig = {
   encryption_key: string;
   UIN_HASHING_SECRET_PEPPER: string;
   github_pat: string;
+  jwt_key?: string;
 };
-
-export type SecretTesting = {
-  jwt_key: string;
-}
 
 const roleArns = {
   Entra: process.env.EntraRoleArn,
