@@ -196,7 +196,7 @@ export type SecretConfig = {
   encryption_key: string;
   UIN_HASHING_SECRET_PEPPER: string;
   github_pat: string;
-  jwt_key: string;
+  jwt_key?: string;
 };
 
 const roleArns = {
