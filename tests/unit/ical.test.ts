@@ -6,11 +6,11 @@ import {
   dynamoEventWithRepeatExclusion,
   dynamoTableData,
 } from "./mockEventData.testdata.js";
-import { testSecretObject } from "./secret.testdata.js";
+import { secretObject } from "./secret.testdata.js";
 import { readFile } from "fs/promises";
 
 const ddbMock = mockClient(DynamoDBClient);
-const jwt_secret = testSecretObject["jwt_key"];
+const jwt_secret = secretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
 const app = await init();
