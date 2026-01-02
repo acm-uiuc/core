@@ -9,13 +9,16 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
 import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import {
+  addInvoice,
   createStripeLink,
+  createCheckoutSessionWithCustomer,
   deactivateStripeLink,
   deactivateStripeProduct,
   getPaymentMethodDescriptionString,
   getPaymentMethodForPaymentIntent,
   paymentMethodTypeToFriendlyName,
   StripeLinkCreateParams,
+  InvoiceAddParams,
   SupportedStripePaymentMethod,
   supportedStripePaymentMethods,
 } from "api/functions/stripe.js";
@@ -36,6 +39,7 @@ import { AppRoles } from "common/roles.js";
 import {
   invoiceLinkPostResponseSchema,
   invoiceLinkPostRequestSchema,
+  createInvoicePostRequestSchema,
   invoiceLinkGetResponseSchema,
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
@@ -108,6 +112,77 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }),
       );
       reply.status(200).send(parsed);
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/createInvoice",
+    {
+      schema: withRoles(
+        [AppRoles.STRIPE_LINK_CREATOR],
+        withTags(["Stripe"], {
+          summary: "Create a new invoice.",
+          body: createInvoicePostRequestSchema,
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      const emailDomain = request.body.contactEmail.split("@").at(-1);
+
+      const secretApiConfig = fastify.secretConfig;
+      const payload: InvoiceAddParams = {
+        ...request.body,
+        emailDomain: emailDomain!,
+        redisClient: fastify.redisClient,
+        dynamoClient: fastify.dynamoClient,
+        stripeApiKey: secretApiConfig.stripe_secret_key as string,
+      };
+
+      const result = await addInvoice(payload);
+
+      if (result.needsConfirmation) {
+        return reply.status(409).send({
+          needsConfirmation: true,
+          customerId: result.customerId,
+          current: result.current,
+          incoming: result.incoming,
+          message: "Customer info differs. Confirm update before proceeding.",
+        });
+      }
+
+      const stripe = new Stripe(secretApiConfig.stripe_secret_key as string);
+
+      const dynamicPrice = await stripe.prices.create({
+        unit_amount: request.body.invoiceAmountUsd * 100, // USD → cents
+        currency: "usd",
+        product_data: {
+          name: `Invoice ${request.body.invoiceId}`,
+        },
+      });
+      const checkoutUrl = await createCheckoutSessionWithCustomer({
+        customerId: result.customerId,
+        stripeApiKey: secretApiConfig.stripe_secret_key as string,
+        items: [
+          {
+            price: dynamicPrice.id,
+            quantity: 1,
+          },
+        ],
+        initiator: request.username || "system",
+        allowPromotionCodes: true,
+        successUrl: `${fastify.environmentConfig.UserFacingUrl}/success`,
+        returnUrl: `${fastify.environmentConfig.UserFacingUrl}/cancel`,
+        metadata: {
+          acm_org: request.body.acmOrg,
+          billing_email: request.body.contactEmail,
+          invoice_id: request.body.invoiceId,
+        },
+      });
+
+      reply.status(201).send({
+        id: request.body.invoiceId,
+        link: checkoutUrl,
+      });
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(

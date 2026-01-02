@@ -15,14 +15,14 @@
     "prettier:write": "prettier --write *.ts **/*.ts"
   },
   "dependencies": {
-    "@aws-sdk/s3-request-presigner": "^3.914.0",
-    "@aws-sdk/client-s3": "^3.914.0",
     "@aws-sdk/client-dynamodb": "^3.922.0",
     "@aws-sdk/client-lambda": "^3.922.0",
+    "@aws-sdk/client-s3": "^3.922.0",
     "@aws-sdk/client-secrets-manager": "^3.922.0",
     "@aws-sdk/client-ses": "^3.922.0",
     "@aws-sdk/client-sqs": "^3.922.0",
     "@aws-sdk/client-sts": "^3.922.0",
+    "@aws-sdk/s3-request-presigner": "^3.922.0",
     "@aws-sdk/signature-v4-crt": "^3.922.0",
     "@aws-sdk/util-dynamodb": "^3.922.0",
     "@azure/msal-node": "^3.8.1",
