@@ -123,7 +123,7 @@ const environmentConfig: EnvironmentConfigType = {
       /http:\/\/localhost:\d+$/,
     ],
     ConfigurationSecretIds: [genericConfig.ConfigSecretName],
-    ConfigurationParameterIds: ['/infra-core-api/UIN_HASHING_SECRET_PEPPER'],
+    ConfigurationParameterIds: ['/infra-core-api/UIN_HASHING_SECRET_PEPPER', '/infra-core-api/jwt_key'],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
