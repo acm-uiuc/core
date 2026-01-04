@@ -28,5 +28,6 @@ describe("Vending routes tests", async () => {
   });
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushall();
   });
 });

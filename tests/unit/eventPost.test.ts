@@ -212,6 +212,7 @@ describe("ETag Lifecycle Tests", () => {
   test("ETag should increment after event creation", async () => {
     // Setup
     (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushall();
     ddbMock.reset();
     vi.useFakeTimers();
 
@@ -295,6 +296,7 @@ describe("ETag Lifecycle Tests", () => {
   test("ETags should be deleted when events are deleted", async () => {
     // Setup
     (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushall();
     ddbMock.reset();
     vi.useFakeTimers();
 
@@ -389,6 +391,7 @@ describe("ETag Lifecycle Tests", () => {
   test("ETags for different events should be independent", async () => {
     // Setup
     (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushall();
     ddbMock.reset();
     vi.useFakeTimers();
 
@@ -582,6 +585,7 @@ describe("Event modification tests", async () => {
   });
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushall();
     (app as any).redisClient.flushdb();
     ddbMock.reset();
     vi.clearAllMocks();
@@ -594,6 +598,7 @@ afterAll(async () => {
 });
 beforeEach(() => {
   (app as any).nodeCache.flushAll();
+  (app as any).redisClient.flushall();
   (app as any).redisClient.flushdb();
   ddbMock.reset();
   vi.clearAllMocks();

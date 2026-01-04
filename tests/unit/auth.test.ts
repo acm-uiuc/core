@@ -82,6 +82,7 @@ describe("Test authentication", () => {
 
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
-    (app as any).redisClient.flushAll();
+    (app as any).redisClient.flushall();
+    (app as any).redisClient.flushall();
   });
 });

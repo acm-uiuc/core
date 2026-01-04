@@ -309,6 +309,7 @@ describe("Test Stripe link creation", async () => {
   });
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushall();
     vi.clearAllMocks();
   });
 });

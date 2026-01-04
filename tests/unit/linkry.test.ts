@@ -21,6 +21,7 @@ vi.stubEnv("JwtSigningKey", jwt_secret);
 const app = await init();
 
 (app as any).nodeCache.flushAll();
+(app as any).redisClient.flushall();
 ddbMock.reset();
 vi.useFakeTimers();
 

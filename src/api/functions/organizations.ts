@@ -324,8 +324,8 @@ export const addLead = async ({
               );
             } catch (rollbackError) {
               logger.error(
-                `CRITICAL: Failed to rollback Entra group addition for ${username} in ${orgId}. Manual intervention required.`,
                 rollbackError,
+                `CRITICAL: Failed to rollback Entra group addition for ${username} in ${orgId}. Manual intervention required.`,
               );
             }
           }
@@ -369,8 +369,8 @@ export const addLead = async ({
           );
         } catch (rollbackError) {
           logger.error(
-            `CRITICAL: Failed to rollback Entra group addition for ${username} in ${orgId}. Manual intervention required.`,
             rollbackError,
+            `CRITICAL: Failed to rollback Entra group addition for ${username} in ${orgId}. Manual intervention required.`,
           );
         }
       }
@@ -495,8 +495,8 @@ export const removeLead = async ({
               );
             } catch (rollbackError) {
               logger.error(
-                `CRITICAL: Failed to rollback Entra group removal for ${username} in ${orgId}. Manual intervention required.`,
                 rollbackError,
+                `CRITICAL: Failed to rollback Entra group removal for ${username} in ${orgId}. Manual intervention required.`,
               );
             }
           }
@@ -540,8 +540,8 @@ export const removeLead = async ({
           );
         } catch (rollbackError) {
           logger.error(
-            `CRITICAL: Failed to rollback Entra group removal for ${username} in ${orgId}. Manual intervention required.`,
             rollbackError,
+            `CRITICAL: Failed to rollback Entra group removal for ${username} in ${orgId}. Manual intervention required.`,
           );
         }
       }

@@ -437,6 +437,7 @@ describe("Test Room Request Creation", async () => {
   });
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushall();
     ddbMock.reset();
     sqsMock.reset();
     vi.clearAllMocks();
