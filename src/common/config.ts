@@ -201,7 +201,6 @@ export type SecretConfig = {
   stripe_links_endpoint_secret: string;
   redis_url: string;
   fallback_redis_url: string;
-  encryption_key: string;
   UIN_HASHING_SECRET_PEPPER: string;
   github_installation_id: string;
   github_private_key: string;
