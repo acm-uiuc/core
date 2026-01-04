@@ -1,4 +1,8 @@
-import { FastifyPluginAsync, type FastifyRequest } from "fastify";
+import {
+  type FastifyInstance,
+  FastifyPluginAsync,
+  type FastifyRequest,
+} from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
   formatStatus,
@@ -43,7 +47,7 @@ import { createPresignedGet, createPresignedPut } from "api/functions/s3.js";
 import { HeadObjectCommand, NotFound, S3Client } from "@aws-sdk/client-s3";
 
 async function verifyRoomRequestAccess(
-  fastify: any,
+  fastify: FastifyInstance,
   request: FastifyRequest,
   requestId: string,
   semesterId: string,

@@ -2,10 +2,7 @@ import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { withRoles, withTags } from "api/components/index.js";
 import { getUserOrgRoles } from "api/functions/organizations.js";
-import {
-  UnauthenticatedError,
-  UnauthorizedError,
-} from "common/errors/index.js";
+import { UnauthenticatedError } from "common/errors/index.js";
 
 const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {

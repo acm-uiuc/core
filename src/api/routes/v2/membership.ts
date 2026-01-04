@@ -11,10 +11,7 @@ import {
   ValidationError,
 } from "common/errors/index.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
-import {
-  createCheckoutSession,
-  createCheckoutSessionWithCustomer,
-} from "api/functions/stripe.js";
+import { createCheckoutSessionWithCustomer } from "api/functions/stripe.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import {

@@ -2,7 +2,6 @@ import {
   QueryCommand,
   ScanCommand,
   TransactWriteItemsCommand,
-  UpdateItemCommand,
   PutItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -14,7 +13,6 @@ import {
   deactivateStripeProduct,
   getPaymentMethodDescriptionString,
   getPaymentMethodForPaymentIntent,
-  paymentMethodTypeToFriendlyName,
   StripeLinkCreateParams,
   SupportedStripePaymentMethod,
   supportedStripePaymentMethods,
@@ -33,11 +31,7 @@ import {
 } from "common/errors/index.js";
 import { Modules } from "common/modules.js";
 import { AppRoles } from "common/roles.js";
-import {
-  invoiceLinkPostResponseSchema,
-  invoiceLinkPostRequestSchema,
-  invoiceLinkGetResponseSchema,
-} from "common/types/stripe.js";
+import { invoiceLinkPostRequestSchema } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import stripe, { Stripe } from "stripe";

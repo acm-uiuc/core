@@ -7,7 +7,6 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig, SecretConfig } from "common/config.js";
 import { getSecretConfig } from "../utils.js";
-import RedisModule from "ioredis";
 import { createLock, IoredisAdapter } from "redlock-universal";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { InternalServerError } from "common/errors/index.js";

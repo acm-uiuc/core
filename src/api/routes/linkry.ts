@@ -46,7 +46,7 @@ import {
 import { Modules } from "common/modules.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { withRoles, withTags } from "api/components/index.js";
-import { AllOrganizationNameList, Organizations } from "@acm-uiuc/js-shared";
+import { Organizations } from "@acm-uiuc/js-shared";
 import { authorizeByOrgRoleOrSchema } from "api/functions/authorization.js";
 
 type OwnerRecord = {

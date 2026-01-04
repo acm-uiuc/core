@@ -182,7 +182,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           accessToken,
           logger: request.log,
         });
-        const { userPrincipalName: upn, givenName, surname } = verifiedData;
+        const { userPrincipalName: upn } = verifiedData;
         const netId = upn.replace("@illinois.edu", "");
         if (netId.includes("@")) {
           request.log.error(

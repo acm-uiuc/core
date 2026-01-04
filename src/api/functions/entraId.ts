@@ -601,11 +601,11 @@ export async function getServicePrincipalOwnedGroups(
       const groups = includeDynamicGroups
         ? data.value
         : data.value
-          .filter((group) => !group.groupTypes?.includes("DynamicMembership"))
-          .filter(
-            (group) =>
-              !group.description?.startsWith("[Managed by Core API]"),
-          );
+            .filter((group) => !group.groupTypes?.includes("DynamicMembership"))
+            .filter(
+              (group) =>
+                !group.description?.startsWith("[Managed by Core API]"),
+            );
 
       // Return only id and displayName (strip groupTypes if it was included)
       return groups.map(({ id, displayName }) => ({ id, displayName }));
