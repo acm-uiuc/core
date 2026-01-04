@@ -64,18 +64,17 @@ export async function getEntraIdToken({
       ssmClient,
     }),
   ]);
-  const decodedPrivateKey = Buffer.from(data[0] as string, "base64").toString(
-    "utf8",
-  );
+  // Cache key has the thumbprint because if the key is rotated we need to get a new token
   const cacheKey = `entra_id_access_token_${data[1]}_${clientId}`;
-  const startTime = Date.now();
+  // We want to store this cached value in DynamoDB, not Redis, since Upstash redis isn't encrypted.
+  // However, DynamoDB is protected by KMS. We take a small latency hit, but that's ok.
   const cachedToken = await getItemFromCache(clients.dynamoClient, cacheKey);
-  logger.debug(
-    `Took ${Date.now() - startTime} ms to get cached entra ID token.`,
-  );
   if (cachedToken) {
     return cachedToken.token as string;
   }
+  const decodedPrivateKey = Buffer.from(data[0] as string, "base64").toString(
+    "utf8",
+  );
   const config = {
     auth: {
       clientId,
@@ -602,11 +601,11 @@ export async function getServicePrincipalOwnedGroups(
       const groups = includeDynamicGroups
         ? data.value
         : data.value
-            .filter((group) => !group.groupTypes?.includes("DynamicMembership"))
-            .filter(
-              (group) =>
-                !group.description?.startsWith("[Managed by Core API]"),
-            );
+          .filter((group) => !group.groupTypes?.includes("DynamicMembership"))
+          .filter(
+            (group) =>
+              !group.description?.startsWith("[Managed by Core API]"),
+          );
 
       // Return only id and displayName (strip groupTypes if it was included)
       return groups.map(({ id, displayName }) => ({ id, displayName }));
