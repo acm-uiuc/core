@@ -8,14 +8,17 @@ import {
 import { mockClient } from "aws-sdk-client-mock";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
-import { secretJson, uinSecretJson } from "./secret.testdata.js";
+import { secretJson } from "./secret.testdata.js";
 import {
   UnauthenticatedError,
   ValidationError,
 } from "../../src/common/errors/index.js";
+import { GetParameterCommand, SSMClient } from "@aws-sdk/client-ssm";
 
 const ddbMock = mockClient(DynamoDBClient);
 const smMock = mockClient(SecretsManagerClient);
+const ssmMock = mockClient(SSMClient);
+
 vi.mock(
   import("../../src/api/functions/rateLimit.js"),
   async (importOriginal) => {
@@ -180,10 +183,19 @@ smMock.on(GetSecretValueCommand).callsFake((command) => {
   if (command.SecretId == genericConfig.ConfigSecretName) {
     return Promise.resolve({ SecretString: secretJson });
   }
-  if (command.SecretId == genericConfig.UinHashingSecret) {
-    return Promise.resolve({ SecretString: uinSecretJson });
-  }
   return Promise.reject(new Error(`Secret ID ${command.SecretID} not mocked`));
+});
+
+ssmMock.on(GetParameterCommand).callsFake((command) => {
+  const ssmParameters: Record<string, string> = {
+    "/infra-core-api/UIN_HASHING_SECRET_PEPPER":
+      "dc1f1a24-fce5-480b-a342-e7bd34d8f8c5",
+  };
+  const value = ssmParameters[command.Name];
+  if (value) {
+    return Promise.resolve({ Parameter: { Value: value } });
+  }
+  return Promise.reject(new Error(`Parameter ${command.Name} not mocked`));
 });
 
 vi.mock("ioredis", () => import("ioredis-mock"));

@@ -1,6 +1,7 @@
 import { InternalServerError } from "common/errors/index.js";
 import { ValidLoggers } from "./types.js";
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
+import { genericConfig } from "common/config.js";
 
 const MAX_RETRIES = 3;
 
@@ -54,7 +55,8 @@ export const getSsmParameter = async ({
   logger,
   ssmClient,
 }: GetSsmParameterInputs) => {
-  const client = ssmClient || new SSMClient({});
+  const client =
+    ssmClient || new SSMClient({ region: genericConfig.AwsRegion });
 
   const params = {
     Name: parameterName,
@@ -71,7 +73,11 @@ export const getSsmParameter = async ({
     }
     return data.Parameter.Value;
   } catch (error) {
-    logger.error(`Error retrieving parameter ${parameterName}`, error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(
+      `Error retrieving parameter ${parameterName}: ${errorMessage}`,
+      error,
+    );
     throw new InternalServerError({ message: "Failed to retrieve parameter" });
   }
 };

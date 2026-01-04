@@ -311,7 +311,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       app.log.debug(
         `Getting secure parameters (SSM): ${JSON.stringify(app.environmentConfig.ConfigurationParameterIds)}.`,
       );
-      const ssmClient = new SSMClient({});
+      const ssmClient = new SSMClient({ region: genericConfig.AwsRegion });
       const allParameters = await Promise.all(
         app.environmentConfig.ConfigurationParameterIds.map(
           async (parameterName) => {
