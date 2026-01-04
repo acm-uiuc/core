@@ -145,3 +145,4 @@ dist_devel/
 !src/ui/pages/logs
 src/api/package.lambda.json
 tfplan
+.DS_Store
