@@ -62,6 +62,8 @@ import { docsHtml, securitySchemes } from "./docs.js";
 import syncIdentityPlugin from "./routes/syncIdentity.js";
 import { createRedisModule } from "./redis.js";
 import userRoute from "./routes/user.js";
+import { getSsmParameter } from "./utils.js";
+import { SSMClient } from "@aws-sdk/client-ssm";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
@@ -306,7 +308,25 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
           getSecretValue(app.secretsManagerClient, secretName),
         ),
       );
-      app.secretConfig = allSecrets.reduce(
+      app.log.debug(
+        `Getting secure parameters (SSM): ${JSON.stringify(app.environmentConfig.ConfigurationParameterIds)}.`,
+      );
+      const ssmClient = new SSMClient({ region: genericConfig.AwsRegion });
+      const allParameters = await Promise.all(
+        app.environmentConfig.ConfigurationParameterIds.map(
+          async (parameterName) => {
+            const val = await getSsmParameter({
+              parameterName,
+              logger: app.log,
+              ssmClient,
+            });
+            const key = parameterName.split("/").at(-1) || parameterName;
+            return { [key]: val };
+          },
+        ),
+      );
+      const allConfig = [...allSecrets, ...allParameters];
+      app.secretConfig = allConfig.reduce(
         (acc, currentSecret) => ({ ...acc, ...currentSecret }),
         {},
       ) as SecretConfig;

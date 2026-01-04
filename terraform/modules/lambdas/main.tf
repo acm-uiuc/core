@@ -191,6 +191,22 @@ resource "aws_iam_policy" "shared_iam_policy" {
         Resource = ["${aws_cloudwatch_log_group.api_logs.arn}:*"]
       },
       {
+        Action   = ["kms:Decrypt"],
+        Effect   = "Allow",
+        Resource = ["arn:aws:kms:${var.region}:${data.aws_caller_identity.current.account_id}:alias/aws/ssm"]
+      },
+      {
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath"
+        ],
+        Resource = [
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/infra-core-api/*"
+        ],
+        Effect = "Allow"
+      },
+      {
         Action = ["secretsmanager:GetSecretValue"],
         Effect = "Allow",
         Resource = [
