@@ -241,7 +241,6 @@ resource "aws_iam_policy" "shared_iam_policy" {
         Effect = "Allow",
         Resource = [
           "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-config*",
-          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-uin-pepper*"
         ]
       },
       {
