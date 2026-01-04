@@ -58,20 +58,18 @@ function getSlugToQuery(path: string, host: string): string {
  * Determine which DynamoDB replica to use based on Lambda execution region
  */
 function selectReplica(lambdaRegion: string): string {
-  // First check if Lambda is running in a replica region
   if (AVAILABLE_REPLICAS.includes(lambdaRegion)) {
     return lambdaRegion;
   }
 
-  // Otherwise, find nearest replica by region prefix matching
-  const regionPrefix = lambdaRegion.split("-").slice(0, 2).join("-");
-  if (regionPrefix === "us") {
-    return DEFAULT_AWS_REGION;
-  }
-
-  for (const replica of AVAILABLE_REPLICAS) {
-    if (replica.startsWith(regionPrefix)) {
-      return replica;
+  // Find nearest replica by longest prefix matching
+  const parts = lambdaRegion.split("-");
+  for (let i = parts.length - 1; i > 0; i--) {
+    const prefix = parts.slice(0, i).join("-");
+    for (const replica of AVAILABLE_REPLICAS) {
+      if (replica.startsWith(prefix)) {
+        return replica;
+      }
     }
   }
 
