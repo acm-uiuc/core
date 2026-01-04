@@ -26,6 +26,7 @@ export type ConfigType = {
   PaidMemberPriceId: string;
   AadValidReadOnlyClientId: string;
   ConfigurationSecretIds: string[];
+  ConfigurationParameterIds: string[];
   DiscordGuildId: string;
   GroupSuffix: string;
   GroupEmailSuffix: string;
@@ -60,7 +61,6 @@ export type GenericConfigType = {
   AuditLogTable: string;
   ApiKeyTable: string;
   ConfigSecretName: string;
-  UinHashingSecret: string;
   UinExtendedAttributeName: string;
   UserInfoTable: string;
   SigInfoTableName: string;
@@ -105,7 +105,6 @@ const genericConfig: GenericConfigType = {
   AuditLogTable: "infra-core-api-audit-log",
   ApiKeyTable: "infra-core-api-keys",
   ConfigSecretName: "infra-core-api-config",
-  UinHashingSecret: "infra-core-api-uin-pepper",
   UinExtendedAttributeName: "extension_a70c2e1556954056a6a8edfb1f42f556_uiucEduUIN",
   UserInfoTable: "infra-core-api-user-info",
   SigInfoTableName: "infra-core-api-sigs",
@@ -125,7 +124,8 @@ const environmentConfig: EnvironmentConfigType = {
       /^https?:\/\/([a-zA-Z0-9-]+\.)*acmuiuc\.workers\.dev$/,
       /http:\/\/localhost:\d+$/,
     ],
-    ConfigurationSecretIds: [genericConfig.ConfigSecretName, genericConfig.UinHashingSecret],
+    ConfigurationSecretIds: [genericConfig.ConfigSecretName],
+    ConfigurationParameterIds: ['/infra-core-api/UIN_HASHING_SECRET_PEPPER'],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
@@ -149,7 +149,8 @@ const environmentConfig: EnvironmentConfigType = {
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
-    ConfigurationSecretIds: [genericConfig.ConfigSecretName, genericConfig.UinHashingSecret],
+    ConfigurationSecretIds: [genericConfig.ConfigSecretName, 'infra-core-api-uin-pepper'],
+    ConfigurationParameterIds: [],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
       /^https:\/\/(?:.*\.)?acmuiuc-digital-signage\.pages\.dev$/,
