@@ -104,7 +104,7 @@ export const getUserIdentifier = (request: FastifyRequest): string | null => {
     }
     return (decoded as AadToken).sub || null;
   } catch (e) {
-    request.log.error("Failed to determine user identifier", e);
+    request.log.error(e, "Failed to determine user identifier");
     return null;
   }
 };
