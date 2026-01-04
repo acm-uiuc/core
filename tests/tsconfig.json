@@ -10,6 +10,12 @@
     "rootDir": "../",
     "resolveJsonModule": true
   },
-  "include": ["../src/", "./e2e/**/*.ts", "./live/**/*.ts", "./unit/**/*.ts"],
+  "include": [
+    "../src/",
+    "./e2e/**/*.ts",
+    "./live/**/*.ts",
+    "./unit/**/*.ts",
+    "./common/**/*.ts"
+  ],
   "exclude": ["../node_modules", "../dist"]
 }
