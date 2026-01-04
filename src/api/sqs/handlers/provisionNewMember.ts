@@ -11,9 +11,9 @@ import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { getAuthorizedClients, getSecretConfig } from "../utils.js";
 import { emailMembershipPassHandler } from "./emailMembershipPassHandler.js";
-import RedisModule from "ioredis";
 import { setKey } from "api/functions/redisCache.js";
 import { createRedisModule } from "api/redis.js";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
 export const provisionNewMemberHandler: SQSHandlerFunction<
   AvailableSQSFunctions.ProvisionNewMember
@@ -40,7 +40,7 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
   logger.info("Got authorized clients and Entra ID token.");
   const { updated } = await setPaidMembership({
     netId,
-    dynamoClient: clients.dynamoClient,
+    dynamoClient: new DynamoDBClient({ region: genericConfig.AwsRegion }),
     entraToken,
     paidMemberGroup: currentEnvironmentConfig.PaidMemberGroupId,
     firstName,
