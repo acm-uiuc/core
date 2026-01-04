@@ -13,13 +13,22 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
 
     steps:
+      - name: Skip for Dependabot
+        if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
+        run: |
+          echo "Dependabot PR - skipping granular check"
+          exit 0
+
       - name: Generate a token
+        if: github.event.pull_request.user.login != 'dependabot[bot]' || github.actor != 'dependabot[bot]'
         id: generate-token
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.REQUIRED_REVIEWS_APP_ID }}
           private-key: ${{ secrets.REQUIRED_REVIEWS_APP_KEY }}
+
       - uses: Automattic/action-required-review@v4.1.2
+        if: github.event.pull_request.user.login != 'dependabot[bot]' || github.actor != 'dependabot[bot]'
         with:
           token: ${{ steps.generate-token.outputs.token }}
           status: Required Reviews
