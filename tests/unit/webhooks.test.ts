@@ -192,6 +192,7 @@ describe("Test Stripe webhooks", async () => {
   });
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushall();
     ddbMock.reset();
     sqsMock.reset();
   });

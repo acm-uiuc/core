@@ -48,6 +48,7 @@ const app = await init();
 describe("Test Modify Group and List Group Routes", () => {
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushall();
     sqsMock.reset();
     vi.clearAllMocks();
   });
@@ -143,6 +144,7 @@ describe("Test Modify Group and List Group Routes", () => {
   });
   beforeEach(() => {
     (app as any).nodeCache.flushAll();
+    (app as any).redisClient.flushall();
     vi.clearAllMocks();
     vi.useFakeTimers();
     (getEntraIdToken as any).mockImplementation(async () => {

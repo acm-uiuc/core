@@ -928,5 +928,6 @@ beforeEach(() => {
   ddbMock.reset();
   vi.useFakeTimers();
   (app as any).nodeCache.flushAll();
+  (app as any).redisClient.flushall();
   (app as any).redisClient.flushdb();
 });
