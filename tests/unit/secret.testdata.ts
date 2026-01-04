@@ -16,6 +16,7 @@ const secretObject = {
   UIN_HASHING_SECRET_PEPPER: "abcd",
   fallback_redis_url: "abc",
   github_app_id: "abc123testing",
+  github_private_key: "abc123testing",
   jwt_key: "somethingreallysecret",
 } as SecretConfig;
 
