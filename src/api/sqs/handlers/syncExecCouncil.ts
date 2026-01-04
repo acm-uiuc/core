@@ -65,7 +65,6 @@ export const syncExecCouncilHandler: SQSHandlerFunction<
     const entraIdToken = await getEntraIdToken({
       clients,
       clientId: currentEnvironmentConfig.AadValidClientId,
-      secretName: genericConfig.EntraSecretName,
       logger,
     });
 

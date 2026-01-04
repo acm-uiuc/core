@@ -106,12 +106,17 @@ resource "aws_iam_policy" "entra_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect = "Allow",
-        Action = ["secretsmanager:GetSecretValue"],
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath"
+        ],
         Resource = [
-          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-entra*",
-        ]
-      }
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/infra-core-api/entra_id_private_key",
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/infra-core-api/entra_id_thumbprint",
+        ],
+        Effect = "Allow"
+      },
     ]
   }))
 }
@@ -204,6 +209,17 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/infra-core-api/*"
         ],
         Effect = "Allow"
+      },
+      {
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath"
+        ],
+        Resource = [
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/infra-core-api/entra_id*"
+        ],
+        Effect = "Deny"
       },
       {
         Action = ["secretsmanager:GetSecretValue"],

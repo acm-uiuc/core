@@ -407,7 +407,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       const entraIdToken = await getEntraIdToken({
         clients,
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
 

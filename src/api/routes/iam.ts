@@ -114,7 +114,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
       const { discordUsername } = request.body;
@@ -210,7 +209,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const entraIdToken = await getEntraIdToken({
           clients: await getAuthorizedClients(),
           clientId: fastify.environmentConfig.AadValidClientId,
-          secretName: genericConfig.EntraSecretName,
           logger: request.log,
         });
         const groupMembers = listGroupMembers(entraIdToken, groupId);
@@ -277,7 +275,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
       if (!entraIdToken) {
@@ -372,7 +369,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
       const groupMetadataPromise = getGroupMetadata(entraIdToken, groupId);
@@ -626,7 +622,6 @@ No action is required from you at this time.
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
       const response = await listGroupMembers(entraIdToken, groupId);
@@ -660,7 +655,6 @@ No action is required from you at this time.
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
       // get groups, but don't show protected groups and app managed groups manageable

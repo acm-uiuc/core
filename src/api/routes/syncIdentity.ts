@@ -131,7 +131,6 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           const entraIdToken = await getEntraIdToken({
             clients: await getAuthorizedClients(),
             clientId: fastify.environmentConfig.AadValidClientId,
-            secretName: genericConfig.EntraSecretName,
             logger: request.log,
           });
           const oid = await resolveEmailToOid(entraIdToken, username);

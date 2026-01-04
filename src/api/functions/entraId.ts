@@ -33,6 +33,8 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { checkPaidMembershipFromTable } from "./membership.js";
 import { RunEnvironment } from "common/roles.js";
 import { ValidLoggers } from "api/types.js";
+import { getSsmParameter } from "api/utils.js";
+import { SSMClient } from "@aws-sdk/client-ssm";
 
 function validateGroupId(groupId: string): boolean {
   const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
@@ -50,25 +52,25 @@ export async function getEntraIdToken({
   clients,
   clientId,
   scopes = ["https://graph.microsoft.com/.default"],
-  secretName,
   logger,
 }: GetEntraIdTokenInput) {
-  const localSecretName = secretName || genericConfig.EntraSecretName;
-  const secretApiConfig =
-    (await getSecretValue(clients.smClient, localSecretName)) || {};
-  if (
-    !secretApiConfig.entra_id_private_key ||
-    !secretApiConfig.entra_id_thumbprint
-  ) {
-    throw new InternalServerError({
-      message: "Could not find Entra ID credentials.",
-    });
-  }
-  const decodedPrivateKey = Buffer.from(
-    secretApiConfig.entra_id_private_key as string,
-    "base64",
-  ).toString("utf8");
-  const cacheKey = `entra_id_access_token_${localSecretName}_${clientId}`;
+  const ssmClient = new SSMClient({ region: genericConfig.AwsRegion });
+  const data = await Promise.all([
+    getSsmParameter({
+      parameterName: "/infra-core-api/entra_id_private_key",
+      logger,
+      ssmClient,
+    }),
+    getSsmParameter({
+      parameterName: "/infra-core-api/entra_id_thumbprint",
+      logger,
+      ssmClient,
+    }),
+  ]);
+  const decodedPrivateKey = Buffer.from(data[0] as string, "base64").toString(
+    "utf8",
+  );
+  const cacheKey = `entra_id_access_token_${data[1]}_${clientId}`;
   const startTime = Date.now();
   const cachedToken = await getItemFromCache(clients.dynamoClient, cacheKey);
   logger.debug(
@@ -82,7 +84,7 @@ export async function getEntraIdToken({
       clientId,
       authority: `https://login.microsoftonline.com/${genericConfig.EntraTenantId}`,
       clientCertificate: {
-        thumbprint: (secretApiConfig.entra_id_thumbprint as string) || "",
+        thumbprint: (data[1] as string) || "",
         privateKey: decodedPrivateKey,
       },
     },

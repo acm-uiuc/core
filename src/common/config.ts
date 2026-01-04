@@ -43,7 +43,6 @@ export type GenericConfigType = {
   LinkryDynamoTableName: string;
   StripeLinksDynamoTableName: string;
   StripePaymentsDynamoTableName: string;
-  EntraSecretName: string;
   UpcomingEventThresholdSeconds: number;
   AwsRegion: string;
   SesRegion: string; // TODO: we're only verified for SES in us-east-1, get verified in us-east-2
@@ -86,7 +85,6 @@ const genericConfig: GenericConfigType = {
   StripePaymentsDynamoTableName: "infra-core-api-stripe-payments",
   CacheDynamoTableName: "infra-core-api-cache",
   LinkryDynamoTableName: "infra-core-api-linkry",
-  EntraSecretName: "infra-core-api-entra",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
   AwsRegion: process.env.AWS_REGION ?? "us-east-2",
   SesRegion: "us-east-1",
