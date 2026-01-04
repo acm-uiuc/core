@@ -57,7 +57,6 @@ export type GenericConfigType = {
   ProtectedEntraIDGroups: string[]; // these groups are too privileged to be modified via this portal and must be modified directly in Entra ID.
   RoomRequestsTableName: string;
   RoomRequestsStatusTableName: string;
-  EntraReadOnlySecretName: string;
   AuditLogTable: string;
   ApiKeyTable: string;
   ConfigSecretName: string;
@@ -88,7 +87,6 @@ const genericConfig: GenericConfigType = {
   CacheDynamoTableName: "infra-core-api-cache",
   LinkryDynamoTableName: "infra-core-api-linkry",
   EntraSecretName: "infra-core-api-entra",
-  EntraReadOnlySecretName: "infra-core-api-ro-entra",
   UpcomingEventThresholdSeconds: 1800, // 30 mins
   AwsRegion: process.env.AWS_REGION ?? "us-east-2",
   SesRegion: "us-east-1",

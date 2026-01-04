@@ -110,7 +110,6 @@ resource "aws_iam_policy" "entra_policy" {
         Action = ["secretsmanager:GetSecretValue"],
         Resource = [
           "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-entra*",
-          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:infra-core-api-ro-entra*"
         ]
       }
     ]
