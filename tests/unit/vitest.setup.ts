@@ -191,6 +191,9 @@ ssmMock.on(GetParameterCommand).callsFake((command) => {
     "/infra-core-api/UIN_HASHING_SECRET_PEPPER":
       "dc1f1a24-fce5-480b-a342-e7bd34d8f8c5",
     "/infra-core-api/jwt_key": "6059bfd2-9179-403f-bf31-affdaa4720c3",
+    "/infra-core-api/github_app_id": "9179",
+    "/infra-core-api/github_installation_id": "123",
+    "/infra-core-api/github_private_key": "123",
   };
   const value = ssmParameters[command.Name];
   if (value) {

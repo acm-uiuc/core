@@ -9,7 +9,6 @@ import { marshall } from "@aws-sdk/util-dynamodb";
 import { createOrgGithubTeamHandler } from "../../../../src/api/sqs/handlers/createOrgGithubTeam.js";
 import { genericConfig } from "../../../../src/common/config.js";
 import { InternalServerError } from "../../../../src/common/errors/index.js";
-import { SKIP_EXTERNAL_ORG_LEAD_UPDATE } from "../../../../src/common/overrides.js";
 
 // Mock dependencies
 const ddbMock = mockClient(DynamoDBClient);
@@ -19,9 +18,13 @@ vi.mock("../../../../src/api/functions/github.js", () => ({
   assignIdpGroupsToTeam: vi.fn(),
 }));
 
-vi.mock("../../../../src/api/utils.js", () => ({
-  retryDynamoTransactionWithBackoff: vi.fn((operation) => operation()),
-}));
+vi.mock(import("../../../../src/api/utils.js"), async (importOriginal) => {
+  const mod = await importOriginal();
+  return {
+    ...mod,
+    retryDynamoTransactionWithBackoff: vi.fn((operation) => operation()),
+  }
+});
 
 vi.mock("ioredis", () => import("ioredis-mock"));
 
@@ -43,7 +46,7 @@ describe("createOrgGithubTeamHandler", () => {
   const mockLogger = {
     info: vi.fn(),
     warn: vi.fn(),
-    error: vi.fn(),
+    error: vi.fn().mockImplementation(console.error),
     debug: vi.fn(),
     trace: vi.fn(),
     fatal: vi.fn(),
