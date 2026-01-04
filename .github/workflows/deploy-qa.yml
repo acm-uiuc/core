@@ -143,5 +143,3 @@ jobs:
 
       - name: Run live integration testing
         run: make test_live_integration
-        env:
-          JWT_KEY: ${{ secrets.JWT_KEY }}

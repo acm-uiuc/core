@@ -1,41 +1,42 @@
 import jwt from "jsonwebtoken";
-import {
-  SecretsManagerClient,
-  GetSecretValueCommand,
-} from "@aws-sdk/client-secrets-manager";
 import { randomUUID } from "node:crypto";
+import { GetParameterCommand, SSMClient } from "@aws-sdk/client-ssm";
 
-export const getSecretValue = async (
-  secretId: string,
-): Promise<Record<string, string | number | boolean> | null> => {
-  const smClient = new SecretsManagerClient({
-    region: process.env.AWS_REGION || "us-east-2",
+export const getSsmParameter = async (parameterName: string) => {
+  const client = new SSMClient({
+    region: process.env.AWS_REGION ?? "us-east-2",
   });
-  const data = await smClient.send(
-    new GetSecretValueCommand({ SecretId: secretId }),
-  );
-  if (!data.SecretString) {
-    return null;
-  }
+
+  const params = {
+    Name: parameterName,
+    WithDecryption: true,
+  };
+
+  const command = new GetParameterCommand(params);
+
   try {
-    return JSON.parse(data.SecretString) as Record<
-      string,
-      string | number | boolean
-    >;
-  } catch {
+    const data = await client.send(command);
+    if (!data.Parameter || !data.Parameter.Value) {
+      console.error(`Parameter ${parameterName} not found`);
+      return null;
+    }
+    return data.Parameter.Value;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(
+      `Error retrieving parameter ${parameterName}: ${errorMessage}`,
+      error,
+    );
     return null;
   }
 };
 
 async function getSecrets() {
-  const response = { JWTKEY: "" };
-  let keyData;
-  if (!process.env.JWT_KEY) {
-    keyData = await getSecretValue("infra-core-api-config");
+  const data = await getSsmParameter("/infra-core-api/jwt_key");
+  if (!data) {
+    throw new Error("Failed to get JWT key.");
   }
-  response["JWTKEY"] =
-    process.env.JWT_KEY || ((keyData ? keyData["jwt_key"] : "") as string);
-  return response;
+  return { JWTKEY: data };
 }
 
 export async function createJwt(

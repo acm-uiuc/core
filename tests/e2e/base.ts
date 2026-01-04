@@ -1,47 +1,47 @@
 import { test as base, Page } from "@playwright/test";
-import {
-  SecretsManagerClient,
-  GetSecretValueCommand,
-} from "@aws-sdk/client-secrets-manager";
+import { GetParameterCommand, SSMClient } from "@aws-sdk/client-ssm";
 
 export interface RecursiveRecord
   extends Record<string, any | RecursiveRecord> {}
 
-export const getSecretValue = async (
-  secretId: string,
-): Promise<Record<string, string | number | boolean> | null> => {
-  const smClient = new SecretsManagerClient({
+export const getSsmParameter = async (parameterName: string) => {
+  const client = new SSMClient({
     region: process.env.AWS_REGION ?? "us-east-2",
   });
-  const data = await smClient.send(
-    new GetSecretValueCommand({ SecretId: secretId }),
-  );
-  if (!data.SecretString) {
-    return null;
-  }
+
+  const params = {
+    Name: parameterName,
+    WithDecryption: true,
+  };
+
+  const command = new GetParameterCommand(params);
+
   try {
-    return JSON.parse(data.SecretString) as Record<
-      string,
-      string | number | boolean
-    >;
-  } catch {
+    const data = await client.send(command);
+    if (!data.Parameter || !data.Parameter.Value) {
+      console.error(`Parameter ${parameterName} not found`);
+      return null;
+    }
+    return data.Parameter.Value;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(
+      `Error retrieving parameter ${parameterName}: ${errorMessage}`,
+      error,
+    );
     return null;
   }
 };
 
 async function getSecrets() {
-  let response = { PLAYWRIGHT_USERNAME: "", PLAYWRIGHT_PASSWORD: "" };
-  let keyData;
-  if (!process.env.PLAYWRIGHT_USERNAME || !process.env.PLAYWRIGHT_PASSWORD) {
-    keyData = await getSecretValue("infra-core-api-config");
+  const data = await Promise.all([
+    getSsmParameter("/infra-core-api/playwright_username"),
+    getSsmParameter("/infra-core-api/playwright_password"),
+  ]);
+  if (!data[0] || !data[1]) {
+    throw new Error("Failed to get login credentials.");
   }
-  response["PLAYWRIGHT_USERNAME"] =
-    process.env.PLAYWRIGHT_USERNAME ||
-    ((keyData ? keyData["playwright_username"] : "") as string);
-  response["PLAYWRIGHT_PASSWORD"] =
-    process.env.PLAYWRIGHT_PASSWORD ||
-    ((keyData ? keyData["playwright_password"] : "") as string);
-  return response;
+  return { PLAYWRIGHT_USERNAME: data[0], PLAYWRIGHT_PASSWORD: data[1] };
 }
 
 const secrets = await getSecrets();
