@@ -149,6 +149,7 @@ const environmentConfig: EnvironmentConfigType = {
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
+    // TODO: once SSM permission obtained in Prod, also move pepper to SSM
     ConfigurationSecretIds: [genericConfig.ConfigSecretName, 'infra-core-api-uin-pepper'],
     ConfigurationParameterIds: [],
     ValidCorsOrigins: [
