@@ -2,9 +2,16 @@ import { ValidLoggers } from "api/types.js";
 import { sleep } from "api/utils.js";
 import { BaseError, GithubError } from "common/errors/index.js";
 import { Octokit } from "octokit";
+import { createAppAuth } from "@octokit/auth-app";
+
+export interface GithubAppAuth {
+  appId: number;
+  installationId: number;
+  privateKey: string;
+}
 
 export interface CreateGithubTeamInputs {
-  githubToken: string;
+  auth: GithubAppAuth;
   orgId: string;
   parentTeamId?: number;
   name: string;
@@ -129,7 +136,7 @@ async function resolveTeamIdToSlug({
 }
 
 export async function createGithubTeam({
-  githubToken,
+  auth,
   orgId,
   parentTeamId,
   description,
@@ -139,7 +146,8 @@ export async function createGithubTeam({
 }: Omit<CreateGithubTeamInputs, "groupsToSync">) {
   try {
     const octokit = new Octokit({
-      auth: githubToken,
+      authStrategy: createAppAuth,
+      auth,
     });
     logger.info(`Checking if GitHub team "${name}" exists`);
     const teamsResponse = await octokit.request("GET /orgs/{org}/teams", {
@@ -172,30 +180,6 @@ export async function createGithubTeam({
     const newTeamSlug = response.data.slug;
     const newTeamId = response.data.id;
     logger.info(`Created Github Team with slug ${newTeamSlug}`);
-
-    // Remove the authenticated user from the team
-    try {
-      const { data: authenticatedUser } = await octokit.request("GET /user");
-      logger.info(
-        `Removing user ${authenticatedUser.login} from team ${newTeamId}`,
-      );
-
-      await octokit.request(
-        "DELETE /orgs/{org}/teams/{team_id}/memberships/{username}",
-        {
-          org: orgId,
-          team_id: newTeamId,
-          username: authenticatedUser.login,
-        },
-      );
-
-      logger.info(
-        `Successfully removed ${authenticatedUser.login} from team ${newTeamId}`,
-      );
-    } catch (removeError) {
-      logger.warn(`Failed to remove user from team ${newTeamId}:`, removeError);
-    }
-
     return { updated: true, id: newTeamId };
   } catch (e) {
     if (e instanceof BaseError) {
@@ -210,14 +194,14 @@ export async function createGithubTeam({
 }
 
 export async function assignIdpGroupsToTeam({
-  githubToken,
+  auth,
   teamId,
   groupsToSync,
   logger,
   orgId,
   orgName,
 }: {
-  githubToken: string;
+  auth: GithubAppAuth;
   teamId: number;
   groupsToSync: string[];
   logger: ValidLoggers;
@@ -226,7 +210,8 @@ export async function assignIdpGroupsToTeam({
 }) {
   try {
     const octokit = new Octokit({
-      auth: githubToken,
+      authStrategy: createAppAuth,
+      auth,
     });
 
     if (!groupsToSync || groupsToSync.length === 0) {

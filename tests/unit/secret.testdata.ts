@@ -12,7 +12,11 @@ const secretObject = {
   acm_passkit_signerKey_base64: "",
   apple_signing_cert_base64: "",
   redis_url: "",
-  github_pat: "abc123testing",
+  github_installation_id: "abc123testing",
+  UIN_HASHING_SECRET_PEPPER: "abcd",
+  fallback_redis_url: "abc",
+  github_app_id: "abc123testing",
+  github_private_key: "abc123testing",
   jwt_key: "somethingreallysecret",
 } as SecretConfig;
 

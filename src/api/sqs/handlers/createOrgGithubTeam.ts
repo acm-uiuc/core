@@ -94,7 +94,14 @@ export const createOrgGithubTeamHandler: SQSHandlerFunction<
       const finalName = `${githubTeamName}${suffix === "" ? "" : `-${suffix}`}`;
       const { updated, id: teamId } = await createGithubTeam({
         orgId: currentEnvironmentConfig.GithubOrgName,
-        githubToken: secretConfig.github_pat,
+        auth: {
+          appId: parseInt(secretConfig.github_app_id, 10),
+          installationId: parseInt(secretConfig.github_installation_id, 10),
+          privateKey: Buffer.from(
+            secretConfig.github_private_key,
+            "base64",
+          ).toString("utf-8"),
+        },
         parentTeamId: currentEnvironmentConfig.OrgAdminGithubParentTeam,
         name: finalName,
         description: githubTeamDescription,
@@ -113,7 +120,14 @@ export const createOrgGithubTeamHandler: SQSHandlerFunction<
             `Setting up IDP sync for Github team from Entra ID group ${currentOrgInfo.leadsEntraGroupId}`,
           );
           await assignIdpGroupsToTeam({
-            githubToken: secretConfig.github_pat,
+            auth: {
+              appId: parseInt(secretConfig.github_app_id, 10),
+              installationId: parseInt(secretConfig.github_installation_id, 10),
+              privateKey: Buffer.from(
+                secretConfig.github_private_key,
+                "base64",
+              ).toString("utf-8"),
+            },
             teamId,
             logger,
             groupsToSync: [currentOrgInfo.leadsEntraGroupId],

@@ -19,7 +19,11 @@ describe("createGithubTeam", () => {
   };
 
   const defaultInputs = {
-    githubToken: "test-token",
+    auth: {
+      appId: 1,
+      installationId: 1,
+      privateKey: "abc"
+    },
     orgId: "test-org",
     parentTeamId: 123,
     name: "Test Team",
@@ -60,10 +64,8 @@ describe("createGithubTeam", () => {
     expect(mockOctokit.request).toHaveBeenCalledTimes(1);
   });
 
-  it("should create new team and remove authenticated user", async () => {
+  it("should create new team", async () => {
     const newTeamId = 999;
-    const authenticatedUser = { login: "test-user" };
-
     // Mock getting teams (no existing team)
     mockOctokit.request.mockResolvedValueOnce({ data: [] });
 
@@ -72,9 +74,6 @@ describe("createGithubTeam", () => {
       status: 201,
       data: { id: newTeamId, slug: "test-team" },
     });
-
-    // Mock getting authenticated user
-    mockOctokit.request.mockResolvedValueOnce({ data: authenticatedUser });
 
     // Mock removing user from team
     mockOctokit.request.mockResolvedValueOnce({});
@@ -92,9 +91,6 @@ describe("createGithubTeam", () => {
     });
     expect(mockLogger.info).toHaveBeenCalledWith(
       "Created Github Team with slug test-team"
-    );
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      `Successfully removed ${authenticatedUser.login} from team ${newTeamId}`
     );
   });
 
@@ -144,26 +140,6 @@ describe("createGithubTeam", () => {
     );
   });
 
-  it("should continue if removing authenticated user fails", async () => {
-    const newTeamId = 999;
-
-    mockOctokit.request.mockResolvedValueOnce({ data: [] });
-    mockOctokit.request.mockResolvedValueOnce({
-      status: 201,
-      data: { id: newTeamId, slug: "test-team" },
-    });
-    mockOctokit.request.mockResolvedValueOnce({ data: { login: "test-user" } });
-    mockOctokit.request.mockRejectedValueOnce(new Error("Remove user failed"));
-
-    const result = await createGithubTeam(defaultInputs);
-
-    expect(result).toStrictEqual({ updated: true, id: newTeamId });
-    expect(mockLogger.warn).toHaveBeenCalledWith(
-      `Failed to remove user from team ${newTeamId}:`,
-      expect.any(Error)
-    );
-  });
-
   it("should throw GithubError if team creation fails with non-201 status", async () => {
     mockOctokit.request.mockResolvedValueOnce({ data: [] });
     mockOctokit.request.mockResolvedValueOnce({
@@ -200,7 +176,11 @@ describe("assignIdpGroupsToTeam", () => {
   };
 
   const defaultInputs = {
-    githubToken: "test-token",
+    auth: {
+      appId: 1,
+      installationId: 1,
+      privateKey: "abc"
+    },
     teamId: 123,
     groupsToSync: ["group-1", "group-2"],
     logger: mockLogger,
