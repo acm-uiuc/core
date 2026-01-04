@@ -121,7 +121,13 @@ const environmentConfig: EnvironmentConfigType = {
       /http:\/\/localhost:\d+$/,
     ],
     ConfigurationSecretIds: [genericConfig.ConfigSecretName],
-    ConfigurationParameterIds: ['/infra-core-api/UIN_HASHING_SECRET_PEPPER', '/infra-core-api/jwt_key'],
+    ConfigurationParameterIds: [
+      '/infra-core-api/UIN_HASHING_SECRET_PEPPER',
+      '/infra-core-api/jwt_key',
+      '/infra-core-api/github_installation_id',
+      '/infra-core-api/github_app_id',
+      '/infra-core-api/github_private_key'
+    ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
@@ -146,7 +152,12 @@ const environmentConfig: EnvironmentConfigType = {
     UserFacingUrl: "https://core.acm.illinois.edu",
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ConfigurationSecretIds: [genericConfig.ConfigSecretName],
-    ConfigurationParameterIds: ['/infra-core-api/UIN_HASHING_SECRET_PEPPER'],
+    ConfigurationParameterIds: [
+      '/infra-core-api/UIN_HASHING_SECRET_PEPPER',
+      '/infra-core-api/github_installation_id',
+      '/infra-core-api/github_app_id',
+      '/infra-core-api/github_private_key'
+    ],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
       /^https:\/\/(?:.*\.)?acmuiuc-digital-signage\.pages\.dev$/,
@@ -192,7 +203,9 @@ export type SecretConfig = {
   fallback_redis_url: string;
   encryption_key: string;
   UIN_HASHING_SECRET_PEPPER: string;
-  github_pat: string;
+  github_installation_id: string;
+  github_private_key: string;
+  github_app_id: string;
   jwt_key?: string;
 };
 
