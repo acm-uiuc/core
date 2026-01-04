@@ -21,8 +21,7 @@ locals {
   core_api_hicpu_lambda_name    = "${var.ProjectId}-hicpu-server"
   core_sqs_consumer_lambda_name = "${var.ProjectId}-sqs-consumer"
   entra_policies = {
-    shared = aws_iam_policy.shared_iam_policy.arn
-    entra  = aws_iam_policy.entra_policy.arn
+    entra = aws_iam_policy.entra_policy.arn
   }
   sqs_policies = {
     sqs     = aws_iam_policy.sqs_policy.arn
@@ -116,6 +115,22 @@ resource "aws_iam_policy" "entra_policy" {
           "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/infra-core-api/entra_id_thumbprint",
         ],
         Effect = "Allow"
+      },
+      {
+        Sid    = "DynamoDBCacheAccess",
+        Effect = "Allow",
+        Action = [
+          "dynamodb:ConditionCheckItem",
+          "dynamodb:PutItem",
+          "dynamodb:DescribeTable",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem"
+        ],
+        Resource = [
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-cache",
+        ]
       },
     ]
   }))
