@@ -24,6 +24,13 @@ jobs:
           token: ${{ steps.generate-token.outputs.token }}
           status: Required Reviews
           requirements: |
+            - name: Dependabot PRs
+              paths:
+                - '**'
+              authors:
+                - "dependabot[bot]"
+              users:
+                - "github-actions[bot]"
             - name: Cloud provider files
               paths:
                 - '.github/'
