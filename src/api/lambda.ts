@@ -1,7 +1,7 @@
 import awsLambdaFastify from "@fastify/aws-lambda";
 import { pipeline } from "node:stream/promises";
 import init, { instanceId } from "./index.js";
-import { InternalServerError, ValidationError } from "common/errors/index.js";
+import { ValidationError } from "common/errors/index.js";
 import { Readable } from "node:stream";
 
 // Initialize the proxy with the payloadAsStream option

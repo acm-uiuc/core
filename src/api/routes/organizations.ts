@@ -48,6 +48,7 @@ import { sendSqsMessagesInBatches } from "api/functions/sqs.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 import { SKIP_EXTERNAL_ORG_LEAD_UPDATE } from "common/overrides.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import { SSMClient } from "@aws-sdk/client-ssm";
 
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${ORG_DATA_CACHED_DURATION * 2}, stale-if-error=${STALE_IF_ERROR_CACHED_TIME}`;
 
@@ -80,6 +81,10 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           region: genericConfig.AwsRegion,
           credentials,
         }),
+        ssmClient: new SSMClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
         redisClient: fastify.redisClient,
       };
       fastify.log.info(
@@ -92,6 +97,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     );
     return {
       smClient: fastify.secretsManagerClient,
+      ssmClient: new SSMClient({ region: genericConfig.AwsRegion }),
       dynamoClient: fastify.dynamoClient,
       redisClient: fastify.redisClient,
     };
@@ -407,7 +413,6 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       const entraIdToken = await getEntraIdToken({
         clients,
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
 

@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import { Organizations } from "@acm-uiuc/js-shared";
 import {
   DynamoDBClient,

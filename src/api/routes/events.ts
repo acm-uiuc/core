@@ -236,7 +236,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           // cache bypass requires auth
           try {
             await fastify.authorize(request, reply, [], false);
-          } catch (e) {
+          } catch {
             throw new UnauthenticatedError({
               message:
                 "You must be authenticated to specify a staleness bound.",
@@ -797,7 +797,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         // cache bypass requires auth
         try {
           await fastify.authorize(request, reply, [], false);
-        } catch (e) {
+        } catch {
           throw new UnauthenticatedError({
             message: "You must be authenticated to specify a staleness bound.",
           });

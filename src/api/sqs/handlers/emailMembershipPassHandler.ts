@@ -20,7 +20,6 @@ export const emailMembershipPassHandler: SQSHandlerFunction<
   const entraIdToken = await getEntraIdToken({
     clients: { ...clients },
     clientId: currentEnvironmentConfig.AadValidClientId,
-    secretName: genericConfig.EntraSecretName,
     logger,
   });
   const userProfile = await getUserProfile(entraIdToken, email);

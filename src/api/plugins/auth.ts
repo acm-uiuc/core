@@ -6,7 +6,7 @@ import {
 } from "fastify";
 import fp from "fastify-plugin";
 import jwksClient from "jwks-rsa";
-import jwt, { Algorithm, Jwt } from "jsonwebtoken";
+import jwt, { Algorithm } from "jsonwebtoken";
 import {
   SecretsManagerClient,
   GetSecretValueCommand,

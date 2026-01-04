@@ -20,6 +20,7 @@ import {
 } from "api/functions/entraId.js";
 import { syncFullProfile } from "api/functions/sync.js";
 import { getUserIdentity, UserIdentity } from "api/functions/identity.js";
+import { SSMClient } from "@aws-sdk/client-ssm";
 
 const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -37,6 +38,10 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           region: genericConfig.AwsRegion,
           credentials,
         }),
+        ssmClient: new SSMClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
         redisClient: fastify.redisClient,
       };
       fastify.log.info(
@@ -49,6 +54,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
     );
     return {
       smClient: fastify.secretsManagerClient,
+      ssmClient: new SSMClient({ region: genericConfig.AwsRegion }),
       dynamoClient: fastify.dynamoClient,
       redisClient: fastify.redisClient,
     };
@@ -131,7 +137,6 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           const entraIdToken = await getEntraIdToken({
             clients: await getAuthorizedClients(),
             clientId: fastify.environmentConfig.AadValidClientId,
-            secretName: genericConfig.EntraSecretName,
             logger: request.log,
           });
           const oid = await resolveEmailToOid(entraIdToken, username);
@@ -177,7 +182,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           accessToken,
           logger: request.log,
         });
-        const { userPrincipalName: upn, givenName, surname } = verifiedData;
+        const { userPrincipalName: upn } = verifiedData;
         const netId = upn.replace("@illinois.edu", "");
         if (netId.includes("@")) {
           request.log.error(

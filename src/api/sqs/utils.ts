@@ -5,6 +5,7 @@ import { genericConfig, roleArns, SecretConfig } from "common/config.js";
 import pino from "pino";
 import { currentEnvironmentConfig } from "./index.js";
 import { getSecretValue } from "api/plugins/auth.js";
+import { SSMClient } from "@aws-sdk/client-ssm";
 
 export const getAuthorizedClients = async (
   logger: pino.Logger,
@@ -17,11 +18,15 @@ export const getAuthorizedClients = async (
     const credentials = await getRoleCredentials(roleArns.Entra);
     const clients = {
       smClient: new SecretsManagerClient({
-        region: genericConfig.AwsRegion,
+        ...commonConfig,
         credentials,
       }),
       dynamoClient: new DynamoDBClient({
-        region: genericConfig.AwsRegion,
+        ...commonConfig,
+        credentials,
+      }),
+      ssmClient: new SSMClient({
+        ...commonConfig,
         credentials,
       }),
     };
@@ -32,6 +37,7 @@ export const getAuthorizedClients = async (
   return {
     smClient: new SecretsManagerClient(commonConfig),
     dynamoClient: new DynamoDBClient(commonConfig),
+    ssmClient: new SSMClient(commonConfig),
   };
 };
 

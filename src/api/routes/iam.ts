@@ -50,6 +50,7 @@ import { SendMessageBatchCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { randomUUID } from "crypto";
 import { getKey, setKey } from "api/functions/redisCache.js";
 import { getAllUserEmails } from "common/utils.js";
+import { SSMClient } from "@aws-sdk/client-ssm";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -67,6 +68,10 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           region: genericConfig.AwsRegion,
           credentials,
         }),
+        ssmClient: new SSMClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
         redisClient: fastify.redisClient,
       };
       fastify.log.info(
@@ -79,6 +84,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     );
     return {
       smClient: fastify.secretsManagerClient,
+      ssmClient: new SSMClient({ region: genericConfig.AwsRegion }),
       dynamoClient: fastify.dynamoClient,
       redisClient: fastify.redisClient,
     };
@@ -114,7 +120,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
       const { discordUsername } = request.body;
@@ -210,7 +215,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const entraIdToken = await getEntraIdToken({
           clients: await getAuthorizedClients(),
           clientId: fastify.environmentConfig.AadValidClientId,
-          secretName: genericConfig.EntraSecretName,
           logger: request.log,
         });
         const groupMembers = listGroupMembers(entraIdToken, groupId);
@@ -277,7 +281,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
       if (!entraIdToken) {
@@ -372,7 +375,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
       const groupMetadataPromise = getGroupMetadata(entraIdToken, groupId);
@@ -626,7 +628,6 @@ No action is required from you at this time.
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
       const response = await listGroupMembers(entraIdToken, groupId);
@@ -660,7 +661,6 @@ No action is required from you at this time.
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
         clientId: fastify.environmentConfig.AadValidClientId,
-        secretName: genericConfig.EntraSecretName,
         logger: request.log,
       });
       // get groups, but don't show protected groups and app managed groups manageable

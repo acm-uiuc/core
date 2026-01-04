@@ -1,29 +1,15 @@
 import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
-import { withRoles, withTags } from "api/components/index.js";
-import { getUserOrgRoles } from "api/functions/organizations.js";
-import {
-  DatabaseFetchError,
-  UnauthenticatedError,
-  ValidationError,
-} from "common/errors/index.js";
-import * as z from "zod/v4";
 import {
   batchResolveUserInfoRequest,
   batchResolveUserInfoResponse,
   searchUserByUinRequest,
   searchUserByUinResponse,
 } from "common/types/user.js";
-import {
-  batchGetUserInfo,
-  getUinHash,
-  getUserIdByUin,
-} from "api/functions/uin.js";
+import { batchGetUserInfo, getUserIdByUin } from "api/functions/uin.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
-import { QueryCommand } from "@aws-sdk/client-dynamodb";
-import { genericConfig } from "common/config.js";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { AppRoles } from "common/roles.js";
+import { withRoles, withTags } from "api/components/index.js";
 
 const userRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
