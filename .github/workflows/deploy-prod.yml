@@ -162,10 +162,6 @@ jobs:
 
       - name: Run E2E testing
         run: make test_e2e
-        env:
-          JWT_KEY: ${{ secrets.JWT_KEY }}
-          PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME }}
-          PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD }}
 
   deploy-prod:
     runs-on: ubuntu-latest

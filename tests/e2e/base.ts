@@ -1,47 +1,18 @@
 import { test as base, Page } from "@playwright/test";
-import {
-  SecretsManagerClient,
-  GetSecretValueCommand,
-} from "@aws-sdk/client-secrets-manager";
+import { getSsmParameter } from "../common/index.js";
 
 export interface RecursiveRecord
   extends Record<string, any | RecursiveRecord> {}
 
-export const getSecretValue = async (
-  secretId: string,
-): Promise<Record<string, string | number | boolean> | null> => {
-  const smClient = new SecretsManagerClient({
-    region: process.env.AWS_REGION ?? "us-east-2",
-  });
-  const data = await smClient.send(
-    new GetSecretValueCommand({ SecretId: secretId }),
-  );
-  if (!data.SecretString) {
-    return null;
-  }
-  try {
-    return JSON.parse(data.SecretString) as Record<
-      string,
-      string | number | boolean
-    >;
-  } catch {
-    return null;
-  }
-};
-
 async function getSecrets() {
-  let response = { PLAYWRIGHT_USERNAME: "", PLAYWRIGHT_PASSWORD: "" };
-  let keyData;
-  if (!process.env.PLAYWRIGHT_USERNAME || !process.env.PLAYWRIGHT_PASSWORD) {
-    keyData = await getSecretValue("infra-core-api-config");
+  const data = await Promise.all([
+    getSsmParameter("/infra-core-api/playwright_username"),
+    getSsmParameter("/infra-core-api/playwright_password"),
+  ]);
+  if (!data[0] || !data[1]) {
+    throw new Error("Failed to get login credentials.");
   }
-  response["PLAYWRIGHT_USERNAME"] =
-    process.env.PLAYWRIGHT_USERNAME ||
-    ((keyData ? keyData["playwright_username"] : "") as string);
-  response["PLAYWRIGHT_PASSWORD"] =
-    process.env.PLAYWRIGHT_PASSWORD ||
-    ((keyData ? keyData["playwright_password"] : "") as string);
-  return response;
+  return { PLAYWRIGHT_USERNAME: data[0], PLAYWRIGHT_PASSWORD: data[1] };
 }
 
 const secrets = await getSecrets();

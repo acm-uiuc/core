@@ -1,41 +1,13 @@
 import jwt from "jsonwebtoken";
-import {
-  SecretsManagerClient,
-  GetSecretValueCommand,
-} from "@aws-sdk/client-secrets-manager";
 import { randomUUID } from "node:crypto";
-
-export const getSecretValue = async (
-  secretId: string,
-): Promise<Record<string, string | number | boolean> | null> => {
-  const smClient = new SecretsManagerClient({
-    region: process.env.AWS_REGION || "us-east-2",
-  });
-  const data = await smClient.send(
-    new GetSecretValueCommand({ SecretId: secretId }),
-  );
-  if (!data.SecretString) {
-    return null;
-  }
-  try {
-    return JSON.parse(data.SecretString) as Record<
-      string,
-      string | number | boolean
-    >;
-  } catch {
-    return null;
-  }
-};
+import { getSsmParameter } from "../common/index.js";
 
 async function getSecrets() {
-  const response = { JWTKEY: "" };
-  let keyData;
-  if (!process.env.JWT_KEY) {
-    keyData = await getSecretValue("infra-core-api-config");
+  const data = await getSsmParameter("/infra-core-api/jwt_key");
+  if (!data) {
+    throw new Error("Failed to get JWT key.");
   }
-  response["JWTKEY"] =
-    process.env.JWT_KEY || ((keyData ? keyData["jwt_key"] : "") as string);
-  return response;
+  return { JWTKEY: data };
 }
 
 export async function createJwt(
