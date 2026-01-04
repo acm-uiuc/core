@@ -50,6 +50,7 @@ import { SendMessageBatchCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { randomUUID } from "crypto";
 import { getKey, setKey } from "api/functions/redisCache.js";
 import { getAllUserEmails } from "common/utils.js";
+import { SSMClient } from "@aws-sdk/client-ssm";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -67,6 +68,10 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           region: genericConfig.AwsRegion,
           credentials,
         }),
+        ssmClient: new SSMClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
         redisClient: fastify.redisClient,
       };
       fastify.log.info(
@@ -79,6 +84,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
     );
     return {
       smClient: fastify.secretsManagerClient,
+      ssmClient: new SSMClient({ region: genericConfig.AwsRegion }),
       dynamoClient: fastify.dynamoClient,
       redisClient: fastify.redisClient,
     };

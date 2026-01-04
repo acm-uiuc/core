@@ -20,6 +20,7 @@ import {
 } from "api/functions/entraId.js";
 import { syncFullProfile } from "api/functions/sync.js";
 import { getUserIdentity, UserIdentity } from "api/functions/identity.js";
+import { SSMClient } from "@aws-sdk/client-ssm";
 
 const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -37,6 +38,10 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           region: genericConfig.AwsRegion,
           credentials,
         }),
+        ssmClient: new SSMClient({
+          region: genericConfig.AwsRegion,
+          credentials,
+        }),
         redisClient: fastify.redisClient,
       };
       fastify.log.info(
@@ -49,6 +54,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
     );
     return {
       smClient: fastify.secretsManagerClient,
+      ssmClient: new SSMClient({ region: genericConfig.AwsRegion }),
       dynamoClient: fastify.dynamoClient,
       redisClient: fastify.redisClient,
     };

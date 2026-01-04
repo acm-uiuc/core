@@ -18,7 +18,6 @@ import {
   InternalServerError,
   ValidationError,
 } from "../../common/errors/index.js";
-import { getSecretValue } from "../plugins/auth.js";
 import { ConfidentialClientApplication } from "@azure/msal-node";
 import { getItemFromCache, insertItemIntoCache } from "./cache.js";
 import {
@@ -28,13 +27,12 @@ import {
   ProfilePatchWithUpnRequest,
 } from "../../common/types/iam.js";
 import { UserProfileData } from "common/types/msGraphApi.js";
-import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { checkPaidMembershipFromTable } from "./membership.js";
 import { RunEnvironment } from "common/roles.js";
 import { ValidLoggers } from "api/types.js";
 import { getSsmParameter } from "api/utils.js";
-import { SSMClient } from "@aws-sdk/client-ssm";
+import { type SSMClient } from "@aws-sdk/client-ssm";
 
 function validateGroupId(groupId: string): boolean {
   const groupIdPattern = /^[a-zA-Z0-9-]+$/; // Adjust the pattern as needed
@@ -42,7 +40,7 @@ function validateGroupId(groupId: string): boolean {
 }
 
 type GetEntraIdTokenInput = {
-  clients: { smClient: SecretsManagerClient; dynamoClient: DynamoDBClient };
+  clients: { ssmClient: SSMClient; dynamoClient: DynamoDBClient };
   clientId: string;
   scopes?: string[];
   secretName?: string;
@@ -54,7 +52,7 @@ export async function getEntraIdToken({
   scopes = ["https://graph.microsoft.com/.default"],
   logger,
 }: GetEntraIdTokenInput) {
-  const ssmClient = new SSMClient({ region: genericConfig.AwsRegion });
+  const ssmClient = clients.ssmClient;
   const data = await Promise.all([
     getSsmParameter({
       parameterName: "/infra-core-api/entra_id_private_key",
