@@ -99,7 +99,7 @@
     "@smithy/util-utf8" "^2.0.0"
     tslib "^2.6.2"
 
-"@aws-sdk/client-dynamodb@^3.962.0":
+"@aws-sdk/client-dynamodb@^3.922.0", "@aws-sdk/client-dynamodb@^3.962.0":
   version "3.962.0"
   resolved "https://registry.yarnpkg.com/@aws-sdk/client-dynamodb/-/client-dynamodb-3.962.0.tgz#200101d4d7a990517ec8b72f8abfb8863c4caea6"
   integrity sha512-q2pI7t3Jdwi+sOWdfZSTtnQVUbgEP+Lg0IbU6f6zhPRKDz8UWWYpKHaImRTbiSILN6UlPhIll8odfpxWxFUiwg==
@@ -192,7 +192,7 @@
     "@smithy/util-utf8" "^4.2.0"
     tslib "^2.6.2"
 
-"@aws-sdk/client-lambda@^3.962.0":
+"@aws-sdk/client-lambda@^3.922.0":
   version "3.962.0"
   resolved "https://registry.yarnpkg.com/@aws-sdk/client-lambda/-/client-lambda-3.962.0.tgz#16d937a33a4dab101d0ee2fef6577e02c4bce524"
   integrity sha512-4+f4zY54y83yiLHzcn6LnAppR3TlW54kVbsFS4JmOdE91fmVQedGpkgytjofD+qqIYALYxo5g7vWEUkfK08XPg==
@@ -303,7 +303,7 @@
     "@smithy/util-waiter" "^4.2.7"
     tslib "^2.6.2"
 
-"@aws-sdk/client-secrets-manager@^3.962.0":
+"@aws-sdk/client-secrets-manager@^3.922.0":
   version "3.962.0"
   resolved "https://registry.yarnpkg.com/@aws-sdk/client-secrets-manager/-/client-secrets-manager-3.962.0.tgz#12286f92212098899ec473f4fea01f1f3d18015f"
   integrity sha512-UwXvVou6ACuYYEcdRjRVVq/M6w7X1kly80kavd0GdaPG0ZUhwGOfd3K5nqqwBM+meEcnQiAF2rTlHZ1yw/+e3w==
@@ -348,7 +348,7 @@
     "@smithy/util-utf8" "^4.2.0"
     tslib "^2.6.2"
 
-"@aws-sdk/client-ses@^3.962.0":
+"@aws-sdk/client-ses@^3.922.0":
   version "3.962.0"
   resolved "https://registry.yarnpkg.com/@aws-sdk/client-ses/-/client-ses-3.962.0.tgz#7dcae1cb36484fe02a2fd34ccca65c068764ceb0"
   integrity sha512-3eEf0hQ48xin3nGt3gUE+54dIqXFdfzIqtDvv/i4GObSfgoNgiYpfiRdu0sXDKLSnzVPkp52YMmt2mUtXp5wbQ==
@@ -394,7 +394,7 @@
     "@smithy/util-waiter" "^4.2.7"
     tslib "^2.6.2"
 
-"@aws-sdk/client-sqs@^3.962.0":
+"@aws-sdk/client-sqs@^3.922.0":
   version "3.962.0"
   resolved "https://registry.yarnpkg.com/@aws-sdk/client-sqs/-/client-sqs-3.962.0.tgz#9290e285883585d580646a471683b316ed25c029"
   integrity sha512-egPwNtyL5Sz3bZOKp4Uk56JBSUcU/BnrWGDMhCcHLWBLavnGstBNe2nPetX/RP1zHO2XRnApuVjusqwcsKrfVA==
@@ -531,7 +531,7 @@
     "@smithy/util-utf8" "^4.2.0"
     tslib "^2.6.2"
 
-"@aws-sdk/client-sts@^3.962.0":
+"@aws-sdk/client-sts@^3.922.0":
   version "3.962.0"
   resolved "https://registry.yarnpkg.com/@aws-sdk/client-sts/-/client-sts-3.962.0.tgz#c341bf9951917d82b5da85bb7105f9d5d212d76d"
   integrity sha512-7I7cYAQBRMXgq2x6J9rn3OoPBFdoRozC3tKjlP1u06voWklEEruz66uLwrMo9OeKyoifXbpqFNst73m95WhhhQ==
@@ -967,7 +967,7 @@
     "@smithy/types" "^4.11.0"
     tslib "^2.6.2"
 
-"@aws-sdk/signature-v4-crt@^3.957.0":
+"@aws-sdk/signature-v4-crt@^3.922.0":
   version "3.957.0"
   resolved "https://registry.yarnpkg.com/@aws-sdk/signature-v4-crt/-/signature-v4-crt-3.957.0.tgz#6978e04d422e0f07e0d135d15ed488058ceebf77"
   integrity sha512-6042z/x2FtiCI/GByy25pRb2sAHqtxSY3PtPth8MqjIepjgehFftgIFoNkAO2fl+RjktbhpdaWKUNSxkr1zIWA==
@@ -1021,7 +1021,7 @@
   dependencies:
     tslib "^2.6.2"
 
-"@aws-sdk/util-dynamodb@^3.962.0":
+"@aws-sdk/util-dynamodb@^3.922.0", "@aws-sdk/util-dynamodb@^3.962.0":
   version "3.962.0"
   resolved "https://registry.yarnpkg.com/@aws-sdk/util-dynamodb/-/util-dynamodb-3.962.0.tgz#a2ed3d94321b9a0ef4c10bb3d92e0b5882afdee2"
   integrity sha512-hv2Imj8R8AcMmntWq2/oxNs0CPQojFpgvyR5UalXSY3hIhcEHrWADimG2OwkW7J1Y9eKx/3NKfFpqsmDogbJMg==
@@ -1110,7 +1110,7 @@
   resolved "https://registry.yarnpkg.com/@azure/msal-common/-/msal-common-15.13.3.tgz#e1329a721f473f1ca5466fd0d6756e4c2ac68f52"
   integrity sha512-shSDU7Ioecya+Aob5xliW9IGq1Ui8y4EVSdWGyI1Gbm4Vg61WpP95LuzcY214/wEjSn6w4PZYD4/iVldErHayQ==
 
-"@azure/msal-node@^3.8.4":
+"@azure/msal-node@^3.8.1":
   version "3.8.4"
   resolved "https://registry.yarnpkg.com/@azure/msal-node/-/msal-node-3.8.4.tgz#f7c082b2e2122148cc3624fae583f2643b81788e"
   integrity sha512-lvuAwsDpPDE/jSuVQOBMpLbXuVuLsPNRwWCyK3/6bPlBk0fGWegqoZ0qjZclMWyQ2JNvIY3vHY7hoFmFmFQcOw==
@@ -1808,7 +1808,7 @@
     ajv-formats "^3.0.1"
     fast-uri "^3.0.0"
 
-"@fastify/auth@^5.0.4":
+"@fastify/auth@^5.0.1":
   version "5.0.4"
   resolved "https://registry.yarnpkg.com/@fastify/auth/-/auth-5.0.4.tgz#1bf609c21f2a8b180898b4c3e97359ec16488953"
   integrity sha512-nyTM9YTHGoDYVwEmkYnHbzoTjSu+eQHn7u9B5vUNtJOqLr3R9c4J0zENnga73e/Op7xebNZ0Px35qTHEMxDW+g==
@@ -1816,12 +1816,12 @@
     fastify-plugin "^5.0.0"
     reusify "^1.0.4"
 
-"@fastify/aws-lambda@^6.3.0":
+"@fastify/aws-lambda@^6.0.0":
   version "6.3.0"
   resolved "https://registry.yarnpkg.com/@fastify/aws-lambda/-/aws-lambda-6.3.0.tgz#084541413fc312c4d9ded1624252d3e356a38003"
   integrity sha512-56GnThI4qoxL1Z9AieaCtMjYucYNsEghZgXVVT7fcYs2i2fnb2Jmi5obNj0LnarH24C+lB0Wca4v5nPIO2KHZw==
 
-"@fastify/cors@^11.2.0":
+"@fastify/cors@^11.0.1":
   version "11.2.0"
   resolved "https://registry.yarnpkg.com/@fastify/cors/-/cors-11.2.0.tgz#82c47aff9bd7dfd40ac0a66fcd87a034113dcdd8"
   integrity sha512-LbLHBuSAdGdSFZYTLVA3+Ch2t+sA6nq3Ejc6XLAKiQ6ViS2qFnvicpj0htsx03FyYeLs04HfRNBsz/a8SvbcUw==
@@ -1884,10 +1884,10 @@
     fastq "^1.17.1"
     glob "^13.0.0"
 
-"@fastify/swagger@^9.6.1":
-  version "9.6.1"
-  resolved "https://registry.yarnpkg.com/@fastify/swagger/-/swagger-9.6.1.tgz#7fa6ed07dfedd7694c51cb84c42b463af98201b5"
-  integrity sha512-fKlpJqFMWoi4H3EdUkDaMteEYRCfQMEkK0HJJ0eaf4aRlKd8cbq0pVkOfXDXmtvMTXYcnx3E+l023eFDBsA1HA==
+"@fastify/swagger@9.5.0":
+  version "9.5.0"
+  resolved "https://registry.yarnpkg.com/@fastify/swagger/-/swagger-9.5.0.tgz#761ce5aae9e76116cd1b6fee4b463c7d1d11f4a7"
+  integrity sha512-6WiwB1Nh+GHqm4wsDGH/ym6ming3DyH9cuAkIwGN9nhbyrCoNSZ+l9h3TAsksffbNEI/RHCiw2BH2LeGNRrOoQ==
   dependencies:
     fastify-plugin "^5.0.0"
     json-schema-resolver "^3.0.0"
@@ -4690,7 +4690,7 @@ avvio@^9.0.0:
     "@fastify/error" "^4.0.0"
     fastq "^1.17.1"
 
-aws-crt@^1.24.0, aws-crt@^1.28.1:
+aws-crt@^1.24.0, aws-crt@^1.27.3:
   version "1.28.1"
   resolved "https://registry.yarnpkg.com/aws-crt/-/aws-crt-1.28.1.tgz#2b1c558ed2813be588c0d846c75c07c48baab479"
   integrity sha512-3cu6kLKYlJbCeYUWsuFpbEFWLt5pIoRYqcpRC9YU5QcUh2nKCKFOn9vi1eyOSC55Sp6xOMgLNhwaN1CIMH8rLg==
@@ -5414,7 +5414,7 @@ discord-api-types@^0.38.1, discord-api-types@^0.38.16, discord-api-types@^0.38.3
   resolved "https://registry.yarnpkg.com/discord-api-types/-/discord-api-types-0.38.37.tgz#0e9fa948e8483b0ff3b63a1902ea9a9c9b748921"
   integrity sha512-Cv47jzY1jkGkh5sv0bfHYqGgKOWO1peOrGMkDFM4UmaGMOTgOW8QSexhvixa9sVOiz8MnVOBryWYyw/CEVhj7w==
 
-discord.js@^14.25.1:
+discord.js@^14.24.2:
   version "14.25.1"
   resolved "https://registry.yarnpkg.com/discord.js/-/discord.js-14.25.1.tgz#ef8a298b814de2377776fcc732429cc53444d8ad"
   integrity sha512-2l0gsPOLPs5t6GFZfQZKnL1OJNYFcuC/ETWsW4VtKVD/tg4ICa9x+jb9bkPffkMdRpRpuUaO/fKkHCBeiCKh8g==
@@ -6364,7 +6364,7 @@ fastify-zod-openapi@^5.0.1:
     fastify-plugin "^5.0.0"
     zod-openapi "^5.4.0"
 
-fastify@^5.6.2:
+fastify@^5.3.2:
   version "5.6.2"
   resolved "https://registry.yarnpkg.com/fastify/-/fastify-5.6.2.tgz#e9bd80c869f54440f62f539d646b1c303b56c40f"
   integrity sha512-dPugdGnsvYkBlENLhCgX8yhyGCsCPrpA8lFWbTNU428l+YOnLgYHR69hzV8HWPC79n536EqzqQtvhtdaCE0dKg==
@@ -7555,7 +7555,7 @@ jsonfile@^6.0.1:
   optionalDependencies:
     graceful-fs "^4.1.6"
 
-jsonwebtoken@^9.0.0, jsonwebtoken@^9.0.3:
+jsonwebtoken@^9.0.0, jsonwebtoken@^9.0.2:
   version "9.0.3"
   resolved "https://registry.yarnpkg.com/jsonwebtoken/-/jsonwebtoken-9.0.3.tgz#6cd57ab01e9b0ac07cb847d53d3c9b6ee31f7ae2"
   integrity sha512-MT/xP0CrubFRNLNKvxJ2BYfy53Zkm++5bX9dtuPbqAeQpTVe0MQTFhao8+Cp//EmJp244xt6Drw/GVEGCUj40g==
@@ -8467,7 +8467,7 @@ parse5@^7.2.1:
   dependencies:
     entities "^6.0.0"
 
-passkit-generator@^3.5.7:
+passkit-generator@^3.5.5:
   version "3.5.7"
   resolved "https://registry.yarnpkg.com/passkit-generator/-/passkit-generator-3.5.7.tgz#822fdc53c14afbfe8815210d6e08e97bd77ba2cd"
   integrity sha512-DS9qRZFUhTsMdyfV9t8IyLHDI6Iyf6RCRJF3oX0Trnz9COgYBB6gceIJdUcqfdGY0vvAf5rNWdFnEwzo7l3pmg==
@@ -10919,6 +10919,11 @@ zod-validation-error@^5.0.0:
   version "5.0.0"
   resolved "https://registry.yarnpkg.com/zod-validation-error/-/zod-validation-error-5.0.0.tgz#96db948070b7bfcb13bfec5134113e580f9eee38"
   integrity sha512-hmk+pkyKq7Q71PiWVSDUc3VfpzpvcRHZ3QPw9yEMVvmtCekaMeOHnbr3WbxfrgEnQTv6haGP4cmv0Ojmihzsxw==
+
+zod@4.1.12:
+  version "4.1.12"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-4.1.12.tgz#64f1ea53d00eab91853195653b5af9eee68970f0"
+  integrity sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ==
 
 zod@^4.3.5:
   version "4.3.5"
