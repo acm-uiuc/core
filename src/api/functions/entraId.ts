@@ -43,7 +43,6 @@ type GetEntraIdTokenInput = {
   clients: { ssmClient: SSMClient; dynamoClient: DynamoDBClient };
   clientId: string;
   scopes?: string[];
-  secretName?: string;
   logger: ValidLoggers;
 };
 export async function getEntraIdToken({
@@ -82,7 +81,7 @@ export async function getEntraIdToken({
       clientId,
       authority: `https://login.microsoftonline.com/${genericConfig.EntraTenantId}`,
       clientCertificate: {
-        thumbprint: (data[1] as string) || "",
+        thumbprint: data[1],
         privateKey: decodedPrivateKey,
       },
     },
