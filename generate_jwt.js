@@ -1,27 +1,37 @@
 import jwt from "jsonwebtoken";
-import {
-  SecretsManagerClient,
-  GetSecretValueCommand,
-} from "@aws-sdk/client-secrets-manager";
+import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import { randomUUID } from "crypto";
 
-export const getSecretValue = async (secretId) => {
-  const smClient = new SecretsManagerClient({ region: "us-east-2" });
-  const data = await smClient.send(
-    new GetSecretValueCommand({ SecretId: secretId }),
-  );
-  if (!data.SecretString) {
-    return null;
-  }
+export const getSsmParameter = async (parameterName) => {
+  const client = new SSMClient({
+    region: process.env.AWS_REGION ?? "us-east-2",
+  });
+
+  const params = {
+    Name: parameterName,
+    WithDecryption: true,
+  };
+
+  const command = new GetParameterCommand(params);
+
   try {
-    return JSON.parse(data.SecretString);
-  } catch {
+    const data = await client.send(command);
+    if (!data.Parameter || !data.Parameter.Value) {
+      console.error(`Parameter ${parameterName} not found`);
+      return null;
+    }
+    return data.Parameter.Value;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(
+      `Error retrieving parameter ${parameterName}: ${errorMessage}`,
+      error,
+    );
     return null;
   }
 };
 
-const secrets = await getSecretValue("infra-core-api-config");
 const client = new STSClient({ region: "us-east-2" });
 const command = new GetCallerIdentityCommand({});
 let data;
@@ -33,6 +43,8 @@ try {
   );
   process.exit(1);
 }
+
+const key = await getSsmParameter("/infra-core-api/jwt_key");
 
 const username = process.env.JWTGEN_USERNAME || data.UserId?.split(":")[1];
 const payload = {
@@ -61,7 +73,7 @@ const payload = {
   ver: "1.0",
 };
 
-const token = jwt.sign(payload, secrets["jwt_key"], {
+const token = jwt.sign(payload, key, {
   algorithm: "HS256",
 });
 console.log(`USERNAME=${username}`);
