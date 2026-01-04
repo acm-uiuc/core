@@ -95,8 +95,8 @@ export const createOrgGithubTeamHandler: SQSHandlerFunction<
       const { updated, id: teamId } = await createGithubTeam({
         orgId: currentEnvironmentConfig.GithubOrgName,
         auth: {
-          appId: secretConfig.github_app_id,
-          installationId: secretConfig.github_installation_id,
+          appId: parseInt(secretConfig.github_app_id, 10),
+          installationId: parseInt(secretConfig.github_installation_id, 10),
           privateKey: Buffer.from(
             secretConfig.github_private_key,
             "base64",
@@ -121,8 +121,8 @@ export const createOrgGithubTeamHandler: SQSHandlerFunction<
           );
           await assignIdpGroupsToTeam({
             auth: {
-              appId: secretConfig.github_app_id,
-              installationId: secretConfig.github_installation_id,
+              appId: parseInt(secretConfig.github_app_id, 10),
+              installationId: parseInt(secretConfig.github_installation_id, 10),
               privateKey: Buffer.from(
                 secretConfig.github_private_key,
                 "base64",

@@ -5,8 +5,8 @@ import { Octokit } from "octokit";
 import { createAppAuth } from "@octokit/auth-app";
 
 export interface GithubAppAuth {
-  appId: string;
-  installationId: string;
+  appId: number;
+  installationId: number;
   privateKey: string;
 }
 
