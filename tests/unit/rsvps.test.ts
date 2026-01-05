@@ -7,7 +7,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
-import init from "../../src/api/index.js";
+import init from "../../src/api/server.js";
 import { createJwt } from "./auth.test.js";
 import { secretObject } from "./secret.testdata.js";
 import { Redis } from "../../src/api/types.js";
@@ -30,9 +30,6 @@ vi.mock("../../src/api/functions/uin.js", async () => {
           token: string;
           logger: FastifyBaseLogger;
         }) => {
-          if (token === DUMMY_JWT) {
-            console.log("DUMMY_JWT matched in mock implementation");
-          }
           return {
             userPrincipalName: "jd3@illinois.edu",
             givenName: "John",
@@ -99,10 +96,6 @@ describe("RSVP API tests", () => {
         "x-uiuc-token": DUMMY_JWT,
       },
     });
-
-    if (response.statusCode !== 201) {
-      console.log("Test Failed Response:", response.body);
-    }
 
     expect(response.statusCode).toBe(201);
 
