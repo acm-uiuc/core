@@ -24,7 +24,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22.x
+          node-version: 24.x
           cache: "yarn"
 
       - name: Setup Terraform
@@ -57,7 +57,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22.x
+          node-version: 24.x
           cache: "yarn"
 
       - name: Restore Yarn Cache
@@ -104,7 +104,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22.x
+          node-version: 24.x
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

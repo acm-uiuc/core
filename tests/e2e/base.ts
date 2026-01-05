@@ -1,8 +1,10 @@
 import { test as base, Page } from "@playwright/test";
 import { getSsmParameter } from "../common/index.js";
 
-export interface RecursiveRecord
-  extends Record<string, any | RecursiveRecord> {}
+export interface RecursiveRecord extends Record<
+  string,
+  any | RecursiveRecord
+> {}
 
 async function getSecrets() {
   const data = await Promise.all([

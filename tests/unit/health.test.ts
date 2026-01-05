@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "vitest";
-import init from "../../src/api/index.js";
+import init from "../../src/api/server.js";
 import { EventGetResponse } from "../../src/api/routes/events.js";
 
 const app = await init();

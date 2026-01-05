@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "vitest";
-import init from "../../src/api/index.js";
+import init from "../../src/api/server.js";
 import { beforeEach } from "node:test";
 import supertest from "supertest";
 

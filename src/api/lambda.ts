@@ -1,8 +1,8 @@
 import awsLambdaFastify from "@fastify/aws-lambda";
-import { pipeline } from "node:stream/promises";
-import init, { instanceId } from "./index.js";
+import init, { instanceId } from "./server.js";
 import { ValidationError } from "common/errors/index.js";
 import { Readable } from "node:stream";
+import middy, { executionModeStreamifyResponse } from "@middy/core";
 
 // Initialize the proxy with the payloadAsStream option
 const app = await init();
@@ -35,60 +35,59 @@ const validateOriginHeader = (
   return false;
 };
 
-// This handler now correctly uses the native streaming support from the packages.
-export const handler = awslambda.streamifyResponse(
-  async (event: any, responseStream: any, context: any) => {
-    context.callbackWaitsForEmptyEventLoop = false;
-    if ("action" in event && event.action === "warmer") {
-      const requestStream = Readable.from(
-        Buffer.from(JSON.stringify({ instanceId })),
-      );
-      await pipeline(requestStream, responseStream);
-      return;
-    }
+const lambdaHandler = async (event: any, context: any) => {
+  context.callbackWaitsForEmptyEventLoop = false;
 
-    // 2. Perform origin header validation before calling the proxy
-    const currentKey = process.env.ORIGIN_VERIFY_KEY;
-    if (currentKey) {
-      const previousKey = process.env.PREVIOUS_ORIGIN_VERIFY_KEY;
-      const previousKeyExpiresAt =
-        process.env.PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT;
+  // 1. Handle warmer action
+  if ("action" in event && event.action === "warmer") {
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: Readable.from(Buffer.from(JSON.stringify({ instanceId }))),
+    };
+  }
 
-      const isValid = validateOriginHeader(
-        event.headers?.["x-origin-verify"],
-        currentKey,
-        previousKey,
-        previousKeyExpiresAt,
-      );
+  // 2. Perform origin header validation before calling the proxy
+  const currentKey = process.env.ORIGIN_VERIFY_KEY;
+  if (currentKey) {
+    const previousKey = process.env.PREVIOUS_ORIGIN_VERIFY_KEY;
+    const previousKeyExpiresAt =
+      process.env.PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT;
 
-      if (!isValid) {
-        const error = new ValidationError({ message: "Request is not valid." });
-        const body = JSON.stringify(error.toJson());
-
-        // On validation failure, manually create the response
-        const meta = {
-          statusCode: error.httpStatusCode,
-          headers: { "Content-Type": "application/json" },
-        };
-        responseStream = awslambda.HttpResponseStream.from(
-          responseStream,
-          meta,
-        );
-        const requestStream = Readable.from(Buffer.from(body));
-        await pipeline(requestStream, responseStream);
-        return;
-      }
-      delete event.headers["x-origin-verify"];
-    }
-
-    const { stream, meta } = await proxy(event, context);
-    // Fix issue with Lambda where streaming repsonses always require a body to be present
-    const body =
-      stream.readableLength > 0 ? stream : Readable.from(Buffer.from(" "));
-    responseStream = awslambda.HttpResponseStream.from(
-      responseStream,
-      meta as any,
+    const isValid = validateOriginHeader(
+      event.headers?.["x-origin-verify"],
+      currentKey,
+      previousKey,
+      previousKeyExpiresAt,
     );
-    await pipeline(body, responseStream);
-  },
-);
+
+    if (!isValid) {
+      const error = new ValidationError({ message: "Request is not valid." });
+      const body = JSON.stringify(error.toJson());
+
+      return {
+        statusCode: error.httpStatusCode,
+        headers: { "Content-Type": "application/json" },
+        body: Readable.from(Buffer.from(body)),
+      };
+    }
+    delete event.headers["x-origin-verify"];
+  }
+
+  // 3. Call the proxy and return the streaming response
+  const { stream, meta } = await proxy(event, context);
+
+  // Fix issue with Lambda where streaming responses always require a body to be present
+  const body =
+    stream.readableLength > 0 ? stream : Readable.from(Buffer.from(" "));
+
+  return {
+    statusCode: meta.statusCode,
+    headers: meta.headers,
+    body,
+  };
+};
+
+export const handler = middy({
+  executionMode: executionModeStreamifyResponse,
+}).handler(lambdaHandler);

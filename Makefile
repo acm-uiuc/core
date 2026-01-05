@@ -23,17 +23,15 @@ clean:
 	rm -rf dist_devel/
 	rm -rf coverage/
 
-build_swagger:
-	cd src/api && npx tsx --experimental-loader=./mockLoader.mjs createSwagger.ts && cd ../..
-
 build: src/
-	yarn -D
+	yarn
 	yarn build
-	make build_swagger
 	cp -r src/api/resources/ dist/api/resources
 	rm -rf dist/lambda/sqs
-	docker run --rm -v "$(shell pwd)/dist/lambda":/var/task public.ecr.aws/sam/build-nodejs24.x:latest \
+	mkdir -p dist_ui/docs/
+	docker run --rm -v "$(shell pwd)/dist/lambda":/var/task -v "$(shell pwd)/dist_ui":/var/dist_ui public.ecr.aws/sam/build-nodejs24.x:latest \
 	sh -c "npm i -g yarn && $(yarn_env) yarn $(yarn_install_params) && \
+			node /var/task/createSwagger.mjs && \
 			rm -rf node_modules/aws-crt/dist/bin/{darwin*,linux-x64*,linux-arm64-musl} && \
 			rm -rf node_modules/argon2/prebuilds/{darwin*,freebsd*,linux-arm,linux-x64*,win32-x64*} && \
 			rm -rf node_modules/argon2/prebuilds/linux-arm64/argon2.armv8.musl.node"
@@ -67,7 +65,7 @@ init_terraform:
 	terraform -chdir=terraform/envs/prod init
 
 install:
-	yarn -D
+	yarn
 
 test_live_integration: install
 	yarn test:live

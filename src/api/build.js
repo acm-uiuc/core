@@ -17,7 +17,7 @@ const commonParams = {
   target: "es2022", // Target ES2022
   sourcemap: true,
   platform: "node",
-  external: ["@aws-sdk/*", ...packagesToTransfer],
+  external: [...packagesToTransfer],
   alias: {
     "moment-timezone": resolve(
       process.cwd(),
@@ -47,7 +47,7 @@ const commonParams = {
 esbuild
   .build({
     ...commonParams,
-    entryPoints: ["api/lambda.js"],
+    entryPoints: ["api/lambda.js", "api/createSwagger.js"],
     outdir: "../../dist/lambda/",
     external: [...commonParams.external, "sqs/*"],
   })

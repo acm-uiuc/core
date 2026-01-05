@@ -1,5 +1,5 @@
 import { afterAll, expect, test, vi } from "vitest";
-import init from "../../src/api/index.js";
+import init from "../../src/api/server.js";
 import { EventGetResponse } from "../../src/api/routes/events.js";
 import { afterEach, describe } from "node:test";
 import { setPaidMembershipInTable } from "../../src/api/functions/membership.js";

@@ -1,7 +1,7 @@
 import { fileURLToPath } from "url";
 import path from "node:path";
 import { writeFile, mkdir, rm } from "fs/promises";
-import init from "./index.js"; // Assuming this is your Fastify app initializer
+import init from "./server.js"; // Assuming this is your Fastify app initializer
 import { docsHtml, securitySchemes } from "./docs.js";
 import yaml from "yaml";
 
@@ -10,12 +10,10 @@ import yaml from "yaml";
  */
 async function createSwaggerFiles() {
   try {
-    const app = await init(false, false);
+    const app = await init(false, false, true);
     await app.ready();
     console.log("App is ready. Generating specs...");
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const outputDir = path.resolve(__dirname, "..", "..", "dist_ui", "docs");
+    const outputDir = "/var/dist_ui/docs";
     await rm(outputDir, { recursive: true, force: true });
     await mkdir(outputDir, { recursive: true });
     const swaggerConfig = app.swagger();
