@@ -1,7 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 import { type FastifyRequest } from "fastify";
 import { evaluateAllRequestPolicies } from "../../../src/api/plugins/evaluatePolicies.js";
-import init from "../../../src/api/index.js";
 
 describe("Policy Evalulator Tests", async () => {
   test("Policy evalulation is true for non-event routes.", async () => {
