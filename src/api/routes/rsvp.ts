@@ -114,7 +114,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             Update: {
               TableName: genericConfig.EventsDynamoTableName,
               Key: marshall({ id: request.params.eventId }),
-              UpdateExpression: "SET rsvpCount = if_not_exists(rsvpCount, :start) + :inc",
+              UpdateExpression:
+                "SET rsvpCount = if_not_exists(rsvpCount, :start) + :inc",
               ConditionExpression:
                 "rsvpCount < rsvpLimit OR attribute_not_exists(rsvpLimit)",
               ExpressionAttributeValues: marshall({
@@ -137,9 +138,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             });
           }
           if (err.CancellationReasons[1].Code === "ConditionalCheckFailed") {
-             return reply.status(409).send({
-               message: "The event is at capacity.",
-             });
+            return reply.status(409).send({
+              message: "The event is at capacity.",
+            });
           }
         }
         request.log.error(err, "Failed to process RSVP transaction");
