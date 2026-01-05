@@ -35,19 +35,21 @@ const paymentLinkMock = {
 
 vi.mock("stripe", () => {
   return {
-    default: vi.fn(() => ({
-      products: {
-        create: vi.fn().mockResolvedValue(productMock),
-        update: vi.fn().mockResolvedValue({}),
-      },
-      prices: {
-        create: vi.fn().mockResolvedValue(priceMock),
-      },
-      paymentLinks: {
-        create: vi.fn().mockResolvedValue(paymentLinkMock),
-        update: vi.fn().mockResolvedValue({}),
-      },
-    })),
+    default: vi.fn(function () {
+      return {
+        products: {
+          create: vi.fn(() => Promise.resolve(productMock)),
+          update: vi.fn(() => Promise.resolve({})),
+        },
+        prices: {
+          create: vi.fn(() => Promise.resolve(priceMock)),
+        },
+        paymentLinks: {
+          create: vi.fn(() => Promise.resolve(paymentLinkMock)),
+          update: vi.fn(() => Promise.resolve({})),
+        },
+      };
+    }),
   };
 });
 

@@ -13,9 +13,9 @@ vi.mock("../../../src/api/utils.js");
 
 describe("createGithubTeam", () => {
   const mockLogger = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
+    info: vi.fn(() => {}),
+    warn: vi.fn(() => {}),
+    error: vi.fn(() => {}),
   };
 
   const defaultInputs = {
@@ -37,9 +37,9 @@ describe("createGithubTeam", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockOctokit = {
-      request: vi.fn(),
+      request: vi.fn(() => {}),
     };
-    (Octokit as any).mockImplementation(() => mockOctokit);
+    (Octokit as any).mockImplementation(function() { return mockOctokit; });
   });
 
   afterEach(() => {
@@ -170,9 +170,9 @@ describe("createGithubTeam", () => {
 
 describe("assignIdpGroupsToTeam", () => {
   const mockLogger = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
+    info: vi.fn(() => {}),
+    warn: vi.fn(() => {}),
+    error: vi.fn(() => {}),
   };
 
   const defaultInputs = {
@@ -193,9 +193,9 @@ describe("assignIdpGroupsToTeam", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockOctokit = {
-      request: vi.fn(),
+      request: vi.fn(() => {}),
     };
-    (Octokit as any).mockImplementation(() => mockOctokit);
+    (Octokit as any).mockImplementation(function() { return mockOctokit; });
     (utils.sleep as any).mockResolvedValue(undefined);
   });
 
