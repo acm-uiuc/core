@@ -75,10 +75,5 @@
     "nodemon": "^3.1.10",
     "pino-pretty": "^13.1.1",
     "yaml": "^2.8.1"
-  },
-  "overrides": {
-    "fastify-zod-openapi": {
-      "zod-openapi": "^5.4.6"
-    }
   }
 }
