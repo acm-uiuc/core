@@ -17,7 +17,7 @@ const commonParams = {
   target: "es2022", // Target ES2022
   sourcemap: true,
   platform: "node",
-  external: ["@aws-sdk/*", ...packagesToTransfer],
+  external: [...packagesToTransfer],
   alias: {
     "moment-timezone": resolve(
       process.cwd(),

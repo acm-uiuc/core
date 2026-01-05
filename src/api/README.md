@@ -1,15 +1,14 @@
 # ACM @ UIUC Core API
 
 ## Run Locally
-1. Copy `.env.sample` as `.env` and set the `JwtSigningKey` to a random string.
-2. Enable Tailscale VPN so you can reach the development database in AWS
-3. Log into AWS with `aws configure sso` so you can retrieve the AWS secret and configuration.
-4. `yarn -D`
-6. `make local`
+
+1. Log into AWS with `aws configure sso` so you can access AWS resources.
+2. `yarn`
+3. `make local`
 
 ## Build for AWS Lambda
-1. `make clean`
-2. `make build`
+
+1. `make build`
 
 ## Deploy to AWS env
 
@@ -17,13 +16,7 @@
 2. Ensure AWS profile is set to the right account (QA or PROD).
 3. Run `make deploy_qa` or `make deploy_prod`.
 
-## Generating JWT token
-
-Create a `.env` file containing your `AadClientSecret`.
-
-```bash
-node --env-file=.env get_msft_jwt.js
-```
+You will not be able to deploy manually with Admin permissions. You must make a PR and go through CI/CD pipeline.
 
 ## Configuring AWS
 
@@ -33,7 +26,7 @@ SSO URL: `https://acmillinois.awsapps.com/start/#`
 aws configure sso
 ```
 
-Log in with SSO. Then, export the `AWS_PROFILE` that the above command outputted. 
+Log in with SSO. Then, export the `AWS_PROFILE` that the above command outputted.
 
 ```bash
 export AWS_PROFILE=ABC-DEV

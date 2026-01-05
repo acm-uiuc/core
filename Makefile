@@ -27,7 +27,7 @@ build_swagger:
 	cd src/api && npx tsx --experimental-loader=./mockLoader.mjs createSwagger.ts && cd ../..
 
 build: src/
-	yarn -D
+	yarn
 	yarn build
 	make build_swagger
 	cp -r src/api/resources/ dist/api/resources
@@ -67,7 +67,7 @@ init_terraform:
 	terraform -chdir=terraform/envs/prod init
 
 install:
-	yarn -D
+	yarn
 
 test_live_integration: install
 	yarn test:live
