@@ -1884,10 +1884,10 @@
     fastq "^1.17.1"
     glob "^13.0.0"
 
-"@fastify/swagger@9.5.0":
-  version "9.5.0"
-  resolved "https://registry.yarnpkg.com/@fastify/swagger/-/swagger-9.5.0.tgz#761ce5aae9e76116cd1b6fee4b463c7d1d11f4a7"
-  integrity sha512-6WiwB1Nh+GHqm4wsDGH/ym6ming3DyH9cuAkIwGN9nhbyrCoNSZ+l9h3TAsksffbNEI/RHCiw2BH2LeGNRrOoQ==
+"@fastify/swagger@9.6.1":
+  version "9.6.1"
+  resolved "https://registry.yarnpkg.com/@fastify/swagger/-/swagger-9.6.1.tgz#7fa6ed07dfedd7694c51cb84c42b463af98201b5"
+  integrity sha512-fKlpJqFMWoi4H3EdUkDaMteEYRCfQMEkK0HJJ0eaf4aRlKd8cbq0pVkOfXDXmtvMTXYcnx3E+l023eFDBsA1HA==
   dependencies:
     fastify-plugin "^5.0.0"
     json-schema-resolver "^3.0.0"
@@ -1990,10 +1990,10 @@
   resolved "https://registry.yarnpkg.com/@ioredis/as-callback/-/as-callback-3.0.0.tgz#b96c9b05e6701e85ec6a5e62fa254071b0aec97f"
   integrity sha512-Kqv1rZ3WbgOrS+hgzJ5xG5WQuhvzzSTRYvNeyPMLOAM78MHSnuKI20JeJGbpuAt//LCuP0vsexZcorqW7kWhJg==
 
-"@ioredis/commands@1.4.0", "@ioredis/commands@^1.2.0":
-  version "1.4.0"
-  resolved "https://registry.yarnpkg.com/@ioredis/commands/-/commands-1.4.0.tgz#9f657d51cdd5d2fdb8889592aa4a355546151f25"
-  integrity sha512-aFT2yemJJo+TZCmieA7qnYGQooOS7QfNmYrzGtsYd3g9j5iDP8AimYYAesf79ohjbLG12XxC4nG5DyEnC88AsQ==
+"@ioredis/commands@1.5.0", "@ioredis/commands@^1.2.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@ioredis/commands/-/commands-1.5.0.tgz#3dddcea446a4b1dc177d0743a1e07ff50691652a"
+  integrity sha512-eUgLqrMf8nJkZxT24JvVRrQya1vZkQh8BBeYNwGDqa5I0VUi8ACx7uFvAaLxintokpTenkK6DASvo/bvNbBGow==
 
 "@isaacs/balanced-match@^4.0.1":
   version "4.0.1"
@@ -2069,10 +2069,10 @@
   resolved "https://registry.yarnpkg.com/@lukeed/ms/-/ms-2.0.2.tgz#07f09e59a74c52f4d88c6db5c1054e819538e2a8"
   integrity sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==
 
-"@mantine/core@^8.3.10":
-  version "8.3.10"
-  resolved "https://registry.yarnpkg.com/@mantine/core/-/core-8.3.10.tgz#f9c2f9ae6dd68836a90f0899f4aed10ac4e31703"
-  integrity sha512-aKQFETN14v6GtM07b/G5yJneMM1yrgf9mNrTah6GVy5DvQM0AeutITT7toHqh5gxxwzdg/DoY+HQsv5zhqnc5g==
+"@mantine/core@^8.3.11":
+  version "8.3.11"
+  resolved "https://registry.yarnpkg.com/@mantine/core/-/core-8.3.11.tgz#92611834fd675d333f229454c552d79dcd445efe"
+  integrity sha512-FWXp94tiTFdh8BKc7UTNdIuumD96JFxLF/VvUWGRzf5i563Ye0Ma/aZtOBwpdEtdIQkojOhoMMV76k5toOQgEQ==
   dependencies:
     "@floating-ui/react" "^0.27.16"
     clsx "^2.1.1"
@@ -2081,45 +2081,45 @@
     react-textarea-autosize "8.5.9"
     type-fest "^4.41.0"
 
-"@mantine/dates@^8.3.10":
-  version "8.3.10"
-  resolved "https://registry.yarnpkg.com/@mantine/dates/-/dates-8.3.10.tgz#c79490a5a8cec4cb0c35bc9568da9bcb705e11e7"
-  integrity sha512-P1uZ+alYGp7fsmkfd+7Fur4AGrqT0X6BWLiVTomzrbyykA+m4TSwPyQjKfsDc7XRqaqx992br/U65T82zy+qGQ==
+"@mantine/dates@^8.3.11":
+  version "8.3.11"
+  resolved "https://registry.yarnpkg.com/@mantine/dates/-/dates-8.3.11.tgz#3a1cd4e376ffb544a051a13bfb374035d89fcdfd"
+  integrity sha512-e5QBHMpTjKDkYHFEYkD3bho4Kk/M04jmXLu9Txb/XkWVDb5A0CNGg6+A8TinXING4B7kn2dMOLmL3s7r6vnJJA==
   dependencies:
     clsx "^2.1.1"
 
-"@mantine/dropzone@^8.3.10":
-  version "8.3.10"
-  resolved "https://registry.yarnpkg.com/@mantine/dropzone/-/dropzone-8.3.10.tgz#6ad80f70b223d193556a0503506f815c9a5d3ca2"
-  integrity sha512-PqY9gZ7tpz34iKek+UImbK1LBmSmkMlspqkUecAsMwbBqD2WNLNINTl7pkOh20BdYOaX1GvfkXwTA4/6ya/1kg==
+"@mantine/dropzone@^8.3.11":
+  version "8.3.11"
+  resolved "https://registry.yarnpkg.com/@mantine/dropzone/-/dropzone-8.3.11.tgz#c9860198ac55e7ee48479b2a3cbee4e2d584f084"
+  integrity sha512-0dp6m4+eSu7HzeIXfj5rIrwS4AHzN2k/kZo6ib7FbPsjtsDL5KinRmWt1Vo6zq/HwtF6TIAaho7/7sgsQAaNpg==
   dependencies:
     react-dropzone "14.3.8"
 
-"@mantine/form@^8.3.10":
-  version "8.3.10"
-  resolved "https://registry.yarnpkg.com/@mantine/form/-/form-8.3.10.tgz#2b56e53457bd71c39338d18c42c6aae68ce48dd6"
-  integrity sha512-TuBmCUIH0qHUig+y9My3bLL9CRoW4g9bijIF6743gqVh0o/daSwplc2TTVMj6sl+F1MR+SJiHtAC8FoR7fdhNw==
+"@mantine/form@^8.3.11":
+  version "8.3.11"
+  resolved "https://registry.yarnpkg.com/@mantine/form/-/form-8.3.11.tgz#b378c1f80668a9cc6518e83288e645505edd6ce1"
+  integrity sha512-546npW8gHCXUShVL/OOnKBJ1So5bcKTdmiNxzXn8q2eGhMIB+zdj7/v4QUz2j55OjDRPq0dAVJhzDjLfzeibTg==
   dependencies:
     fast-deep-equal "^3.1.3"
     klona "^2.0.6"
 
-"@mantine/hooks@^8.3.10":
-  version "8.3.10"
-  resolved "https://registry.yarnpkg.com/@mantine/hooks/-/hooks-8.3.10.tgz#610e306e7d5609d4994b9ffba57a9a1bfc96d03a"
-  integrity sha512-bv+yYHl+keTIvakiDzVJMIjW+o8/Px0G3EdpCMFG+U2ux6SwQqluqoq+/kqrTtT6RaLvQ0fMxjpIULF2cu/xAg==
+"@mantine/hooks@^8.3.11":
+  version "8.3.11"
+  resolved "https://registry.yarnpkg.com/@mantine/hooks/-/hooks-8.3.11.tgz#c7856f05b09720a5791da4b3c19dfb2584266ee2"
+  integrity sha512-WJFKDnJJM2fAOCkrO8qRsi3wDdicSFqElruPj5TEYWDL93vl0pITOyN0oRF93bUtx190waqela3edfGH3r5/1g==
 
-"@mantine/notifications@^8.3.10":
-  version "8.3.10"
-  resolved "https://registry.yarnpkg.com/@mantine/notifications/-/notifications-8.3.10.tgz#a2aeb401d90cca499ee10198d607fbfb3373cefd"
-  integrity sha512-0aVpRCyn9u0wuryBnFu1jOwBYw6xGeaNNtTcTUnSvkL6NAypfPon6JG7Wsekf3IuWSTLBjhYaFEIEd4nh7VDpg==
+"@mantine/notifications@^8.3.11":
+  version "8.3.11"
+  resolved "https://registry.yarnpkg.com/@mantine/notifications/-/notifications-8.3.11.tgz#33e314c955cda4e53cf99c45243c6a541a589f4a"
+  integrity sha512-bcFzw9m4uzxHMflNeWqa9imCy8T5mHCAV8WRqzAwK/Yls8GL9uJoQH/e1v6Pl4g4yvBmaF9yUHu7Zq3iyKhHhQ==
   dependencies:
-    "@mantine/store" "8.3.10"
+    "@mantine/store" "8.3.11"
     react-transition-group "4.4.5"
 
-"@mantine/store@8.3.10":
-  version "8.3.10"
-  resolved "https://registry.yarnpkg.com/@mantine/store/-/store-8.3.10.tgz#86d5cc35c2f16c3855840ff153a24a2787706f45"
-  integrity sha512-38t1UivcucZo9hQq27F/eqR5GvovNs4NHEz6DchOuZzV5IJWqO8+T07ivb8wct47ovYe42rPfLcaOdnIEvMsJA==
+"@mantine/store@8.3.11":
+  version "8.3.11"
+  resolved "https://registry.yarnpkg.com/@mantine/store/-/store-8.3.11.tgz#2b026e3a2abbe7229656fd7e83fca6692507b299"
+  integrity sha512-ku48CzN9HobVUjd7o41voaaHKz2CMrtkk454vwXWAspfbpqR4hklL5zq/MzctETFCG6HBDiPRfZAvNm8WaM3Tw==
 
 "@mdx-js/react@^3.0.0":
   version "3.1.0"
@@ -2128,27 +2128,27 @@
   dependencies:
     "@types/mdx" "^2.0.0"
 
-"@middy/core@^6.1.6":
-  version "6.4.5"
-  resolved "https://registry.yarnpkg.com/@middy/core/-/core-6.4.5.tgz#e3d266cfdf49a6e03fc8e9db43a972d0188dac0b"
-  integrity sha512-qRGCslDHjMr08fywcfVbWR9qpx16vGD481i9GpX3r5efi8Arjp/44JTjfeJkJJxvIb/8/+E9MLvU86+3oe1oJQ==
+"@middy/core@^7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@middy/core/-/core-7.0.0.tgz#550432e1ea41b28a30f64b4106c062106ce03aee"
+  integrity sha512-w6ROqKWxAEQ3j1VBQWpcnrNFCE91V/F4KrKpsaNX7JtI6BPlBEKRZu+ROSk9qNeYtKZyQZs2eTR9yScEzZ4nOQ==
 
-"@middy/event-normalizer@^6.1.6":
-  version "6.4.5"
-  resolved "https://registry.yarnpkg.com/@middy/event-normalizer/-/event-normalizer-6.4.5.tgz#bf1a949047f0efaa8ba98bbc0446f9ab34d8b88f"
-  integrity sha512-xFWyFtsL8ntJSq0Wp64X29qqKewFytcAtsmKJMEWHwqe/p7eG1Kyeg4QoMWSqrhHx1KSevOH57Ukmb0Wfki0rQ==
+"@middy/event-normalizer@^7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@middy/event-normalizer/-/event-normalizer-7.0.0.tgz#ef29e3da2552e378a2ae75fe1fd55d207678ab25"
+  integrity sha512-0P7v/zS5RjWAlS0AMvmdubg0hLR0l2jtwAzAGPh8GydXBsch4lOKefu9rn1zzPf/08BsKYA3aW+uAP6XFMmsJw==
   dependencies:
-    "@middy/util" "6.4.5"
+    "@middy/util" "7.0.0"
 
-"@middy/sqs-partial-batch-failure@^6.1.6":
-  version "6.4.5"
-  resolved "https://registry.yarnpkg.com/@middy/sqs-partial-batch-failure/-/sqs-partial-batch-failure-6.4.5.tgz#634bdfe1bb803657eb9425e3c7cd951df57ef97f"
-  integrity sha512-gtPCs9odCiy/1ADeHM3tzro8gbzbHyxOb1mTE9KnYYK8e40chXE/HurIf2V0h3T6ya7sxIB+vJ3hTiFOwhkB9w==
+"@middy/sqs-partial-batch-failure@^7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@middy/sqs-partial-batch-failure/-/sqs-partial-batch-failure-7.0.0.tgz#bdccf36d2ff7f37ea030f4a06e583ae689602af1"
+  integrity sha512-Q3Sj9pETkhtDPzrEZMC5sK1h3lRfmGZ7PnLJzoyPszse1FJZpcMOUpimlF+P6b+NCSvznZaf5yqa/B27ZLKfGg==
 
-"@middy/util@6.4.5":
-  version "6.4.5"
-  resolved "https://registry.yarnpkg.com/@middy/util/-/util-6.4.5.tgz#624f6b5c3be2800a572c7524cd2bd8ccc5535da5"
-  integrity sha512-170ml5Q8QIHjric+ynwmDoa1sbcaMkUJumpUNxubqzStN7rEebVHnzXLQBwvSAhp7Fhcja7q2JLo0yjHpyPO4Q==
+"@middy/util@7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@middy/util/-/util-7.0.0.tgz#ddb6b7335fc428622c07d8fd82d616b532a3c5f1"
+  integrity sha512-lymQ33dhnthjumxhAxtTATGc9gxJdT4xXZ9n6hYKwIdRU9oAb71UvizVZFmsfJsIG7eubJXr2NWPm22K4D4Avg==
 
 "@napi-rs/canvas-android-arm64@0.1.88":
   version "0.1.88"
@@ -7067,12 +7067,12 @@ ioredis-mock@^8.9.0:
     fengari-interop "^0.1.3"
     semver "^7.5.4"
 
-ioredis@^5.6.1:
-  version "5.8.2"
-  resolved "https://registry.yarnpkg.com/ioredis/-/ioredis-5.8.2.tgz#c7a228a26cf36f17a5a8011148836877780e2e14"
-  integrity sha512-C6uC+kleiIMmjViJINWk80sOQw5lEzse1ZmvD+S/s8p8CWapftSaC+kocGTx6xrbrJ4WmYQGC08ffHLr6ToR6Q==
+ioredis@^5.9.0:
+  version "5.9.0"
+  resolved "https://registry.yarnpkg.com/ioredis/-/ioredis-5.9.0.tgz#72995f296dc3bcf1761cb61a15f2ba01fe4129a8"
+  integrity sha512-T3VieIilNumOJCXI9SDgo4NnF6sZkd6XcmPi6qWtw4xqbt8nNz/ZVNiIH1L9puMTSHZh1mUWA4xKa2nWPF4NwQ==
   dependencies:
-    "@ioredis/commands" "1.4.0"
+    "@ioredis/commands" "1.5.0"
     cluster-key-slot "^1.1.0"
     debug "^4.3.4"
     denque "^2.1.0"
