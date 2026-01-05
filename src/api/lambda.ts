@@ -1,5 +1,5 @@
 import awsLambdaFastify from "@fastify/aws-lambda";
-import init, { instanceId } from "./index.js";
+import init, { instanceId } from "./server.js";
 import { ValidationError } from "common/errors/index.js";
 import { Readable } from "node:stream";
 import middy, { executionModeStreamifyResponse } from "@middy/core";
