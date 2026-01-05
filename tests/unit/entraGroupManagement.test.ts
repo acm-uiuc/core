@@ -1,5 +1,5 @@
 import { afterAll, expect, test, beforeEach, vi } from "vitest";
-import init from "../../src/api/index.js";
+import init from "../../src/api/server.js";
 import { createJwt } from "./auth.test.js";
 import supertest from "supertest";
 import { describe } from "node:test";

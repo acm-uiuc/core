@@ -1,7 +1,7 @@
 import { afterAll, expect, test, beforeEach, vi, Mock } from "vitest";
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
-import init from "../../src/api/index.js";
+import init from "../../src/api/server.js";
 import { createJwt } from "./auth.test.js";
 import { secretObject } from "./secret.testdata.js";
 import supertest from "supertest";

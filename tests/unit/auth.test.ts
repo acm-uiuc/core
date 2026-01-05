@@ -1,10 +1,9 @@
 import { expect, test, vi } from "vitest";
-import init from "../../src/api/index.js";
+import init from "../../src/api/server.js";
 import {
   secretObject,
   jwtPayload,
   jwtPayloadNoGroups,
-  secretObject,
 } from "./secret.testdata.js";
 import jwt from "jsonwebtoken";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";

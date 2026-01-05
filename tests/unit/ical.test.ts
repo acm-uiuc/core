@@ -1,7 +1,7 @@
 import { afterAll, expect, test, beforeEach, vi } from "vitest";
 import { ScanCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
-import init from "../../src/api/index.js";
+import init from "../../src/api/server.js";
 import {
   dynamoEventWithRepeatExclusion,
   dynamoTableData,

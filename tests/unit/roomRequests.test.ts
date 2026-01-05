@@ -1,5 +1,5 @@
 import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
-import init from "../../src/api/index.js";
+import init from "../../src/api/server.js";
 import { mockClient } from "aws-sdk-client-mock";
 import {
   DynamoDBClient,
