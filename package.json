@@ -52,7 +52,7 @@
     "@typescript-eslint/eslint-plugin": "^8.40.0",
     "@typescript-eslint/parser": "^8.40.0",
     "@vitest/coverage-istanbul": "^4.0.16",
-    "@vitest/ui": "^3.1.2",
+    "@vitest/ui": "^4.0.16",
     "aws-sdk-client-mock": "^4.1.0",
     "concurrently": "^9.1.2",
     "cross-env": "^10.0.0",
