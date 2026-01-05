@@ -114,8 +114,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             Update: {
               TableName: genericConfig.EventsDynamoTableName,
               Key: marshall({ id: request.params.eventId }),
-              UpdateExpression:
-                "SET rsvpCount = if_not_exists(rsvpCount, :start) + :inc",
+              UpdateExpression: "SET rsvpCount = if_not_exists(rsvpCount, :start) + :inc",
+              ConditionExpression:
+                "rsvpCount < rsvpLimit OR attribute_not_exists(rsvpLimit)",
               ExpressionAttributeValues: marshall({
                 ":inc": 1,
                 ":start": 0,
@@ -134,6 +135,11 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             return reply.status(409).send({
               message: "You have already RSVP'd for this event.",
             });
+          }
+          if (err.CancellationReasons[1].Code === "ConditionalCheckFailed") {
+             return reply.status(409).send({
+               message: "The event is at capacity.",
+             });
           }
         }
         request.log.error(err, "Failed to process RSVP transaction");
@@ -255,7 +261,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { rsvpLimit } = request.body;
       const { eventId } = request.params;
       const isRemovingLimit = rsvpLimit === null;
-
       const command = new UpdateItemCommand({
         TableName: genericConfig.EventsDynamoTableName,
         Key: marshall({ id: eventId }),
@@ -266,6 +271,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ? undefined
           : marshall({
               ":limit": rsvpLimit,
+              ":zero": 0,
             }),
         ConditionExpression: "attribute_exists(id)",
         ReturnValues: "UPDATED_NEW",
@@ -350,8 +356,10 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               TableName: genericConfig.EventsDynamoTableName,
               Key: marshall({ id: request.params.eventId }),
               UpdateExpression: "SET rsvpCount = rsvpCount - :dec",
+              ConditionExpression: "rsvpCount > :zero",
               ExpressionAttributeValues: marshall({
                 ":dec": 1,
+                ":zero": 0,
               }),
             },
           },
@@ -438,8 +446,10 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               TableName: genericConfig.EventsDynamoTableName,
               Key: marshall({ id: request.params.eventId }),
               UpdateExpression: "SET rsvpCount = rsvpCount - :dec",
+              ConditionExpression: "rsvpCount > :zero",
               ExpressionAttributeValues: marshall({
                 ":dec": 1,
+                ":zero": 0,
               }),
             },
           },
