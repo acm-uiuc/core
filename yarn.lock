@@ -1884,10 +1884,10 @@
     fastq "^1.17.1"
     glob "^13.0.0"
 
-"@fastify/swagger@9.5.0":
-  version "9.5.0"
-  resolved "https://registry.yarnpkg.com/@fastify/swagger/-/swagger-9.5.0.tgz#761ce5aae9e76116cd1b6fee4b463c7d1d11f4a7"
-  integrity sha512-6WiwB1Nh+GHqm4wsDGH/ym6ming3DyH9cuAkIwGN9nhbyrCoNSZ+l9h3TAsksffbNEI/RHCiw2BH2LeGNRrOoQ==
+"@fastify/swagger@9.6.1":
+  version "9.6.1"
+  resolved "https://registry.yarnpkg.com/@fastify/swagger/-/swagger-9.6.1.tgz#7fa6ed07dfedd7694c51cb84c42b463af98201b5"
+  integrity sha512-fKlpJqFMWoi4H3EdUkDaMteEYRCfQMEkK0HJJ0eaf4aRlKd8cbq0pVkOfXDXmtvMTXYcnx3E+l023eFDBsA1HA==
   dependencies:
     fastify-plugin "^5.0.0"
     json-schema-resolver "^3.0.0"
@@ -2128,27 +2128,27 @@
   dependencies:
     "@types/mdx" "^2.0.0"
 
-"@middy/core@^6.1.6":
-  version "6.4.5"
-  resolved "https://registry.yarnpkg.com/@middy/core/-/core-6.4.5.tgz#e3d266cfdf49a6e03fc8e9db43a972d0188dac0b"
-  integrity sha512-qRGCslDHjMr08fywcfVbWR9qpx16vGD481i9GpX3r5efi8Arjp/44JTjfeJkJJxvIb/8/+E9MLvU86+3oe1oJQ==
+"@middy/core@^7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@middy/core/-/core-7.0.0.tgz#550432e1ea41b28a30f64b4106c062106ce03aee"
+  integrity sha512-w6ROqKWxAEQ3j1VBQWpcnrNFCE91V/F4KrKpsaNX7JtI6BPlBEKRZu+ROSk9qNeYtKZyQZs2eTR9yScEzZ4nOQ==
 
-"@middy/event-normalizer@^6.1.6":
-  version "6.4.5"
-  resolved "https://registry.yarnpkg.com/@middy/event-normalizer/-/event-normalizer-6.4.5.tgz#bf1a949047f0efaa8ba98bbc0446f9ab34d8b88f"
-  integrity sha512-xFWyFtsL8ntJSq0Wp64X29qqKewFytcAtsmKJMEWHwqe/p7eG1Kyeg4QoMWSqrhHx1KSevOH57Ukmb0Wfki0rQ==
+"@middy/event-normalizer@^7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@middy/event-normalizer/-/event-normalizer-7.0.0.tgz#ef29e3da2552e378a2ae75fe1fd55d207678ab25"
+  integrity sha512-0P7v/zS5RjWAlS0AMvmdubg0hLR0l2jtwAzAGPh8GydXBsch4lOKefu9rn1zzPf/08BsKYA3aW+uAP6XFMmsJw==
   dependencies:
-    "@middy/util" "6.4.5"
+    "@middy/util" "7.0.0"
 
-"@middy/sqs-partial-batch-failure@^6.1.6":
-  version "6.4.5"
-  resolved "https://registry.yarnpkg.com/@middy/sqs-partial-batch-failure/-/sqs-partial-batch-failure-6.4.5.tgz#634bdfe1bb803657eb9425e3c7cd951df57ef97f"
-  integrity sha512-gtPCs9odCiy/1ADeHM3tzro8gbzbHyxOb1mTE9KnYYK8e40chXE/HurIf2V0h3T6ya7sxIB+vJ3hTiFOwhkB9w==
+"@middy/sqs-partial-batch-failure@^7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@middy/sqs-partial-batch-failure/-/sqs-partial-batch-failure-7.0.0.tgz#bdccf36d2ff7f37ea030f4a06e583ae689602af1"
+  integrity sha512-Q3Sj9pETkhtDPzrEZMC5sK1h3lRfmGZ7PnLJzoyPszse1FJZpcMOUpimlF+P6b+NCSvznZaf5yqa/B27ZLKfGg==
 
-"@middy/util@6.4.5":
-  version "6.4.5"
-  resolved "https://registry.yarnpkg.com/@middy/util/-/util-6.4.5.tgz#624f6b5c3be2800a572c7524cd2bd8ccc5535da5"
-  integrity sha512-170ml5Q8QIHjric+ynwmDoa1sbcaMkUJumpUNxubqzStN7rEebVHnzXLQBwvSAhp7Fhcja7q2JLo0yjHpyPO4Q==
+"@middy/util@7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@middy/util/-/util-7.0.0.tgz#ddb6b7335fc428622c07d8fd82d616b532a3c5f1"
+  integrity sha512-lymQ33dhnthjumxhAxtTATGc9gxJdT4xXZ9n6hYKwIdRU9oAb71UvizVZFmsfJsIG7eubJXr2NWPm22K4D4Avg==
 
 "@napi-rs/canvas-android-arm64@0.1.88":
   version "0.1.88"
@@ -10920,7 +10920,7 @@ zod-validation-error@^5.0.0:
   resolved "https://registry.yarnpkg.com/zod-validation-error/-/zod-validation-error-5.0.0.tgz#96db948070b7bfcb13bfec5134113e580f9eee38"
   integrity sha512-hmk+pkyKq7Q71PiWVSDUc3VfpzpvcRHZ3QPw9yEMVvmtCekaMeOHnbr3WbxfrgEnQTv6haGP4cmv0Ojmihzsxw==
 
-zod@4.1.12:
-  version "4.1.12"
-  resolved "https://registry.yarnpkg.com/zod/-/zod-4.1.12.tgz#64f1ea53d00eab91853195653b5af9eee68970f0"
-  integrity sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ==
+zod@4.3.5:
+  version "4.3.5"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-4.3.5.tgz#aeb269a6f9fc259b1212c348c7c5432aaa474d2a"
+  integrity sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==
