@@ -5,8 +5,8 @@ import {
   notFoundError,
   withRoles,
   withTags,
-  acmCoreOrganization,
 } from "api/components/index.js";
+import { OrgUniqueId } from "common/types/generic.js";
 import {
   QueryCommand,
   UpdateItemCommand,
@@ -43,9 +43,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           eventId: z.string().min(1).meta({
             description: "The previously-created event ID in the events API.",
           }),
-          orgId: acmCoreOrganization.meta({
-            description: "The organization ID the event belongs to.",
-          }),
+          orgId: OrgUniqueId,
         }),
         headers: z.object({
           "x-uiuc-token": z.jwt().min(1).meta({
@@ -156,9 +154,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             eventId: z.string().min(1).meta({
               description: "The previously-created event ID in the events API.",
             }),
-            orgId: acmCoreOrganization.meta({
-              description: "The organization ID the event belongs to.",
-            }),
+            orgId: OrgUniqueId,
           }),
           response: {
             200: {
@@ -214,9 +210,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             eventId: z.string().min(1).meta({
               description: "The event ID to configure.",
             }),
-            orgId: acmCoreOrganization.meta({
-              description: "The organization ID the event belongs to.",
-            }),
+            orgId: OrgUniqueId,
           }),
           body: rsvpConfigSchema,
           response: {
@@ -249,7 +243,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ? undefined
           : marshall({
               ":limit": rsvpLimit,
-              ":zero": 0,
             }),
         ConditionExpression: "attribute_exists(id)",
         ReturnValues: "UPDATED_NEW",
@@ -286,9 +279,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             userId: z.string().min(1).meta({
               description: "The user ID of the RSVP to delete.",
             }),
-            orgId: acmCoreOrganization.meta({
-              description: "The organization ID the event belongs to.",
-            }),
+            orgId: OrgUniqueId,
           }),
           response: {
             204: {
@@ -359,9 +350,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           eventId: z.string().min(1).meta({
             description: "The event ID to withdraw from.",
           }),
-          orgId: acmCoreOrganization.meta({
-            description: "The organization ID the event belongs to.",
-          }),
+          orgId: OrgUniqueId,
         }),
         headers: z.object({
           "x-uiuc-token": z.jwt().min(1).meta({

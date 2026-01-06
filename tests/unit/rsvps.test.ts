@@ -85,7 +85,7 @@ describe("RSVP API tests", () => {
     const testJwt = createJwt();
     const mockUpn = "jd3@illinois.edu";
     const eventId = "Make Your Own Database";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
 
     const response = await app.inject({
       method: "POST",
@@ -117,7 +117,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
 
     const response = await app.inject({
       method: "POST",
@@ -147,7 +147,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Popular Event";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
 
     const response = await app.inject({
       method: "POST",
@@ -175,7 +175,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Popular Event";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
 
     const response = await app.inject({
       method: "POST",
@@ -195,7 +195,7 @@ describe("RSVP API tests", () => {
 
   test("Test getting RSVPs for an event (Mocking Query Response)", async () => {
     const eventId = "Make Your Own Database";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
     const mockRsvps = [
       {
         partitionKey: `${eventId}#user1@illinois.edu`,
@@ -239,7 +239,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
 
     const response = await app.inject({
       method: "DELETE",
@@ -266,7 +266,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
 
     const response = await app.inject({
       method: "DELETE",
@@ -293,7 +293,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
 
     const response = await app.inject({
       method: "DELETE",
@@ -312,7 +312,7 @@ describe("RSVP API tests", () => {
 
     const adminJwt = await createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
     const targetUserId = "user1@illinois.edu";
 
     const response = await app.inject({
@@ -339,7 +339,7 @@ describe("RSVP API tests", () => {
 
     const adminJwt = await createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
     const targetUserId = "ghost@illinois.edu";
 
     const response = await app.inject({
@@ -365,7 +365,7 @@ describe("RSVP API tests", () => {
 
     const adminJwt = await createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
     const targetUserId = "user1@illinois.edu";
 
     const response = await app.inject({
@@ -383,7 +383,7 @@ describe("RSVP API tests", () => {
 
     const adminJwt = await createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
     const newLimit = 50;
 
     const response = await app.inject({
@@ -410,7 +410,7 @@ describe("RSVP API tests", () => {
 
     const adminJwt = await createJwt();
     const eventId = "FakeEventID";
-    const orgId = "Infrastructure Committee";
+    const orgId = "S01";
 
     const response = await app.inject({
       method: "POST",
