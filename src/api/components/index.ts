@@ -120,6 +120,29 @@ export const notAuthorizedError = getCorrectJsonSchema({
   },
 });
 
+export const resourceConflictError = getCorrectJsonSchema({
+  schema: z
+    .object({
+      error: z.literal(true),
+      name: z.literal("ResourceConflictError"),
+      id: z.literal(112),
+      message: z.string().min(1),
+    })
+    .meta({
+      id: "resourceConflictError",
+      description:
+        "The request could not be completed due to a conflict with the current state of the resource.",
+    }),
+  description:
+    "The request could not be completed due to a conflict with the current state of the resource.",
+  example: {
+    error: true,
+    name: "ResourceConflictError",
+    id: 112,
+    message: "A resource with the same identifier already exists.",
+  },
+});
+
 export const internalServerError = getCorrectJsonSchema({
   schema: {
     content: {

@@ -55,6 +55,7 @@ import apiKeyRoute from "./routes/apiKey.js";
 import clearSessionRoute from "./routes/clearSession.js";
 import protectedRoute from "./routes/protected.js";
 import eventsPlugin from "./routes/events.js";
+import rsvpRoutes from "./routes/rsvp.js";
 import mobileWalletV2Route from "./routes/v2/mobileWallet.js";
 import membershipV2Plugin from "./routes/v2/membership.js";
 import { docsHtml, securitySchemes } from "./docs.js";
@@ -171,6 +172,11 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
               name: "Events",
               description:
                 "Retrieve ACM @ UIUC-wide and organization-specific calendars and event metadata.",
+            },
+            {
+              name: "RSVP",
+              description:
+                "RSVP to events and manage your RSVPs for ACM @ UIUC events.",
             },
             {
               name: "Generic",
@@ -386,6 +392,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       api.register(syncIdentityPlugin, { prefix: "/syncIdentity" });
       api.register(protectedRoute, { prefix: "/protected" });
       api.register(eventsPlugin, { prefix: "/events" });
+      api.register(rsvpRoutes, { prefix: "/rsvp" });
       api.register(organizationsPlugin, { prefix: "/organizations" });
       api.register(membershipPlugin, { prefix: "/membership" });
       api.register(icalPlugin, { prefix: "/ical" });
