@@ -1,6 +1,12 @@
 import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
-import { withRoles, withTags } from "api/components/index.js";
+import {
+  resourceConflictError,
+  notFoundError,
+  withRoles,
+  withTags,
+  acmCoreOrganization,
+} from "api/components/index.js";
 import {
   QueryCommand,
   UpdateItemCommand,
@@ -11,7 +17,10 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   ValidationError,
+  ResourceConflictError,
+  NotFoundError,
 } from "common/errors/index.js";
+import { rsvpConfigSchema } from "common/types/rsvp.js";
 import * as z from "zod/v4";
 import { verifyUiucAccessToken } from "api/functions/uin.js";
 import { checkPaidMembership } from "api/functions/membership.js";
@@ -34,7 +43,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           eventId: z.string().min(1).meta({
             description: "The previously-created event ID in the events API.",
           }),
-          orgId: z.string().min(1).meta({
+          orgId: acmCoreOrganization.meta({
             description: "The organization ID the event belongs to.",
           }),
         }),
@@ -49,26 +58,11 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             description: "RSVP created successfully.",
             content: {
               "application/json": {
-                schema: z.object({
-                  partitionKey: z.string(),
-                  eventId: z.string(),
-                  userId: z.string(),
-                  isPaidMember: z.boolean(),
-                  createdAt: z.string(),
-                }),
+                schema: z.null(),
               },
             },
           },
-          409: {
-            description: "User has already RSVP'd for this event.",
-            content: {
-              "application/json": {
-                schema: z.object({
-                  message: z.string(),
-                }),
-              },
-            },
-          },
+          409: resourceConflictError,
         },
       }),
     },
@@ -99,7 +93,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         eventId: request.params.eventId,
         userId: upn,
         isPaidMember,
-        createdAt: "",
+        createdAt: Date.now(),
       };
       const transactionCommand = new TransactWriteItemsCommand({
         TransactItems: [
@@ -129,16 +123,17 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       try {
         await fastify.dynamoClient.send(transactionCommand);
-        return reply.status(201).send(entry);
+        return reply.status(201).send(null);
       } catch (err: any) {
         if (err.name === "TransactionCanceledException") {
           if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
-            return reply.status(409).send({
-              message: "You have already RSVP'd for this event.",
+            throw new ResourceConflictError({
+              message:
+                "This user has already submitted an RSVP for this event.",
             });
           }
           if (err.CancellationReasons[1].Code === "ConditionalCheckFailed") {
-            return reply.status(409).send({
+            throw new ResourceConflictError({
               message: "The event is at capacity.",
             });
           }
@@ -154,14 +149,14 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/:orgId/event/:eventId",
     {
       schema: withRoles(
-        [AppRoles.VIEW_RSVPS],
+        [AppRoles.RSVP_VIEWER],
         withTags(["RSVP"], {
           summary: "Get all RSVPs for an event.",
           params: z.object({
             eventId: z.string().min(1).meta({
               description: "The previously-created event ID in the events API.",
             }),
-            orgId: z.string().min(1).meta({
+            orgId: acmCoreOrganization.meta({
               description: "The organization ID the event belongs to.",
             }),
           }),
@@ -172,11 +167,10 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 "application/json": {
                   schema: z.array(
                     z.object({
-                      partitionKey: z.string(),
                       eventId: z.string(),
                       userId: z.string(),
                       isPaidMember: z.boolean(),
-                      createdAt: z.string(),
+                      createdAt: z.number().int(),
                     }),
                   ),
                 },
@@ -213,23 +207,18 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/:orgId/event/:eventId/config",
     {
       schema: withRoles(
-        [AppRoles.RSVPS_MANAGER, AppRoles.EVENTS_MANAGER],
+        [AppRoles.RSVP_MANAGER, AppRoles.EVENTS_MANAGER],
         withTags(["RSVP"], {
           summary: "Configure RSVP settings for an event.",
           params: z.object({
             eventId: z.string().min(1).meta({
               description: "The event ID to configure.",
             }),
-            orgId: z.string().min(1).meta({
+            orgId: acmCoreOrganization.meta({
               description: "The organization ID the event belongs to.",
             }),
           }),
-          body: z.object({
-            rsvpLimit: z.number().int().min(1).nullable().meta({
-              description:
-                "The maximum number of attendees allowed. Set to null for unlimited.",
-            }),
-          }),
+          body: rsvpConfigSchema,
           response: {
             200: {
               description: "Configuration updated successfully.",
@@ -237,18 +226,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 "application/json": {
                   schema: z.object({
                     rsvpLimit: z.number().int().nullable(),
-                  }),
-                },
-              },
-            },
-            404: {
-              description: "Event not found.",
-              content: {
-                "application/json": {
-                  schema: z.object({
-                    statusCode: z.number(),
-                    error: z.string(),
-                    message: z.string(),
                   }),
                 },
               },
@@ -283,10 +260,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         return reply.status(200).send({ rsvpLimit });
       } catch (err: any) {
         if (err.name === "ConditionalCheckFailedException") {
-          return reply.status(404).send({
-            statusCode: 404,
-            error: "Not Found",
-            message: "The specified event does not exist.",
+          throw new NotFoundError({
+            endpointName: request.url,
           });
         }
 
@@ -301,7 +276,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/:orgId/event/:eventId/:userId",
     {
       schema: withRoles(
-        [AppRoles.RSVPS_MANAGER],
+        [AppRoles.RSVP_MANAGER],
         withTags(["RSVP"], {
           summary: "Delete an RSVP for an event.",
           params: z.object({
@@ -311,7 +286,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             userId: z.string().min(1).meta({
               description: "The user ID of the RSVP to delete.",
             }),
-            orgId: z.string().min(1).meta({
+            orgId: acmCoreOrganization.meta({
               description: "The organization ID the event belongs to.",
             }),
           }),
@@ -321,17 +296,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               content: {
                 "application/json": {
                   schema: z.null(),
-                },
-              },
-            },
-            404: {
-              description: "RSVP not found.",
-              content: {
-                "application/json": {
-                  schema: z.object({
-                    error: z.string(),
-                    message: z.string(),
-                  }),
                 },
               },
             },
@@ -373,9 +337,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       } catch (err: any) {
         if (err.name === "TransactionCanceledException") {
           if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
-            return reply.status(404).send({
-              error: "Not Found",
-              message: "This user does not have an active RSVP for this event.",
+            throw new NotFoundError({
+              endpointName: request.url,
             });
           }
         }
@@ -396,7 +359,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           eventId: z.string().min(1).meta({
             description: "The event ID to withdraw from.",
           }),
-          orgId: z.string().min(1).meta({
+          orgId: acmCoreOrganization.meta({
             description: "The organization ID the event belongs to.",
           }),
         }),

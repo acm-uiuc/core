@@ -197,6 +197,17 @@ export class DatabaseDeleteError extends BaseError<"DatabaseDeleteError"> {
   }
 }
 
+export class ResourceConflictError extends BaseError<"ResourceConflictError"> {
+  constructor({ message }: { message?: string }) {
+    super({
+      name: "ResourceConflictError",
+      id: 112,
+      message: message || "Resource conflict occurred.",
+      httpStatusCode: 409,
+    });
+  }
+}
+
 export class EntraGroupError extends BaseError<"EntraGroupError"> {
   group: string;
   constructor({

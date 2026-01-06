@@ -13,8 +13,7 @@ import { secretObject } from "./secret.testdata.js";
 import { Redis } from "../../src/api/types.js";
 import { FastifyBaseLogger } from "fastify";
 
-const DUMMY_JWT =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+const DUMMY_JWT = createJwt();
 
 vi.mock("../../src/api/functions/uin.js", async () => {
   const actual = await vi.importActual("../../src/api/functions/uin.js");
@@ -86,7 +85,7 @@ describe("RSVP API tests", () => {
     const testJwt = createJwt();
     const mockUpn = "jd3@illinois.edu";
     const eventId = "Make Your Own Database";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
 
     const response = await app.inject({
       method: "POST",
@@ -98,12 +97,6 @@ describe("RSVP API tests", () => {
     });
 
     expect(response.statusCode).toBe(201);
-
-    const body = JSON.parse(response.body);
-    expect(body.userId).toBe(mockUpn);
-    expect(body.eventId).toBe(eventId);
-    expect(body.isPaidMember).toBe(true);
-    expect(body.partitionKey).toBe(`${eventId}#${mockUpn}`);
 
     expect(ddbMock.calls()).toHaveLength(1);
     const transactInput = ddbMock.call(0).args[0].input as any;
@@ -124,7 +117,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
 
     const response = await app.inject({
       method: "POST",
@@ -137,7 +130,9 @@ describe("RSVP API tests", () => {
 
     expect(response.statusCode).toBe(409);
     const body = JSON.parse(response.body);
-    expect(body.message).toBe("You have already RSVP'd for this event.");
+    expect(body.message).toBe(
+      "This user has already submitted an RSVP for this event.",
+    );
   });
 
   test("Test posting RSVP when Event is Full (Limit Reached)", async () => {
@@ -152,7 +147,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Popular Event";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
 
     const response = await app.inject({
       method: "POST",
@@ -180,7 +175,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Popular Event";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
 
     const response = await app.inject({
       method: "POST",
@@ -193,26 +188,28 @@ describe("RSVP API tests", () => {
 
     expect(response.statusCode).toBe(409);
     const body = JSON.parse(response.body);
-    expect(body.message).toBe("You have already RSVP'd for this event.");
+    expect(body.message).toBe(
+      "This user has already submitted an RSVP for this event.",
+    );
   });
 
   test("Test getting RSVPs for an event (Mocking Query Response)", async () => {
     const eventId = "Make Your Own Database";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
     const mockRsvps = [
       {
         partitionKey: `${eventId}#user1@illinois.edu`,
         eventId,
         userId: "user1@illinois.edu",
         isPaidMember: true,
-        createdAt: "2023-01-01",
+        createdAt: Date.now(),
       },
       {
         partitionKey: `${eventId}#user2@illinois.edu`,
         eventId,
         userId: "user2@illinois.edu",
         isPaidMember: false,
-        createdAt: "2023-01-02",
+        createdAt: Date.now(),
       },
     ];
 
@@ -242,7 +239,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
 
     const response = await app.inject({
       method: "DELETE",
@@ -269,7 +266,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
 
     const response = await app.inject({
       method: "DELETE",
@@ -296,7 +293,7 @@ describe("RSVP API tests", () => {
 
     const testJwt = createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
 
     const response = await app.inject({
       method: "DELETE",
@@ -315,7 +312,7 @@ describe("RSVP API tests", () => {
 
     const adminJwt = await createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
     const targetUserId = "user1@illinois.edu";
 
     const response = await app.inject({
@@ -342,7 +339,7 @@ describe("RSVP API tests", () => {
 
     const adminJwt = await createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
     const targetUserId = "ghost@illinois.edu";
 
     const response = await app.inject({
@@ -354,8 +351,6 @@ describe("RSVP API tests", () => {
     });
 
     expect(response.statusCode).toBe(404);
-    const body = JSON.parse(response.body);
-    expect(body.error).toBe("Not Found");
   });
 
   test("Test Manager deleting RSVP when rsvpCount is already 0 (Safety Check)", async () => {
@@ -370,7 +365,7 @@ describe("RSVP API tests", () => {
 
     const adminJwt = await createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
     const targetUserId = "user1@illinois.edu";
 
     const response = await app.inject({
@@ -388,7 +383,7 @@ describe("RSVP API tests", () => {
 
     const adminJwt = await createJwt();
     const eventId = "Make Your Own Database";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
     const newLimit = 50;
 
     const response = await app.inject({
@@ -415,7 +410,7 @@ describe("RSVP API tests", () => {
 
     const adminJwt = await createJwt();
     const eventId = "FakeEventID";
-    const orgId = "SIGDatabase";
+    const orgId = "Infrastructure Committee";
 
     const response = await app.inject({
       method: "POST",
