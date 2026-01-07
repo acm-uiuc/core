@@ -54,6 +54,12 @@ export const getApiKeyParts = (apiKey: string): DecomposedApiKey => {
       message: "Invalid API key.",
     });
   }
+  const expectedChecksum = createChecksum(rawKey);
+  if (checksum !== expectedChecksum) {
+    throw new UnauthenticatedError({
+      message: "Invalid API key.",
+    });
+  }
   return {
     prefix,
     id,
@@ -66,16 +72,11 @@ export const verifyApiKey = async ({
   apiKey,
   hashedKey,
 }: {
-  apiKey: string;
+  apiKey: DecomposedApiKey;
   hashedKey: string;
 }) => {
   try {
-    const { rawKey, checksum: submittedChecksum } = getApiKeyParts(apiKey);
-    const isChecksumValid = createChecksum(rawKey) === submittedChecksum;
-    if (!isChecksumValid) {
-      return false;
-    }
-    return await verify(hashedKey, rawKey);
+    return await verify(hashedKey, apiKey.rawKey);
   } catch (e) {
     if (e instanceof UnauthenticatedError) {
       return false;
