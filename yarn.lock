@@ -1706,7 +1706,7 @@
     fastify-plugin "^5.0.0"
     reusify "^1.0.4"
 
-"@fastify/aws-lambda@^6.0.0":
+"@fastify/aws-lambda@^6.3.0":
   version "6.3.0"
   resolved "https://registry.yarnpkg.com/@fastify/aws-lambda/-/aws-lambda-6.3.0.tgz#084541413fc312c4d9ded1624252d3e356a38003"
   integrity sha512-56GnThI4qoxL1Z9AieaCtMjYucYNsEghZgXVVT7fcYs2i2fnb2Jmi5obNj0LnarH24C+lB0Wca4v5nPIO2KHZw==
