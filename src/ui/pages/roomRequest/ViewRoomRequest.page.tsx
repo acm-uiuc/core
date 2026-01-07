@@ -40,7 +40,6 @@ import {
 } from "@common/types/roomRequest";
 import { useParams } from "react-router-dom";
 import { getStatusColor, getStatusIcon } from "./roomRequestUtils";
-import moment from "moment-timezone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
@@ -50,6 +49,8 @@ import {
   uploadToS3PresignedUrl,
 } from "@ui/util/s3";
 import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
+import { DEFAULT_TIMEZONE } from "@common/constants";
+import { formatWithOrdinal, fromNow } from "@common/time";
 
 export const ViewRoomRequest: React.FC = () => {
   const { semesterId, requestId } = useParams();
@@ -494,14 +495,12 @@ export const ViewRoomRequest: React.FC = () => {
                     )}
                     {x.createdAt && (
                       <Tooltip
-                        label={moment
-                          .tz(x.createdAt, "America/Chicago")
-                          .format("MMMM Do YYYY, h:mm:ss a")}
+                        label={formatWithOrdinal(x.createdAt, DEFAULT_TIMEZONE)}
                         position="top"
                         withArrow
                       >
                         <Text c="dimmed" size="xs" mt="xs">
-                          {moment.tz(x.createdAt, "America/Chicago").fromNow()}
+                          {fromNow(x.createdAt, DEFAULT_TIMEZONE)}
                         </Text>
                       </Tooltip>
                     )}

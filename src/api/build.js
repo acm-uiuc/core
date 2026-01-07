@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
 import esbuild from "esbuild";
-import { resolve } from "path";
 import { copy } from "esbuild-plugin-copy";
 import { packagesToTransfer } from "./createLambdaPackage.js";
 
@@ -18,12 +17,6 @@ const commonParams = {
   sourcemap: true,
   platform: "node",
   external: [...packagesToTransfer],
-  alias: {
-    "moment-timezone": resolve(
-      process.cwd(),
-      "../../node_modules/moment-timezone/builds/moment-timezone-with-data-10-year-range.js",
-    ),
-  },
   banner: {
     js: `
       import path from 'path';

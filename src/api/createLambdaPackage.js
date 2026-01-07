@@ -11,7 +11,6 @@ function getPath() {
 // These are packages not bundled into the JS file by esbuild
 // These packages have native deps that break when bundled
 export const packagesToTransfer = [
-  "moment-timezone",
   "passkit-generator",
   "ioredis",
   "fastify-zod-openapi",

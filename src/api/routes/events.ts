@@ -27,7 +27,6 @@ import {
   ValidationError,
 } from "../../common/errors/index.js";
 import { randomUUID } from "crypto";
-import moment from "moment-timezone";
 import { IUpdateDiscord, updateDiscord } from "../functions/discord.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
@@ -51,16 +50,19 @@ import {
 } from "api/components/index.js";
 import { metadataSchema } from "common/types/events.js";
 import { evaluateAllRequestPolicies } from "api/plugins/evaluatePolicies.js";
-import { EVENTS_EXPIRY_AFTER_LAST_OCCURRENCE_DAYS } from "common/constants.js";
+import {
+  DEFAULT_TIMEZONE,
+  EVENTS_EXPIRY_AFTER_LAST_OCCURRENCE_DAYS,
+} from "common/constants.js";
 import { assertAuthenticated } from "api/authenticated.js";
+import { parseInTimezone } from "common/time.js";
 
 const createProjectionParams = (includeMetadata: boolean = false) => {
-  // Object mapping attribute names to their expression aliases
   const attributeMapping = {
     title: "#title",
     description: "#description",
-    start: "#startTime", // Reserved keyword
-    end: "#endTime", // Potential reserved keyword
+    start: "#startTime",
+    end: "#endTime",
     location: "#location",
     locationLink: "#locationLink",
     host: "#host",
@@ -73,7 +75,6 @@ const createProjectionParams = (includeMetadata: boolean = false) => {
     ...(includeMetadata ? { metadata: "#metadata" } : {}),
   };
 
-  // Create expression attribute names object for DynamoDB
   const expressionAttributeNames = Object.entries(attributeMapping).reduce(
     (acc, [attrName, exprName]) => {
       acc[exprName] = attrName;
@@ -82,14 +83,12 @@ const createProjectionParams = (includeMetadata: boolean = false) => {
     {} as { [key: string]: string },
   );
 
-  // Create projection expression from the values of attributeMapping
   const projectionExpression = Object.values(attributeMapping).join(",");
 
   return {
     attributeMapping,
     expressionAttributeNames,
     projectionExpression,
-    // Return function to destructure results if needed
     getAttributes: <T>(item: any): T => item as T,
   };
 };
@@ -117,6 +116,30 @@ const determineExpiresAt = (event: {
     Math.round(ends.getTime() / 1000) +
     86400 * EVENTS_EXPIRY_AFTER_LAST_OCCURRENCE_DAYS;
   return Math.max(seconds, nowExpiry);
+};
+
+/**
+ * Checks if an event is upcoming based on its end time or repeat end time.
+ */
+const isUpcomingEvent = (
+  item: { repeats?: string; repeatEnds?: string; end?: string; start: string },
+  thresholdMs: number,
+): boolean => {
+  if (item.repeats && !item.repeatEnds) {
+    return true;
+  }
+
+  const now = Date.now();
+  const endDateString = item.repeats ? item.repeatEnds : item.end || item.start;
+
+  if (!endDateString) {
+    return false;
+  }
+
+  const endDate = parseInTimezone(endDateString, DEFAULT_TIMEZONE);
+  const diffTime = now - endDate.getTime();
+
+  return diffTime <= thresholdMs;
 };
 
 const repeatOptions = ["weekly", "biweekly"] as const;
@@ -232,9 +255,8 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         const featuredOnly = request.query?.featuredOnly || false;
         const includeMetadata = request.query.includeMetadata || false;
         const host = request.query?.host;
-        const ts = request.query?.ts; // we only use this to disable cache control
+        const ts = request.query?.ts;
         if (ts) {
-          // cache bypass requires auth
           try {
             await fastify.authorize(request, reply, [], false);
           } catch {
@@ -296,29 +318,13 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
 
           const response = await fastify.dynamoClient.send(command);
           const items = response.Items?.map((item) => unmarshall(item));
-          const currentTimeChicago = moment().tz("America/Chicago");
           let parsedItems = getEventsSchema.parse(items);
           if (upcomingOnly) {
             parsedItems = parsedItems.filter((item) => {
               try {
-                if (item.repeats && !item.repeatEnds) {
-                  return true;
-                }
-                if (!item.repeats) {
-                  const end = item.end || item.start;
-                  const momentEnds = moment.tz(end, "America/Chicago");
-                  const diffTime = currentTimeChicago.diff(momentEnds);
-                  return Boolean(
-                    diffTime <= genericConfig.UpcomingEventThresholdSeconds,
-                  );
-                }
-                const momentRepeatEnds = moment.tz(
-                  item.repeatEnds,
-                  "America/Chicago",
-                );
-                const diffTime = currentTimeChicago.diff(momentRepeatEnds);
-                return Boolean(
-                  diffTime <= genericConfig.UpcomingEventThresholdSeconds,
+                return isUpcomingEvent(
+                  item,
+                  genericConfig.UpcomingEventThresholdSeconds * 1000,
                 );
               } catch (e: unknown) {
                 request.log.warn(
@@ -576,7 +582,6 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             }
           }
         } catch (e: unknown) {
-          // restore original DB status if Discord fails.
           await fastify.dynamoClient.send(
             new DeleteItemCommand({
               TableName: genericConfig.EventsDynamoTableName,
@@ -785,7 +790,6 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       const id = request.params.id;
       const ts = request.query?.ts;
       if (ts) {
-        // cache bypass requires auth
         try {
           await fastify.authorize(request, reply, [], false);
         } catch {
@@ -797,7 +801,6 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       const includeMetadata = request.query?.includeMetadata || false;
 
       try {
-        // Check If-None-Match header
         const ifNoneMatch = request.headers["if-none-match"];
         if (ifNoneMatch) {
           const etag = await getCacheCounter(
@@ -836,7 +839,6 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           reply.header("Cache-Control", CLIENT_HTTP_CACHE_POLICY);
         }
 
-        // Only get the etag now if we didn't already get it above
         if (!ifNoneMatch) {
           const etag = await getCacheCounter(
             fastify.dynamoClient,

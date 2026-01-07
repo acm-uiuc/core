@@ -12,7 +12,6 @@ import ical, {
   ICalEventJSONRepeatingData,
   ICalEventRepeatingFreq,
 } from "ical-generator";
-import moment from "moment";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
 import { AllOrganizationNameList, OrganizationName } from "@acm-uiuc/js-shared";
 import { CLIENT_HTTP_CACHE_POLICY, EventRepeatOptions } from "./events.js";
@@ -24,6 +23,8 @@ import {
 } from "fastify-zod-openapi";
 import { acmCoreOrganization, withTags } from "api/components/index.js";
 import * as z from "zod/v4";
+import { applyTimeFromReference, parseInTimezone } from "common/time.js";
+import { DEFAULT_TIMEZONE } from "common/constants.js";
 
 const repeatingIcalMap: Record<EventRepeatOptions, ICalEventJSONRepeatingData> =
   {
@@ -133,44 +134,37 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
       }
       const calendar = ical({ name: calendarName });
       calendar.timezone({
-        name: "America/Chicago",
+        name: DEFAULT_TIMEZONE,
         generator: getVtimezoneComponent,
       });
       calendar.method(ICalCalendarMethod.PUBLISH);
       for (const rawEvent of dynamoItems) {
+        const startDate = parseInTimezone(rawEvent.start, DEFAULT_TIMEZONE);
+        const endDate = rawEvent.end
+          ? parseInTimezone(rawEvent.end, DEFAULT_TIMEZONE)
+          : parseInTimezone(rawEvent.start, DEFAULT_TIMEZONE);
+
         let event = calendar.createEvent({
-          start: moment.tz(rawEvent.start, "America/Chicago"),
-          end: rawEvent.end
-            ? moment.tz(rawEvent.end, "America/Chicago")
-            : moment.tz(rawEvent.start, "America/Chicago"),
+          start: startDate,
+          end: endDate,
           summary: rawEvent.title,
           description: rawEvent.locationLink
-            ? `Host: ${rawEvent.host}\nGoogle Maps Link: ${rawEvent.locationLink}\n\n${
-                rawEvent.description
-              }`
+            ? `Host: ${rawEvent.host}\nGoogle Maps Link: ${rawEvent.locationLink}\n\n${rawEvent.description}`
             : `Host: ${rawEvent.host}\n\n${rawEvent.description}`,
-          timezone: "America/Chicago",
+          timezone: DEFAULT_TIMEZONE,
           organizer: generateHostName(host || "ACM"),
           id: rawEvent.id,
         });
 
         if (rawEvent.repeats) {
-          const startTime = moment.tz(rawEvent.start, "America/Chicago");
-          const hours = startTime.hours();
-          const minutes = startTime.minutes();
-          const seconds = startTime.seconds();
-          const milliseconds = startTime.milliseconds();
           const exclusions = ((rawEvent.repeatExcludes as string[]) || []).map(
-            (x) =>
-              moment
-                .tz(x, "America/Chicago")
-                .set({ hours, minutes, seconds, milliseconds }),
+            (x) => applyTimeFromReference(x, rawEvent.start, DEFAULT_TIMEZONE),
           );
 
           if (rawEvent.repeatEnds) {
             event = event.repeating({
               ...repeatingIcalMap[rawEvent.repeats as EventRepeatOptions],
-              until: moment.tz(rawEvent.repeatEnds, "America/Chicago"),
+              until: parseInTimezone(rawEvent.repeatEnds, DEFAULT_TIMEZONE),
               ...(exclusions.length > 0 && { exclude: exclusions }),
             });
           } else {

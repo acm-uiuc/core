@@ -4,4 +4,5 @@ export const ROOM_RESERVATION_RETENTION_DAYS = 1460;
 export const FULFILLED_PURCHASES_RETENTION_DAYS = 1460; // ticketing/merch: after the purchase is marked as fulfilled.
 export const EVENTS_EXPIRY_AFTER_LAST_OCCURRENCE_DAYS = 1460; // hold events for 4 years after last occurrence
 export const UPLOAD_GRACE_PERIOD_MS = 30 * 60 * 1000; // 30 minutes
+export const DEFAULT_TIMEZONE = "America/Chicago";
 // we keep data longer for historical analytics purposes in S3 as needed
