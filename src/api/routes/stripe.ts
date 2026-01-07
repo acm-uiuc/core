@@ -117,10 +117,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
-      if (!request.username) {
-        throw new UnauthenticatedError({ message: "No username found" });
-      }
+    assertAuthenticated(async (request, reply) => {
       const secretApiConfig = fastify.secretConfig;
       const payload: StripeLinkCreateParams = {
         ...request.body,
@@ -181,7 +178,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       reply.status(201).send({ id: linkId, link: url });
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/paymentLinks/:linkId",
@@ -200,10 +197,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
-      if (!request.username) {
-        throw new UnauthenticatedError({ message: "No username found" });
-      }
+    assertAuthenticated(async (request, reply) => {
       const { linkId } = request.params;
       const response = await fastify.dynamoClient.send(
         new QueryCommand({
@@ -291,7 +285,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       });
       await fastify.dynamoClient.send(dynamoCommand);
       return reply.status(201).send();
-    },
+    }),
   );
   fastify.post(
     "/webhook",

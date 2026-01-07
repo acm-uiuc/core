@@ -34,6 +34,7 @@ import {
 } from "api/functions/tickets.js";
 import { illinoisUin } from "common/types/generic.js";
 import { getUserIdByUin } from "api/functions/uin.js";
+import { assertAuthenticated } from "api/authenticated.js";
 
 const postMerchSchema = z.object({
   type: z.literal("merch"),
@@ -402,14 +403,9 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       let command: UpdateItemCommand;
       let ticketId: string;
-      if (!request.username) {
-        throw new UnauthenticatedError({
-          message: "Could not find username.",
-        });
-      }
       const expiresAt =
         Math.floor(Date.now() / 1000) +
         86400 * FULFILLED_PURCHASES_RETENTION_DAYS;
@@ -536,7 +532,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         ticketId,
         purchaserData,
       });
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/getPurchasesByUser",

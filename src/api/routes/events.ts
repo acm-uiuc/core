@@ -52,6 +52,7 @@ import {
 import { metadataSchema } from "common/types/events.js";
 import { evaluateAllRequestPolicies } from "api/plugins/evaluatePolicies.js";
 import { EVENTS_EXPIRY_AFTER_LAST_OCCURRENCE_DAYS } from "common/constants.js";
+import { assertAuthenticated } from "api/authenticated.js";
 
 const createProjectionParams = (includeMetadata: boolean = false) => {
   // Object mapping attribute names to their expression aliases
@@ -371,11 +372,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       ) satisfies FastifyZodOpenApiSchema,
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
-      if (!request.username) {
-        throw new UnauthenticatedError({ message: "Username not found." });
-      }
-
+    assertAuthenticated(async (request, reply) => {
       try {
         const entryUUID = request.params.id;
         const updatedItem = {
@@ -506,7 +503,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           message: "Failed to update event in Dynamo table.",
         });
       }
-    },
+    }),
   );
 
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
@@ -532,10 +529,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       ) satisfies FastifyZodOpenApiSchema,
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
-      if (!request.username) {
-        throw new UnauthenticatedError({ message: "Username not found." });
-      }
+    assertAuthenticated(async (request, reply) => {
       try {
         const expiresAt = determineExpiresAt(request.body);
         const entryUUID = randomUUID();
@@ -643,7 +637,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           message: "Failed to insert event to Dynamo table.",
         });
       }
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/:id",
@@ -707,11 +701,8 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         }
       },
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const id = request.params.id;
-      if (!request.username) {
-        throw new UnauthenticatedError({ message: "Username not found." });
-      }
       try {
         const result = await fastify.dynamoClient.send(
           new DeleteItemCommand({
@@ -760,7 +751,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         1,
         false,
       );
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:id",
