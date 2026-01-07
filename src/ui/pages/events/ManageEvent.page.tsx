@@ -17,7 +17,6 @@ import {
   SimpleGrid,
   List,
 } from "@mantine/core";
-import moment from "moment-timezone";
 import { DateFormatter, DatePickerInput, DateTimePicker } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
@@ -49,6 +48,8 @@ import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { useAuth } from "@ui/components/AuthContext";
 import { getPrimarySuggestedOrg } from "@ui/util";
 import { EVENT_TEMPLATES } from "./templates";
+import { parseInTimezone } from "@common/time";
+import { DEFAULT_TIMEZONE } from "@common/constants";
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -73,7 +74,6 @@ const valueFormatter: DateFormatter = ({ type, date, locale, format }) => {
 };
 
 const repeatOptions = ["weekly", "biweekly"] as const;
-
 const FORBIDDEN_PATTERNS = [/{{.+}}/];
 
 const containsForbiddenPattern = (text: string): boolean => {
@@ -327,7 +327,7 @@ const EventFormComponent: React.FC<EventFormProps> = ({
       </Alert>
 
       {Intl.DateTimeFormat().resolvedOptions().timeZone !==
-        "America/Chicago" && (
+        DEFAULT_TIMEZONE && (
         <Alert
           variant="light"
           color="red"
@@ -572,7 +572,7 @@ export const ManageEventPage: React.FC = () => {
           repeatExcludes:
             eventData.repeatExcludes && eventData.repeatExcludes.length > 0
               ? eventData.repeatExcludes.map((dateString: string) =>
-                  moment.tz(dateString, "America/Chicago").toDate(),
+                  parseInTimezone(dateString, DEFAULT_TIMEZONE),
                 )
               : undefined,
           metadata: eventData.metadata || {},

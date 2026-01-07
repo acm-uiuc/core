@@ -2,16 +2,17 @@ import {
   Client,
   GatewayIntentBits,
   Events,
-  type GuildScheduledEventCreateOptions, // Use this for the payload type
+  type GuildScheduledEventCreateOptions,
   GuildScheduledEventEntityType,
   GuildScheduledEventPrivacyLevel,
   DiscordAPIError,
 } from "discord.js";
 import { type EventPostRequest } from "../routes/events.js";
-import moment from "moment-timezone";
 
 import { type FastifyBaseLogger } from "fastify";
 import { DiscordEventError } from "../../common/errors/index.js";
+import { formatDateInTimezone, parseInTimezone } from "common/time.js";
+import { DEFAULT_TIMEZONE } from "common/constants.js";
 
 export type IUpdateDiscord = EventPostRequest & {
   id: string;
@@ -20,12 +21,6 @@ export type IUpdateDiscord = EventPostRequest & {
 
 /**
  * Creates, updates, or deletes a Discord scheduled event directly using its ID.
- * @param config - Bot configuration containing the token and guild ID.
- * @param event - The event data, including an optional discordEventId for updates/deletions.
- * @param actor - The user performing the action, for logging purposes.
- * @param isDelete - A flag to indicate if the event should be deleted.
- * @param logger - The logger instance.
- * @returns The Discord event ID if created/updated, or null if deleted or the operation is skipped.
  */
 export const updateDiscord = async (
   config: { botToken: string; guildId: string },
@@ -65,9 +60,7 @@ export const updateDiscord = async (
           }
 
           const { id, title, description, start, end, location, host } = event;
-          const dateStart = moment
-            .tz(start, "America/Chicago")
-            .format("YYYY-MM-DD");
+          const dateStart = formatDateInTimezone(start, DEFAULT_TIMEZONE);
           const calendarURL = `https://www.acm.illinois.edu/calendar?id=${id}&date=${dateStart}`;
           const fullDescription = `${description}\n\nView on ACM Calendar: ${calendarURL}`;
           const fullTitle =
@@ -78,12 +71,9 @@ export const updateDiscord = async (
           const payload: GuildScheduledEventCreateOptions = {
             name: fullTitle,
             description: fullDescription,
-            scheduledStartTime: moment
-              .tz(start, "America/Chicago")
-              .utc()
-              .toDate(),
+            scheduledStartTime: parseInTimezone(start, DEFAULT_TIMEZONE),
             scheduledEndTime: end
-              ? moment.tz(end, "America/Chicago").utc().toDate()
+              ? parseInTimezone(end, DEFAULT_TIMEZONE)
               : undefined,
             entityType: GuildScheduledEventEntityType.External,
             privacyLevel: GuildScheduledEventPrivacyLevel.GuildOnly,

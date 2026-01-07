@@ -36,8 +36,6 @@ export default defineConfig({
         manualChunks(id) {
           const HugeLibraries = [
             "@mantine",
-            "moment-timezone",
-            "moment",
             "@azure",
             "@tabler",
             "axios",

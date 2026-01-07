@@ -35,8 +35,8 @@
     "@middy/core": "^7.0.0",
     "@middy/event-normalizer": "^7.0.0",
     "@middy/sqs-partial-batch-failure": "^7.0.0",
-    "@touch4it/ical-timezones": "^1.9.0",
     "@node-rs/argon2": "^2.0.2",
+    "@touch4it/ical-timezones": "^1.9.0",
     "aws-crt": "^1.27.3",
     "base64-arraybuffer": "^1.0.2",
     "discord.js": "^14.24.2",
@@ -50,8 +50,6 @@
     "ioredis": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
-    "moment": "^2.30.1",
-    "moment-timezone": "^0.6.0",
     "octokit": "^5.0.5",
     "passkit-generator": "^3.5.5",
     "pino": "^10.1.0",
@@ -60,20 +58,20 @@
     "redlock-universal": "^0.8.1",
     "sanitize-html": "^2.17.0",
     "stripe": "^20.1.0",
+    "temporal-polyfill": "~0.3.0",
     "uuid": "^13.0.0",
     "zod": "^4.3.5",
     "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.33.0",
     "@types/aws-lambda": "^8.10.152",
     "@types/ioredis-mock": "^8.2.5",
     "@types/qrcode": "^1.5.5",
     "@types/sanitize-html": "^2.16.0",
-    "esbuild-copy-static-files": "^0.1.0",
     "ioredis-mock": "^8.9.0",
     "nodemon": "^3.1.10",
     "pino-pretty": "^13.1.1",
-    "yaml": "^2.8.1",
-    "@eslint/js": "^9.33.0"
+    "yaml": "^2.8.1"
   }
 }
