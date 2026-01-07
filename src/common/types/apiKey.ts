@@ -20,7 +20,6 @@ export type DecomposedApiKey = {
   id: string;
   rawKey: string;
   checksum: string;
-  wholeKeyHash: string;
 };
 
 const policySchemas = Object.entries(AuthorizationPoliciesRegistry).map(

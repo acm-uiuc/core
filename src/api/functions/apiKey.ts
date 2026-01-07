@@ -61,15 +61,12 @@ export const getApiKeyParts = (apiKey: string): DecomposedApiKey => {
       message: "Invalid API key.",
     });
   }
-  const wholeKeyHash = createHash("sha256")
-    .update(`${apiKey}${checksum}`)
-    .digest("hex");
+
   return {
     prefix,
     id,
     rawKey,
     checksum,
-    wholeKeyHash,
   };
 };
 
@@ -82,7 +79,10 @@ export const verifyApiKey = async ({
   hashedKey: string;
   redisClient: Redis;
 }) => {
-  const cacheKey = `${AUTH_CACHE_PREFIX}:apiKey:${apiKey.wholeKeyHash}:isArgonValid`;
+  const hash = createHash("sha256")
+    .update(`${hashedKey}$${apiKey.checksum}`)
+    .digest("hex");
+  const cacheKey = `${AUTH_CACHE_PREFIX}:apiKey:${hash}:isArgonValid`;
   if (await redisClient.exists(cacheKey)) {
     return true;
   }
