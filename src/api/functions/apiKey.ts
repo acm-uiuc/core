@@ -104,7 +104,7 @@ export const getApiKeyData = async ({
   });
   const result = await dynamoClient.send(getCommand);
   if (!result || !result.Item) {
-    redisClient.del(cacheKey);
+    await redisClient.del(cacheKey);
     return undefined;
   }
   const unmarshalled = unmarshall(result.Item) as ApiKeyDynamoEntry;
@@ -128,6 +128,11 @@ export const getApiKeyData = async ({
     const currentEpoch = Date.now();
     cacheTime = min(cacheTime, unmarshalled.expiresAt - currentEpoch);
   }
-  redisClient.set(cacheKey, JSON.stringify(unmarshalled), "EX", cacheTime);
+  await redisClient.set(
+    cacheKey,
+    JSON.stringify(unmarshalled),
+    "EX",
+    cacheTime,
+  );
   return unmarshalled;
 };

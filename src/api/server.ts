@@ -261,11 +261,8 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
   ]);
 
   await app.register(fastifyAuthPlugin);
-
-  await Promise.all([
-    app.register(FastifyAuthProvider),
-    app.register(authorizeFromSchemaPlugin),
-  ]);
+  await app.register(FastifyAuthProvider);
+  await app.register(authorizeFromSchemaPlugin);
 
   await app.register(evaluatePoliciesPlugin);
   if (!runEnvironments.includes(process.env.RunEnvironment as RunEnvironment)) {
