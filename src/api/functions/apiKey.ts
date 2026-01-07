@@ -1,7 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import { hash, verify } from "argon2";
 import { UnauthenticatedError } from "common/errors/index.js";
-import NodeCache from "node-cache";
 import {
   DeleteItemCommand,
   DynamoDBClient,
@@ -11,6 +10,7 @@ import { genericConfig, GENERIC_CACHE_SECONDS } from "common/config.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { ApiKeyMaskedEntry, DecomposedApiKey } from "common/types/apiKey.js";
 import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
+import { Redis } from "api/types.js";
 
 export type ApiKeyDynamoEntry = ApiKeyMaskedEntry & {
   keyHash: string;
@@ -85,18 +85,18 @@ export const verifyApiKey = async ({
 };
 
 export const getApiKeyData = async ({
-  nodeCache,
+  redisClient,
   dynamoClient,
   id,
 }: {
-  nodeCache: NodeCache;
+  redisClient: Redis;
   dynamoClient: DynamoDBClient;
   id: string;
 }): Promise<ApiKeyDynamoEntry | undefined> => {
   const cacheKey = `auth_apikey_${id}`;
-  const cachedValue = nodeCache.get(`auth_apikey_${id}`);
-  if (cachedValue !== undefined) {
-    return cachedValue as ApiKeyDynamoEntry;
+  const cachedValue = await redisClient.get(cacheKey);
+  if (cachedValue) {
+    return JSON.parse(cachedValue) as ApiKeyDynamoEntry;
   }
   const getCommand = new GetItemCommand({
     TableName: genericConfig.ApiKeyTable,
@@ -104,7 +104,7 @@ export const getApiKeyData = async ({
   });
   const result = await dynamoClient.send(getCommand);
   if (!result || !result.Item) {
-    nodeCache.set(cacheKey, null, GENERIC_CACHE_SECONDS);
+    redisClient.del(cacheKey);
     return undefined;
   }
   const unmarshalled = unmarshall(result.Item) as ApiKeyDynamoEntry;
@@ -128,6 +128,6 @@ export const getApiKeyData = async ({
     const currentEpoch = Date.now();
     cacheTime = min(cacheTime, unmarshalled.expiresAt - currentEpoch);
   }
-  nodeCache.set(cacheKey, unmarshalled as ApiKeyDynamoEntry, cacheTime);
+  redisClient.set(cacheKey, JSON.stringify(unmarshalled), "EX", cacheTime);
   return unmarshalled;
 };

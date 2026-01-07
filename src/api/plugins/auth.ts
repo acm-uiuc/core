@@ -162,7 +162,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
         : apiKeyValueTemp[0];
     const { id: apikeyId } = getApiKeyParts(apiKeyValue);
     const keyData = await getApiKeyData({
-      nodeCache: fastify.nodeCache,
+      redisClient: fastify.redisClient,
       dynamoClient: fastify.dynamoClient,
       id: apikeyId,
     });

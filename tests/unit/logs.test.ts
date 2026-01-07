@@ -111,7 +111,6 @@ afterAll(async () => {
   await app.close();
 });
 beforeEach(() => {
-  (app as any).nodeCache.flushAll();
   (app as any).redisClient.flushall();
   (app as any).redisClient.flushdb();
   ddbMock.reset();

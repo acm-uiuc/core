@@ -60,7 +60,6 @@ const acmMeta = {
 
 describe("Organization info tests - Extended Coverage", () => {
   beforeEach(() => {
-    (app as any).nodeCache.flushAll();
     (app as any).redisClient.flushall();
     ddbMock.reset();
     sqsMock.reset();

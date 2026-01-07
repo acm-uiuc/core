@@ -3,7 +3,6 @@ import { FastifyRequest, FastifyInstance, FastifyReply } from "fastify";
 import { AppRoles, RunEnvironment } from "../common/roles.js";
 import { AadToken } from "./plugins/auth.js";
 import { ConfigType, SecretConfig, SecretTesting } from "../common/config.js";
-import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SQSClient } from "@aws-sdk/client-sqs";
@@ -40,7 +39,6 @@ declare module "fastify" {
     ) => Promise<void>;
     runEnvironment: RunEnvironment;
     environmentConfig: ConfigType;
-    nodeCache: NodeCache;
     dynamoClient: DynamoDBClient;
     sqsClient?: SQSClient;
     s3Client?: S3Client;

@@ -56,7 +56,6 @@ esbuild
     console.error("API server build failed:", error);
     process.exit(1);
   });
-
 esbuild
   .build({
     ...commonParams,

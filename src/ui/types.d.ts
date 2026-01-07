@@ -5,7 +5,6 @@ import {
   type FastifyReply,
 } from "fastify";
 import { type AppRoles, type RunEnvironment } from "@common/roles.js";
-import type NodeCache from "node-cache";
 import { type DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { type SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { type SQSClient } from "@aws-sdk/client-sqs";

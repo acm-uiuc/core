@@ -80,7 +80,6 @@ describe("Test Microsoft Entra ID user invitation", () => {
   });
 
   beforeEach(() => {
-    (app as any).nodeCache.flushAll();
     (app as any).redisClient.flushall();
     vi.clearAllMocks();
     vi.useFakeTimers();
