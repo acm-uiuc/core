@@ -27,8 +27,7 @@ import {
 } from "api/functions/apiKey.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
 import { Redis } from "api/types.js";
-
-export const AUTH_CACHE_PREFIX = `authCache:`;
+import { AUTH_CACHE_PREFIX } from "common/constants.js";
 
 export function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();
@@ -181,6 +180,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
     const isValid = await verifyApiKey({
       apiKey: apiKeyDecomp,
       hashedKey: keyData.keyHash,
+      redisClient: fastify.redisClient,
     });
     if (!isValid) {
       throw new UnauthenticatedError({

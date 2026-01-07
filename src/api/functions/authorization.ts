@@ -12,7 +12,6 @@ import {
   OrgRoleDefinition,
 } from "../../common/roles.js";
 import type Redis from "ioredis";
-import { AUTH_CACHE_PREFIX } from "api/plugins/auth.js";
 import {
   FastifyInstance,
   FastifyReply,
@@ -21,6 +20,7 @@ import {
 } from "fastify";
 import { getUserOrgRoles } from "./organizations.js";
 import { ValidLoggers } from "api/types.js";
+import { AUTH_CACHE_PREFIX } from "common/constants.js";
 
 export async function getUserRoles(
   dynamoClient: DynamoDBClient,
