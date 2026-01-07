@@ -27,7 +27,7 @@ const app = await init();
 
 test("ETag should increment after event creation", async () => {
   // Setup
-  (app as any).nodeCache.flushAll();
+
   (app as any).redisClient.flushall();
   ddbMock.reset();
   vi.useFakeTimers();
@@ -111,7 +111,7 @@ test("ETag should increment after event creation", async () => {
 
 test("Should return 304 Not Modified when If-None-Match header matches ETag", async () => {
   // Setup
-  (app as any).nodeCache.flushAll();
+
   (app as any).redisClient.flushall();
   ddbMock.reset();
   vi.useFakeTimers();
@@ -156,7 +156,7 @@ test("Should return 304 Not Modified when If-None-Match header matches ETag", as
 
 test("Should return 304 Not Modified when If-None-Match header matches quoted ETag", async () => {
   // Setup
-  (app as any).nodeCache.flushAll();
+
   (app as any).redisClient.flushall();
   ddbMock.reset();
   vi.useFakeTimers();
@@ -201,7 +201,7 @@ test("Should return 304 Not Modified when If-None-Match header matches quoted ET
 
 test("Should NOT return 304 when ETag has changed", async () => {
   // Setup
-  (app as any).nodeCache.flushAll();
+
   (app as any).redisClient.flushall();
   ddbMock.reset();
   vi.useFakeTimers();
@@ -276,7 +276,7 @@ test("Should NOT return 304 when ETag has changed", async () => {
 
 test("Should handle 304 responses for individual event endpoints", async () => {
   // Setup
-  (app as any).nodeCache.flushAll();
+
   (app as any).redisClient.flushall();
   ddbMock.reset();
   vi.useFakeTimers();
@@ -350,7 +350,6 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
-  (app as any).nodeCache.flushAll();
   (app as any).redisClient.flushall();
   ddbMock.reset();
   vi.useFakeTimers();

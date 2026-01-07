@@ -74,7 +74,6 @@ describe("Test Events <-> Discord integration", () => {
     vi.useRealTimers();
   });
   beforeEach(() => {
-    (app as any).nodeCache.flushAll();
     (app as any).redisClient.flushall();
     ddbMock.reset();
     vi.clearAllMocks();

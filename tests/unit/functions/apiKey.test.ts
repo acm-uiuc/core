@@ -1,12 +1,11 @@
-import * as argon2 from "argon2";
 import { expect, test, describe, vi } from "vitest";
-import { API_KEY_CACHE_SECONDS, createApiKey, getApiKeyData, getApiKeyParts, verifyApiKey } from "../../../src/api/functions/apiKey.js";
+import { createApiKey, getApiKeyData, getApiKeyParts, verifyApiKey } from "../../../src/api/functions/apiKey.js";
 import { mockClient } from "aws-sdk-client-mock";
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../../src/common/config.js";
 import { allAppRoles } from "../../../src/common/roles.js";
-import NodeCache from "node-cache";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import Redis from "ioredis-mock"
 
 
 
@@ -45,7 +44,7 @@ describe("API key tests", () => {
   });
   test("Retrieving API keys from DynamoDB works correctly and is cached", async () => {
     const { apiKey, hashedKey } = await createApiKey();
-    const { prefix, id, rawKey, checksum } = getApiKeyParts(apiKey);
+    const { id } = getApiKeyParts(apiKey);
     const keyData = {
       keyId: { S: id },
       keyHash: { S: hashedKey },
@@ -57,12 +56,11 @@ describe("API key tests", () => {
     }).resolves({
       Item: keyData
     })
-    const nodeCache = new NodeCache();
     const dynamoClient = new DynamoDBClient()
-    const now = Date.now() / 1000;
-    const result = await getApiKeyData({ nodeCache, dynamoClient, id });
+    const redisClient = new Redis.default();
+    const result = await getApiKeyData({ redisClient, dynamoClient, id });
+    const redisValue = await redisClient.get(`auth_apikey_${id}`)
     expect(result).toEqual(unmarshall(keyData));
-    expect(nodeCache.get(`auth_apikey_${id}`)).toEqual(unmarshall(keyData));
-    expect(nodeCache.getTtl(`auth_apikey_${id}`)).toBeGreaterThan(now);
+    expect(redisValue).toEqual(JSON.stringify(unmarshall(keyData)));
   })
 });

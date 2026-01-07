@@ -62,7 +62,6 @@ describe("Mobile wallet pass issuance", async () => {
     await app.close();
   });
   beforeEach(() => {
-    (app as any).nodeCache.flushAll();
     (app as any).redisClient.flushall();
     vi.clearAllMocks();
   });

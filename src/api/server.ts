@@ -11,7 +11,6 @@ import {
   genericConfig,
   SecretConfig,
 } from "../common/config.js";
-import NodeCache from "node-cache";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import {
@@ -28,7 +27,6 @@ import { withTags } from "./components/index.js";
 import fastifyIp from "fastify-ip";
 import cors from "@fastify/cors";
 import FastifyAuthProvider from "@fastify/auth";
-import fastifyStatic from "@fastify/static";
 /** END EXTERNAL PLUGINS */
 
 /** BEGIN INTERNAL PLUGINS */
@@ -256,29 +254,17 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       app.log.warn("Fastify Swagger not created!");
     }
   }
-  await app.register(authorizeFromSchemaPlugin);
+  await Promise.all([
+    app.register(errorHandlerPlugin),
+    app.register(fastifyZodOpenApiPlugin),
+    app.register(locationPlugin),
+  ]);
+
   await app.register(fastifyAuthPlugin);
   await app.register(FastifyAuthProvider);
+  await app.register(authorizeFromSchemaPlugin);
+
   await app.register(evaluatePoliciesPlugin);
-  await app.register(errorHandlerPlugin);
-  await app.register(fastifyZodOpenApiPlugin);
-  await app.register(locationPlugin);
-  await app.register(fastifyStatic, {
-    root: path.join(__dirname, "public"),
-    prefix: "/",
-  });
-  if (isRunningInLambda && !isSwaggerServer) {
-    // Serve docs from S3
-    app.get("/api/documentation", (_request, response) => {
-      response.redirect("/docs/", 308);
-    });
-    app.get("/api/documentation/json", (_request, response) => {
-      response.redirect("/docs/openapi.json", 308);
-    });
-    app.get("/api/documentation/yaml", (_request, response) => {
-      response.redirect("/docs/openapi.yaml", 308);
-    });
-  }
   if (!runEnvironments.includes(process.env.RunEnvironment as RunEnvironment)) {
     throw new InternalServerError({
       message: `Invalid run environment ${app.runEnvironment}.`,
@@ -299,7 +285,6 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       "Audit logging to Dynamo is disabled! Audit log statements will be logged to the console.",
     );
   }
-  app.nodeCache = new NodeCache({ checkperiod: 30 });
   if (initClients) {
     app.dynamoClient = new DynamoDBClient({
       region: genericConfig.AwsRegion,

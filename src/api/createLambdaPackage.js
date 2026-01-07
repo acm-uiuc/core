@@ -13,12 +13,12 @@ function getPath() {
 export const packagesToTransfer = [
   "moment-timezone",
   "passkit-generator",
-  "argon2",
   "ioredis",
   "fastify-zod-openapi",
   "@fastify/swagger",
   "zod-openapi",
   "zod",
+  "@node-rs/argon2",
   "aws-crt",
 ];
 const filePath = `${getPath().dirname}/package.json`;

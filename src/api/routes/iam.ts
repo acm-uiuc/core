@@ -239,11 +239,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
         await fastify.dynamoClient.send(command);
         await logPromise;
-        fastify.nodeCache.set(
-          `grouproles-${groupId}`,
-          request.body.roles,
-          GENERIC_CACHE_SECONDS,
-        );
         const groupMemberEmails = (await groupMembers).map((x) => x.email);
         await clearAuthCache({
           redisClient: fastify.redisClient,
@@ -252,7 +247,6 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
         reply.send({ message: "OK" });
       } catch (e: unknown) {
-        fastify.nodeCache.del(`grouproles-${groupId}`);
         if (e instanceof BaseError) {
           throw e;
         }

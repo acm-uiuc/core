@@ -204,6 +204,15 @@ resource "aws_dynamodb_table" "iam_assignments" {
     name = "id"
     type = "S"
   }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
 }
 
 resource "aws_dynamodb_table" "user_info" {

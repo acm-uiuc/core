@@ -1,4 +1,4 @@
-import { FastifyPluginAsync } from "fastify";
+import { FastifyPluginAsync, FastifyReply } from "fastify";
 import { InternalServerError } from "common/errors/index.js";
 import fp from "fastify-plugin";
 import { FastifyZodOpenApiSchema } from "fastify-zod-openapi";

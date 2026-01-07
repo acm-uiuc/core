@@ -13,6 +13,7 @@ const proxy = awsLambdaFastify(app, {
   serializeLambdaArguments: true,
   binaryMimeTypes: ["application/octet-stream", "application/vnd.apple.pkpass"], // from original code
 });
+await app.ready();
 
 const validateOriginHeader = (
   originHeader: string,
