@@ -4,16 +4,29 @@ import { Temporal } from 'temporal-polyfill'
  * Parses a date string in the specified timezone and returns a UTC Date.
  */
 export function parseInTimezone(dateString: string, timezone: string): Date {
+  let zonedDateTime: Temporal.ZonedDateTime;
+
   // If the string has a Z suffix or timezone offset, parse as an Instant
   if (dateString.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateString)) {
     const instant = Temporal.Instant.from(dateString);
-    return new Date(instant.epochMilliseconds);
+    zonedDateTime = instant.toZonedDateTimeISO(timezone);
+  } else {
+    // Otherwise treat as a local datetime in the target timezone
+    const plainDateTime = Temporal.PlainDateTime.from(dateString.replace(" ", "T"));
+    zonedDateTime = plainDateTime.toZonedDateTime(timezone);
   }
 
-  // Otherwise treat as a local datetime in the target timezone
-  const plainDateTime = Temporal.PlainDateTime.from(dateString.replace(" ", "T"));
-  const zonedDateTime = plainDateTime.toZonedDateTime(timezone);
-  return new Date(zonedDateTime.epochMilliseconds);
+  // Create a Date using the wall-clock time components in the target timezone
+  // This "fakes" a Date that has the correct local time values when accessed via getHours(), etc.
+  return new Date(
+    zonedDateTime.year,
+    zonedDateTime.month - 1, // JS months are 0-indexed
+    zonedDateTime.day,
+    zonedDateTime.hour,
+    zonedDateTime.minute,
+    zonedDateTime.second,
+    zonedDateTime.millisecond
+  );
 }
 
 /**
