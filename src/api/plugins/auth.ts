@@ -20,7 +20,11 @@ import {
 } from "../../common/errors/index.js";
 import { SecretConfig, GENERIC_CACHE_SECONDS } from "../../common/config.js";
 import { getGroupRoles, getUserRoles } from "../functions/authorization.js";
-import { getApiKeyData, getApiKeyParts } from "api/functions/apiKey.js";
+import {
+  getApiKeyData,
+  getApiKeyParts,
+  verifyApiKey,
+} from "api/functions/apiKey.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
 import { Redis } from "api/types.js";
 
@@ -104,6 +108,9 @@ export const getUserIdentifier = (request: FastifyRequest): string | null => {
     }
     return (decoded as AadToken).sub || null;
   } catch (e) {
+    if (e instanceof UnauthenticatedError) {
+      throw e;
+    }
     request.log.error(e, "Failed to determine user identifier");
     return null;
   }
@@ -167,6 +174,15 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
       id: apikeyId,
     });
     if (!keyData) {
+      throw new UnauthenticatedError({
+        message: "Invalid API key.",
+      });
+    }
+    const isValid = await verifyApiKey({
+      apiKey: apiKeyValue,
+      hashedKey: keyData.keyHash,
+    });
+    if (!isValid) {
       throw new UnauthenticatedError({
         message: "Invalid API key.",
       });

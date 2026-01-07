@@ -17,7 +17,6 @@ export const packagesToTransfer = [
   "@fastify/swagger",
   "zod-openapi",
   "zod",
-  "@node-rs/argon2",
   "aws-crt",
 ];
 const filePath = `${getPath().dirname}/package.json`;

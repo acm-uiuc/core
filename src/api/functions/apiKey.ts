@@ -1,5 +1,4 @@
 import { createHash, randomBytes } from "crypto";
-import { hash, verify } from "@node-rs/argon2";
 import { UnauthenticatedError } from "common/errors/index.js";
 import {
   DeleteItemCommand,
@@ -11,6 +10,7 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { ApiKeyMaskedEntry, DecomposedApiKey } from "common/types/apiKey.js";
 import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
 import { Redis } from "api/types.js";
+import { hash, verify } from "./argon2.js";
 
 export type ApiKeyDynamoEntry = ApiKeyMaskedEntry & {
   keyHash: string;
@@ -50,6 +50,12 @@ export const getApiKeyParts = (apiKey: string): DecomposedApiKey => {
     rawKey.length !== 64 ||
     checksum.length !== 6
   ) {
+    throw new UnauthenticatedError({
+      message: "Invalid API key.",
+    });
+  }
+  const expectedChecksum = createChecksum(rawKey);
+  if (checksum !== expectedChecksum) {
     throw new UnauthenticatedError({
       message: "Invalid API key.",
     });

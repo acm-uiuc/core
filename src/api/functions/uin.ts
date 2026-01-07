@@ -7,7 +7,6 @@ import {
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { ValidLoggers } from "api/types.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
-import { Algorithm, hash, Version } from "@node-rs/argon2";
 import { genericConfig } from "common/config.js";
 import {
   BaseError,
@@ -18,6 +17,7 @@ import {
   ValidationError,
 } from "common/errors/index.js";
 import { type FastifyBaseLogger } from "fastify";
+import { Algorithm, hash, Version } from "./argon2.js";
 
 export type HashUinInputs = {
   pepper: string;
