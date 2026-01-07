@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "crypto";
-import { hash, verify } from "argon2";
+import { hash, verify } from "@node-rs/argon2";
 import { UnauthenticatedError } from "common/errors/index.js";
 import {
   DeleteItemCommand,

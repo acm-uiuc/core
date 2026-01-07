@@ -1,14 +1,13 @@
 import {
   BatchGetItemCommand,
   DynamoDBClient,
-  PutItemCommand,
   QueryCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { ValidLoggers } from "api/types.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
-import { argon2id, hash } from "argon2";
+import { Algorithm, hash, Version } from "@node-rs/argon2";
 import { genericConfig } from "common/config.js";
 import {
   BaseError,
@@ -105,12 +104,12 @@ export async function getUinHash({
   // we set the defaults again because we do direct string comparisions
   return hash(uin, {
     secret: Buffer.from(pepper),
-    hashLength: 32,
+    outputLen: 32,
     timeCost: 3,
     memoryCost: 65536,
     parallelism: 4,
-    type: argon2id,
-    version: 19,
+    algorithm: Algorithm.Argon2id,
+    version: Version.V0x13,
     salt: Buffer.from("acmuiucuin"),
   });
 }

@@ -1,6 +1,5 @@
-import * as argon2 from "argon2";
 import { expect, test, describe, vi } from "vitest";
-import { API_KEY_CACHE_SECONDS, createApiKey, getApiKeyData, getApiKeyParts, verifyApiKey } from "../../../src/api/functions/apiKey.js";
+import { createApiKey, getApiKeyData, getApiKeyParts, verifyApiKey } from "../../../src/api/functions/apiKey.js";
 import { mockClient } from "aws-sdk-client-mock";
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../../src/common/config.js";

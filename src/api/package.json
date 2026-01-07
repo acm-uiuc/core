@@ -36,7 +36,7 @@
     "@middy/event-normalizer": "^7.0.0",
     "@middy/sqs-partial-batch-failure": "^7.0.0",
     "@touch4it/ical-timezones": "^1.9.0",
-    "argon2": "^0.44.0",
+    "@node-rs/argon2": "^2.0.2",
     "aws-crt": "^1.27.3",
     "base64-arraybuffer": "^1.0.2",
     "discord.js": "^14.24.2",
