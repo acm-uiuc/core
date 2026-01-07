@@ -1,4 +1,4 @@
-import { expect, test, describe, vi } from "vitest";
+import { expect, test, describe, vi, beforeEach } from "vitest";
 import { createApiKey, getApiKeyData, getApiKeyParts, verifyApiKey } from "../../../src/api/functions/apiKey.js";
 import { mockClient } from "aws-sdk-client-mock";
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
@@ -11,6 +11,7 @@ import { UnauthenticatedError } from "../../../src/common/errors/index.js";
 
 
 const ddbMock = mockClient(DynamoDBClient);
+const redisClient = new Redis.default();
 
 
 const countOccurrencesOfChar = (s: string, char: string): number => {
@@ -24,13 +25,16 @@ const countOccurrencesOfChar = (s: string, char: string): number => {
 }
 
 describe("API key tests", () => {
+  beforeEach(async () => {
+    await redisClient.flushall()
+  })
   test("API key is successfully created and validated", async () => {
     const { apiKey, hashedKey, keyId } = await createApiKey();
     expect(apiKey.slice(0, 8)).toEqual("acmuiuc_");
     expect(keyId.length).toEqual(12);
     expect(countOccurrencesOfChar(apiKey, "_")).toEqual(3);
     const apiKeyParts = getApiKeyParts(apiKey)
-    const verificationResult = await verifyApiKey({ apiKey: apiKeyParts, hashedKey });
+    const verificationResult = await verifyApiKey({ apiKey: apiKeyParts, hashedKey, redisClient });
     expect(verificationResult).toBe(true);
   });
   test("API Keys that don't start with correct prefix are rejected", async () => {
@@ -67,4 +71,25 @@ describe("API key tests", () => {
     expect(result).toEqual(unmarshall(keyData));
     expect(redisValue).toEqual(JSON.stringify(unmarshall(keyData)));
   })
+  test("Valid API key verification result is cached", async () => {
+    const { apiKey, hashedKey } = await createApiKey();
+    const apiKeyParts = getApiKeyParts(apiKey);
+
+    const result = await verifyApiKey({ apiKey: apiKeyParts, hashedKey, redisClient });
+    expect(result).toBe(true);
+
+    const keys = await redisClient.keys("*");
+    expect(keys.length).toBe(1);
+  });
+  test("Invalid API key verification result is not cached", async () => {
+    const { apiKey } = await createApiKey();
+    const { hashedKey: differentHashedKey } = await createApiKey();
+    const apiKeyParts = getApiKeyParts(apiKey);
+
+    const result = await verifyApiKey({ apiKey: apiKeyParts, hashedKey: differentHashedKey, redisClient });
+    expect(result).toBe(false);
+
+    const keys = await redisClient.keys("*");
+    expect(keys.length).toBe(0);
+  });
 });
