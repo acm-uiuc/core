@@ -25,6 +25,7 @@ import * as z from "zod/v4";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { getAllUserEmails } from "common/utils.js";
+import { assertAuthenticated } from "api/authenticated.js";
 
 const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -45,14 +46,14 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const { roles, description, expiresAt } = request.body;
       const { apiKey, hashedKey, keyId } = await createApiKey();
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.API_KEY,
           message: `Created API key.`,
-          actor: request.username!,
+          actor: request.username,
           target: `acmuiuc_${keyId}`,
           requestId: request.id,
         },
@@ -62,7 +63,7 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
         keyHash: hashedKey,
         roles,
         description,
-        owner: request.username!,
+        owner: request.username,
         createdAt: Math.floor(Date.now() / 1000),
         ...(expiresAt ? { expiresAt } : {}),
       };
@@ -93,7 +94,7 @@ const apiKeyRoute: FastifyPluginAsync = async (fastify, _options) => {
       const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> = {
         function: AvailableSQSFunctions.EmailNotifications,
         metadata: {
-          initiator: request.username!,
+          initiator: request.username,
           reqId: request.id,
         },
         payload: {
@@ -137,7 +138,7 @@ If you did not create this API key, please secure your account and notify the AC
         apiKey,
         expiresAt,
       });
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/org/:keyId",
@@ -157,13 +158,13 @@ If you did not create this API key, please secure your account and notify the AC
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const { keyId } = request.params;
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.API_KEY,
           message: `Deleted API key.`,
-          actor: request.username!,
+          actor: request.username,
           target: `acmuiuc_${keyId}`,
           requestId: request.id,
         },
@@ -200,7 +201,7 @@ If you did not create this API key, please secure your account and notify the AC
       const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> = {
         function: AvailableSQSFunctions.EmailNotifications,
         metadata: {
-          initiator: request.username!,
+          initiator: request.username,
           reqId: request.id,
         },
         payload: {
@@ -237,7 +238,7 @@ If you did not delete this API key, please secure your account and notify the AC
         request.log.info(`Queued notification with ID ${result.MessageId}.`);
       }
       return reply.status(204).send();
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/org",
@@ -251,7 +252,7 @@ If you did not delete this API key, please secure your account and notify the AC
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const command = new ScanCommand({
         TableName: genericConfig.ApiKeyTable,
       });
@@ -281,7 +282,7 @@ If you did not delete this API key, please secure your account and notify the AC
           message: "Could not fetch API keys.",
         });
       }
-    },
+    }),
   );
 };
 

@@ -48,6 +48,7 @@ import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { withRoles, withTags } from "api/components/index.js";
 import { Organizations } from "@acm-uiuc/js-shared";
 import { authorizeByOrgRoleOrSchema } from "api/functions/authorization.js";
+import { assertAuthenticated } from "api/authenticated.js";
 
 type OwnerRecord = {
   slug: string;
@@ -102,8 +103,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ),
         onRequest: fastify.authorizeFromSchema,
       },
-      async (request, reply) => {
-        const username = request.username!;
+      assertAuthenticated(async (request, reply) => {
+        const username = request.username;
         const tableName = genericConfig.LinkryDynamoTableName;
 
         // First try-catch: Fetch owner records
@@ -145,7 +146,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
         // Third try-catch paths: Get delegated links based on user role
         let delegatedLinks;
-        if (request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
+        if (request.userRoles.has(AppRoles.LINKS_ADMIN)) {
           // Admin path
           try {
             delegatedLinks = (
@@ -184,7 +185,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           ownedLinks: ownedLinksWithGroups,
           delegatedLinks,
         });
-      },
+      }),
     );
 
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
@@ -210,7 +211,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         },
         onRequest: fastify.authorizeFromSchema,
       },
-      async (request, reply) => {
+      assertAuthenticated(async (request, reply) => {
         const { slug } = request.body;
         const tableName = genericConfig.LinkryDynamoTableName;
         const currentRecord = await fetchLinkEntry(
@@ -219,7 +220,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           fastify.dynamoClient,
         );
 
-        if (currentRecord && !request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
+        if (currentRecord && !request.userRoles.has(AppRoles.LINKS_ADMIN)) {
           const setUserGroups = new Set(request.tokenPayload?.groups || []);
           const mutualGroups = intersection(
             new Set(currentRecord.access),
@@ -437,13 +438,13 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           dynamoClient: fastify.dynamoClient,
           entry: {
             module: Modules.LINKRY,
-            actor: request.username!,
+            actor: request.username,
             target: request.body.slug,
             message: `Created redirect to "${request.body.redirect}"`,
           },
         });
         return reply.status(201).send();
-      },
+      }),
     );
 
     fastify.get<LinkryGetRequest>(
@@ -459,7 +460,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ),
         onRequest: fastify.authorizeFromSchema,
       },
-      async (request, reply) => {
+      assertAuthenticated(async (request, reply) => {
         try {
           const { slug } = request.params;
           const tableName = genericConfig.LinkryDynamoTableName;
@@ -473,7 +474,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           if (!item) {
             throw new NotFoundError({ endpointName: request.url });
           }
-          if (!request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
+          if (!request.userRoles.has(AppRoles.LINKS_ADMIN)) {
             const setUserGroups = new Set(request.tokenPayload?.groups || []);
             const mutualGroups = intersection(
               new Set(item.access),
@@ -495,7 +496,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: "Failed to fetch slug information in Dynamo table.",
           });
         }
-      },
+      }),
     );
 
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
@@ -511,7 +512,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ),
         onRequest: fastify.authorizeFromSchema,
       },
-      async (request, reply) => {
+      assertAuthenticated(async (request, reply) => {
         const { slug } = request.params;
         const tableName = genericConfig.LinkryDynamoTableName;
         const currentRecord = await fetchLinkEntry(
@@ -524,7 +525,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           throw new NotFoundError({ endpointName: request.url });
         }
 
-        if (currentRecord && !request.userRoles!.has(AppRoles.LINKS_ADMIN)) {
+        if (currentRecord && !request.userRoles.has(AppRoles.LINKS_ADMIN)) {
           const setUserGroups = new Set(request.tokenPayload?.groups || []);
           const mutualGroups = intersection(
             new Set(currentRecord.access),
@@ -602,13 +603,13 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           dynamoClient: fastify.dynamoClient,
           entry: {
             module: Modules.LINKRY,
-            actor: request.username!,
+            actor: request.username,
             target: slug,
             message: `Deleted short link redirect."`,
           },
         });
         reply.code(204).send();
-      },
+      }),
     );
 
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
@@ -657,7 +658,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           });
         },
       },
-      async (request, reply) => {
+      assertAuthenticated(async (request, reply) => {
         const { slug, redirect } = request.body;
         const tableName = genericConfig.LinkryDynamoTableName;
         const realSlug = `${request.params.orgId}#${slug}`;
@@ -689,7 +690,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             access: `OWNER#${request.params.orgId}`, // org records are owned by the org
             updatedAt: newUpdatedAt,
             createdAt: newCreatedAt,
-            lastModifiedBy: request.username!,
+            lastModifiedBy: request.username,
           };
 
           // Add the OWNER record with a condition check to ensure it hasn't been modified
@@ -728,14 +729,14 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           dynamoClient: fastify.dynamoClient,
           entry: {
             module: Modules.LINKRY,
-            actor: request.username!,
+            actor: request.username,
             target: `${Organizations[request.params.orgId].name}/${request.body.slug}`,
             message: `Created redirect to "${request.body.redirect}"`,
           },
         });
         const newResourceUrl = `${request.url}/slug/${request.body.slug}`;
         return reply.status(201).headers({ location: newResourceUrl }).send();
-      },
+      }),
     );
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
       "/orgs/:orgId/redir",
@@ -770,7 +771,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           });
         },
       },
-      async (request, reply) => {
+      assertAuthenticated(async (request, reply) => {
         let orgRecords;
         try {
           orgRecords = await fetchOrgRecords(
@@ -788,7 +789,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
         return reply.status(200).send(orgRecords);
-      },
+      }),
     );
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
       "/orgs/:orgId/redir/:slug",
@@ -824,7 +825,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           });
         },
       },
-      async (request, reply) => {
+      assertAuthenticated(async (request, reply) => {
         const realSlug = `${request.params.orgId}#${request.params.slug}`;
         try {
           const tableName = genericConfig.LinkryDynamoTableName;
@@ -848,7 +849,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const logStatement = buildAuditLogTransactPut({
           entry: {
             module: Modules.LINKRY,
-            actor: request.username!,
+            actor: request.username,
             target: `${Organizations[request.params.orgId].name}/${request.params.slug}`,
             message: `Deleted short link redirect.`,
           },
@@ -881,7 +882,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
         return reply.status(204).send();
-      },
+      }),
     );
   };
   fastify.register(limitedRoutes);

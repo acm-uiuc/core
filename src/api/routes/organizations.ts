@@ -49,6 +49,7 @@ import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 import { SKIP_EXTERNAL_ORG_LEAD_UPDATE } from "common/overrides.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SSMClient } from "@aws-sdk/client-ssm";
+import { assertAuthenticated } from "api/authenticated.js";
 
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${ORG_DATA_CACHED_DURATION * 2}, stale-if-error=${STALE_IF_ERROR_CACHED_TIME}`;
 
@@ -256,13 +257,13 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       },
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const timestamp = new Date().toISOString();
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ORG_INFO,
           message: "Updated organization metadata.",
-          actor: request.username!,
+          actor: request.username,
           target: request.params.orgId,
         },
       });
@@ -306,7 +307,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       return reply.status(201).send();
-    },
+    }),
   );
 
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
@@ -341,7 +342,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       },
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const orgId = getOrgByName(request.params.orgId)!.id;
       const { add, remove } = request.body;
       const allUsernames = [...add.map((u) => u.username), ...remove];
@@ -455,7 +456,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             entry: {
               module: Modules.ORG_INFO,
               message: "Created Entra group for organization leads.",
-              actor: request.username!,
+              actor: request.username,
               target: request.params.orgId,
             },
           });
@@ -502,7 +503,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
 
       const commonArgs = {
         orgId: request.params.orgId,
-        actorUsername: request.username!,
+        actorUsername: request.username,
         reqId: request.id,
         entraGroupId,
         entraIdToken,
@@ -557,7 +558,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           {
             function: AvailableSQSFunctions.CreateOrgGithubTeam,
             metadata: {
-              initiator: request.username!,
+              initiator: request.username,
               reqId: request.id,
             },
             payload: {
@@ -574,7 +575,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         {
           function: AvailableSQSFunctions.SyncExecCouncil,
           metadata: {
-            initiator: request.username!,
+            initiator: request.username,
             reqId: request.id,
           },
           payload: {},
@@ -590,7 +591,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       return reply.status(201).send();
-    },
+    }),
   );
 };
 

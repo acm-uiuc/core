@@ -205,7 +205,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ROOM_RESERVATIONS,
-          actor: request.username!,
+          actor: request.username,
           target: `${semesterId}/${requestId}`,
           requestId: request.id,
           message: `Changed status to "${formatStatus(request.body.status)}".`,
@@ -415,7 +415,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ROOM_RESERVATIONS,
-          actor: request.username!,
+          actor: request.username,
           target: `${request.body.semester}/${requestId}`,
           requestId: request.id,
           message: "Created room reservation request.",

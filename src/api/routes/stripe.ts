@@ -41,6 +41,7 @@ import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import * as z from "zod/v4";
 import { getAllUserEmails } from "common/utils.js";
 import { STRIPE_LINK_RETENTION_DAYS } from "common/constants.js";
+import { assertAuthenticated } from "api/authenticated.js";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -59,7 +60,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       let dynamoCommand;
       if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
         dynamoCommand = new ScanCommand({
@@ -70,7 +71,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           TableName: genericConfig.StripeLinksDynamoTableName,
           KeyConditionExpression: "userId = :userId",
           ExpressionAttributeValues: {
-            ":userId": { S: request.username! },
+            ":userId": { S: request.username },
           },
         });
       }
@@ -102,7 +103,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }),
       );
       reply.status(200).send(parsed);
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/paymentLinks",

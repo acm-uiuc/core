@@ -524,7 +524,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         dynamoClient: fastify.dynamoClient,
         entry: {
           module: Modules.TICKETS,
-          actor: request.username!,
+          actor: request.username,
           target: ticketId,
           message: `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}${headerReason ? `\nUser-provided context: "${headerReason}"` : ""}`,
           requestId: request.id,

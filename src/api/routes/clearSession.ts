@@ -3,6 +3,7 @@ import rateLimiter from "api/plugins/rateLimiter.js";
 import { withRoles, withTags } from "api/components/index.js";
 import { clearAuthCache } from "api/functions/authorization.js";
 import { setKey } from "api/functions/redisCache.js";
+import { assertAuthenticated } from "api/authenticated.js";
 
 const clearSessionPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {
@@ -22,8 +23,8 @@ const clearSessionPlugin: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
-      const username = [request.username!];
+    assertAuthenticated(async (request, reply) => {
+      const username = [request.username];
       const { redisClient } = fastify;
       const { log: logger } = fastify;
 
@@ -46,7 +47,7 @@ const clearSessionPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
       return reply.status(201).send();
-    },
+    }),
   );
 };
 

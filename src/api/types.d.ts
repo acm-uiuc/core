@@ -64,3 +64,8 @@ export type NoDataRequest = {
   Querystring: undefined;
   Body: undefined;
 };
+
+export interface AuthenticatedRequest extends FastifyRequest {
+  username: string;
+  userRoles: Set<AppRoles>;
+}
