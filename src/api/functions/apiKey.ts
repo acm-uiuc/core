@@ -11,6 +11,7 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { ApiKeyMaskedEntry, DecomposedApiKey } from "common/types/apiKey.js";
 import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
 import { Redis } from "api/types.js";
+import { AUTH_CACHE_PREFIX } from "api/plugins/auth.js";
 
 export type ApiKeyDynamoEntry = ApiKeyMaskedEntry & {
   keyHash: string;
@@ -60,28 +61,34 @@ export const getApiKeyParts = (apiKey: string): DecomposedApiKey => {
       message: "Invalid API key.",
     });
   }
+  const wholeKeyHash = createHash("sha256")
+    .update(`${apiKey}${checksum}`)
+    .digest("hex");
   return {
     prefix,
     id,
     rawKey,
     checksum,
+    wholeKeyHash,
   };
 };
 
 export const verifyApiKey = async ({
   apiKey,
   hashedKey,
+  redisClient,
 }: {
   apiKey: DecomposedApiKey;
   hashedKey: string;
+  redisClient: Redis;
 }) => {
-  try {
-    return await verify(hashedKey, apiKey.rawKey);
-  } catch (e) {
-    if (e instanceof UnauthenticatedError) {
-      return false;
-    }
-    throw e;
+  const cacheKey = `${AUTH_CACHE_PREFIX}:apiKey:${apiKey.wholeKeyHash}:isArgonValid`;
+  if (await redisClient.exists(cacheKey)) {
+    return true;
+  }
+  const isValid = await verify(hashedKey, apiKey.rawKey);
+  if (isValid) {
+    await redisClient.set(cacheKey, "true", "EX", 60 * 60 * 6); // cache validity for 6 hours
   }
 };
 
@@ -94,7 +101,7 @@ export const getApiKeyData = async ({
   dynamoClient: DynamoDBClient;
   id: string;
 }): Promise<ApiKeyDynamoEntry | undefined> => {
-  const cacheKey = `auth_apikey_${id}`;
+  const cacheKey = `auth_apikey_${id} `;
   const cachedValue = await redisClient.get(cacheKey);
   if (cachedValue) {
     return JSON.parse(cachedValue) as ApiKeyDynamoEntry;

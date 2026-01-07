@@ -181,6 +181,7 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
     const isValid = await verifyApiKey({
       apiKey: apiKeyDecomp,
       hashedKey: keyData.keyHash,
+      redisClient: fastify.redisClient,
     });
     if (!isValid) {
       throw new UnauthenticatedError({
