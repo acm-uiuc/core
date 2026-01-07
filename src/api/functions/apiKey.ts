@@ -79,10 +79,10 @@ export const verifyApiKey = async ({
   hashedKey: string;
   redisClient: Redis;
 }) => {
-  const hash = createHash("sha256")
+  const cacheKeyHash = createHash("sha256")
     .update(`${hashedKey}$${apiKey.checksum}`)
     .digest("hex");
-  const cacheKey = `${AUTH_CACHE_PREFIX}:apiKey:${hash}:isArgonValid`;
+  const cacheKey = `${AUTH_CACHE_PREFIX}:apiKey:${cacheKeyHash}:isArgonValid`;
   if (await redisClient.exists(cacheKey)) {
     return true;
   }
