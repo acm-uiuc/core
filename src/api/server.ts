@@ -27,7 +27,6 @@ import { withTags } from "./components/index.js";
 import fastifyIp from "fastify-ip";
 import cors from "@fastify/cors";
 import FastifyAuthProvider from "@fastify/auth";
-import fastifyStatic from "@fastify/static";
 /** END EXTERNAL PLUGINS */
 
 /** BEGIN INTERNAL PLUGINS */
@@ -259,10 +258,6 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
     app.register(errorHandlerPlugin),
     app.register(fastifyZodOpenApiPlugin),
     app.register(locationPlugin),
-    app.register(fastifyStatic, {
-      root: path.join(__dirname, "public"),
-      prefix: "/",
-    }),
   ]);
 
   await app.register(fastifyAuthPlugin);
