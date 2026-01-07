@@ -11,7 +11,7 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { ApiKeyMaskedEntry, DecomposedApiKey } from "common/types/apiKey.js";
 import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
 import { Redis } from "api/types.js";
-import { AUTH_CACHE_PREFIX } from "api/plugins/auth.js";
+import { AUTH_CACHE_PREFIX } from "common/constants.js";
 
 export type ApiKeyDynamoEntry = ApiKeyMaskedEntry & {
   keyHash: string;
@@ -90,6 +90,7 @@ export const verifyApiKey = async ({
   if (isValid) {
     await redisClient.set(cacheKey, "true", "EX", 60 * 60 * 6); // cache validity for 6 hours
   }
+  return isValid;
 };
 
 export const getApiKeyData = async ({
@@ -101,7 +102,7 @@ export const getApiKeyData = async ({
   dynamoClient: DynamoDBClient;
   id: string;
 }): Promise<ApiKeyDynamoEntry | undefined> => {
-  const cacheKey = `auth_apikey_${id} `;
+  const cacheKey = `auth_apikey_${id}`;
   const cachedValue = await redisClient.get(cacheKey);
   if (cachedValue) {
     return JSON.parse(cachedValue) as ApiKeyDynamoEntry;
