@@ -51,6 +51,7 @@ import { randomUUID } from "crypto";
 import { getKey, setKey } from "api/functions/redisCache.js";
 import { getAllUserEmails } from "common/utils.js";
 import { SSMClient } from "@aws-sdk/client-ssm";
+import { assertAuthenticated } from "api/authenticated.js";
 
 const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -208,7 +209,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const groupId = (request.params as Record<string, string>).groupId;
       try {
         const timestamp = new Date().toISOString();
@@ -230,7 +231,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           dynamoClient: fastify.dynamoClient,
           entry: {
             module: Modules.IAM,
-            actor: request.username!,
+            actor: request.username,
             target: groupId,
             message: `set target roles to ${request.body.roles.toString()}`,
             requestId: request.id,
@@ -261,7 +262,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not create group role mapping.",
         });
       }
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/inviteUsers",
@@ -276,7 +277,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const emails = request.body.emails;
       const entraIdToken = await getEntraIdToken({
         clients: await getAuthorizedClients(),
@@ -304,7 +305,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
               dynamoClient: fastify.dynamoClient,
               entry: {
                 module: Modules.IAM,
-                actor: request.username!,
+                actor: request.username,
                 target: emails[i],
                 message: "Invited user to Entra ID tenant.",
                 requestId: request.id,
@@ -318,7 +319,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
               dynamoClient: fastify.dynamoClient,
               entry: {
                 module: Modules.IAM,
-                actor: request.username!,
+                actor: request.username,
                 target: emails[i],
                 message: "Failed to invite user to Entra ID tenant.",
                 requestId: request.id,
@@ -340,7 +341,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       await Promise.allSettled(logPromises);
       reply.status(202).send(response);
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
     "/groups/:groupId",
@@ -357,7 +358,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const groupId = (request.params as Record<string, string>).groupId;
       if (!groupId || groupId === "") {
         throw new NotFoundError({
@@ -418,7 +419,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
               dynamoClient: fastify.dynamoClient,
               entry: {
                 module: Modules.IAM,
-                actor: request.username!,
+                actor: request.username,
                 target: request.body.add[i],
                 message: `added target to group ID ${groupId}`,
                 requestId: request.id,
@@ -431,7 +432,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
               dynamoClient: fastify.dynamoClient,
               entry: {
                 module: Modules.IAM,
-                actor: request.username!,
+                actor: request.username,
                 target: request.body.add[i],
                 message: `failed to add target to group ID ${groupId}`,
                 requestId: request.id,
@@ -461,7 +462,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
               dynamoClient: fastify.dynamoClient,
               entry: {
                 module: Modules.IAM,
-                actor: request.username!,
+                actor: request.username,
                 target: request.body.remove[i],
                 message: `remove target from group ID ${groupId}`,
                 requestId: request.id,
@@ -474,7 +475,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
               dynamoClient: fastify.dynamoClient,
               entry: {
                 module: Modules.IAM,
-                actor: request.username!,
+                actor: request.username,
                 target: request.body.remove[i],
                 message: `failed to remove target from group ID ${groupId}`,
                 requestId: request.id,
@@ -500,7 +501,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           return {
             function: AvailableSQSFunctions.EmailNotifications,
             metadata: {
-              initiator: request.username!,
+              initiator: request.username,
               reqId: request.id,
             },
             payload: {
@@ -522,7 +523,7 @@ No action is required from you at this time.
           return {
             function: AvailableSQSFunctions.EmailNotifications,
             metadata: {
-              initiator: request.username!,
+              initiator: request.username,
               reqId: request.id,
             },
             payload: {
@@ -593,7 +594,7 @@ No action is required from you at this time.
       });
       await Promise.allSettled(logPromises);
       reply.status(202).send(response);
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/groups/:groupId",
@@ -610,7 +611,7 @@ No action is required from you at this time.
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const groupId = (request.params as Record<string, string>).groupId;
       if (!groupId || groupId === "") {
         throw new NotFoundError({
@@ -632,7 +633,7 @@ No action is required from you at this time.
       });
       const response = await listGroupMembers(entraIdToken, groupId);
       reply.status(200).send(response);
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/groups",
@@ -645,7 +646,7 @@ No action is required from you at this time.
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const { redisClient } = fastify;
       const key = `entra_manageable_groups_${fastify.environmentConfig.EntraServicePrincipalId}`;
       const redisResponse = await getKey<{ displayName: string; id: string }[]>(
@@ -686,7 +687,7 @@ No action is required from you at this time.
         logger: request.log,
       });
       return reply.status(200).send(freshData);
-    },
+    }),
   );
 };
 

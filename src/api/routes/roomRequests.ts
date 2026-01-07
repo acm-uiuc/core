@@ -45,6 +45,7 @@ import {
 } from "common/constants.js";
 import { createPresignedGet, createPresignedPut } from "api/functions/s3.js";
 import { HeadObjectCommand, NotFound, S3Client } from "@aws-sdk/client-s3";
+import { assertAuthenticated } from "api/authenticated.js";
 
 async function verifyRoomRequestAccess(
   fastify: FastifyInstance,
@@ -128,12 +129,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
-      if (!request.username) {
-        throw new InternalServerError({
-          message: "Could not get username from request.",
-        });
-      }
+    assertAuthenticated(async (request, reply) => {
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
       const attachmentS3key = request.body.attachmentInfo
@@ -205,7 +201,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ROOM_RESERVATIONS,
-          actor: request.username!,
+          actor: request.username,
           target: `${semesterId}/${requestId}`,
           requestId: request.id,
           message: `Changed status to "${formatStatus(request.body.status)}".`,
@@ -267,7 +263,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         `Queued room reservation email to SQS with message ID ${result.MessageId}`,
       );
       return reply.status(201).send({ uploadUrl });
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:semesterId",
@@ -288,15 +284,10 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const semesterId = request.params.semesterId;
       const { ProjectionExpression, ExpressionAttributeNames } =
         generateProjectionParams({ userFields: request.query.select });
-      if (!request.username) {
-        throw new InternalServerError({
-          message: "Could not retrieve username.",
-        });
-      }
       let command: QueryCommand;
       if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
         command = new QueryCommand({
@@ -376,7 +367,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const itemsWithStatus = await Promise.all(items);
 
       return reply.status(200).send(itemsWithStatus);
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "",
@@ -390,13 +381,8 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const requestId = request.id;
-      if (!request.username) {
-        throw new InternalServerError({
-          message: "Could not retrieve username.",
-        });
-      }
       const body = {
         ...request.body,
         eventStart: request.body.eventStart.toISOString(),
@@ -415,7 +401,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ROOM_RESERVATIONS,
-          actor: request.username!,
+          actor: request.username,
           target: `${request.body.semester}/${requestId}`,
           requestId: request.id,
           message: "Created room reservation request.",
@@ -501,7 +487,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       request.log.info(
         `Queued room reservation email to SQS with message ID ${result.MessageId}`,
       );
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:semesterId/:requestId",
@@ -524,7 +510,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
       try {
@@ -588,7 +574,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not find by ID.",
         });
       }
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/:semesterId/:requestId/attachmentDownloadUrl/:createdAt/:status",
@@ -633,7 +619,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
       try {
@@ -742,7 +728,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not find by ID.",
         });
       }
-    },
+    }),
   );
 };
 

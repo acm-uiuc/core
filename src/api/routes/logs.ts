@@ -1,5 +1,6 @@
 import { QueryCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { assertAuthenticated } from "api/authenticated.js";
 import { withRoles, withTags } from "api/components/index.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
@@ -54,14 +55,14 @@ const logsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       const { module } = request.params;
       const { start, end } = request.query;
       const logPromise = createAuditLogEntry({
         dynamoClient: fastify.dynamoClient,
         entry: {
           module: Modules.AUDIT_LOG,
-          actor: request.username!,
+          actor: request.username,
           target: module,
           message: `Viewed audit log from ${start} to ${end}.`,
         },
@@ -100,7 +101,7 @@ const logsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       await logPromise;
       const resp = response.Items.map((x) => unmarshall(x)) as ResponseType;
       reply.send(resp);
-    },
+    }),
   );
 };
 

@@ -34,6 +34,7 @@ import {
 } from "api/functions/tickets.js";
 import { illinoisUin } from "common/types/generic.js";
 import { getUserIdByUin } from "api/functions/uin.js";
+import { assertAuthenticated } from "api/authenticated.js";
 
 const postMerchSchema = z.object({
   type: z.literal("merch"),
@@ -402,14 +403,9 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
       let command: UpdateItemCommand;
       let ticketId: string;
-      if (!request.username) {
-        throw new UnauthenticatedError({
-          message: "Could not find username.",
-        });
-      }
       const expiresAt =
         Math.floor(Date.now() / 1000) +
         86400 * FULFILLED_PURCHASES_RETENTION_DAYS;
@@ -524,7 +520,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         dynamoClient: fastify.dynamoClient,
         entry: {
           module: Modules.TICKETS,
-          actor: request.username!,
+          actor: request.username,
           target: ticketId,
           message: `checked in ticket of type "${request.body.type}" ${request.body.type === "merch" ? `purchased by email ${request.body.email}.` : "."}${headerReason ? `\nUser-provided context: "${headerReason}"` : ""}`,
           requestId: request.id,
@@ -536,7 +532,7 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         ticketId,
         purchaserData,
       });
-    },
+    }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/getPurchasesByUser",

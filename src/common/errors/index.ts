@@ -329,3 +329,13 @@ export class GithubError extends InternalError<"GithubError"> {
     });
   }
 }
+
+export class AuthenticationError extends InternalError<"AuthenticationError"> {
+  constructor({ message }: { message?: string; }) {
+    super({
+      name: "AuthenticationError",
+      id: 702,
+      message: message || "Failed to authenticate user.",
+    });
+  }
+}

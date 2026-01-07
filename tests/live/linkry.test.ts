@@ -6,6 +6,7 @@ import {
   sleep,
 } from "./utils.js";
 import { randomUUID } from "node:crypto";
+import { retryDynamoTransactionWithBackoff } from "../../src/api/utils.js";
 
 const baseEndpoint = getBaseEndpoint("go");
 const coreBaseEndpoint = getBaseEndpoint("core");
@@ -49,12 +50,30 @@ describe("Linkry normal link lifecycle", { sequential: true }, async () => {
       }),
     });
     expect(response.status).toBe(201);
-    // Make sure link propogates
-    await sleep(1000);
-    const redirResponse = await fetch(`${baseEndpoint}/${linkId}`);
-    expect(redirResponse.status).toBe(200);
-    expect(redirResponse.redirected).toBe(true);
-    expect(redirResponse.url).toBe("https://www.google.com/");
+
+    // Retry with exponential backoff to allow link to propagate
+    let redirResponse: Response | null = null;
+    const maxRetries = 5;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      if (attempt > 0) {
+        await sleep(1000 * Math.pow(2, attempt - 1)); // 1s, 2s, 4s, 8s
+      }
+
+      redirResponse = await fetch(`${baseEndpoint}/${linkId}`);
+
+      if (
+        redirResponse.status === 200 &&
+        redirResponse.redirected &&
+        redirResponse.url === "https://www.google.com/"
+      ) {
+        break;
+      }
+    }
+
+    expect(redirResponse!.status).toBe(200);
+    expect(redirResponse!.redirected).toBe(true);
+    expect(redirResponse!.url).toBe("https://www.google.com/");
   });
   test("Delete a short link", async () => {
     let response;

@@ -27,6 +27,7 @@ import { getKey, setKey } from "api/functions/redisCache.js";
 import { AppRoles } from "common/roles.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { verifyUiucAccessToken } from "api/functions/uin.js";
+import { assertAuthenticated } from "api/authenticated.js";
 
 const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -242,7 +243,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         ),
         onRequest: fastify.authorizeFromSchema,
       },
-      async (request, reply) => {
+      assertAuthenticated(async (request, reply) => {
         const { listId } = request.params;
         const { add = [], remove = [] } = request.body;
         const { dynamoClient, redisClient } = fastify;
@@ -253,12 +254,12 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           clients: { dynamoClient, redisClient },
           logger: request.log,
           auditLogData: {
-            actor: request.username!,
+            actor: request.username,
             requestId: request.id,
           },
         });
         return reply.status(201).send();
-      },
+      }),
     );
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
       "/externalList/:listId",
