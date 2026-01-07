@@ -33,8 +33,9 @@ export function parseInTimezone(dateString: string, timezone: string): Date {
  * Formats a date string as YYYY-MM-DD in the specified timezone.
  */
 export function formatDateInTimezone(dateString: string, timezone: string): string {
-  const plainDateTime = Temporal.PlainDateTime.from(dateString.replace(" ", "T"));
-  const zonedDateTime = plainDateTime.toZonedDateTime(timezone);
+  const date = parseInTimezone(dateString, timezone);
+  const instant = Temporal.Instant.fromEpochMilliseconds(date.getTime());
+  const zonedDateTime = instant.toZonedDateTimeISO(timezone);
   return zonedDateTime.toPlainDate().toString();
 }
 
