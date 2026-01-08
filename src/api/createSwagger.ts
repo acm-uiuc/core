@@ -12,7 +12,9 @@ async function createSwaggerFiles() {
   try {
     const app = await init(false, false, true);
     await app.ready();
-    console.log("App is ready. Generating specs...");
+    console.log(
+      `App is ready. Generating specs for ${process.env.RunEnvironment} env, version ${process.env.VITE_BUILD_HASH}...`,
+    );
     const outputDir = "/var/dist_ui/docs";
     await rm(outputDir, { recursive: true, force: true });
     await mkdir(outputDir, { recursive: true });

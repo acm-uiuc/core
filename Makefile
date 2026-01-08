@@ -29,7 +29,7 @@ build: src/
 	cp -r src/api/resources/ dist/api/resources
 	rm -rf dist/lambda/sqs
 	mkdir -p dist_ui/docs/
-	docker run --rm -v "$(shell pwd)/dist/lambda":/var/task -v "$(shell pwd)/dist_ui":/var/dist_ui public.ecr.aws/sam/build-nodejs24.x:latest \
+	docker run --rm -v "$(shell pwd)/dist/lambda":/var/task -v "$(shell pwd)/dist_ui":/var/dist_ui -e RunEnvironment -e VITE_BUILD_HASH public.ecr.aws/sam/build-nodejs24.x:latest \
 	sh -c "npm i -g yarn && $(yarn_env) yarn $(yarn_install_params) && \
 			node /var/task/createSwagger.mjs && \
 			rm /var/task/createSwagger.mjs && \
