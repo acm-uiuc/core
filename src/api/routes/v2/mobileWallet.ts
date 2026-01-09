@@ -53,16 +53,12 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
         accessToken,
         logger: request.log,
       });
-      const { userPrincipalName: upn, givenName, surname } = verifiedData;
-      const netId = upn.replace("@illinois.edu", "");
-      if (netId.includes("@")) {
-        request.log.error(
-          `Found UPN ${upn} which cannot be turned into NetID via simple replacement.`,
-        );
-        throw new ValidationError({
-          message: "ID token could not be parsed.",
-        });
-      }
+      const {
+        userPrincipalName: upn,
+        givenName,
+        surname,
+        netId,
+      } = verifiedData;
       let isPaidMember = await checkPaidMembershipFromRedis(
         netId,
         fastify.redisClient,

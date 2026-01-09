@@ -80,20 +80,10 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
       },
       async (request, reply) => {
         const accessToken = request.headers["x-uiuc-token"];
-        const verifiedData = await verifyUiucAccessToken({
+        const { netId, givenName, surname } = await verifyUiucAccessToken({
           accessToken,
           logger: request.log,
         });
-        const { userPrincipalName: upn, givenName, surname } = verifiedData;
-        const netId = upn.replace("@illinois.edu", "");
-        if (netId.includes("@")) {
-          request.log.error(
-            `Found UPN ${upn} which cannot be turned into NetID via simple replacement.`,
-          );
-          throw new ValidationError({
-            message: "ID token could not be parsed.",
-          });
-        }
         const list = "acmpaid";
         const cacheKey = `membership:${netId}:${list}`;
         const result = await getKey<{ isMember: boolean }>({

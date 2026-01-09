@@ -69,16 +69,12 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           accessToken,
           logger: request.log,
         });
-        const { userPrincipalName: upn, givenName, surname } = verifiedData;
-        const netId = upn.replace("@illinois.edu", "");
-        if (netId.includes("@")) {
-          request.log.error(
-            `Found UPN ${upn} which cannot be turned into NetID via simple replacement.`,
-          );
-          throw new ValidationError({
-            message: "ID token could not be parsed.",
-          });
-        }
+        const {
+          netId,
+          userPrincipalName: upn,
+          givenName,
+          surname,
+        } = verifiedData;
         request.log.debug("Saving user hashed UIN!");
         const uinHash = await getHashedUserUin({
           uiucAccessToken: accessToken,
