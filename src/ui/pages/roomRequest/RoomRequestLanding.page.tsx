@@ -13,7 +13,7 @@ import {
   RoomRequestPostResponse,
   type RoomRequestStatus,
 } from "@common/types/roomRequest";
-import { OrganizationName } from "@acm-uiuc/js-shared";
+import { OrganizationId } from "@acm-uiuc/js-shared";
 import { useSearchParams } from "react-router-dom";
 
 export const ManageRoomRequestsPage: React.FC = () => {
@@ -47,7 +47,7 @@ export const ManageRoomRequestsPage: React.FC = () => {
       {
         requestId: string;
         title: string;
-        host: OrganizationName;
+        host: OrganizationId;
         status: RoomRequestStatus;
       }[]
     >(
