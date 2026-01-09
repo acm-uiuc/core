@@ -58,6 +58,12 @@ const rateLimiterPlugin: FastifyPluginAsync<RateLimiterOptions> = async (
           ? resetTime - Math.floor(Date.now() / 1000)
           : undefined;
         reply.header("Retry-After", retryAfter?.toString() || "0");
+        request.log.info(
+          {
+            retryAfter,
+          },
+          "Request was blocked; caller has exceeded rate limit.",
+        );
         return reply.status(429).send({
           error: true,
           name: "RateLimitExceededError",
