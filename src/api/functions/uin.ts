@@ -82,8 +82,17 @@ export const verifyUiucAccessToken = async ({
       surname: string;
       mail: string;
     };
+    if (!data.userPrincipalName.endsWith("@illinois.edu")) {
+      logger.error(
+        `Found UPN ${data.userPrincipalName} which cannot be turned into NetID via simple replacement.`,
+      );
+      throw new UnauthenticatedError({
+        message: "Invalid user domain.",
+      });
+    }
+    const netId = data.userPrincipalName.replace("@illinois.edu", "");
     logger.info("Access token successfully verified with Microsoft Graph API.");
-    return data;
+    return { ...data, netId };
   } catch (error) {
     if (error instanceof BaseError) {
       throw error;

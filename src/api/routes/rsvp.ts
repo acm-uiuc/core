@@ -66,20 +66,10 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];
-      const verifiedData = await verifyUiucAccessToken({
+      const { netId, userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
       });
-      const { userPrincipalName: upn, givenName, surname } = verifiedData;
-      const netId = upn.replace("@illinois.edu", "");
-      if (netId.includes("@")) {
-        request.log.error(
-          `Found UPN ${upn} which cannot be turned into NetID via simple replacement.`,
-        );
-        throw new ValidationError({
-          message: "ID token could not be parsed.",
-        });
-      }
       const isPaidMember = await checkPaidMembership({
         netId,
         dynamoClient: fastify.dynamoClient,
@@ -372,17 +362,10 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];
-      const verifiedData = await verifyUiucAccessToken({
+      const { userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
       });
-      const { userPrincipalName: upn } = verifiedData;
-      const netId = upn.replace("@illinois.edu", "");
-      if (netId.includes("@")) {
-        throw new ValidationError({
-          message: "ID token could not be parsed.",
-        });
-      }
       const transactionCommand = new TransactWriteItemsCommand({
         TransactItems: [
           {

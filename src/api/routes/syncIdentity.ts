@@ -92,20 +92,10 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
       },
       async (request, reply) => {
         const accessToken = request.headers["x-uiuc-token"];
-        const verifiedData = await verifyUiucAccessToken({
+        const { givenName, surname, netId } = await verifyUiucAccessToken({
           accessToken,
           logger: request.log,
         });
-        const { userPrincipalName: upn, givenName, surname } = verifiedData;
-        const netId = upn.replace("@illinois.edu", "");
-        if (netId.includes("@")) {
-          request.log.error(
-            `Found UPN ${upn} which cannot be turned into NetID via simple replacement.`,
-          );
-          throw new ValidationError({
-            message: "ID token could not be parsed.",
-          });
-        }
         const uinHash = await getHashedUserUin({
           uiucAccessToken: accessToken,
           pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
@@ -178,20 +168,10 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
       },
       async (request, reply) => {
         const accessToken = request.headers["x-uiuc-token"];
-        const verifiedData = await verifyUiucAccessToken({
+        const { netId } = await verifyUiucAccessToken({
           accessToken,
           logger: request.log,
         });
-        const { userPrincipalName: upn } = verifiedData;
-        const netId = upn.replace("@illinois.edu", "");
-        if (netId.includes("@")) {
-          request.log.error(
-            `Found UPN ${upn} which cannot be turned into NetID via simple replacement.`,
-          );
-          throw new ValidationError({
-            message: "ID token could not be parsed.",
-          });
-        }
         const userIdentity = await getUserIdentity({
           netId,
           dynamoClient: fastify.dynamoClient,
