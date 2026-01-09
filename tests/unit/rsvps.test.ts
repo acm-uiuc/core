@@ -192,14 +192,14 @@ describe("RSVP API tests", () => {
     const eventId = "Make Your Own Database";
     const mockRsvps = [
       {
-        partitionKey: `${eventId}#user1@illinois.edu`,
+        partitionKey: `RSVP#${eventId}#user1@illinois.edu`,
         eventId,
         userId: "user1@illinois.edu",
         isPaidMember: true,
         createdAt: Date.now(),
       },
       {
-        partitionKey: `${eventId}#user2@illinois.edu`,
+        partitionKey: `RSVP#${eventId}#user2@illinois.edu`,
         eventId,
         userId: "user2@illinois.edu",
         isPaidMember: false,
@@ -211,7 +211,7 @@ describe("RSVP API tests", () => {
       Items: mockRsvps.map((item) => marshall(item)),
     });
 
-    const adminJwt = await createJwt();
+    const adminJwt = createJwt();
 
     const response = await app.inject({
       method: "GET",
@@ -301,7 +301,7 @@ describe("RSVP API tests", () => {
   test("Test Manager deleting a user's RSVP", async () => {
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
-    const adminJwt = await createJwt();
+    const adminJwt = createJwt();
     const eventId = "Make Your Own Database";
     const targetUserId = "user1@illinois.edu";
 
@@ -327,7 +327,7 @@ describe("RSVP API tests", () => {
     ];
     ddbMock.on(TransactWriteItemsCommand).rejects(err);
 
-    const adminJwt = await createJwt();
+    const adminJwt = createJwt();
     const eventId = "Make Your Own Database";
     const targetUserId = "ghost@illinois.edu";
 
@@ -352,7 +352,7 @@ describe("RSVP API tests", () => {
     ];
     ddbMock.on(TransactWriteItemsCommand).rejects(err);
 
-    const adminJwt = await createJwt();
+    const adminJwt = createJwt();
     const eventId = "Make Your Own Database";
     const targetUserId = "user1@illinois.edu";
 
@@ -369,7 +369,7 @@ describe("RSVP API tests", () => {
   test("Test Manager configuring rsvp limit", async () => {
     ddbMock.on(UpdateItemCommand).resolves({});
 
-    const adminJwt = await createJwt();
+    const adminJwt = createJwt();
     const eventId = "Make Your Own Database";
     const newLimit = 50;
 
@@ -395,7 +395,7 @@ describe("RSVP API tests", () => {
     err.name = "ConditionalCheckFailedException";
     ddbMock.on(UpdateItemCommand).rejects(err);
 
-    const adminJwt = await createJwt();
+    const adminJwt = createJwt();
     const eventId = "FakeEventID";
 
     const response = await app.inject({
