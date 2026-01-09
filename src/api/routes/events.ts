@@ -62,13 +62,11 @@ import {
   Organizations,
 } from "@acm-uiuc/js-shared";
 
-const normalizeEventHost = (x: { host?: string }) => {
-  return x.host
-    ? {
-        ...x,
-        host: Organizations[x.host as OrganizationId]?.name || x.host,
-      }
-    : x;
+const normalizeEventHost = <T extends { host: string }>(x: T): T => {
+  return {
+    ...x,
+    host: Organizations[x.host as OrganizationId]?.name || x.host,
+  };
 };
 
 const createProjectionParams = (includeMetadata: boolean = false) => {
@@ -307,7 +305,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               TableName: genericConfig.EventsDynamoTableName,
               ExpressionAttributeValues: {
                 ":host": {
-                  S: host,
+                  S: getOrgIdByName(host),
                 },
               },
               KeyConditionExpression: "host = :host",
@@ -332,7 +330,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
 
           const response = await fastify.dynamoClient.send(command);
           const items = response.Items?.map((item) => unmarshall(item)).map(
-            normalizeEventHost,
+            (x) => normalizeEventHost(x as { host: string }),
           );
           let parsedItems = getEventsSchema.parse(items);
           if (upcomingOnly) {
@@ -871,7 +869,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         }
 
         return reply.send(
-          normalizeEventHost(item) as z.infer<typeof getEventSchema>,
+          normalizeEventHost(item as z.infer<typeof getEventSchema>),
         );
       } catch (e) {
         if (e instanceof BaseError) {
