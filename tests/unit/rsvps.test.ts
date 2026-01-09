@@ -235,8 +235,8 @@ describe("RSVP API tests", () => {
     const eventId = "Make Your Own Database";
 
     const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/withdrawRsvp`,
+      method: "DELETE",
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/me`,
       headers: {
         Authorization: `Bearer ${testJwt}`,
         "x-uiuc-token": DUMMY_JWT,
@@ -261,8 +261,8 @@ describe("RSVP API tests", () => {
     const eventId = "Make Your Own Database";
 
     const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/withdrawRsvp`,
+      method: "DELETE",
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/me`,
       headers: {
         Authorization: `Bearer ${testJwt}`,
         "x-uiuc-token": DUMMY_JWT,
@@ -288,7 +288,7 @@ describe("RSVP API tests", () => {
 
     const response = await app.inject({
       method: "DELETE",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/withdrawRsvp`,
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/me`,
       headers: {
         Authorization: `Bearer ${testJwt}`,
         "x-uiuc-token": DUMMY_JWT,
@@ -307,7 +307,7 @@ describe("RSVP API tests", () => {
 
     const response = await app.inject({
       method: "DELETE",
-      url: `/api/v1/rsvp//event/${encodeURIComponent(eventId)}/${encodeURIComponent(targetUserId)}`,
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/${encodeURIComponent(targetUserId)}`,
       headers: {
         Authorization: `Bearer ${adminJwt}`,
       },
@@ -333,7 +333,7 @@ describe("RSVP API tests", () => {
 
     const response = await app.inject({
       method: "DELETE",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/${encodeURIComponent(targetUserId)}`,
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/${encodeURIComponent(targetUserId)}`,
       headers: {
         Authorization: `Bearer ${adminJwt}`,
       },
@@ -358,7 +358,7 @@ describe("RSVP API tests", () => {
 
     const response = await app.inject({
       method: "DELETE",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/${encodeURIComponent(targetUserId)}`,
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/${encodeURIComponent(targetUserId)}`,
       headers: {
         Authorization: `Bearer ${adminJwt}`,
       },

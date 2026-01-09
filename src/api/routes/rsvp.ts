@@ -249,83 +249,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
+  // This route MUST be registered first so it is handled correctly
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
-    "/event/:eventId/:userId",
-    {
-      schema: withRoles(
-        [AppRoles.RSVP_MANAGER],
-        withTags(["RSVP"], {
-          summary: "Delete an RSVP for an event.",
-          params: z.object({
-            eventId: z.string().min(1).meta({
-              description: "The previously-created event ID in the events API.",
-            }),
-            userId: z.string().min(1).meta({
-              description: "The user ID of the RSVP to delete.",
-            }),
-          }),
-          response: {
-            204: {
-              description: "RSVP deleted successfully.",
-              content: {
-                "application/json": {
-                  schema: z.null(),
-                },
-              },
-            },
-          },
-        }),
-      ),
-      onRequest: fastify.authorizeFromSchema,
-    },
-    async (request, reply) => {
-      const rsvpPartitionKey = `RSVP#${request.params.eventId}#${request.params.userId}`;
-
-      const transactionCommand = new TransactWriteItemsCommand({
-        TransactItems: [
-          {
-            Delete: {
-              TableName: genericConfig.RSVPDynamoTableName,
-              Key: marshall({ partitionKey: rsvpPartitionKey }),
-              ConditionExpression: "attribute_exists(partitionKey)",
-            },
-          },
-          {
-            Update: {
-              TableName: genericConfig.EventsDynamoTableName,
-              Key: marshall({ id: request.params.eventId }),
-              UpdateExpression: "SET rsvpCount = rsvpCount - :dec",
-              ConditionExpression: "rsvpCount > :zero",
-              ExpressionAttributeValues: marshall({
-                ":dec": 1,
-                ":zero": 0,
-              }),
-            },
-          },
-        ],
-      });
-
-      try {
-        await fastify.dynamoClient.send(transactionCommand);
-        return reply.status(204).send();
-      } catch (err: any) {
-        if (err.name === "TransactionCanceledException") {
-          if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
-            throw new NotFoundError({
-              endpointName: request.url,
-            });
-          }
-        }
-
-        request.log.error(err, "Failed to delete RSVP as manager");
-        throw new DatabaseInsertError({
-          message: "Failed to remove RSVP.",
-        });
-      }
-    },
-  );
-  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
-    "/event/:eventId/withdrawRsvp",
+    "/event/:eventId/attendee/me",
     {
       schema: withTags(["RSVP"], {
         summary: "Withdraw your RSVP for an event.",
@@ -398,6 +324,81 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         request.log.error(err, "Failed to withdraw RSVP");
         throw new DatabaseInsertError({
           message: "Failed to withdraw RSVP.",
+        });
+      }
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
+    "/event/:eventId/attendee/:userId",
+    {
+      schema: withRoles(
+        [AppRoles.RSVP_MANAGER],
+        withTags(["RSVP"], {
+          summary: "Delete an RSVP for an event.",
+          params: z.object({
+            eventId: z.string().min(1).meta({
+              description: "The previously-created event ID in the events API.",
+            }),
+            userId: z.string().min(1).meta({
+              description: "The user ID of the RSVP to delete.",
+            }),
+          }),
+          response: {
+            204: {
+              description: "RSVP deleted successfully.",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      const rsvpPartitionKey = `RSVP#${request.params.eventId}#${request.params.userId}`;
+
+      const transactionCommand = new TransactWriteItemsCommand({
+        TransactItems: [
+          {
+            Delete: {
+              TableName: genericConfig.RSVPDynamoTableName,
+              Key: marshall({ partitionKey: rsvpPartitionKey }),
+              ConditionExpression: "attribute_exists(partitionKey)",
+            },
+          },
+          {
+            Update: {
+              TableName: genericConfig.EventsDynamoTableName,
+              Key: marshall({ id: request.params.eventId }),
+              UpdateExpression: "SET rsvpCount = rsvpCount - :dec",
+              ConditionExpression: "rsvpCount > :zero",
+              ExpressionAttributeValues: marshall({
+                ":dec": 1,
+                ":zero": 0,
+              }),
+            },
+          },
+        ],
+      });
+
+      try {
+        await fastify.dynamoClient.send(transactionCommand);
+        return reply.status(204).send();
+      } catch (err: any) {
+        if (err.name === "TransactionCanceledException") {
+          if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
+            throw new NotFoundError({
+              endpointName: request.url,
+            });
+          }
+        }
+
+        request.log.error(err, "Failed to delete RSVP as manager");
+        throw new DatabaseInsertError({
+          message: "Failed to remove RSVP.",
         });
       }
     },
