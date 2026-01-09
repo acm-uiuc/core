@@ -246,7 +246,7 @@ export const addLead = async ({
   shouldSkipEnhancedActions: boolean;
 }): Promise<SQSMessage | null> => {
   const { username } = user;
-  const orgFriendlyName = Organizations[orgId];
+  const orgFriendlyName = Organizations[orgId].name;
   const lock = createLock({
     adapter: new IoredisAdapter(redisClient),
     key: `user:${username}`,
@@ -423,7 +423,7 @@ export const removeLead = async ({
   redisClient: Redis;
   shouldSkipEnhancedActions: boolean;
 }): Promise<SQSMessage | null> => {
-  const orgFriendlyName = Organizations[orgId];
+  const orgFriendlyName = Organizations[orgId].name;
   const lock = createLock({
     adapter: new IoredisAdapter(redisClient),
     key: `user:${username}`,

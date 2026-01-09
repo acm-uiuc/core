@@ -30,7 +30,7 @@ export const enforcedOrgLeadEntry = orgLeadEntry.extend({ title: z.string().min(
 
 export const getOrganizationInfoResponse = z.object({
   id: OrgUniqueId,
-  name: z.enum(Object.keys(OrganizationsByName)),
+  name: AllOrganizationNameList,
   description: z.optional(z.string()),
   website: z.optional(z.url()),
   leads: z.optional(z.array(orgLeadEntry)),
