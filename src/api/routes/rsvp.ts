@@ -2,11 +2,9 @@ import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
   resourceConflictError,
-  notFoundError,
   withRoles,
   withTags,
 } from "api/components/index.js";
-import { OrgUniqueId } from "common/types/generic.js";
 import {
   QueryCommand,
   UpdateItemCommand,
@@ -16,7 +14,6 @@ import { unmarshall, marshall } from "@aws-sdk/util-dynamodb";
 import {
   DatabaseFetchError,
   DatabaseInsertError,
-  ValidationError,
   ResourceConflictError,
   NotFoundError,
 } from "common/errors/index.js";
@@ -35,7 +32,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     rateLimitIdentifier: "rsvp",
   });
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
-    "/:orgId/event/:eventId",
+    "/event/:eventId",
     {
       schema: withTags(["RSVP"], {
         summary: "Submit an RSVP for an event.",
@@ -43,7 +40,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           eventId: z.string().min(1).meta({
             description: "The previously-created event ID in the events API.",
           }),
-          orgId: OrgUniqueId,
         }),
         headers: z.object({
           "x-uiuc-token": z.jwt().min(1).meta({
@@ -77,7 +73,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         logger: request.log,
       });
       const entry = {
-        partitionKey: `${request.params.eventId}#${upn}`,
+        partitionKey: `RSVP#${request.params.eventId}#${upn}`,
         eventId: request.params.eventId,
         userId: upn,
         isPaidMember,
@@ -134,7 +130,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/:orgId/event/:eventId",
+    "/event/:eventId",
     {
       schema: withRoles(
         [AppRoles.RSVP_VIEWER],
@@ -144,7 +140,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             eventId: z.string().min(1).meta({
               description: "The previously-created event ID in the events API.",
             }),
-            orgId: OrgUniqueId,
           }),
           response: {
             200: {
@@ -190,7 +185,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
-    "/:orgId/event/:eventId/config",
+    "/event/:eventId/config",
     {
       schema: withRoles(
         [AppRoles.RSVP_MANAGER, AppRoles.EVENTS_MANAGER],
@@ -200,7 +195,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             eventId: z.string().min(1).meta({
               description: "The event ID to configure.",
             }),
-            orgId: OrgUniqueId,
           }),
           body: rsvpConfigSchema,
           response: {
@@ -256,7 +250,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
-    "/:orgId/event/:eventId/:userId",
+    "/event/:eventId/:userId",
     {
       schema: withRoles(
         [AppRoles.RSVP_MANAGER],
@@ -269,7 +263,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             userId: z.string().min(1).meta({
               description: "The user ID of the RSVP to delete.",
             }),
-            orgId: OrgUniqueId,
           }),
           response: {
             204: {
@@ -286,7 +279,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
-      const rsvpPartitionKey = `${request.params.eventId}#${request.params.userId}`;
+      const rsvpPartitionKey = `RSVP#${request.params.eventId}#${request.params.userId}`;
 
       const transactionCommand = new TransactWriteItemsCommand({
         TransactItems: [
@@ -331,8 +324,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
     },
   );
-  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
-    "/:orgId/event/:eventId",
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/event/:eventId/withdrawRsvp",
     {
       schema: withTags(["RSVP"], {
         summary: "Withdraw your RSVP for an event.",
@@ -340,7 +333,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           eventId: z.string().min(1).meta({
             description: "The event ID to withdraw from.",
           }),
-          orgId: OrgUniqueId,
         }),
         headers: z.object({
           "x-uiuc-token": z.jwt().min(1).meta({
@@ -366,13 +358,14 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         accessToken,
         logger: request.log,
       });
+      const rsvpPartitionKey = `RSVP#${request.params.eventId}#${upn}`;
       const transactionCommand = new TransactWriteItemsCommand({
         TransactItems: [
           {
             Delete: {
               TableName: genericConfig.RSVPDynamoTableName,
               Key: marshall({
-                partitionKey: `${request.params.eventId}#${upn}`,
+                partitionKey: rsvpPartitionKey,
               }),
               ConditionExpression: "attribute_exists(partitionKey)",
             },
