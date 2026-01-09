@@ -291,7 +291,7 @@ describe("ManageOrganizationForm Tests", () => {
     });
 
     await waitFor(() => {
-      expect(getOrganizationDataMock).toHaveBeenCalledWith("SIGWeb");
+      expect(getOrganizationDataMock).toHaveBeenCalledWith("C01");
     });
 
     await waitFor(() => {
