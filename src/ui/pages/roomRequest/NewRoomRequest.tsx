@@ -15,6 +15,7 @@ import {
   Text,
   Loader,
   Checkbox,
+  Alert,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { DateInput, DateTimePicker } from "@mantine/dates";
@@ -35,6 +36,8 @@ import { ZodError } from "zod/v4";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 import { useAuth } from "@ui/components/AuthContext";
 import { getPrimarySuggestedOrg } from "@ui/util";
+import { getCurrentTimezoneShortCode, isInDefaultTimezone } from "@common/time";
+import { IconInfoCircle } from "@tabler/icons-react";
 
 // Component for yes/no questions with conditional content
 interface ConditionalFieldProps {
@@ -386,6 +389,18 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
 
   return (
     <>
+      {!isInDefaultTimezone() && (
+        <Alert
+          variant="light"
+          color="red"
+          mb="md"
+          title="Timezone Alert"
+          icon={<IconInfoCircle />}
+        >
+          All dates and times are shown in your current timezone. Please ensure
+          you enter dates and times in your current timezone.
+        </Alert>
+      )}
       <Stepper active={active}>
         <Stepper.Step label="Step 1" description="Basic Information">
           <Select
@@ -436,10 +451,15 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             label="Event Start"
             placeholder="Select date and time"
             withAsterisk
-            valueFormat="MM-DD-YYYY h:mm A [Urbana Time]"
+            valueFormat={`MM-DD-YYYY hh:mm A [${getCurrentTimezoneShortCode()}]`}
             mt="sm"
             clearable={false}
             minDate={startingDate}
+            timePickerProps={{
+              withDropdown: true,
+              popoverProps: { withinPortal: false },
+              format: "12h",
+            }}
             {...form.getInputProps("eventStart")}
           />
 
@@ -447,10 +467,15 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             label="Event End"
             placeholder="Select date and time"
             withAsterisk
-            valueFormat="MM-DD-YYYY h:mm A [Urbana Time]"
+            valueFormat={`MM-DD-YYYY hh:mm A [${getCurrentTimezoneShortCode()}]`}
             mt="sm"
             clearable={false}
             minDate={startingDate}
+            timePickerProps={{
+              withDropdown: true,
+              popoverProps: { withinPortal: false },
+              format: "12h",
+            }}
             {...form.getInputProps("eventEnd")}
           />
 

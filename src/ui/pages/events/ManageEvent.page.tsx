@@ -26,7 +26,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import * as z from "zod/v4";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
-import { AllOrganizationNameList as orgList } from "@acm-uiuc/js-shared";
+import {
+  Organizations,
+  AllOrganizationNameList as orgList,
+} from "@acm-uiuc/js-shared";
 import { AppRoles } from "@common/roles";
 import { EVENT_CACHED_DURATION } from "@common/config";
 import {
@@ -358,16 +361,26 @@ const EventFormComponent: React.FC<EventFormProps> = ({
       <DateTimePicker
         label="Start Date & Time"
         withAsterisk
-        valueFormat="MM/DD/YYYY h:mm A"
+        valueFormat="MM/DD/YYYY hh:mm A [Urbana Time]"
         placeholder="Pick start date"
+        timePickerProps={{
+          withDropdown: true,
+          popoverProps: { withinPortal: false },
+          format: "12h",
+        }}
         {...form.getInputProps("start")}
       />
 
       <DateTimePicker
         label="End Date & Time"
         withAsterisk
-        valueFormat="MM/DD/YYYY h:mm A"
+        valueFormat="MM/DD/YYYY hh:mm A [Urbana Time]"
         placeholder="Pick end date"
+        timePickerProps={{
+          withDropdown: true,
+          popoverProps: { withinPortal: false },
+          format: "12h",
+        }}
         {...form.getInputProps("end")}
       />
 
@@ -417,6 +430,11 @@ const EventFormComponent: React.FC<EventFormProps> = ({
             valueFormat="MM/DD/YYYY h:mm A"
             label="Repeat Ends"
             placeholder="Pick repeat end date"
+            timePickerProps={{
+              withDropdown: true,
+              popoverProps: { withinPortal: false },
+              format: "12h",
+            }}
             {...form.getInputProps("repeatEnds")}
           />
 
@@ -619,7 +637,7 @@ export const ManageEventPage: React.FC = () => {
 
     // Template variables to replace
     const variables = {
-      PRIMARY_ORG: primaryOrg || "ACM",
+      PRIMARY_ORG: primaryOrg ? Organizations[primaryOrg].name : "ACM",
     };
 
     // Apply template defaults with variable substitution

@@ -11,6 +11,7 @@ export const EVENT_TEMPLATES = {
     defaults: {
       title: "{{PRIMARY_ORG}} Weekly Meeting",
       description: "Come learn more about {{WHAT_YOUR_ORG_DOES}}!",
+      host: "{{PRIMARY_ORG}}",
       location: "",
       locationLink: "",
       repeats: "weekly" as const,
@@ -29,6 +30,7 @@ export const EVENT_TEMPLATES = {
       title: "",
       description:
         "Join {{PRIMARY_ORG}} for food, fun, and meeting other members!",
+      host: "{{PRIMARY_ORG}}",
       location: "ACM Room (Siebel CS 1104)",
       locationLink: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
       featured: false,
@@ -45,6 +47,7 @@ export const EVENT_TEMPLATES = {
       title: "",
       description:
         "Test your skills in this {{PRIMARY_ORG}} competition and compete for prizes!",
+      host: "{{PRIMARY_ORG}}",
       location: "Siebel Center",
       locationLink: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
       featured: true,
