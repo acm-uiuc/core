@@ -104,7 +104,7 @@ describe("NewRoomRequest component tests", () => {
 
   it("should set initial values correctly in view-only mode", async () => {
     const mockInitialValues = {
-      host: "ACM",
+      host: "A01",
       title: "Test Event",
       semester: "fa24",
       description:

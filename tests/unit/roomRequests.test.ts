@@ -62,7 +62,7 @@ describe("Test Room Request Creation", async () => {
     const testJwt = createJwt();
     ddbMock.on(TransactWriteItemsCommand).resolvesOnce({}).rejects();
     const roomRequest = {
-      host: "Infrastructure Committee",
+      host: "C01",
       title: "Testing",
       theme: "Athletics",
       semester: "sp25",
@@ -93,7 +93,7 @@ describe("Test Room Request Creation", async () => {
     const testJwt = createJwt();
     ddbMock.on(TransactWriteItemsCommand).resolvesOnce({}).rejects();
     const roomRequest = {
-      host: "Infrastructure Committee",
+      host: "C01",
       title: "Testing",
       theme: "Athletics",
       semester: "sp25",
@@ -130,7 +130,7 @@ describe("Test Room Request Creation", async () => {
       .post("/api/v1/roomRequests")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
-        host: "Infrastructure Committee",
+        host: "C01",
         title: "Valid Title",
         semester: "sp25",
         theme: "Athletics",
@@ -161,7 +161,7 @@ describe("Test Room Request Creation", async () => {
       .post("/api/v1/roomRequests")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
-        host: "Infrastructure Committee",
+        host: "C01",
         title: "Valid Title",
         semester: "sp25",
         theme: "Athletics",
@@ -192,7 +192,7 @@ describe("Test Room Request Creation", async () => {
       .post("/api/v1/roomRequests")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
-        host: "Infrastructure Committee",
+        host: "C01",
         title: "Recurring Event",
         semester: "sp25",
         theme: "Athletics",
@@ -228,7 +228,7 @@ describe("Test Room Request Creation", async () => {
       .post("/api/v1/roomRequests")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
-        host: "Infrastructure Committee",
+        host: "C01",
         title: "Setup Event",
         semester: "sp25",
         theme: "Athletics",
@@ -262,7 +262,7 @@ describe("Test Room Request Creation", async () => {
       .post("/api/v1/roomRequests")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
-        host: "Infrastructure Committee",
+        host: "C01",
         title: "Physical Event",
         semester: "sp25",
         theme: "Athletics",
@@ -303,7 +303,7 @@ describe("Test Room Request Creation", async () => {
       .post("/api/v1/roomRequests")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
-        host: "Infrastructure Committee",
+        host: "C01",
         title: "Seats Mismatch",
         semester: "sp25",
         theme: "Athletics",
@@ -355,7 +355,7 @@ describe("Test Room Request Creation", async () => {
     });
 
     const roomRequest = {
-      host: "Infrastructure Committee",
+      host: "C01",
       title: "Valid Request",
       semester: "sp25",
       theme: "Athletics",
@@ -393,7 +393,7 @@ describe("Test Room Request Creation", async () => {
     sqsMock.on(SendMessageCommand).resolves({ MessageId: "mocked-message-id" });
 
     const roomRequest = {
-      host: "Infrastructure Committee",
+      host: "C01",
       title: "Valid SQS Request",
       semester: "sp25",
       theme: "Athletics",
