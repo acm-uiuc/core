@@ -7,10 +7,10 @@
   resolved "https://registry.yarnpkg.com/@acemir/cssom/-/cssom-0.9.30.tgz#78e73afd5284d2655f0a83458afefb2920d7bfba"
   integrity sha512-9CnlMCI0LmCIq0olalQqdWrJHPzm0/tw3gzOA9zJSgvFX7Xau3D24mAGa4BtwxwY69nsuJW6kQqqCzf/mEcQgg==
 
-"@acm-uiuc/js-shared@^3.2.1":
-  version "3.2.1"
-  resolved "https://registry.yarnpkg.com/@acm-uiuc/js-shared/-/js-shared-3.2.1.tgz#f6b31cb4fee3ab29049d065236c0cd8bce791088"
-  integrity sha512-lzmysqaTAHFWNMyecMVsqzBLOvVJ3vy9JihBp0vsPFklFnMCt40dUw2ZpgV6seGngGzAx3BqMTL+fB+nRbikXA==
+"@acm-uiuc/js-shared@^3.3.1":
+  version "3.3.1"
+  resolved "https://registry.yarnpkg.com/@acm-uiuc/js-shared/-/js-shared-3.3.1.tgz#17c8661fffda9fe709b0f9728a0f4ed53d2e8488"
+  integrity sha512-26fDYqAkLy1iEdxW+VCoSw02wvqVorydXIEKDGKiMDQg98Xfb08I1LK+N/NyIjEfhGO8ODexrOL2wFuYesNN/w==
 
 "@adobe/css-tools@^4.4.0":
   version "4.4.4"

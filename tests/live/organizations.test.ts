@@ -11,6 +11,6 @@ test("getting organizations", async () => {
 });
 
 test("getting ACM organization info", async () => {
-  const response = await fetch(`${baseEndpoint}/api/v1/organizations/ACM`);
+  const response = await fetch(`${baseEndpoint}/api/v1/organizations/A01`);
   expect(response.status).toBe(200);
 });

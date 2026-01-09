@@ -47,7 +47,7 @@ vi.mock("../../src/api/functions/entraId.js", () => {
 });
 
 const acmMeta = {
-  primaryKey: "DEFINE#ACM",
+  primaryKey: "DEFINE#A01",
   leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
   links: [
     {
@@ -123,13 +123,13 @@ describe("Organization info tests - Extended Coverage", () => {
 
     test("Returns nonVotingMember true when lead is non-voting", async () => {
       const orgMetaWithLeads = {
-        primaryKey: "DEFINE#ACM",
+        primaryKey: "DEFINE#A01",
         leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
         website: "https://www.acm.illinois.edu",
       };
 
       const nonVotingLead = {
-        primaryKey: "LEAD#ACM",
+        primaryKey: "LEAD#A01",
         entryId: "nonvoting@illinois.edu",
         username: "nonvoting@illinois.edu",
         name: "Non Voting Lead",
@@ -158,7 +158,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       expect(response.statusCode).toBe(200);
       const responseJson = response.json();
-      const acmOrg = responseJson.find((org: any) => org.id === "ACM");
+      const acmOrg = responseJson.find((org: any) => org.id === "A01");
       expect(acmOrg).toBeDefined();
       expect(acmOrg.leads).toBeDefined();
       expect(acmOrg.leads.length).toBeGreaterThan(0);
@@ -171,13 +171,13 @@ describe("Organization info tests - Extended Coverage", () => {
 
     test("Returns nonVotingMember false when lead is voting member", async () => {
       const orgMetaWithLeads = {
-        primaryKey: "DEFINE#ACM",
+        primaryKey: "DEFINE#A01",
         leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
         website: "https://www.acm.illinois.edu",
       };
 
       const votingLead = {
-        primaryKey: "LEAD#ACM",
+        primaryKey: "LEAD#A01",
         entryId: "voting@illinois.edu",
         username: "voting@illinois.edu",
         name: "Voting Lead",
@@ -206,7 +206,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       expect(response.statusCode).toBe(200);
       const responseJson = response.json();
-      const acmOrg = responseJson.find((org: any) => org.id === "ACM");
+      const acmOrg = responseJson.find((org: any) => org.id === "A01");
       expect(acmOrg).toBeDefined();
       expect(acmOrg.leads).toBeDefined();
       expect(acmOrg.leads.length).toBeGreaterThan(0);
@@ -219,13 +219,13 @@ describe("Organization info tests - Extended Coverage", () => {
 
     test("Returns nonVotingMember false by default when not specified in data", async () => {
       const orgMetaWithLeads = {
-        primaryKey: "DEFINE#ACM",
+        primaryKey: "DEFINE#A01",
         leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
         website: "https://www.acm.illinois.edu",
       };
 
       const leadWithoutNonVotingField = {
-        primaryKey: "LEAD#ACM",
+        primaryKey: "LEAD#A01",
         entryId: "default@illinois.edu",
         username: "default@illinois.edu",
         name: "Default Lead",
@@ -254,7 +254,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       expect(response.statusCode).toBe(200);
       const responseJson = response.json();
-      const acmOrg = responseJson.find((org: any) => org.id === "ACM");
+      const acmOrg = responseJson.find((org: any) => org.id === "A01");
       expect(acmOrg).toBeDefined();
       expect(acmOrg.leads).toBeDefined();
       expect(acmOrg.leads.length).toBeGreaterThan(0);
@@ -267,13 +267,13 @@ describe("Organization info tests - Extended Coverage", () => {
 
     test("Returns multiple leads with mixed voting statuses", async () => {
       const orgMetaWithLeads = {
-        primaryKey: "DEFINE#ACM",
+        primaryKey: "DEFINE#A01",
         leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
         website: "https://www.acm.illinois.edu",
       };
 
       const votingLead = {
-        primaryKey: "LEAD#ACM",
+        primaryKey: "LEAD#A01",
         entryId: "voting@illinois.edu",
         username: "voting@illinois.edu",
         name: "Voting Lead",
@@ -282,7 +282,7 @@ describe("Organization info tests - Extended Coverage", () => {
       };
 
       const nonVotingLead = {
-        primaryKey: "LEAD#ACM",
+        primaryKey: "LEAD#A01",
         entryId: "nonvoting@illinois.edu",
         username: "nonvoting@illinois.edu",
         name: "Non Voting Lead",
@@ -291,7 +291,7 @@ describe("Organization info tests - Extended Coverage", () => {
       };
 
       const defaultLead = {
-        primaryKey: "LEAD#ACM",
+        primaryKey: "LEAD#A01",
         entryId: "default@illinois.edu",
         username: "default@illinois.edu",
         name: "Default Lead",
@@ -323,7 +323,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       expect(response.statusCode).toBe(200);
       const responseJson = response.json();
-      const acmOrg = responseJson.find((org: any) => org.id === "ACM");
+      const acmOrg = responseJson.find((org: any) => org.id === "A01");
       expect(acmOrg).toBeDefined();
       expect(acmOrg.leads).toBeDefined();
       expect(acmOrg.leads.length).toBe(3);
@@ -360,7 +360,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "GET",
-        url: "/api/v1/organizations/ACM",
+        url: "/api/v1/organizations/A01",
         headers: { authorization: `Bearer ${testJwt}` },
       });
 
@@ -381,7 +381,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "GET",
-        url: "/api/v1/organizations/ACM",
+        url: "/api/v1/organizations/A01",
       });
 
       expect(response.statusCode).toBe(200);
@@ -406,7 +406,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "POST",
-        url: "/api/v1/organizations/ACM/meta",
+        url: "/api/v1/organizations/A01/meta",
         headers: { authorization: `Bearer ${testJwt}` },
         payload: {
           website: "https://new.acm.illinois.edu",
@@ -435,7 +435,7 @@ describe("Organization info tests - Extended Coverage", () => {
           Items: [
             marshall({
               username: "lead@illinois.edu",
-              primaryKey: "LEAD#ACM",
+              primaryKey: "LEAD#A01",
             }),
           ],
         });
@@ -444,7 +444,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "POST",
-        url: "/api/v1/organizations/ACM/meta",
+        url: "/api/v1/organizations/A01/meta",
         headers: { authorization: `Bearer ${testJwt}` },
         payload: {
           website: "https://new.acm.illinois.edu",
@@ -469,14 +469,14 @@ describe("Organization info tests - Extended Coverage", () => {
           Items: [
             marshall({
               username: "rando@acm.illinois.edu",
-              primaryKey: "MEMBER#ACM",
+              primaryKey: "MEMBER#A01",
             }),
           ],
         });
 
       const response = await app.inject({
         method: "POST",
-        url: "/api/v1/organizations/ACM/meta",
+        url: "/api/v1/organizations/A01/meta",
         headers: { authorization: `Bearer ${testJwt}` },
         payload: {
           website: "https://new.acm.illinois.edu",
@@ -495,7 +495,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "POST",
-        url: "/api/v1/organizations/ACM/meta",
+        url: "/api/v1/organizations/A01/meta",
         headers: { authorization: `Bearer ${testJwt}` },
         payload: {
           website: "https://new.acm.illinois.edu",
@@ -515,7 +515,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "PATCH",
-        url: "/api/v1/organizations/ACM/leads",
+        url: "/api/v1/organizations/A01/leads",
         headers: { authorization: `Bearer ${testJwt}` },
         payload: {
           add: [
@@ -548,7 +548,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "PATCH",
-        url: "/api/v1/organizations/ACM/leads",
+        url: "/api/v1/organizations/A01/leads",
         headers: { authorization: `Bearer ${testJwt}` },
         payload: {
           add: [
@@ -589,7 +589,7 @@ describe("Organization info tests - Extended Coverage", () => {
           Items: [
             marshall({
               username: "oldlead@illinois.edu",
-              primaryKey: "LEAD#Social Committee",
+              primaryKey: "LEAD#C02",
             }),
           ],
         });
@@ -608,7 +608,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "PATCH",
-        url: "/api/v1/organizations/Social Committee/leads",
+        url: "/api/v1/organizations/C02/leads",
         headers: { authorization: `Bearer ${testJwt}` },
         payload: {
           add: [
@@ -651,7 +651,7 @@ describe("Organization info tests - Extended Coverage", () => {
           Items: [
             marshall({
               username: "oldlead@illinois.edu",
-              primaryKey: "LEAD#ACM",
+              primaryKey: "LEAD#A01",
             }),
           ],
         });
@@ -670,7 +670,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "PATCH",
-        url: "/api/v1/organizations/ACM/leads",
+        url: "/api/v1/organizations/A01/leads",
         headers: { authorization: `Bearer ${testJwt}` },
         payload: {
           add: [
@@ -702,7 +702,7 @@ describe("Organization info tests - Extended Coverage", () => {
           Items: [
             marshall({
               username: "currentlead@illinois.edu",
-              primaryKey: "LEAD#ACM",
+              primaryKey: "LEAD#A01",
             }),
           ],
         });
@@ -720,7 +720,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "PATCH",
-        url: "/api/v1/organizations/ACM/leads",
+        url: "/api/v1/organizations/A01/leads",
         headers: { authorization: `Bearer ${testJwt}` },
         payload: {
           add: [
@@ -749,7 +749,7 @@ describe("Organization info tests - Extended Coverage", () => {
           Items: [
             marshall({
               username: "rando@acm.illinois.edu",
-              primaryKey: "LEAD#ACM",
+              primaryKey: "LEAD#A01",
             }),
           ],
         });
@@ -764,7 +764,7 @@ describe("Organization info tests - Extended Coverage", () => {
 
       const response = await app.inject({
         method: "PATCH",
-        url: "/api/v1/organizations/ACM/leads",
+        url: "/api/v1/organizations/A01/leads",
         headers: { authorization: `Bearer ${testJwt}` },
         payload: {
           add: [

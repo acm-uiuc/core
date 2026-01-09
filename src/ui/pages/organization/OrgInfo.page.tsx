@@ -10,7 +10,12 @@ import { AppRoles } from "@common/roles";
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle } from "@tabler/icons-react";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
-import { AllOrganizationNameList, OrganizationName } from "@acm-uiuc/js-shared";
+import {
+  AllOrganizationIdList,
+  OrganizationId,
+  OrganizationName,
+  Organizations,
+} from "@acm-uiuc/js-shared";
 import { ManageOrganizationForm } from "./ManageOrganizationForm";
 import {
   LeadEntry,
@@ -25,18 +30,18 @@ type OrganizationData = z.infer<typeof setOrganizationMetaBody>;
 export const OrgInfoPage = () => {
   const api = useApi("core");
   const [searchParams, setSearchParams] = useSearchParams();
-  const [manageableOrgs, setManagableOrgs] = useState<
-    OrganizationName[] | null
-  >(null);
+  const [manageableOrgs, setManagableOrgs] = useState<OrganizationId[] | null>(
+    null,
+  );
 
   // Get org from URL query parameter
-  const orgFromUrl = searchParams.get("org") as OrganizationName | null;
-  const [selectedOrg, setSelectedOrg] = useState<OrganizationName | null>(
+  const orgFromUrl = searchParams.get("org") as OrganizationId | null;
+  const [selectedOrg, setSelectedOrg] = useState<OrganizationId | null>(
     orgFromUrl,
   );
 
   const getOrganizationData = async (
-    org: OrganizationName,
+    org: OrganizationId,
   ): Promise<OrganizationData> => {
     try {
       const response = await api.get(
@@ -119,7 +124,7 @@ export const OrgInfoPage = () => {
         return;
       }
       if (appRoles.includes(AppRoles.ALL_ORG_MANAGER)) {
-        setManagableOrgs(AllOrganizationNameList);
+        setManagableOrgs([...AllOrganizationIdList]);
         return;
       }
       setManagableOrgs(
@@ -129,7 +134,7 @@ export const OrgInfoPage = () => {
   }, []);
 
   // Update URL when selected org changes
-  const handleOrgChange = (org: OrganizationName | null) => {
+  const handleOrgChange = (org: OrganizationId | null) => {
     setSelectedOrg(org);
     if (org) {
       setSearchParams({ org });
@@ -189,9 +194,12 @@ export const OrgInfoPage = () => {
               label="Select an organization"
               description="Only organizations you have permission to manage are shown."
               placeholder="Select organization"
-              data={manageableOrgs}
+              data={manageableOrgs.map((x) => ({
+                value: x,
+                label: Organizations[x].name,
+              }))}
               value={selectedOrg}
-              onChange={(i) => handleOrgChange(i as OrganizationName)}
+              onChange={(i) => handleOrgChange(i as OrganizationId)}
               mt="md"
               searchable
               maw={400}
@@ -202,7 +210,7 @@ export const OrgInfoPage = () => {
             <ManageOrganizationForm
               organizationId={selectedOrg}
               getOrganizationData={(i) =>
-                getOrganizationData(i as OrganizationName)
+                getOrganizationData(i as OrganizationId)
               }
               updateOrganizationData={(data) =>
                 updateOrganizationData(selectedOrg, data)

@@ -42,11 +42,12 @@ import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 import * as z from "zod/v4";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
+import { OrganizationId } from "@acm-uiuc/js-shared";
 
 type OrganizationData = z.infer<typeof setOrganizationMetaBody>;
 
 interface ManageOrganizationFormProps {
-  organizationId: string;
+  organizationId: OrganizationId;
   getOrganizationData: (
     orgId: string,
   ) => Promise<OrganizationData & { leads?: LeadEntry[] }>;

@@ -1,4 +1,4 @@
-import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList, OrganizationId } from "@acm-uiuc/js-shared";
 
 /* eslint-disable import/prefer-default-export */
 export const runEnvironments = ["dev", "prod"] as const;
@@ -37,7 +37,7 @@ export type AppRoles = BaseRoles | MetaRoles;
 export const orgRoles = ["LEAD", "MEMBER"] as const;
 export type OrgRole = typeof orgRoles[number];
 export type OrgRoleDefinition = {
-  org: typeof AllOrganizationNameList[number],
+  org: OrganizationId,
   role: OrgRole
 }
 

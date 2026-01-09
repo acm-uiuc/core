@@ -1,8 +1,13 @@
 import { FastifyPluginAsync } from "fastify";
-import { AllOrganizationNameList, getOrgByName } from "@acm-uiuc/js-shared";
+import {
+  AllOrganizationIdList,
+  AllOrganizationNameList,
+  getOrgByName,
+  Organizations,
+} from "@acm-uiuc/js-shared";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { withRoles, withTags } from "api/components/index.js";
-import { z } from "zod/v4";
+import { unknown, z } from "zod/v4";
 import {
   getOrganizationInfoResponse,
   ORG_DATA_CACHED_DURATION,
@@ -50,6 +55,7 @@ import { SKIP_EXTERNAL_ORG_LEAD_UPDATE } from "common/overrides.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SSMClient } from "@aws-sdk/client-ssm";
 import { assertAuthenticated } from "api/authenticated.js";
+import { OrgUniqueId } from "common/types/generic.js";
 
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${ORG_DATA_CACHED_DURATION}, stale-while-revalidate=${ORG_DATA_CACHED_DURATION * 2}, stale-if-error=${STALE_IF_ERROR_CACHED_TIME}`;
 
@@ -136,7 +142,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           isAuthenticated = false;
         }
       }
-      const promises = AllOrganizationNameList.map((x) =>
+      const promises = AllOrganizationIdList.map((x) =>
         getOrgInfo({
           id: x,
           dynamoClient: fastify.dynamoClient,
@@ -155,9 +161,9 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             leadsEntraGroupId: undefined,
           }));
         }
-        const unknownIds = AllOrganizationNameList.filter(
+        const unknownIds = AllOrganizationIdList.filter(
           (x) => !successIds.includes(x),
-        ).map((x) => ({ id: x }));
+        ).map((x) => ({ id: x, ...Organizations[x] }));
         return reply.send([...successOnly, ...unknownIds]);
       } catch (e) {
         if (e instanceof BaseError) {
@@ -178,9 +184,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         summary:
           "Get information about a specific ACM @ UIUC sub-organization.",
         params: z.object({
-          orgId: z
-            .enum(AllOrganizationNameList)
-            .meta({ description: "ACM @ UIUC organization to query." }),
+          orgId: OrgUniqueId,
         }),
         response: {
           200: {
@@ -229,9 +233,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Organizations"], {
           summary: "Set metadata for an ACM @ UIUC sub-organization.",
           params: z.object({
-            orgId: z
-              .enum(AllOrganizationNameList)
-              .meta({ description: "ACM @ UIUC organization to modify." }),
+            orgId: OrgUniqueId,
           }),
           body: setOrganizationMetaBody,
           response: {
@@ -259,12 +261,13 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
     },
     assertAuthenticated(async (request, reply) => {
       const timestamp = new Date().toISOString();
+      const orgFriendlyName = Organizations[request.params.orgId].name;
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ORG_INFO,
           message: "Updated organization metadata.",
           actor: request.username,
-          target: request.params.orgId,
+          target: orgFriendlyName,
         },
       });
 
@@ -295,7 +298,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         await retryDynamoTransactionWithBackoff(
           metadataOperation,
           request.log,
-          `Update metadata for ${request.params.orgId}`,
+          `Update metadata for ${orgFriendlyName}`,
         );
       } catch (e) {
         if (e instanceof BaseError) {
@@ -318,9 +321,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Organizations"], {
           summary: "Set leads for an ACM @ UIUC sub-organization.",
           params: z.object({
-            orgId: z
-              .enum(AllOrganizationNameList)
-              .meta({ description: "ACM @ UIUC organization to modify." }),
+            orgId: OrgUniqueId,
           }),
           body: patchOrganizationLeadsBody,
           response: {
@@ -343,7 +344,8 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       },
     },
     assertAuthenticated(async (request, reply) => {
-      const orgId = getOrgByName(request.params.orgId)!.id;
+      const { orgId } = request.params;
+      const orgFriendlyName = Organizations[orgId].name;
       const { add, remove } = request.body;
       const allUsernames = [...add.map((u) => u.username), ...remove];
       const officersEmail =
@@ -389,7 +391,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       const getMetadataCommand = new GetItemCommand({
         TableName: genericConfig.SigInfoTableName,
         Key: marshall({
-          primaryKey: `DEFINE#${request.params.orgId}`,
+          primaryKey: `DEFINE#${orgId}`,
           entryId: "0",
         }),
         AttributesToGet: ["leadsEntraGroupId", "leadsGithubTeamId"],
@@ -419,19 +421,14 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
 
       const shouldCreateNewEntraGroup =
         !entraGroupId && !shouldSkipEnhancedActions;
-      const grpDisplayName = `${request.params.orgId} Admin`;
-      const orgInfo = getOrgByName(request.params.orgId);
-      if (!orgInfo) {
-        throw new InternalServerError({
-          message: `Organization ${request.params.orgId} could not be resolved.`,
-        });
-      }
-      const grpShortName = `${orgInfo?.shortcode}-adm`;
+      const grpDisplayName = `${orgFriendlyName} Admin`;
+      const orgInfo = Organizations[orgId];
+      const grpShortName = `${orgInfo.shortcode}-adm`;
 
       // Create Entra group if needed
       if (shouldCreateNewEntraGroup) {
         request.log.info(
-          `No Entra group exists for ${request.params.orgId}. Creating new group...`,
+          `No Entra group exists for ${orgFriendlyName}. Creating new group...`,
         );
 
         try {
@@ -448,7 +445,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           );
 
           request.log.info(
-            `Created Entra group ${entraGroupId} for ${request.params.orgId}`,
+            `Created Entra group ${entraGroupId} for ${orgFriendlyName}`,
           );
 
           // Store Entra group ID immediately
@@ -457,7 +454,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               module: Modules.ORG_INFO,
               message: "Created Entra group for organization leads.",
               actor: request.username,
-              target: request.params.orgId,
+              target: orgFriendlyName,
             },
           });
 
@@ -469,7 +466,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
                   Update: {
                     TableName: genericConfig.SigInfoTableName,
                     Key: marshall({
-                      primaryKey: `DEFINE#${request.params.orgId}`,
+                      primaryKey: `DEFINE#${orgId}`,
                       entryId: "0",
                     }),
                     UpdateExpression:
@@ -488,7 +485,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           await retryDynamoTransactionWithBackoff(
             storeEntraIdOperation,
             request.log,
-            `Store Entra group ID for ${request.params.orgId}`,
+            `Store Entra group ID for ${orgFriendlyName}`,
           );
 
           // Note: Exec council membership is now managed via SQS sync handler

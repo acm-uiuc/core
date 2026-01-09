@@ -1,4 +1,10 @@
-import { AllOrganizationNameList, OrganizationName } from "@acm-uiuc/js-shared";
+import {
+  AllOrganizationIdList,
+  AllOrganizationNameList,
+  OrganizationId,
+  OrganizationName,
+  Organizations,
+} from "@acm-uiuc/js-shared";
 import {
   QueryCommand,
   ScanCommand,
@@ -28,7 +34,7 @@ import { createLock, IoredisAdapter, type SimpleLock } from "redlock-universal";
 import { batchGetUserInfo } from "./uin.js";
 
 export interface GetOrgInfoInputs {
-  id: string;
+  id: OrganizationId;
   dynamoClient: DynamoDBClient;
   logger: ValidLoggers;
 }
@@ -45,45 +51,65 @@ export async function getOrgInfo({
   id,
   dynamoClient,
   logger,
-}: GetOrgInfoInputs) {
+}: GetOrgInfoInputs): Promise<z.infer<typeof getOrganizationInfoResponse>> {
+  const orgMetadata = await fetchOrgMetadata(id, dynamoClient, logger);
+  const leads = await fetchOrgLeads(id, dynamoClient, logger);
+  const constOrgData = Organizations[id];
+
+  return { id, ...orgMetadata, leads, ...constOrgData };
+}
+
+async function fetchOrgMetadata(
+  id: OrganizationId,
+  dynamoClient: DynamoDBClient,
+  logger: ValidLoggers,
+): Promise<Record<string, unknown>> {
   const query = new QueryCommand({
     TableName: genericConfig.SigInfoTableName,
-    KeyConditionExpression: `primaryKey = :definitionId`,
+    KeyConditionExpression: "primaryKey = :definitionId",
     ExpressionAttributeValues: {
       ":definitionId": { S: `DEFINE#${id}` },
     },
     ConsistentRead: true,
   });
-  let response = { leads: [] } as {
-    leads: { name?: string; username: string; title: string | undefined }[];
-  };
+
   try {
-    const responseMarshall = await dynamoClient.send(query);
-    if (
-      !responseMarshall ||
-      !responseMarshall.Items ||
-      responseMarshall.Items.length === 0
-    ) {
+    const response = await dynamoClient.send(query);
+
+    if (!response.Items?.length) {
       logger.debug(
-        `Could not find SIG information for ${id}, returning default.`,
+        `Could not find org information for ${Organizations[id].name}, returning default.`,
       );
-      return { id };
+      return {};
     }
-    const temp = unmarshall(responseMarshall.Items[0]);
-    temp.id = temp.primaryKey.replace("DEFINE#", "");
-    delete temp.primaryKey;
-    response = { ...temp, ...response };
+
+    const metadata = unmarshall(response.Items[0]);
+    metadata.id = metadata.primaryKey.replace("DEFINE#", "");
+    delete metadata.primaryKey;
+
+    return metadata;
   } catch (e) {
     if (e instanceof BaseError) {
       throw e;
     }
     logger.error(e);
-    throw new DatabaseFetchError({
-      message: "Failed to get org metadata.",
-    });
+    throw new DatabaseFetchError({ message: "Failed to get org metadata." });
   }
+}
 
-  const leadsQuery = new QueryCommand({
+async function fetchOrgLeads(
+  id: OrganizationId,
+  dynamoClient: DynamoDBClient,
+  logger: ValidLoggers,
+): Promise<
+  Array<{
+    username: string;
+    title?: string;
+    nonVotingMember: boolean;
+    name?: string;
+  }>
+> {
+  const query = new QueryCommand({
     TableName: genericConfig.SigInfoTableName,
     KeyConditionExpression: "primaryKey = :leadName",
     ExpressionAttributeValues: {
@@ -91,58 +117,49 @@ export async function getOrgInfo({
     },
     ConsistentRead: true,
   });
+
   try {
-    const responseMarshall = await dynamoClient.send(leadsQuery);
-    if (responseMarshall.Items) {
-      const unmarshalledLeads = responseMarshall.Items.map((x) => unmarshall(x))
-        .filter((x) => x.username)
-        .map(
-          (x) =>
-            ({
-              username: x.username,
-              title: x.title,
-              nonVotingMember: x.nonVotingMember || false,
-            }) as {
-              username: string;
-              title: string | undefined;
-              nonVotingMember: boolean;
-            },
-        );
+    const response = await dynamoClient.send(query);
 
-      // Resolve usernames to names
-      const emails = unmarshalledLeads.map((lead) => lead.username);
-      const userInfo = await batchGetUserInfo({
-        emails,
-        dynamoClient,
-        logger,
-      });
-
-      // Add names to leads
-      const leadsWithNames = unmarshalledLeads.map((lead) => {
-        const info = userInfo[lead.username];
-        const name =
-          info?.firstName || info?.lastName
-            ? [info.firstName, info.lastName].filter(Boolean).join(" ")
-            : undefined;
-
-        return {
-          ...lead,
-          name,
-        };
-      });
-
-      response = { ...response, leads: leadsWithNames };
+    if (!response.Items?.length) {
+      return [];
     }
+
+    const leads = response.Items.map((item) => unmarshall(item))
+      .filter((item) => item.username)
+      .map((item) => ({
+        username: item.username as string,
+        title: item.title as string | undefined,
+        nonVotingMember: Boolean(item.nonVotingMember),
+      }));
+
+    const userInfo = await batchGetUserInfo({
+      emails: leads.map((lead) => lead.username),
+      dynamoClient,
+      logger,
+    });
+
+    return leads.map((lead) => ({
+      ...lead,
+      name: formatUserName(userInfo[lead.username]),
+    }));
   } catch (e) {
     if (e instanceof BaseError) {
       throw e;
     }
     logger.error(e);
-    throw new DatabaseFetchError({
-      message: "Failed to get org leads.",
-    });
+    throw new DatabaseFetchError({ message: "Failed to get org leads." });
   }
-  return response as z.infer<typeof getOrganizationInfoResponse>;
+}
+
+function formatUserName(info?: {
+  firstName?: string;
+  lastName?: string;
+}): string | undefined {
+  if (!info?.firstName && !info?.lastName) {
+    return undefined;
+  }
+  return [info.firstName, info.lastName].filter(Boolean).join(" ");
 }
 
 export async function getUserOrgRoles({
@@ -182,14 +199,14 @@ export async function getUserOrgRoles({
         logger.warn(`Invalid role in role definition: ${JSON.stringify(item)}`);
         continue;
       }
-      if (!AllOrganizationNameList.includes(org as OrganizationName)) {
+      if (!AllOrganizationIdList.includes(org as OrganizationId)) {
         logger.warn(`Invalid org in role definition: ${JSON.stringify(item)}`);
         continue;
       }
       cleanedRoles.push({
         org,
         role,
-      } as { org: OrganizationName; role: OrgRole });
+      } as { org: OrganizationId; role: OrgRole });
     }
     return cleanedRoles;
   } catch (e) {
@@ -217,7 +234,7 @@ export const addLead = async ({
   shouldSkipEnhancedActions,
 }: {
   user: z.infer<typeof enforcedOrgLeadEntry>;
-  orgId: string;
+  orgId: OrganizationId;
   actorUsername: string;
   reqId: string;
   entraGroupId?: string;
@@ -229,7 +246,7 @@ export const addLead = async ({
   shouldSkipEnhancedActions: boolean;
 }): Promise<SQSMessage | null> => {
   const { username } = user;
-
+  const orgFriendlyName = Organizations[orgId];
   const lock = createLock({
     adapter: new IoredisAdapter(redisClient),
     key: `user:${username}`,
@@ -244,7 +261,7 @@ export const addLead = async ({
       // Step 1: Add to Entra ID first (if applicable)
       if (entraGroupId && !shouldSkipEnhancedActions) {
         logger.info(
-          `Adding ${username} to Entra group for ${orgId} (Group ID: ${entraGroupId}).`,
+          `Adding ${username} to Entra group for ${orgFriendlyName} (Group ID: ${entraGroupId}).`,
         );
 
         await modifyGroup(
@@ -257,7 +274,7 @@ export const addLead = async ({
 
         entraAddSucceeded = true;
         logger.info(
-          `Successfully added ${username} to Entra group for ${orgId}.`,
+          `Successfully added ${username} to Entra group for ${orgFriendlyName}.`,
         );
       }
 
@@ -269,7 +286,7 @@ export const addLead = async ({
               module: Modules.ORG_INFO,
               actor: actorUsername,
               target: username,
-              message: `Added target as a lead of ${orgId}.`,
+              message: `Added target as a lead of ${orgFriendlyName}.`,
             },
           })!,
           {
@@ -295,7 +312,7 @@ export const addLead = async ({
         await retryDynamoTransactionWithBackoff(
           async () => await dynamoClient.send(addTransaction),
           logger,
-          `Add lead ${username} to ${orgId}`,
+          `Add lead ${username} to ${orgFriendlyName}`,
         );
       } catch (e: any) {
         if (
@@ -303,13 +320,13 @@ export const addLead = async ({
           e.message.includes("ConditionalCheckFailed")
         ) {
           logger.info(
-            `User ${username} is already a lead for ${orgId}. Rolling back Entra changes if needed.`,
+            `User ${username} is already a lead for ${orgFriendlyName}. Rolling back Entra changes if needed.`,
           );
 
           // Rollback Entra ID if it was added
           if (entraAddSucceeded && entraGroupId) {
             logger.warn(
-              `Rolling back Entra group addition for ${username} in ${orgId}.`,
+              `Rolling back Entra group addition for ${username} in ${orgFriendlyName}.`,
             );
             try {
               await modifyGroup(
@@ -325,7 +342,7 @@ export const addLead = async ({
             } catch (rollbackError) {
               logger.error(
                 rollbackError,
-                `CRITICAL: Failed to rollback Entra group addition for ${username} in ${orgId}. Manual intervention required.`,
+                `CRITICAL: Failed to rollback Entra group addition for ${username} in ${orgFriendlyName}. Manual intervention required.`,
               );
             }
           }
@@ -336,7 +353,7 @@ export const addLead = async ({
       }
 
       logger.info(
-        `Successfully added ${username} as lead for ${orgId} in DynamoDB.`,
+        `Successfully added ${username} as lead for ${orgFriendlyName} in DynamoDB.`,
       );
 
       // Step 3: Send notification email
@@ -346,15 +363,15 @@ export const addLead = async ({
         payload: {
           to: getAllUserEmails(username),
           cc: [officersEmail],
-          subject: `${user.nonVotingMember ? "Non-voting lead" : "Lead"} added for ${orgId}`,
-          content: `Hello,\n\nWe're letting you know that ${username} has been added as a ${user.nonVotingMember ? "non-voting" : ""} lead for ${orgId} by ${actorUsername}.${shouldSkipEnhancedActions ? "\nLeads for this org are not updated automatically in external systems (such as Entra ID). Please contact the appropriate administrators to ensure these updates are made.\n" : "\n"}Changes may take up to 2 hours to reflect in all systems.`,
+          subject: `${user.nonVotingMember ? "Non-voting lead" : "Lead"} added for ${orgFriendlyName}`,
+          content: `Hello,\n\nWe're letting you know that ${username} has been added as a ${user.nonVotingMember ? "non-voting" : ""} lead for ${orgFriendlyName} by ${actorUsername}.${shouldSkipEnhancedActions ? "\nLeads for this org are not updated automatically in external systems (such as Entra ID). Please contact the appropriate administrators to ensure these updates are made.\n" : "\n"}Changes may take up to 2 hours to reflect in all systems.`,
         },
       };
     } catch (error) {
       // Rollback Entra ID if DynamoDB operation failed
       if (entraAddSucceeded && entraGroupId) {
         logger.error(
-          `DynamoDB operation failed for ${username} in ${orgId}. Rolling back Entra group addition.`,
+          `DynamoDB operation failed for ${username} in ${orgFriendlyName}. Rolling back Entra group addition.`,
         );
         try {
           await modifyGroup(
@@ -370,7 +387,7 @@ export const addLead = async ({
         } catch (rollbackError) {
           logger.error(
             rollbackError,
-            `CRITICAL: Failed to rollback Entra group addition for ${username} in ${orgId}. Manual intervention required.`,
+            `CRITICAL: Failed to rollback Entra group addition for ${username} in ${orgFriendlyName}. Manual intervention required.`,
           );
         }
       }
@@ -395,7 +412,7 @@ export const removeLead = async ({
   shouldSkipEnhancedActions,
 }: {
   username: string;
-  orgId: string;
+  orgId: OrganizationId;
   actorUsername: string;
   reqId: string;
   entraGroupId?: string;
@@ -406,6 +423,7 @@ export const removeLead = async ({
   redisClient: Redis;
   shouldSkipEnhancedActions: boolean;
 }): Promise<SQSMessage | null> => {
+  const orgFriendlyName = Organizations[orgId];
   const lock = createLock({
     adapter: new IoredisAdapter(redisClient),
     key: `user:${username}`,
@@ -420,7 +438,7 @@ export const removeLead = async ({
       // Step 1: Remove from Entra ID first (if applicable)
       if (entraGroupId && !shouldSkipEnhancedActions) {
         logger.info(
-          `Removing ${username} from Entra group for ${orgId} (Group ID: ${entraGroupId}).`,
+          `Removing ${username} from Entra group for ${orgFriendlyName} (Group ID: ${entraGroupId}).`,
         );
 
         await modifyGroup(
@@ -433,7 +451,7 @@ export const removeLead = async ({
 
         entraRemoveSucceeded = true;
         logger.info(
-          `Successfully removed ${username} from Entra group for ${orgId}.`,
+          `Successfully removed ${username} from Entra group for ${orgFriendlyName}.`,
         );
       }
 
@@ -445,7 +463,7 @@ export const removeLead = async ({
               module: Modules.ORG_INFO,
               actor: actorUsername,
               target: username,
-              message: `Removed target from lead of ${orgId}.`,
+              message: `Removed target from lead of ${orgFriendlyName}.`,
             },
           })!,
           {
@@ -466,7 +484,7 @@ export const removeLead = async ({
         await retryDynamoTransactionWithBackoff(
           async () => await dynamoClient.send(removeTransaction),
           logger,
-          `Remove lead ${username} from ${orgId}`,
+          `Remove lead ${username} from ${orgFriendlyName}`,
         );
       } catch (e: any) {
         if (
@@ -474,13 +492,13 @@ export const removeLead = async ({
           e.message.includes("ConditionalCheckFailed")
         ) {
           logger.info(
-            `User ${username} was not a lead for ${orgId}. Rolling back Entra changes if needed.`,
+            `User ${username} was not a lead for ${orgFriendlyName}. Rolling back Entra changes if needed.`,
           );
 
           // Rollback Entra ID if it was removed
           if (entraRemoveSucceeded && entraGroupId) {
             logger.warn(
-              `Rolling back Entra group removal for ${username} in ${orgId}.`,
+              `Rolling back Entra group removal for ${username} in ${orgFriendlyName}.`,
             );
             try {
               await modifyGroup(
@@ -496,7 +514,7 @@ export const removeLead = async ({
             } catch (rollbackError) {
               logger.error(
                 rollbackError,
-                `CRITICAL: Failed to rollback Entra group removal for ${username} in ${orgId}. Manual intervention required.`,
+                `CRITICAL: Failed to rollback Entra group removal for ${username} in ${orgFriendlyName}. Manual intervention required.`,
               );
             }
           }
@@ -507,7 +525,7 @@ export const removeLead = async ({
       }
 
       logger.info(
-        `Successfully removed ${username} as lead for ${orgId} in DynamoDB.`,
+        `Successfully removed ${username} as lead for ${orgFriendlyName} in DynamoDB.`,
       );
 
       // Step 3: Send notification email
@@ -517,15 +535,15 @@ export const removeLead = async ({
         payload: {
           to: getAllUserEmails(username),
           cc: [officersEmail],
-          subject: `Lead removed for ${orgId}`,
-          content: `Hello,\n\nWe're letting you know that ${username} has been removed as a lead for ${orgId} by ${actorUsername}.${shouldSkipEnhancedActions ? "\nLeads for this org are not updated automatically in external systems (such as Entra ID). Please contact the appropriate administrators to make sure these updates are made.\n" : "\n"}No action is required from you at this time.`,
+          subject: `Lead removed for ${orgFriendlyName}`,
+          content: `Hello,\n\nWe're letting you know that ${username} has been removed as a lead for ${orgFriendlyName} by ${actorUsername}.${shouldSkipEnhancedActions ? "\nLeads for this org are not updated automatically in external systems (such as Entra ID). Please contact the appropriate administrators to make sure these updates are made.\n" : "\n"}No action is required from you at this time.`,
         },
       };
     } catch (error) {
       // Rollback Entra ID if DynamoDB operation failed
       if (entraRemoveSucceeded && entraGroupId) {
         logger.error(
-          `DynamoDB operation failed for ${username} in ${orgId}. Rolling back Entra group removal.`,
+          `DynamoDB operation failed for ${username} in ${orgFriendlyName}. Rolling back Entra group removal.`,
         );
         try {
           await modifyGroup(
@@ -541,7 +559,7 @@ export const removeLead = async ({
         } catch (rollbackError) {
           logger.error(
             rollbackError,
-            `CRITICAL: Failed to rollback Entra group removal for ${username} in ${orgId}. Manual intervention required.`,
+            `CRITICAL: Failed to rollback Entra group removal for ${username} in ${orgFriendlyName}. Manual intervention required.`,
           );
         }
       }
@@ -565,15 +583,20 @@ export async function getAllVotingLeads({
   dynamoClient: DynamoDBClient;
   logger: ValidLoggers;
 }): Promise<
-  Array<{ username: string; org: string; name: string; title: string }>
+  Array<{
+    username: string;
+    orgId: OrganizationId;
+    name: string;
+    title: string;
+  }>
 > {
   // Query all organizations in parallel for better performance
-  const queryPromises = AllOrganizationNameList.map(async (orgName) => {
+  const queryPromises = AllOrganizationIdList.map(async (orgId) => {
     const leadsQuery = new QueryCommand({
       TableName: genericConfig.SigInfoTableName,
       KeyConditionExpression: "primaryKey = :leadName",
       ExpressionAttributeValues: {
-        ":leadName": { S: `LEAD#${orgName}` },
+        ":leadName": { S: `LEAD#${orgId}` },
       },
       ConsistentRead: true,
     });
@@ -585,7 +608,7 @@ export async function getAllVotingLeads({
           .filter((x) => x.username && !x.nonVotingMember)
           .map((x) => ({
             username: x.username as string,
-            org: orgName,
+            orgId,
             name: x.name as string,
             title: x.title as string,
           }));
@@ -597,7 +620,7 @@ export async function getAllVotingLeads({
       }
       logger.error(e);
       throw new DatabaseFetchError({
-        message: `Failed to get leads for org ${orgName}.`,
+        message: `Failed to get leads for org ${orgId}.`,
       });
     }
   });
