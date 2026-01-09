@@ -13,7 +13,6 @@ import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import {
   AllOrganizationIdList,
   OrganizationId,
-  OrganizationName,
   Organizations,
 } from "@acm-uiuc/js-shared";
 import { ManageOrganizationForm } from "./ManageOrganizationForm";
@@ -61,13 +60,13 @@ export const OrgInfoPage = () => {
   };
 
   const updateOrganizationData = async (
-    org: OrganizationName,
+    org: OrganizationId,
     data: OrganizationData,
   ): Promise<void> => {
     try {
       await api.post(`/api/v1/organizations/${org}/meta`, data);
       notifications.show({
-        title: `${org} updated`,
+        title: `${Organizations[org].name} updated`,
         message: `Changes may take up to ${ORG_DATA_CACHED_DURATION / 60} minutes to reflect to all users.`,
         color: "green",
       });
@@ -88,7 +87,7 @@ export const OrgInfoPage = () => {
     }
   };
   const updateLeads = async (
-    org: OrganizationName,
+    org: OrganizationId,
     toAdd: LeadEntry[],
     toRemove: string[],
   ): Promise<void> => {
