@@ -18,6 +18,7 @@ import {
   ValidationError,
 } from "common/errors/index.js";
 import { type FastifyBaseLogger } from "fastify";
+import * as z from "zod/v4";
 
 export type HashUinInputs = {
   pepper: string;
@@ -28,6 +29,18 @@ export type GetUserUinInputs = {
   uiucAccessToken: string;
   pepper: string;
 };
+
+export const graphApiExpectedResponseSchema = z.object({
+  userPrincipalName: z
+    .string()
+    .min(1)
+    .refine((val) => val.endsWith("@illinois.edu"), {
+      message: "userPrincipalName must have domain @illinois.edu",
+    }),
+  givenName: z.string().min(1),
+  surname: z.string().min(1),
+  mail: z.string().min(1),
+});
 
 export const verifyUiucAccessToken = async ({
   accessToken,
@@ -76,26 +89,20 @@ export const verifyUiucAccessToken = async ({
       });
     }
 
-    const data = (await response.json()) as {
-      userPrincipalName: string;
-      givenName: string;
-      surname: string;
-      mail: string;
-    };
-    if (!data.userPrincipalName.endsWith("@illinois.edu")) {
-      logger.error(
-        `Found UPN ${data.userPrincipalName} which cannot be turned into NetID via simple replacement.`,
-      );
-      throw new UnauthenticatedError({
-        message: "Invalid user domain.",
-      });
-    }
+    const data = await graphApiExpectedResponseSchema.parseAsync(
+      await response.json(),
+    );
     const netId = data.userPrincipalName.replace("@illinois.edu", "");
-    logger.info("Access token successfully verified with Microsoft Graph API.");
+    logger.info(`Authenticated UIUC tenant user ${data.userPrincipalName}.`);
     return { ...data, netId };
   } catch (error) {
     if (error instanceof BaseError) {
       throw error;
+    } else if (error instanceof z.ZodError) {
+      logger.error(error, "Failed to parse Graph API response");
+      throw new UnauthenticatedError({
+        message: "Failed to parse user identity.",
+      });
     } else {
       logger.error(error);
       throw new InternalServerError({
