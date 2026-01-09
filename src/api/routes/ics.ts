@@ -6,14 +6,14 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { NotFoundError, ValidationError } from "../../common/errors/index.js";
+import { NotFoundError } from "../../common/errors/index.js";
 import ical, {
   ICalCalendarMethod,
   ICalEventJSONRepeatingData,
   ICalEventRepeatingFreq,
 } from "ical-generator";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
-import { AllOrganizationNameList, OrganizationName } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList, getOrgIdByName } from "@acm-uiuc/js-shared";
 import { CLIENT_HTTP_CACHE_POLICY, EventRepeatOptions } from "./events.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { getCacheCounter } from "api/functions/cache.js";
@@ -88,11 +88,6 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
         reply.header("etag", etag);
       }
       if (host) {
-        if (!AllOrganizationNameList.includes(host as OrganizationName)) {
-          throw new ValidationError({
-            message: `Invalid host parameter "${host}" in path.`,
-          });
-        }
         queryParams = {
           ...queryParams,
         };
@@ -101,7 +96,7 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
             ...queryParams,
             ExpressionAttributeValues: {
               ":host": {
-                S: host,
+                S: getOrgIdByName(host),
               },
             },
             KeyConditionExpression: "host = :host",

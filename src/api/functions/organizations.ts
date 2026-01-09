@@ -1,6 +1,5 @@
 import {
   AllOrganizationIdList,
-  AllOrganizationNameList,
   OrganizationId,
   OrganizationName,
   Organizations,
@@ -646,12 +645,13 @@ export async function shouldBeInExecCouncil({
   logger: ValidLoggers;
 }): Promise<boolean> {
   // Query all orgs to see if this user is a voting lead of any org
-  for (const orgName of AllOrganizationNameList) {
+  for (const orgId of AllOrganizationIdList) {
+    const orgName = Organizations[orgId].name;
     const leadsQuery = new QueryCommand({
       TableName: genericConfig.SigInfoTableName,
       KeyConditionExpression: "primaryKey = :leadName AND entryId = :username",
       ExpressionAttributeValues: {
-        ":leadName": { S: `LEAD#${orgName}` },
+        ":leadName": { S: `LEAD#${orgId}` },
         ":username": { S: username },
       },
       ConsistentRead: true,

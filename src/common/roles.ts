@@ -1,4 +1,4 @@
-import { AllOrganizationNameList, OrganizationId } from "@acm-uiuc/js-shared";
+import { OrganizationId } from "@acm-uiuc/js-shared";
 
 /* eslint-disable import/prefer-default-export */
 export const runEnvironments = ["dev", "prod"] as const;

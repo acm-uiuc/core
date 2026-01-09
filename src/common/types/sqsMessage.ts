@@ -1,4 +1,3 @@
-import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
 import * as z from "zod/v4";
 import { OrgUniqueId } from "./generic.js";
 

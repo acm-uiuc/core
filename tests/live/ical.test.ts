@@ -1,5 +1,4 @@
-import { describe, expect, test } from "vitest";
-import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
+import { expect, test } from "vitest";
 import ical from "node-ical";
 import { getBaseEndpoint } from "./utils.js";
 const baseEndpoint = getBaseEndpoint();

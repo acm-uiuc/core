@@ -18,7 +18,7 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { DateInput, DateTimePicker } from "@mantine/dates";
-import { AllOrganizationNameList, Organizations } from "@acm-uiuc/js-shared";
+import { Organizations } from "@acm-uiuc/js-shared";
 import {
   eventThemeOptions,
   spaceTypeOptions,
