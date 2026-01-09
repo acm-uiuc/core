@@ -53,7 +53,7 @@ describe("Organization Info Tests", () => {
       `https://core.aws.qa.acmuiuc.org/api/v1/organizations?date=${date}`,
     );
     const json = (await data.json()) as RecursiveRecord[];
-    const infraEntry = json.find((x) => x.id === "Infrastructure Committee");
+    const infraEntry = json.find((x) => x.id === "C01");
 
     expect(infraEntry).toBeDefined();
     expect(infraEntry?.description).toBe(`Populated by E2E tests on ${date}`);
