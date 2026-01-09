@@ -39,7 +39,7 @@ describe("ManageOrganizationForm Tests", () => {
           >
             <UserResolverProvider resolutionDisabled>
               <ManageOrganizationForm
-                organizationId="ACM"
+                organizationId="A01"
                 getOrganizationData={getOrganizationDataMock}
                 updateOrganizationData={updateOrganizationDataMock}
                 {...props}
@@ -69,7 +69,7 @@ describe("ManageOrganizationForm Tests", () => {
     await renderComponent();
 
     await waitFor(() => {
-      expect(getOrganizationDataMock).toHaveBeenCalledWith("ACM");
+      expect(getOrganizationDataMock).toHaveBeenCalledWith("A01");
     });
 
     await waitFor(() => {
@@ -247,7 +247,7 @@ describe("ManageOrganizationForm Tests", () => {
         >
           <UserResolverProvider resolutionDisabled>
             <ManageOrganizationForm
-              organizationId="ACM"
+              organizationId="A01"
               getOrganizationData={getOrganizationDataMock}
               updateOrganizationData={updateOrganizationDataMock}
             />
@@ -280,7 +280,7 @@ describe("ManageOrganizationForm Tests", () => {
           >
             <UserResolverProvider resolutionDisabled>
               <ManageOrganizationForm
-                organizationId="SIGWeb"
+                organizationId="C01"
                 getOrganizationData={getOrganizationDataMock}
                 updateOrganizationData={updateOrganizationDataMock}
               />
@@ -291,7 +291,7 @@ describe("ManageOrganizationForm Tests", () => {
     });
 
     await waitFor(() => {
-      expect(getOrganizationDataMock).toHaveBeenCalledWith("SIGWeb");
+      expect(getOrganizationDataMock).toHaveBeenCalledWith("C01");
     });
 
     await waitFor(() => {
@@ -430,7 +430,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
           >
             <UserResolverProvider resolutionDisabled>
               <ManageOrganizationForm
-                organizationId="ACM"
+                organizationId="A01"
                 getOrganizationData={getOrganizationDataMock}
                 updateOrganizationData={updateOrganizationDataMock}
                 updateLeads={updateLeadsMock}
@@ -801,7 +801,7 @@ describe("ManageOrganizationForm - Lead Management Tests", () => {
           >
             <UserResolverProvider resolutionDisabled>
               <ManageOrganizationForm
-                organizationId="ACM"
+                organizationId="A01"
                 getOrganizationData={getOrganizationDataMock}
                 updateOrganizationData={updateOrganizationDataMock}
               />

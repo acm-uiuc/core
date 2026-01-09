@@ -1,6 +1,6 @@
 import * as z from "zod/v4";
 import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
-import { illinoisSemesterId } from "./generic.js"
+import { illinoisSemesterId, OrgUniqueId } from "./generic.js"
 export const validMimeTypes = ['application/pdf', 'image/jpeg', 'image/heic', 'image/png']
 export const maxAttachmentSizeBytes = 1e7; // 10MB
 
@@ -156,7 +156,7 @@ export const roomRequestPostResponse = z.object({
 });
 
 export const roomRequestBaseSchema = z.object({
-  host: z.enum(AllOrganizationNameList),
+  host: OrgUniqueId,
   title: z.string().min(2, "Title must have at least 2 characters"),
   semester: illinoisSemesterId
 });

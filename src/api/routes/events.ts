@@ -56,6 +56,18 @@ import {
 } from "common/constants.js";
 import { assertAuthenticated } from "api/authenticated.js";
 import { parseInTimezone } from "common/time.js";
+import {
+  getOrgIdByName,
+  OrganizationId,
+  Organizations,
+} from "@acm-uiuc/js-shared";
+
+const normalizeEventHost = <T extends { host: string }>(x: T): T => {
+  return {
+    ...x,
+    host: Organizations[x.host as OrganizationId]?.name || x.host,
+  };
+};
 
 const createProjectionParams = (includeMetadata: boolean = false) => {
   const attributeMapping = {
@@ -293,7 +305,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               TableName: genericConfig.EventsDynamoTableName,
               ExpressionAttributeValues: {
                 ":host": {
-                  S: host,
+                  S: getOrgIdByName(host),
                 },
               },
               KeyConditionExpression: "host = :host",
@@ -317,7 +329,9 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           }
 
           const response = await fastify.dynamoClient.send(command);
-          const items = response.Items?.map((item) => unmarshall(item));
+          const items = response.Items?.map((item) => unmarshall(item)).map(
+            (x) => normalizeEventHost(x as { host: string }),
+          );
           let parsedItems = getEventsSchema.parse(items);
           if (upcomingOnly) {
             parsedItems = parsedItems.filter((item) => {
@@ -390,7 +404,11 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
         const command = new PutItemCommand({
           TableName: genericConfig.EventsDynamoTableName,
           Item: marshall(
-            { ...updatedItem, expiresAt },
+            {
+              ...updatedItem,
+              host: getOrgIdByName(request.body.host),
+              expiresAt,
+            },
             { removeUndefinedValues: true },
           ),
           ConditionExpression: "attribute_exists(id)",
@@ -550,7 +568,10 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           new PutItemCommand({
             TableName: genericConfig.EventsDynamoTableName,
             ConditionExpression: "attribute_not_exists(id)",
-            Item: marshall(entry, { removeUndefinedValues: true }),
+            Item: marshall(
+              { ...entry, host: getOrgIdByName(request.body.host) },
+              { removeUndefinedValues: true },
+            ),
           }),
         );
         try {
@@ -847,7 +868,9 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
           reply.header("etag", etag);
         }
 
-        return reply.send(item as z.infer<typeof getEventSchema>);
+        return reply.send(
+          normalizeEventHost(item as z.infer<typeof getEventSchema>),
+        );
       } catch (e) {
         if (e instanceof BaseError) {
           throw e;

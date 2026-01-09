@@ -650,9 +650,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         },
         onRequest: async (request, reply) => {
           await authorizeByOrgRoleOrSchema(fastify, request, reply, {
-            validRoles: [
-              { org: Organizations[request.params.orgId].name, role: "LEAD" },
-            ],
+            validRoles: [{ org: request.params.orgId, role: "LEAD" }],
           });
         },
       },
@@ -760,9 +758,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ),
         onRequest: async (request, reply) => {
           await authorizeByOrgRoleOrSchema(fastify, request, reply, {
-            validRoles: [
-              { org: Organizations[request.params.orgId].name, role: "LEAD" },
-            ],
+            validRoles: [{ org: request.params.orgId, role: "LEAD" }],
           });
         },
       },
@@ -811,9 +807,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ),
         onRequest: async (request, reply) => {
           await authorizeByOrgRoleOrSchema(fastify, request, reply, {
-            validRoles: [
-              { org: Organizations[request.params.orgId].name, role: "LEAD" },
-            ],
+            validRoles: [{ org: request.params.orgId, role: "LEAD" }],
           });
         },
       },

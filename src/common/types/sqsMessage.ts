@@ -1,4 +1,4 @@
-import { AllOrganizationNameList, OrganizationsByName } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
 import * as z from "zod/v4";
 
 export enum AvailableSQSFunctions {

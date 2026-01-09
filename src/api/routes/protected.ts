@@ -27,12 +27,12 @@ const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
       if (!username) {
         throw new UnauthenticatedError({ message: "Username not found." });
       }
-      const orgRolesPromise = getUserOrgRoles({
+      const orgRoles = await getUserOrgRoles({
         username,
         dynamoClient,
         logger,
       });
-      const orgRoles = await orgRolesPromise;
+
       reply.send({
         username: request.username,
         roles: Array.from(roles),
