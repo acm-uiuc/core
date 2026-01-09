@@ -1,5 +1,5 @@
 import { Temporal } from 'temporal-polyfill'
-import { DEFAULT_TIMEZONE } from './constants';
+import { DEFAULT_TIMEZONE } from './constants.js';
 
 /**
  * Parses a datetime string into a ZonedDateTime in the specified timezone.
