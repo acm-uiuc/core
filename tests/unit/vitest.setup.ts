@@ -61,6 +61,7 @@ vi.mock(import("../../src/api/functions/uin.js"), async (importOriginal) => {
               givenName: "Infra",
               surname: "Testing",
               mail: "fjkldk99@illinois.edu",
+              netId: "fjkldk99",
             },
           "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImlhdCI6MTY3Mjc2NjAyOCwiZXhwIjoxNjcyODAyMDI4fQ.P1_rB3hJ5afwiG4TWXLq6jOAcVJkvQZ2Z-ZZOnQ1dZw":
             {
@@ -68,6 +69,7 @@ vi.mock(import("../../src/api/functions/uin.js"), async (importOriginal) => {
               givenName: "Infra",
               surname: "Testing",
               mail: "valid@illinois.edu",
+              netId: "valid",
             },
         };
         if (accessToken in validTokens) {
