@@ -54,7 +54,7 @@ describe("createOrgGithubTeamHandler", () => {
 
   // Use "Social Committee" - a real org that's NOT in the skip list
   const basePayload = {
-    orgName: "Social Committee",
+    orgId: "C02",
     githubTeamName: "social-leads",
     githubTeamDescription: "Social Committee Leadership Team",
   };
@@ -78,7 +78,7 @@ describe("createOrgGithubTeamHandler", () => {
     // Use ACM which IS in the skip list
     const disabledOrgPayload = {
       ...basePayload,
-      orgName: "ACM",
+      orgId: "A01",
       githubTeamName: "acm-leads",
       githubTeamDescription: "ACM Leadership Team",
     };
@@ -106,7 +106,7 @@ describe("createOrgGithubTeamHandler", () => {
   it("should skip if org does not have an Entra group", async () => {
     ddbMock.on(GetItemCommand).resolves({
       Item: marshall({
-        primaryKey: "DEFINE#Social Committee",
+        primaryKey: "DEFINE#C02",
         entryId: "0",
       }),
     });
@@ -126,7 +126,7 @@ describe("createOrgGithubTeamHandler", () => {
   it("should skip if org already has a GitHub team", async () => {
     ddbMock.on(GetItemCommand).resolves({
       Item: marshall({
-        primaryKey: "DEFINE#Social Committee",
+        primaryKey: "DEFINE#C02",
         entryId: "0",
         leadsEntraGroupId: "entra-group-123",
         leadsGithubTeamId: 456,
@@ -150,7 +150,7 @@ describe("createOrgGithubTeamHandler", () => {
 
     ddbMock.on(GetItemCommand).resolves({
       Item: marshall({
-        primaryKey: "DEFINE#Social Committee",
+        primaryKey: "DEFINE#C02",
         entryId: "0",
         leadsEntraGroupId: "entra-group-123",
       }),
@@ -187,7 +187,7 @@ describe("createOrgGithubTeamHandler", () => {
 
     ddbMock.on(GetItemCommand).resolves({
       Item: marshall({
-        primaryKey: "DEFINE#Social Committee",
+        primaryKey: "DEFINE#C02",
         entryId: "0",
         leadsEntraGroupId: "entra-group-123",
       }),
@@ -217,7 +217,7 @@ describe("createOrgGithubTeamHandler", () => {
 
     ddbMock.on(GetItemCommand).resolves({
       Item: marshall({
-        primaryKey: "DEFINE#Social Committee",
+        primaryKey: "DEFINE#C02",
         entryId: "0",
         leadsEntraGroupId: "entra-group-123",
       }),
@@ -247,7 +247,7 @@ describe("createOrgGithubTeamHandler", () => {
 
     ddbMock.on(GetItemCommand).resolves({
       Item: marshall({
-        primaryKey: "DEFINE#Social Committee",
+        primaryKey: "DEFINE#C02",
         entryId: "0",
         leadsEntraGroupId: "entra-group-123",
       }),
@@ -288,7 +288,7 @@ describe("createOrgGithubTeamHandler", () => {
 
     ddbMock.on(GetItemCommand).resolves({
       Item: marshall({
-        primaryKey: "DEFINE#Social Committee",
+        primaryKey: "DEFINE#C02",
         entryId: "0",
         leadsEntraGroupId: "entra-group-123",
       }),
@@ -322,7 +322,7 @@ describe("createOrgGithubTeamHandler", () => {
 
     ddbMock.on(GetItemCommand).resolves({
       Item: marshall({
-        primaryKey: "DEFINE#Social Committee",
+        primaryKey: "DEFINE#C02",
         entryId: "0",
         leadsEntraGroupId: "entra-group-123",
       }),
@@ -353,7 +353,7 @@ describe("createOrgGithubTeamHandler", () => {
 
     ddbMock.on(GetItemCommand).resolves({
       Item: marshall({
-        primaryKey: "DEFINE#Social Committee",
+        primaryKey: "DEFINE#C02",
         entryId: "0",
         leadsEntraGroupId: "entra-group-123",
       }),
