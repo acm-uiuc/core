@@ -1,4 +1,4 @@
-import { AllOrganizationNameList, OrganizationsByName } from "@acm-uiuc/js-shared";
+import { OrganizationsByName } from "@acm-uiuc/js-shared";
 import { AppRoleHumanMapper, AppRoles } from "../roles.js";
 import { z } from "zod/v4";
 import { OrgUniqueId } from "./generic.js";
