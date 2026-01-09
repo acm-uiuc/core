@@ -97,7 +97,7 @@ export const OrgInfoPage = () => {
         remove: toRemove,
       });
       notifications.show({
-        title: `${org} leads updated`,
+        title: `${Organizations[org].name} leads updated`,
         message: `Changes may take up to ${ORG_DATA_CACHED_DURATION / 60} minutes to reflect to all users.`,
         color: "green",
       });

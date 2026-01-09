@@ -50,7 +50,7 @@ import {
 } from "@ui/util/s3";
 import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 import { DEFAULT_TIMEZONE } from "@common/constants";
-import { formatWithOrdinal, fromNow } from "@common/time";
+import { currentTimezone, formatWithOrdinal, fromNow } from "@common/time";
 
 export const ViewRoomRequest: React.FC = () => {
   const { semesterId, requestId } = useParams();
@@ -495,12 +495,15 @@ export const ViewRoomRequest: React.FC = () => {
                     )}
                     {x.createdAt && (
                       <Tooltip
-                        label={formatWithOrdinal(x.createdAt, DEFAULT_TIMEZONE)}
+                        label={formatWithOrdinal(
+                          x.createdAt,
+                          currentTimezone(),
+                        )}
                         position="top"
                         withArrow
                       >
                         <Text c="dimmed" size="xs" mt="xs">
-                          {fromNow(x.createdAt, DEFAULT_TIMEZONE)}
+                          {fromNow(x.createdAt, currentTimezone())}
                         </Text>
                       </Tooltip>
                     )}
@@ -508,7 +511,7 @@ export const ViewRoomRequest: React.FC = () => {
                 ))}
               </Timeline>
               <Text mt="md" size="sm" c="dimmed">
-                All times in the America/Chicago timezone.
+                All times in your local timezone.
               </Text>
             </>
           )}

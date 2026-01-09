@@ -1,4 +1,5 @@
 import { Temporal } from 'temporal-polyfill'
+import { DEFAULT_TIMEZONE } from './constants.js';
 
 /**
  * Parses a datetime string into a ZonedDateTime in the specified timezone.
@@ -161,4 +162,22 @@ export function fromNow(dateString: string, timezone: string): string {
   if (abs(diffMonths) < 11) return format(diffMonths, "month");
   if (abs(diffYears) < 2) return isFuture ? "in a year" : "a year ago";
   return format(diffYears, "year");
+}
+
+export const isInDefaultTimezone = () => {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone === DEFAULT_TIMEZONE
+}
+
+export const currentTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone
+
+export function getCurrentTimezoneShortCode() {
+  const date = new Date();
+  // Request the date parts with a short timezone name option
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZoneName: 'short'
+  }).formatToParts(date);
+
+  // Find the part with type 'timeZoneName' and return its value
+  const timeZoneNamePart = parts.find(part => part.type === 'timeZoneName');
+  return timeZoneNamePart ? timeZoneNamePart.value : 'N/A';
 }

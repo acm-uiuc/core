@@ -1,5 +1,4 @@
 import * as z from "zod/v4";
-import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
 import { illinoisSemesterId, OrgUniqueId } from "./generic.js"
 export const validMimeTypes = ['application/pdf', 'image/jpeg', 'image/heic', 'image/png']
 export const maxAttachmentSizeBytes = 1e7; // 10MB

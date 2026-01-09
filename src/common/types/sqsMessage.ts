@@ -1,5 +1,5 @@
-import { AllOrganizationNameList } from "@acm-uiuc/js-shared";
 import * as z from "zod/v4";
+import { OrgUniqueId } from "./generic.js";
 
 export enum AvailableSQSFunctions {
   Ping = "ping",
@@ -74,7 +74,7 @@ export const sqsPayloadSchemas = {
   ),
   [AvailableSQSFunctions.CreateOrgGithubTeam]: createSQSSchema(
     AvailableSQSFunctions.CreateOrgGithubTeam, z.object({
-      orgName: z.enum(AllOrganizationNameList),
+      orgId: OrgUniqueId,
       githubTeamName: z.string().min(1),
       githubTeamDescription: z.string().min(1)
     })

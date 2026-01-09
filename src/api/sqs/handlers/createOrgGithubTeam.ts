@@ -18,7 +18,7 @@ import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 import { SKIP_EXTERNAL_ORG_LEAD_UPDATE } from "common/overrides.js";
-import { getOrgByName } from "@acm-uiuc/js-shared";
+import { getOrgByName, Organizations } from "@acm-uiuc/js-shared";
 import { createRedisModule } from "api/redis.js";
 
 export const createOrgGithubTeamHandler: SQSHandlerFunction<
@@ -34,8 +34,12 @@ export const createOrgGithubTeamHandler: SQSHandlerFunction<
     logger,
   );
   try {
-    const { orgName, githubTeamName, githubTeamDescription } = payload;
-    const orgImmutableId = getOrgByName(orgName)!.id;
+    const {
+      orgId: orgImmutableId,
+      githubTeamName,
+      githubTeamDescription,
+    } = payload;
+    const orgName = Organizations[orgImmutableId].name;
     if (SKIP_EXTERNAL_ORG_LEAD_UPDATE.includes(orgImmutableId)) {
       logger.info(
         `Organization ${orgName} has external updates disabled, exiting.`,
@@ -55,7 +59,7 @@ export const createOrgGithubTeamHandler: SQSHandlerFunction<
       const getMetadataCommand = new GetItemCommand({
         TableName: genericConfig.SigInfoTableName,
         Key: marshall({
-          primaryKey: `DEFINE#${orgName}`,
+          primaryKey: `DEFINE#${orgImmutableId}`,
           entryId: "0",
         }),
         ProjectionExpression: "#entra,#gh",

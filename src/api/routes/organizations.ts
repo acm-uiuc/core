@@ -1,13 +1,8 @@
 import { FastifyPluginAsync } from "fastify";
-import {
-  AllOrganizationIdList,
-  AllOrganizationNameList,
-  getOrgByName,
-  Organizations,
-} from "@acm-uiuc/js-shared";
+import { AllOrganizationIdList, Organizations } from "@acm-uiuc/js-shared";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { withRoles, withTags } from "api/components/index.js";
-import { unknown, z } from "zod/v4";
+import { z } from "zod/v4";
 import {
   getOrganizationInfoResponse,
   ORG_DATA_CACHED_DURATION,
@@ -559,7 +554,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               reqId: request.id,
             },
             payload: {
-              orgName: request.params.orgId,
+              orgId: request.params.orgId,
               githubTeamDescription: grpDisplayName,
               githubTeamName: grpShortName,
             },
