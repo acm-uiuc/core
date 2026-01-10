@@ -41,12 +41,11 @@ const userRoute: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
-      return reply.send(
-        await getUserIdByUin({
-          dynamoClient: fastify.dynamoClient,
-          uin: request.body.uin,
-        }),
-      );
+      const data = await getUserIdByUin({
+        dynamoClient: fastify.dynamoClient,
+        uin: request.body.uin,
+      });
+      return reply.send({ email: data.id });
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
