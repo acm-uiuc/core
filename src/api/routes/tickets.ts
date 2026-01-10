@@ -568,7 +568,6 @@ const ticketsPlugin: FastifyPluginAsync = async (fastify, _options) => {
       const { id: userEmail } = await getUserIdByUin({
         dynamoClient: fastify.dynamoClient,
         uin: request.body.uin,
-        pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
       });
       try {
         const [ticketsResult, merchResult] = await Promise.all([

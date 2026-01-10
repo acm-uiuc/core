@@ -5,7 +5,7 @@ import { genericConfig } from "common/config.js";
 
 export interface UserIdentity {
   id: string;
-  uinHash?: string;
+  uin?: string;
   netId?: string;
   firstName?: string;
   lastName?: string;

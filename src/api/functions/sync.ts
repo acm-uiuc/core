@@ -10,7 +10,7 @@ import { InternalServerError } from "common/errors/index.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 
 export interface SyncFullProfileInputs {
-  uinHash: string;
+  uin: string;
   netId: string;
   firstName: string;
   lastName: string;
@@ -21,7 +21,7 @@ export interface SyncFullProfileInputs {
 }
 
 export async function syncFullProfile({
-  uinHash,
+  uin,
   netId,
   firstName,
   lastName,
@@ -46,16 +46,16 @@ export async function syncFullProfile({
           id: { S: userId },
         },
         UpdateExpression:
-          "SET #uinHash = :uinHash, #netId = :netId, #updatedAt = :updatedAt, #firstName = :firstName, #lastName = :lastName",
+          "SET #uin = :uin, #netId = :netId, #updatedAt = :updatedAt, #firstName = :firstName, #lastName = :lastName",
         ExpressionAttributeNames: {
-          "#uinHash": "uinHash",
+          "#uin": "uin",
           "#netId": "netId",
           "#updatedAt": "updatedAt",
           "#firstName": "firstName",
           "#lastName": "lastName",
         },
         ExpressionAttributeValues: {
-          ":uinHash": { S: uinHash },
+          ":uin": { S: uin },
           ":netId": { S: netId },
           ":firstName": { S: firstName },
           ":lastName": { S: lastName },

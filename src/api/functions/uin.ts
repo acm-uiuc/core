@@ -19,15 +19,10 @@ import {
 } from "common/errors/index.js";
 import { type FastifyBaseLogger } from "fastify";
 import * as z from "zod/v4";
-
-export type HashUinInputs = {
-  pepper: string;
-  uin: string;
-};
+import { UIN_RETENTION_DAYS } from "common/constants.js";
 
 export type GetUserUinInputs = {
   uiucAccessToken: string;
-  pepper: string;
 };
 
 export const graphApiExpectedResponseSchema = z.object({
@@ -113,26 +108,8 @@ export const verifyUiucAccessToken = async ({
   }
 };
 
-export async function getUinHash({
-  pepper,
-  uin,
-}: HashUinInputs): Promise<string> {
-  // we set the defaults again because we do direct string comparisions
-  return hash(uin, {
-    secret: Buffer.from(pepper),
-    outputLen: 32,
-    timeCost: 3,
-    memoryCost: 65536,
-    parallelism: 4,
-    algorithm: Algorithm.Argon2id,
-    version: Version.V0x13,
-    salt: Buffer.from("acmuiucuin"),
-  });
-}
-
-export async function getHashedUserUin({
+export async function getUserUin({
   uiucAccessToken,
-  pepper,
 }: GetUserUinInputs): Promise<string> {
   const url = `https://graph.microsoft.com/v1.0/me?$select=${genericConfig.UinExtendedAttributeName}`;
   try {
@@ -155,10 +132,7 @@ export async function getHashedUserUin({
       [genericConfig.UinExtendedAttributeName]: string;
     };
 
-    return await getUinHash({
-      pepper,
-      uin: data[genericConfig.UinExtendedAttributeName],
-    });
+    return data[genericConfig.UinExtendedAttributeName];
   } catch (error) {
     if (error instanceof EntraFetchError) {
       throw error;
@@ -171,35 +145,37 @@ export async function getHashedUserUin({
   }
 }
 
-type SaveHashedUserUin = GetUserUinInputs & {
+type SaveUserUin = GetUserUinInputs & {
   dynamoClient: DynamoDBClient;
   netId: string;
 };
 
-export async function saveHashedUserUin({
+export async function saveUserUin({
   uiucAccessToken,
-  pepper,
   dynamoClient,
   netId,
-}: SaveHashedUserUin) {
-  const uinHash = await getHashedUserUin({ uiucAccessToken, pepper });
+}: SaveUserUin) {
+  const uin = await getUserUin({ uiucAccessToken });
+  const expiresAt = Math.floor(Date.now() / 1000) + UIN_RETENTION_DAYS * 86400;
   await dynamoClient.send(
     new UpdateItemCommand({
       TableName: genericConfig.UserInfoTable,
       Key: {
-        id: { S: `${netId}@illinois.edu` },
+        id: { S: `UIN#${netId}@illinois.edu` },
       },
       UpdateExpression:
-        "SET #uinHash = :uinHash, #netId = :netId, #updatedAt = :updatedAt",
+        "SET #uin = :uin, #netId = :netId, #updatedAt = :updatedAt, #expiresAt = :expiresAt",
       ExpressionAttributeNames: {
-        "#uinHash": "uinHash",
+        "#uin": "uin",
         "#netId": "netId",
         "#updatedAt": "updatedAt",
+        "#expiresAt": "expiresAt",
       },
       ExpressionAttributeValues: {
-        ":uinHash": { S: uinHash },
+        ":uin": { S: uin },
         ":netId": { S: netId },
         ":updatedAt": { S: new Date().toISOString() },
+        ":expiresAt": { N: expiresAt.toString() },
       },
     }),
   );
@@ -208,23 +184,16 @@ export async function saveHashedUserUin({
 export async function getUserIdByUin({
   dynamoClient,
   uin,
-  pepper,
 }: {
   dynamoClient: DynamoDBClient;
   uin: string;
-  pepper: string;
 }): Promise<{ id: string }> {
-  const uinHash = await getUinHash({
-    pepper,
-    uin,
-  });
-
   const queryCommand = new QueryCommand({
     TableName: genericConfig.UserInfoTable,
-    IndexName: "UinHashIndex",
-    KeyConditionExpression: "uinHash = :hash",
+    IndexName: "UinIndex",
+    KeyConditionExpression: "uin = :uin",
     ExpressionAttributeValues: {
-      ":hash": { S: uinHash },
+      ":uin": { S: uin },
     },
   });
 
@@ -251,7 +220,8 @@ export async function getUserIdByUin({
   }
 
   const data = unmarshall(response.Items[0]) as { id: string };
-  return data;
+  const cleanedData = { id: data.id.replace("UIN#", "") };
+  return cleanedData;
 }
 
 export async function batchGetUserInfo({

@@ -20,7 +20,7 @@ import {
   withRoles,
   withTags,
 } from "api/components/index.js";
-import { verifyUiucAccessToken, getHashedUserUin } from "api/functions/uin.js";
+import { verifyUiucAccessToken, getUserUin } from "api/functions/uin.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
 import { genericConfig } from "common/config.js";
 import { BatchGetItemCommand } from "@aws-sdk/client-dynamodb";
@@ -76,12 +76,11 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           surname,
         } = verifiedData;
         request.log.debug("Saving user hashed UIN!");
-        const uinHash = await getHashedUserUin({
+        const uin = await getUserUin({
           uiucAccessToken: accessToken,
-          pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
         });
         const savePromise = syncFullProfile({
-          uinHash,
+          uin,
           firstName: givenName,
           lastName: surname,
           netId,

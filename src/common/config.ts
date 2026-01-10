@@ -124,7 +124,6 @@ const environmentConfig: EnvironmentConfigType = {
     ],
     ConfigurationSecretIds: [genericConfig.ConfigSecretName],
     ConfigurationParameterIds: [
-      '/infra-core-api/UIN_HASHING_SECRET_PEPPER',
       '/infra-core-api/jwt_key',
       '/infra-core-api/github_installation_id',
       '/infra-core-api/github_app_id',
@@ -155,7 +154,6 @@ const environmentConfig: EnvironmentConfigType = {
     AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
     ConfigurationSecretIds: [genericConfig.ConfigSecretName],
     ConfigurationParameterIds: [
-      '/infra-core-api/UIN_HASHING_SECRET_PEPPER',
       '/infra-core-api/github_installation_id',
       '/infra-core-api/github_app_id',
       '/infra-core-api/github_private_key'
@@ -203,7 +201,6 @@ export type SecretConfig = {
   stripe_links_endpoint_secret: string;
   redis_url: string;
   fallback_redis_url: string;
-  UIN_HASHING_SECRET_PEPPER: string;
   github_installation_id: string;
   github_private_key: string;
   github_app_id: string;

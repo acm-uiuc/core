@@ -13,7 +13,6 @@ const secretObject = {
   apple_signing_cert_base64: "",
   redis_url: "",
   github_installation_id: "abc123testing",
-  UIN_HASHING_SECRET_PEPPER: "abcd",
   fallback_redis_url: "abc",
   github_app_id: "abc123testing",
   github_private_key: "abc123testing",

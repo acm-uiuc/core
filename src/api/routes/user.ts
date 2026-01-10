@@ -45,7 +45,6 @@ const userRoute: FastifyPluginAsync = async (fastify, _options) => {
         await getUserIdByUin({
           dynamoClient: fastify.dynamoClient,
           uin: request.body.uin,
-          pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
         }),
       );
     },

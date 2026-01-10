@@ -582,10 +582,9 @@ describe("Test getting user purchases", () => {
     // Mock the getUserIdByUin function
     vi.mock("../../src/api/functions/uin.js", () => ({
       getUserIdByUin: vi.fn(),
-      getUinHash: vi.fn(),
       verifyUiucAccessToken: vi.fn(),
-      getHashedUserUin: vi.fn(),
-      saveHashedUserUin: vi.fn(),
+      getUserUin: vi.fn(),
+      saveUserUin: vi.fn(),
     }));
   });
 
