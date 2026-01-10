@@ -46,7 +46,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             description: "The previously-created event ID in the events API.",
           }),
         }),
-        // body: rsvpSubmissionBodySchema,
         headers: z.object({
           "x-uiuc-token": z.jwt().min(1).meta({
             description:
@@ -63,25 +62,11 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             },
           },
           409: resourceConflictError,
-          400: {
-            description:
-              "Validation error (RSVP closed, not started, or missing answers).",
-            content: {
-              "application/json": {
-                schema: z.object({
-                  statusCode: z.number(),
-                  error: z.string(),
-                  message: z.string(),
-                }),
-              },
-            },
-          },
         },
       }),
     },
     async (request, reply) => {
       const { eventId } = request.params;
-      // const { responses } = request.body || {};
 
       const accessToken = request.headers["x-uiuc-token"];
       const { netId, userPrincipalName: upn } = await verifyUiucAccessToken({
@@ -130,46 +115,12 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "RSVPs have closed for this event.",
         });
       }
-
-      // if (configItem.rsvpQuestions && Array.isArray(configItem.rsvpQuestions)) {
-      //   for (const question of configItem.rsvpQuestions) {
-      //     if (question.required) {
-      //       const answer = responses ? responses[question.id] : undefined;
-
-      //       if (answer === undefined || answer === null || answer === "") {
-      //         return reply.status(400).send({
-      //           statusCode: 400,
-      //           error: "Bad Request",
-      //           message: `Missing required answer for: ${question.prompt}`,
-      //         });
-      //       }
-
-      //       if (question.type === "BOOLEAN" && typeof answer !== "boolean") {
-      //         return reply.status(400).send({
-      //           statusCode: 400,
-      //           error: "Bad Request",
-      //           message: `Answer for '${question.prompt}' must be a boolean.`,
-      //         });
-      //       }
-      //       if (question.type === "SELECT" && question.options && !question.options.includes(answer as string)) {
-      //         return reply.status(400).send({
-      //           statusCode: 400,
-      //           error: "Bad Request",
-      //           message: `Invalid option for '${question.prompt}'. Must be one of: ${question.options.join(", ")}`,
-      //         });
-      //       }
-      //     }
-      //   }
-      // }
-      // const hasAnswers = responses && Object.keys(responses).length > 0;
       const rsvpEntry = {
         partitionKey: `RSVP#${eventId}#${upn}`,
         eventId,
         userId: upn,
         isPaidMember,
-        // responses: hasAnswers ? responses : undefined,
         createdAt: now,
-        // checkedIn: configItem.rsvpCheckInEnabled ? false : undefined, enable when MVP looks good
       };
 
       const transactionCommand = new TransactWriteItemsCommand({
@@ -212,7 +163,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
           if (err.CancellationReasons[1].Code === "ConditionalCheckFailed") {
             throw new ResourceConflictError({
-              message: "You may not RSVP for this event.",
+              message: "RSVP limit has been reached for this event.",
             });
           }
         }
@@ -266,8 +217,15 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const rsvpItems = rawItems.filter(
         (item) => item.partitionKey && item.partitionKey.startsWith("RSVP#"),
       );
+      const sanitizedRsvps = rsvpItems.map(({ eventId, userId, isPaidMember, responses, createdAt }) => ({
+        eventId,
+        userId,
+        isPaidMember,
+        createdAt
+      }));
+
       const uniqueRsvps = [
-        ...new Map(rsvpItems.map((item) => [item.userId, item])).values(),
+        ...new Map(sanitizedRsvps.map((item) => [item.eventId, item])).values(),
       ];
       return reply.send(uniqueRsvps);
     },
@@ -329,7 +287,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       try {
         await fastify.dynamoClient.send(command);
-        return reply.status(200).send();
+        return reply.status(200).send(null);
       } catch (err: any) {
         if (err.name === "TransactionCanceledException") {
           if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
@@ -392,8 +350,15 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const rsvpItems = rawItems.filter(
         (item) => item.partitionKey && item.partitionKey.startsWith("RSVP#"),
       );
+      const sanitizedRsvps = rsvpItems.map(({ eventId, userId, isPaidMember, responses, createdAt }) => ({
+        eventId,
+        userId,
+        isPaidMember,
+        createdAt
+      }));
+
       const uniqueRsvps = [
-        ...new Map(rsvpItems.map((item) => [item.eventId, item])).values(),
+        ...new Map(sanitizedRsvps.map((item) => [item.eventId, item])).values(),
       ];
       return reply.send(uniqueRsvps);
     },
@@ -465,11 +430,11 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       try {
         await fastify.dynamoClient.send(transactionCommand);
-        return reply.status(204).send();
+        return reply.status(204).send(null);
       } catch (err: any) {
         if (err.name === "TransactionCanceledException") {
           if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
-            return reply.status(204).send();
+            return reply.status(204).send(null);
           }
         }
 
@@ -541,7 +506,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       try {
         await fastify.dynamoClient.send(transactionCommand);
-        return reply.status(204).send();
+        return reply.status(204).send(null);
       } catch (err: any) {
         if (err.name === "TransactionCanceledException") {
           if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
