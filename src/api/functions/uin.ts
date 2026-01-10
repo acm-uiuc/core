@@ -4,10 +4,9 @@ import {
   QueryCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { ValidLoggers } from "api/types.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
-import { Algorithm, hash, Version } from "@node-rs/argon2";
 import { genericConfig } from "common/config.js";
 import {
   BaseError,
