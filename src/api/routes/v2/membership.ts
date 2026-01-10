@@ -81,6 +81,11 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           givenName,
           surname,
         } = verifiedData;
+        if (request.query.force) {
+          request.log.warn(
+            `User ${upn} has forcefully bypassed the existing paid member check for purchasing a new membership!`,
+          );
+        }
         request.log.debug("Saving user UIN!");
         const saveProfilePromise = syncFullProfile({
           firstName: givenName,
