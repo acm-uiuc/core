@@ -3,12 +3,15 @@ import {
   checkPaidMembershipFromRedis,
 } from "api/functions/membership.js";
 import { FastifyPluginAsync } from "fastify";
-import { ValidationError } from "common/errors/index.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import { notAuthenticatedError, withTags } from "api/components/index.js";
-import { verifyUiucAccessToken, getHashedUserUin } from "api/functions/uin.js";
+import {
+  getUserUin,
+  saveUserUin,
+  verifyUiucAccessToken,
+} from "api/functions/uin.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { genericConfig, roleArns } from "common/config.js";
@@ -96,12 +99,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           accessToken,
           logger: request.log,
         });
-        const uinHash = await getHashedUserUin({
-          uiucAccessToken: accessToken,
-          pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
-        });
         await syncFullProfile({
-          uinHash,
           firstName: givenName,
           lastName: surname,
           netId,
@@ -109,6 +107,12 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           redisClient: fastify.redisClient,
           stripeApiKey: fastify.secretConfig.stripe_secret_key,
           logger: request.log,
+        });
+
+        await saveUserUin({
+          uiucAccessToken: accessToken,
+          dynamoClient: fastify.dynamoClient,
+          netId,
         });
         let isPaidMember = await checkPaidMembershipFromRedis(
           netId,
@@ -179,7 +183,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
         });
 
         const requiredFields: (keyof UserIdentity)[] = [
-          "uinHash",
+          "uin",
           "firstName",
           "lastName",
           "stripeCustomerId",

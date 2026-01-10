@@ -20,7 +20,7 @@ import {
   withRoles,
   withTags,
 } from "api/components/index.js";
-import { verifyUiucAccessToken, getHashedUserUin } from "api/functions/uin.js";
+import { verifyUiucAccessToken, saveUserUin } from "api/functions/uin.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
 import { genericConfig } from "common/config.js";
 import { BatchGetItemCommand } from "@aws-sdk/client-dynamodb";
@@ -43,6 +43,12 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             "x-uiuc-token": z.jwt().min(1).meta({
               description:
                 "An access token for the user in the UIUC Entra ID tenant.",
+            }),
+          }),
+          querystring: z.object({
+            force: z.coerce.boolean().default(false).meta({
+              description:
+                "If true, the user will be allowed to checkout even if they are already a paid member.",
             }),
           }),
           summary:
@@ -75,13 +81,13 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           givenName,
           surname,
         } = verifiedData;
-        request.log.debug("Saving user hashed UIN!");
-        const uinHash = await getHashedUserUin({
-          uiucAccessToken: accessToken,
-          pepper: fastify.secretConfig.UIN_HASHING_SECRET_PEPPER,
-        });
-        const savePromise = syncFullProfile({
-          uinHash,
+        if (request.query.force) {
+          request.log.warn(
+            `User ${upn} has forcefully bypassed the existing paid member check for purchasing a new membership!`,
+          );
+        }
+        request.log.debug("Saving user UIN!");
+        const saveProfilePromise = syncFullProfile({
           firstName: givenName,
           lastName: surname,
           netId,
@@ -89,6 +95,11 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           redisClient: fastify.redisClient,
           stripeApiKey: fastify.secretConfig.stripe_secret_key,
           logger: request.log,
+        });
+        const saveUinPromise = saveUserUin({
+          uiucAccessToken: accessToken,
+          dynamoClient: fastify.dynamoClient,
+          netId,
         });
         let isPaidMember = await checkPaidMembershipFromRedis(
           netId,
@@ -101,15 +112,17 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             fastify.dynamoClient,
           );
         }
-        const userData = await savePromise;
+        const data = await Promise.allSettled([
+          saveProfilePromise,
+          saveUinPromise,
+        ]);
+        const userData =
+          data[0].status === "rejected" ? undefined : data[0].value;
         if (!userData) {
-          request.log.error(
-            "Was expecting to get a user data save, but we didn't!",
-          );
+          request.log.error("Tried to save profile but got nothing back!");
           throw new InternalServerError({});
         }
-        request.log.debug("Saved user hashed UIN!");
-        if (isPaidMember) {
+        if (isPaidMember && !request.query.force) {
           throw new ValidationError({
             message: `${upn} is already a paid member.`,
           });

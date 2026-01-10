@@ -229,13 +229,18 @@ resource "aws_dynamodb_table" "user_info" {
     type = "S"
   }
   attribute {
-    name = "uinHash"
+    name = "uin"
     type = "S"
   }
   global_secondary_index {
-    name            = "UinHashIndex"
-    hash_key        = "uinHash"
+    name            = "UinIndex"
+    hash_key        = "uin"
     projection_type = "KEYS_ONLY"
+  }
+  // This is only set by UIN records so that we expire them 1 year after we last collected them.
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
   }
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
