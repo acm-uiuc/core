@@ -71,13 +71,9 @@ export async function verifyTurnstileToken({
     const formData = new FormData();
     formData.append("secret", turnstileSecret);
     formData.append("response", clientToken);
-
+    formData.append("idempotency_key", requestId);
     if (remoteIp) {
       formData.append("remoteip", remoteIp);
-    }
-
-    if (requestId) {
-      formData.append("idempotency_key", requestId);
     }
 
     const response = await fetch(
@@ -88,29 +84,23 @@ export async function verifyTurnstileToken({
         signal: controller.signal,
       },
     );
-    if (controller.signal.aborted) {
-      logger.error(`Turnstile token verification timeout after ${timeout}`);
-      throw new InternalServerError(defaultInternalError);
-    }
     const result = (await response.json()) as CloudflareTurnstileResponse;
     if (!result.success) {
       logger.error("Turnstile validation failed", result["error-codes"]);
       throw new ValidationError(defaultError);
     }
-    if (result.success) {
-      if (expectedAction && result.action !== expectedAction) {
-        logger.error(
-          `Action mismatch: expected ${expectedAction} but got ${result.action}`,
-        );
-        throw new ValidationError(defaultError);
-      }
+    if (expectedAction && result.action !== expectedAction) {
+      logger.error(
+        `Action mismatch: expected ${expectedAction} but got ${result.action}`,
+      );
+      throw new ValidationError(defaultError);
+    }
 
-      if (expectedHostname && result.hostname !== expectedHostname) {
-        logger.error(
-          `Hostname mismatch: expected ${expectedHostname} but got ${result.hostname}`,
-        );
-        throw new ValidationError(defaultError);
-      }
+    if (expectedHostname && result.hostname !== expectedHostname) {
+      logger.error(
+        `Hostname mismatch: expected ${expectedHostname} but got ${result.hostname}`,
+      );
+      throw new ValidationError(defaultError);
     }
     logger.debug("Accepted turnstile token.");
   } catch (e) {

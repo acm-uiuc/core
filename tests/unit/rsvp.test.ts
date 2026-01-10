@@ -13,8 +13,6 @@ import { secretObject } from "./secret.testdata.js";
 import { Redis } from "../../src/api/types.js";
 import { FastifyBaseLogger } from "fastify";
 import { randomUUID } from "node:crypto";
-import { VerifyTurnstileTokenInputs } from "../../src/api/functions/turnstile.js";
-import { ValidationError } from "../../src/common/errors/index.js";
 
 const DUMMY_JWT = createJwt();
 const DEFAULT_HEADERS = {

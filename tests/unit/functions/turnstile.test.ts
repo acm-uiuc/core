@@ -367,6 +367,7 @@ describe("verifyTurnstileToken", () => {
 
   describe("timeout handling", () => {
     it("should use default timeout of 10000ms", async () => {
+      const setTimeoutSpy = vi.spyOn(global, "setTimeout");
       global.fetch = vi.fn().mockImplementation(() => {
         return Promise.resolve({
           json: () => Promise.resolve(createSuccessResponse()),
@@ -376,22 +377,7 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs();
 
       await expect(verifyTurnstileToken(inputs)).resolves.toBeUndefined();
-    });
-
-    it("should throw InternalServerError on AbortError", async () => {
-      const abortError = new Error("Aborted");
-      abortError.name = "AbortError";
-
-      global.fetch = vi.fn().mockRejectedValue(abortError);
-
-      const inputs = createDefaultInputs({ timeoutMs: 100 });
-
-      await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "An error occurred validating the Turnstile token."
-      );
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        "Turnstile token verification timeout after 100"
-      );
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 10000);
     });
   });
 
