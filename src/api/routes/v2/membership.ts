@@ -20,7 +20,7 @@ import {
   withRoles,
   withTags,
 } from "api/components/index.js";
-import { verifyUiucAccessToken, getUserUin } from "api/functions/uin.js";
+import { verifyUiucAccessToken, saveUserUin } from "api/functions/uin.js";
 import { getKey, setKey } from "api/functions/redisCache.js";
 import { genericConfig } from "common/config.js";
 import { BatchGetItemCommand } from "@aws-sdk/client-dynamodb";
@@ -75,12 +75,8 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           givenName,
           surname,
         } = verifiedData;
-        request.log.debug("Saving user hashed UIN!");
-        const uin = await getUserUin({
-          uiucAccessToken: accessToken,
-        });
-        const savePromise = syncFullProfile({
-          uin,
+        request.log.debug("Saving user UIN!");
+        const saveProfilePromise = syncFullProfile({
           firstName: givenName,
           lastName: surname,
           netId,
@@ -88,6 +84,11 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           redisClient: fastify.redisClient,
           stripeApiKey: fastify.secretConfig.stripe_secret_key,
           logger: request.log,
+        });
+        const saveUinPromise = saveUserUin({
+          uiucAccessToken: accessToken,
+          dynamoClient: fastify.dynamoClient,
+          netId,
         });
         let isPaidMember = await checkPaidMembershipFromRedis(
           netId,
@@ -100,14 +101,16 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             fastify.dynamoClient,
           );
         }
-        const userData = await savePromise;
+        const data = await Promise.allSettled([
+          saveProfilePromise,
+          saveUinPromise,
+        ]);
+        const userData =
+          data[0].status === "rejected" ? undefined : data[0].value;
         if (!userData) {
-          request.log.error(
-            "Was expecting to get a user data save, but we didn't!",
-          );
+          request.log.error("Tried to save profile but got nothing back!");
           throw new InternalServerError({});
         }
-        request.log.debug("Saved user hashed UIN!");
         if (isPaidMember) {
           throw new ValidationError({
             message: `${upn} is already a paid member.`,
