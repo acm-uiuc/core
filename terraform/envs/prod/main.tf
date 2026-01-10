@@ -71,7 +71,6 @@ module "alarms" {
   standard_sns_arn                = var.GeneralSNSAlertArn
   all_lambdas = toset([
     module.lambdas.core_api_lambda_name,
-    module.lambdas.core_api_hicpu_lambda_name,
     module.lambdas.core_sqs_consumer_lambda_name,
     module.archival.dynamo_archival_lambda_name
   ])
@@ -113,10 +112,6 @@ module "frontend" {
   CoreLambdaHost = {
     "us-east-2" = module.lambdas.core_function_url
     "us-west-2" = module.lambdas_usw2.core_function_url
-  }
-  CoreHiCpuLambdaHost = {
-    "us-east-2" = module.lambdas.core_hicpu_function_url
-    "us-west-2" = module.lambdas_usw2.core_hicpu_function_url
   }
   CurrentActiveRegion   = var.current_active_region
   OriginVerifyKey       = module.origin_verify.current_origin_verify_key
