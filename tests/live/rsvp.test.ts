@@ -1,7 +1,7 @@
 import { expect, test, describe } from "vitest";
 import { createJwt, getBaseEndpoint } from "./utils.js";
 
-const baseEndpoint = "http://localhost:8080";
+const baseEndpoint = getBaseEndpoint();
 
 describe(
   "RSVP Configuration Lifecycle (Live)",
