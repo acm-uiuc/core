@@ -127,7 +127,8 @@ const environmentConfig: EnvironmentConfigType = {
       '/infra-core-api/jwt_key',
       '/infra-core-api/github_installation_id',
       '/infra-core-api/github_app_id',
-      '/infra-core-api/github_private_key'
+      '/infra-core-api/github_private_key',
+      '/infra-core-api/turnstile_secret_key'
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
@@ -156,7 +157,8 @@ const environmentConfig: EnvironmentConfigType = {
     ConfigurationParameterIds: [
       '/infra-core-api/github_installation_id',
       '/infra-core-api/github_app_id',
-      '/infra-core-api/github_private_key'
+      '/infra-core-api/github_private_key',
+      '/infra-core-api/turnstile_secret_key'
     ],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
@@ -205,6 +207,7 @@ export type SecretConfig = {
   github_private_key: string;
   github_app_id: string;
   jwt_key?: string;
+  turnstile_secret_key: string
 };
 
 const roleArns = {

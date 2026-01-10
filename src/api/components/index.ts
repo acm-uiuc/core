@@ -34,6 +34,17 @@ export type RoleSchema = {
   description: string;
 };
 
+export type TurnstileSchema = {
+  "x-turnstile-required": true;
+  "x-turnstile-expected-action"?: string | undefined;
+  "x-turnstile-expected-hostname"?: string | undefined;
+};
+
+export type TurnstileConfig = {
+  expectedAction?: string;
+  expectedHostname?: string;
+};
+
 type RolesConfig = {
   disableApiKeyAuth: boolean;
   notes?: string;
@@ -277,5 +288,31 @@ export function withTags<T extends FastifyZodOpenApiSchema>(
     tags,
     ...schema,
     response: responses,
+  };
+}
+
+export const turnstileResponseHeader = z.string().min(1).max(2048).meta({
+  description: "Cloudflare Turnstile response token",
+  id: "TurnstileResponseHeader",
+});
+
+export function withTurnstile<T extends FastifyZodOpenApiSchema>(
+  config: TurnstileConfig,
+  schema: T,
+): T & TurnstileSchema {
+  if (schema.headers && !(schema.headers instanceof z.ZodObject)) {
+    throw new Error("withTurnstile requires schema.headers to be a z.object()");
+  }
+
+  const headersWithTurnstile = schema.headers
+    ? schema.headers.extend({ "x-turnstile-response": turnstileResponseHeader })
+    : z.object({ "x-turnstile-response": turnstileResponseHeader });
+
+  return {
+    "x-turnstile-required": true,
+    "x-turnstile-expected-action": config.expectedAction,
+    "x-turnstile-expected-hostname": config.expectedHostname,
+    ...schema,
+    headers: headersWithTurnstile,
   };
 }

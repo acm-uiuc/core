@@ -12,8 +12,15 @@ import { createJwt } from "./auth.test.js";
 import { secretObject } from "./secret.testdata.js";
 import { Redis } from "../../src/api/types.js";
 import { FastifyBaseLogger } from "fastify";
+import { randomUUID } from "node:crypto";
+import { VerifyTurnstileTokenInputs } from "../../src/api/functions/turnstile.js";
+import { ValidationError } from "../../src/common/errors/index.js";
 
 const DUMMY_JWT = createJwt();
+const DEFAULT_HEADERS = {
+  "x-uiuc-token": DUMMY_JWT,
+  "x-turnstile-response": "a", // needs to be one char
+};
 
 class TransactionError extends Error {
   name = "TransactionCanceledException";
@@ -87,7 +94,39 @@ describe("RSVP API tests", () => {
     ddbMock.reset();
     vi.clearAllMocks();
   });
-
+  test("Submitting RSVPs requires the turnstile token header", async () => {
+    const eventId = randomUUID();
+    let response = await app.inject({
+      method: "POST",
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
+      headers: { "x-uiuc-token": DUMMY_JWT },
+    });
+    expect(response.statusCode).toBe(400);
+    const data = JSON.parse(response.body);
+    expect(data).toStrictEqual({
+      error: true,
+      name: "ValidationError",
+      id: 104,
+      message:
+        "headers/x-turnstile-response Invalid input: expected string, received undefined",
+    });
+  });
+  test("Submitting RSVPs runs turnstile token verification", async () => {
+    const eventId = randomUUID();
+    let response = await app.inject({
+      method: "POST",
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
+      headers: { "x-uiuc-token": DUMMY_JWT, "x-turnstile-response": "invalid" }, // 3-char response requires hitting the function
+    });
+    expect(response.statusCode).toBe(400);
+    const data = JSON.parse(response.body);
+    expect(data).toStrictEqual({
+      error: true,
+      name: "ValidationError",
+      id: 104,
+      message: "Invalid Turnstile token.",
+    });
+  });
   test("Test posting an RSVP for an event", async () => {
     const eventId = "Make Your Own Database";
 
@@ -104,15 +143,10 @@ describe("RSVP API tests", () => {
 
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
-    const testJwt = createJwt();
-
     const response = await app.inject({
       method: "POST",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
-      headers: {
-        Authorization: `Bearer ${testJwt}`,
-        "x-uiuc-token": DUMMY_JWT,
-      },
+      headers: DEFAULT_HEADERS,
     });
 
     expect(response.statusCode).toBe(201);
@@ -128,10 +162,7 @@ describe("RSVP API tests", () => {
     const response = await app.inject({
       method: "POST",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
-      headers: {
-        Authorization: `Bearer ${testJwt}`,
-        "x-uiuc-token": DUMMY_JWT,
-      },
+      headers: DEFAULT_HEADERS,
       payload: { responses: {} },
     });
 
@@ -158,15 +189,10 @@ describe("RSVP API tests", () => {
     ]);
     ddbMock.on(TransactWriteItemsCommand).rejects(txError);
 
-    const testJwt = createJwt();
-
     const response = await app.inject({
       method: "POST",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
-      headers: {
-        Authorization: `Bearer ${testJwt}`,
-        "x-uiuc-token": DUMMY_JWT,
-      },
+      headers: DEFAULT_HEADERS,
     });
 
     expect(response.statusCode).toBe(409);
@@ -196,15 +222,10 @@ describe("RSVP API tests", () => {
     ]);
     ddbMock.on(TransactWriteItemsCommand).rejects(txError);
 
-    const testJwt = createJwt();
-
     const response = await app.inject({
       method: "POST",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
-      headers: {
-        Authorization: `Bearer ${testJwt}`,
-        "x-uiuc-token": DUMMY_JWT,
-      },
+      headers: DEFAULT_HEADERS,
     });
 
     expect(response.statusCode).toBe(409);

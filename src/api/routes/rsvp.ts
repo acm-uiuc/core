@@ -4,6 +4,7 @@ import {
   resourceConflictError,
   withRoles,
   withTags,
+  withTurnstile,
 } from "api/components/index.js";
 import {
   QueryCommand,
@@ -34,31 +35,34 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/event/:eventId",
     {
-      schema: withTags(["RSVP"], {
-        summary: "Submit an RSVP for an event.",
-        params: z.object({
-          eventId: z.string().min(1).meta({
-            description: "The previously-created event ID in the events API.",
+      schema: withTurnstile(
+        {},
+        withTags(["RSVP"], {
+          summary: "Submit an RSVP for an event.",
+          params: z.object({
+            eventId: z.string().min(1).meta({
+              description: "The previously-created event ID in the events API.",
+            }),
           }),
-        }),
-        headers: z.object({
-          "x-uiuc-token": z.jwt().min(1).meta({
-            description:
-              "An access token for the user in the UIUC Entra ID tenant.",
+          headers: z.object({
+            "x-uiuc-token": z.jwt().min(1).meta({
+              description:
+                "An access token for the user in the UIUC Entra ID tenant.",
+            }),
           }),
-        }),
-        response: {
-          201: {
-            description: "RSVP created successfully.",
-            content: {
-              "application/json": {
-                schema: z.null(),
+          response: {
+            201: {
+              description: "RSVP created successfully.",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
               },
             },
+            409: resourceConflictError,
           },
-          409: resourceConflictError,
-        },
-      }),
+        }),
+      ),
     },
     async (request, reply) => {
       const { eventId } = request.params;

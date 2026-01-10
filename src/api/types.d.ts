@@ -37,6 +37,10 @@ declare module "fastify" {
       request: FastifyRequest,
       reply: FastifyReply,
     ) => Promise<void>;
+    validateTurnstileToken: (
+      request: FastifyRequest,
+      reply: FastifyReply,
+    ) => Promise<void>;
     runEnvironment: RunEnvironment;
     environmentConfig: ConfigType;
     dynamoClient: DynamoDBClient;
