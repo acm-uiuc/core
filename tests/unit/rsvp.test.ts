@@ -228,11 +228,11 @@ describe("RSVP API tests", () => {
         userId: upn,
         isPaidMember: true,
         createdAt: Date.now(),
-      }
+      },
     ];
 
     ddbMock.on(QueryCommand).resolves({
-        Items: mockRsvps.map((item) => marshall(item)),
+      Items: mockRsvps.map((item) => marshall(item)),
     });
 
     const testJwt = createJwt();
@@ -277,7 +277,7 @@ describe("RSVP API tests", () => {
         rsvpOpenAt: Date.now() - 10000,
         rsvpCloseAt: Date.now() + 10000,
         rsvpCheckInEnabled: false,
-      }
+      },
     ];
 
     ddbMock.on(QueryCommand).resolves({
@@ -298,8 +298,12 @@ describe("RSVP API tests", () => {
     const body = JSON.parse(response.body);
 
     expect(body).toHaveLength(2);
-    expect(body.find((x: any) => x.userId === "user1@illinois.edu")).toBeDefined();
-    expect(body.find((x: any) => x.userId === "user2@illinois.edu")).toBeDefined();
+    expect(
+      body.find((x: any) => x.userId === "user1@illinois.edu"),
+    ).toBeDefined();
+    expect(
+      body.find((x: any) => x.userId === "user2@illinois.edu"),
+    ).toBeDefined();
   });
 
   test("Test withdrawing own RSVP", async () => {

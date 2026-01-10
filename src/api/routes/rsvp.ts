@@ -131,8 +131,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             Update: {
               TableName: genericConfig.RSVPDynamoTableName,
               Key: marshall(configKey),
-              UpdateExpression:
-                "SET rsvpCount = rsvpCount + :inc",
+              UpdateExpression: "SET rsvpCount = rsvpCount + :inc",
               ConditionExpression:
                 "attribute_exists(partitionKey) AND (rsvpLimit = :null OR rsvpCount < rsvpLimit)",
               ExpressionAttributeValues: marshall({
