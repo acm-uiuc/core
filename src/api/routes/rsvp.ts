@@ -66,7 +66,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
     },
     async (request, reply) => {
-      const { eventId } = request.params;
+      const { eventId } = request.params as { eventId: string };
 
       const accessToken = request.headers["x-uiuc-token"];
       const { netId, userPrincipalName: upn } = await verifyUiucAccessToken({

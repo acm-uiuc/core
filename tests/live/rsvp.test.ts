@@ -1,6 +1,5 @@
 import { expect, test, describe, afterAll } from "vitest";
 import { createJwt, getBaseEndpoint } from "./utils.js";
-import pass from "../../src/api/resources/MembershipPass.pkpass/pass.js";
 
 const baseEndpoint = getBaseEndpoint();
 
@@ -20,7 +19,7 @@ describe(
             },
           });
         } catch (error) {
-          pass;
+          /* empty */
         }
       }
     });
