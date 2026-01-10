@@ -46,10 +46,14 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             }),
           }),
           querystring: z.object({
-            force: z.coerce.boolean().default(false).meta({
-              description:
-                "If true, the user will be allowed to checkout even if they are already a paid member.",
-            }),
+            force: z
+              .enum(["true", "false"])
+              .optional()
+              .transform((val) => val === "true")
+              .meta({
+                description:
+                  "If true, the user will be allowed to checkout even if they are already a paid member.",
+              }),
           }),
           summary:
             "Create a checkout session to purchase an ACM @ UIUC membership.",
@@ -70,6 +74,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
         }),
       },
       async (request, reply) => {
+        console.log(request.query.force);
         const accessToken = request.headers["x-uiuc-token"];
         const verifiedData = await verifyUiucAccessToken({
           accessToken,
