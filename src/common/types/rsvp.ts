@@ -39,23 +39,23 @@ export const rsvpConfigSchema = z
         "The maximum number of attendees allowed. Set to null for unlimited.",
       example: 50,
     }),
-    rsvpCheckInEnabled: z.boolean().meta({
-      description: "Whether check-in for attendance is enabled for this event.",
+    rsvpCheckInEnabled: z.boolean().default(false).meta({
+      description: "Whether check-in for attendance is enabled for this event. Defaults to false",
       example: true,
     }),
-    rsvpQuestions: z.array(rsvpQuestionSchema).optional().meta({
-      description: "List of custom questions to ask users during RSVP.",
+    rsvpQuestions: z.array(rsvpQuestionSchema).default([]).meta({
+      description: "List of custom questions to ask users during RSVP. Defaults to an empty array.",
       example: [
         { id: "diet", prompt: "Dietary Restrictions?", type: "TEXT", required: false },
         { id: "tshirt", prompt: "T-Shirt Size", type: "SELECT", options: ["S", "M", "L", "XL"], required: true }
       ]
     }),
-    rsvpCloseAt: z.number().int().meta({
+    rsvpCloseAt: z.number().int().min(0).meta({
       description:
         "Epoch timestamp (ms) representing the RSVP deadline. Users cannot RSVP after this time.",
       example: 1705512000000,
     }),
-    rsvpOpenAt: z.number().int().meta({
+    rsvpOpenAt: z.number().int().min(0).meta({
       description:
         "Epoch timestamp (ms) representing when RSVPs open for this event.",
       example: 1705512000000,

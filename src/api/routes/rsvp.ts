@@ -8,7 +8,6 @@ import {
 import {
   QueryCommand,
   TransactWriteItemsCommand,
-  PutItemCommand,
   GetItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall, marshall } from "@aws-sdk/util-dynamodb";
@@ -18,11 +17,7 @@ import {
   ResourceConflictError,
   NotFoundError,
 } from "common/errors/index.js";
-import {
-  rsvpConfigSchema,
-  rsvpSubmissionBodySchema,
-  rsvpItemSchema,
-} from "common/types/rsvp.js";
+import { rsvpConfigSchema, rsvpItemSchema } from "common/types/rsvp.js";
 import * as z from "zod/v4";
 import { verifyUiucAccessToken } from "api/functions/uin.js";
 import { checkPaidMembership } from "api/functions/membership.js";
@@ -94,7 +89,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         configItem = configResponse.Item
           ? unmarshall(configResponse.Item)
           : null;
-      } catch (e) {
+      } catch (err: any) {
         throw new DatabaseFetchError({
           message: "Failed to fetch event configuration.",
         });
@@ -137,7 +132,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               TableName: genericConfig.RSVPDynamoTableName,
               Key: marshall(configKey),
               UpdateExpression:
-                "SET rsvpCount = if_not_exists(rsvpCount, :start) + :inc",
+                "SET rsvpCount = rsvpCount + :inc",
               ConditionExpression:
                 "attribute_exists(partitionKey) AND (rsvpLimit = :null OR rsvpCount < rsvpLimit)",
               ExpressionAttributeValues: marshall({
@@ -217,15 +212,17 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const rsvpItems = rawItems.filter(
         (item) => item.partitionKey && item.partitionKey.startsWith("RSVP#"),
       );
-      const sanitizedRsvps = rsvpItems.map(({ eventId, userId, isPaidMember, responses, createdAt }) => ({
-        eventId,
-        userId,
-        isPaidMember,
-        createdAt
-      }));
+      const sanitizedRsvps = rsvpItems.map(
+        ({ eventId, userId, isPaidMember, createdAt }) => ({
+          eventId,
+          userId,
+          isPaidMember,
+          createdAt,
+        }),
+      );
 
       const uniqueRsvps = [
-        ...new Map(sanitizedRsvps.map((item) => [item.eventId, item])).values(),
+        ...new Map(sanitizedRsvps.map((item) => [item.userId, item])).values(),
       ];
       return reply.send(uniqueRsvps);
     },
@@ -272,13 +269,20 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             },
           },
           {
-            Put: {
+            Update: {
               TableName: genericConfig.RSVPDynamoTableName,
-              Item: marshall({
-                partitionKey,
-                eventId,
-                ...configData,
-                updatedAt: Date.now(),
+              Key: marshall({ partitionKey }),
+              UpdateExpression:
+                "SET rsvpLimit = :limit, rsvpCheckInEnabled = :checkIn, rsvpQuestions = :questions, rsvpOpenAt = :openAt, rsvpCloseAt = :closeAt, updatedAt = :now, rsvpCount = if_not_exists(rsvpCount, :zero), eventId = :eid",
+              ExpressionAttributeValues: marshall({
+                ":limit": configData.rsvpLimit ?? null,
+                ":checkIn": configData.rsvpCheckInEnabled,
+                ":questions": configData.rsvpQuestions,
+                ":openAt": configData.rsvpOpenAt,
+                ":closeAt": configData.rsvpCloseAt,
+                ":now": Date.now(),
+                ":zero": 0,
+                ":eid": eventId,
               }),
             },
           },
@@ -350,12 +354,14 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const rsvpItems = rawItems.filter(
         (item) => item.partitionKey && item.partitionKey.startsWith("RSVP#"),
       );
-      const sanitizedRsvps = rsvpItems.map(({ eventId, userId, isPaidMember, responses, createdAt }) => ({
-        eventId,
-        userId,
-        isPaidMember,
-        createdAt
-      }));
+      const sanitizedRsvps = rsvpItems.map(
+        ({ eventId, userId, isPaidMember, createdAt }) => ({
+          eventId,
+          userId,
+          isPaidMember,
+          createdAt,
+        }),
+      );
 
       const uniqueRsvps = [
         ...new Map(sanitizedRsvps.map((item) => [item.eventId, item])).values(),
