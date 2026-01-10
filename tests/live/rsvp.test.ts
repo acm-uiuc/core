@@ -38,7 +38,7 @@ describe("RSVP Configuration Lifecycle (Live)", { sequential: true }, async () =
     expect(response.status).toBe(201);
   });
 
-=  test("Set Full RSVP Configuration", { timeout: 30000 }, async () => {
+  test("Set Full RSVP Configuration", { timeout: 30000 }, async () => {
     if (!createdEventUuid) throw new Error("Event UUID not found");
     const token = await createJwt();
 
