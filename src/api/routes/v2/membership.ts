@@ -45,6 +45,12 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
                 "An access token for the user in the UIUC Entra ID tenant.",
             }),
           }),
+          querystring: z.object({
+            force: z.coerce.boolean().default(false).meta({
+              description:
+                "If true, the user will be allowed to checkout even if they are already a paid member.",
+            }),
+          }),
           summary:
             "Create a checkout session to purchase an ACM @ UIUC membership.",
           response: {
@@ -111,7 +117,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           request.log.error("Tried to save profile but got nothing back!");
           throw new InternalServerError({});
         }
-        if (isPaidMember) {
+        if (isPaidMember && !request.query.force) {
           throw new ValidationError({
             message: `${upn} is already a paid member.`,
           });
