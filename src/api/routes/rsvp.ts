@@ -18,7 +18,11 @@ import {
   ResourceConflictError,
   NotFoundError,
 } from "common/errors/index.js";
-import { rsvpConfigSchema, rsvpSubmissionBodySchema, rsvpItemSchema } from "common/types/rsvp.js";
+import {
+  rsvpConfigSchema,
+  rsvpSubmissionBodySchema,
+  rsvpItemSchema,
+} from "common/types/rsvp.js";
 import * as z from "zod/v4";
 import { verifyUiucAccessToken } from "api/functions/uin.js";
 import { checkPaidMembership } from "api/functions/membership.js";
@@ -60,7 +64,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           },
           409: resourceConflictError,
           400: {
-            description: "Validation error (RSVP closed, not started, or missing answers).",
+            description:
+              "Validation error (RSVP closed, not started, or missing answers).",
             content: {
               "application/json": {
                 schema: z.object({
@@ -85,7 +90,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       });
 
       const isPaidMember = await checkPaidMembership({
-        netId: netId,
+        netId,
         dynamoClient: fastify.dynamoClient,
         redisClient: fastify.redisClient,
         logger: request.log,
@@ -95,28 +100,35 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       let configItem;
       try {
-        const configResponse = await fastify.dynamoClient.send(new GetItemCommand({
-          TableName: genericConfig.RSVPDynamoTableName,
-          Key: marshall(configKey),
-        }));
-        configItem = configResponse.Item ? unmarshall(configResponse.Item) : null;
+        const configResponse = await fastify.dynamoClient.send(
+          new GetItemCommand({
+            TableName: genericConfig.RSVPDynamoTableName,
+            Key: marshall(configKey),
+          }),
+        );
+        configItem = configResponse.Item
+          ? unmarshall(configResponse.Item)
+          : null;
       } catch (e) {
         throw new DatabaseFetchError({
           message: "Failed to fetch event configuration.",
-        })
+        });
       }
       if (!configItem) {
         throw new NotFoundError({
-          endpointName: request.url
+          endpointName: request.url,
         });
       }
       const now = Date.now();
-      console.log("RSVP Config:", configItem);
       if (configItem.rsvpOpenAt && now < configItem.rsvpOpenAt) {
-        throw new ResourceConflictError({ message: "RSVPs are not yet open for this event." });
+        throw new ResourceConflictError({
+          message: "RSVPs are not yet open for this event.",
+        });
       }
       if (configItem.rsvpCloseAt && now > configItem.rsvpCloseAt) {
-        throw new ResourceConflictError({ message: "RSVPs have closed for this event." });
+        throw new ResourceConflictError({
+          message: "RSVPs have closed for this event.",
+        });
       }
 
       // if (configItem.rsvpQuestions && Array.isArray(configItem.rsvpQuestions)) {
@@ -152,7 +164,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       // const hasAnswers = responses && Object.keys(responses).length > 0;
       const rsvpEntry = {
         partitionKey: `RSVP#${eventId}#${upn}`,
-        eventId: eventId,
+        eventId,
         userId: upn,
         isPaidMember,
         // responses: hasAnswers ? responses : undefined,
@@ -173,8 +185,10 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             Update: {
               TableName: genericConfig.RSVPDynamoTableName,
               Key: marshall(configKey),
-              UpdateExpression: "SET rsvpCount = if_not_exists(rsvpCount, :start) + :inc",
-              ConditionExpression: "attribute_exists(partitionKey) AND (rsvpLimit = :null OR rsvpCount < rsvpLimit)",
+              UpdateExpression:
+                "SET rsvpCount = if_not_exists(rsvpCount, :start) + :inc",
+              ConditionExpression:
+                "attribute_exists(partitionKey) AND (rsvpLimit = :null OR rsvpCount < rsvpLimit)",
               ExpressionAttributeValues: marshall({
                 ":inc": 1,
                 ":start": 0,
@@ -192,7 +206,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         if (err.name === "TransactionCanceledException") {
           if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
             throw new ResourceConflictError({
-              message: "This user has already submitted an RSVP for this event.",
+              message:
+                "This user has already submitted an RSVP for this event.",
             });
           }
           if (err.CancellationReasons[1].Code === "ConditionalCheckFailed") {
@@ -225,9 +240,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "List of RSVPs.",
               content: {
                 "application/json": {
-                  schema: z.array(
-                    rsvpItemSchema
-                  ),
+                  schema: z.array(rsvpItemSchema),
                 },
               },
             },
@@ -250,8 +263,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         return reply.send([]);
       }
       const rawItems = response.Items.map((x) => unmarshall(x));
-      const rsvpItems = rawItems.filter((item) =>
-        item.partitionKey && item.partitionKey.startsWith("RSVP#")
+      const rsvpItems = rawItems.filter(
+        (item) => item.partitionKey && item.partitionKey.startsWith("RSVP#"),
       );
       const uniqueRsvps = [
         ...new Map(rsvpItems.map((item) => [item.userId, item])).values(),
@@ -291,20 +304,41 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { eventId } = request.params;
       const partitionKey = `CONFIG#${eventId}`;
 
-      const command = new PutItemCommand({
-        TableName: genericConfig.RSVPDynamoTableName,
-        Item: marshall({
-          partitionKey,
-          eventId,
-          ...configData,
-          updatedAt: Date.now(),
-        }),
+      const command = new TransactWriteItemsCommand({
+        TransactItems: [
+          {
+            ConditionCheck: {
+              TableName: genericConfig.EventsDynamoTableName,
+              Key: marshall({ id: eventId }),
+              ConditionExpression: "attribute_exists(id)",
+            },
+          },
+          {
+            Put: {
+              TableName: genericConfig.RSVPDynamoTableName,
+              Item: marshall({
+                partitionKey,
+                eventId,
+                ...configData,
+                updatedAt: Date.now(),
+              }),
+            },
+          },
+        ],
       });
 
       try {
         await fastify.dynamoClient.send(command);
         return reply.status(200).send();
       } catch (err: any) {
+        if (err.name === "TransactionCanceledException") {
+          if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
+            throw new NotFoundError({
+              endpointName: request.url,
+            });
+          }
+        }
+
         request.log.error(err, "Failed to update event config");
         throw new DatabaseInsertError({
           message: "Failed to update event configuration.",
@@ -328,9 +362,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             description: "List of your RSVPs.",
             content: {
               "application/json": {
-                schema: z.array(
-                  rsvpItemSchema
-                ),
+                schema: z.array(rsvpItemSchema),
               },
             },
           },
@@ -357,14 +389,14 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         return reply.send([]);
       }
       const rawItems = response.Items.map((x) => unmarshall(x));
-      const rsvpItems = rawItems.filter((item) =>
-        item.partitionKey && item.partitionKey.startsWith("RSVP#")
+      const rsvpItems = rawItems.filter(
+        (item) => item.partitionKey && item.partitionKey.startsWith("RSVP#"),
       );
       const uniqueRsvps = [
         ...new Map(rsvpItems.map((item) => [item.eventId, item])).values(),
       ];
       return reply.send(uniqueRsvps);
-    }
+    },
   );
   // This route MUST be registered first so it is handled correctly
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
@@ -418,7 +450,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             Update: {
               TableName: genericConfig.RSVPDynamoTableName,
               Key: marshall({
-                partitionKey: rsvpConfigKey
+                partitionKey: rsvpConfigKey,
               }),
               UpdateExpression: "SET rsvpCount = rsvpCount - :dec",
               ConditionExpression: "rsvpCount > :zero",
@@ -494,7 +526,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             Update: {
               TableName: genericConfig.RSVPDynamoTableName,
               Key: marshall({
-                partitionKey: rsvpConfigKey
+                partitionKey: rsvpConfigKey,
               }),
               UpdateExpression: "SET rsvpCount = rsvpCount - :dec",
               ConditionExpression: "rsvpCount > :zero",

@@ -3,7 +3,6 @@ import {
   DynamoDBClient,
   QueryCommand,
   TransactWriteItemsCommand,
-  PutItemCommand,
   GetItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
@@ -15,7 +14,6 @@ import { Redis } from "../../src/api/types.js";
 import { FastifyBaseLogger } from "fastify";
 
 const DUMMY_JWT = createJwt();
-
 
 class TransactionError extends Error {
   name = "TransactionCanceledException";
@@ -115,7 +113,6 @@ describe("RSVP API tests", () => {
         Authorization: `Bearer ${testJwt}`,
         "x-uiuc-token": DUMMY_JWT,
       },
-      // payload: { responses: {} }
     });
 
     expect(response.statusCode).toBe(201);
@@ -135,9 +132,8 @@ describe("RSVP API tests", () => {
         Authorization: `Bearer ${testJwt}`,
         "x-uiuc-token": DUMMY_JWT,
       },
-      // payload: { responses: {} },
     });
-    console.log(response)
+
     expect(response.statusCode).toBe(404);
   });
 
@@ -276,6 +272,8 @@ describe("RSVP API tests", () => {
     expect(body[0].eventId).toBe("EventA");
     expect(body[1].eventId).toBe("EventB");
   });
+
+
   test("Test withdrawing own RSVP", async () => {
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
@@ -358,7 +356,7 @@ describe("RSVP API tests", () => {
 
 
   test("Test Manager configuring rsvp limit", async () => {
-    ddbMock.on(PutItemCommand).resolves({});
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
 
     const adminJwt = createJwt();
     const eventId = "Make Your Own Database";
@@ -379,5 +377,33 @@ describe("RSVP API tests", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(ddbMock.calls()).toHaveLength(1);
+  });
+
+  test("Test Manager configuring non-existent event (404)", async () => {
+    const txError = new TransactionError([
+      { Code: "ConditionalCheckFailed" },
+      { Code: "None" },
+    ]);
+    ddbMock.on(TransactWriteItemsCommand).rejects(txError);
+
+    const adminJwt = createJwt();
+    const eventId = "GhostEvent";
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/config`,
+      headers: {
+        Authorization: `Bearer ${adminJwt}`,
+      },
+      payload: {
+        rsvpLimit: 50,
+        rsvpCheckInEnabled: false,
+        rsvpOpenAt: Date.now(),
+        rsvpCloseAt: Date.now() + 100000,
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
   });
 });
