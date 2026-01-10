@@ -1,5 +1,6 @@
-import { expect, test, describe } from "vitest";
+import { expect, test, describe, afterAll } from "vitest";
 import { createJwt, getBaseEndpoint } from "./utils.js";
+import pass from "../../src/api/resources/MembershipPass.pkpass/pass.js";
 
 const baseEndpoint = getBaseEndpoint();
 
@@ -8,6 +9,21 @@ describe(
   { sequential: true },
   async () => {
     let createdEventUuid: string;
+    afterAll(async () => {
+      if (createdEventUuid) {
+        try {
+          const token = await createJwt();
+          await fetch(`${baseEndpoint}/api/v1/events/${createdEventUuid}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+        } catch (error) {
+          pass;
+        }
+      }
+    });
 
     test("Setup: Create a live event", { timeout: 30000 }, async () => {
       const token = await createJwt();
@@ -42,14 +58,16 @@ describe(
     });
 
     test("Set Full RSVP Configuration", { timeout: 30000 }, async () => {
-      if (!createdEventUuid) throw new Error("Event UUID not found");
+      if (!createdEventUuid) {
+        throw new Error("Event UUID not found");
+      }
       const token = await createJwt();
 
       const payload = {
         rsvpLimit: 50,
         rsvpCheckInEnabled: true,
-        rsvpOpenAt: Date.now(),
-        rsvpCloseAt: Date.now() + 86400000,
+        rsvpOpenAt: Math.floor(Date.now() / 1000) + 10,
+        rsvpCloseAt: Math.floor(Date.now() / 1000) + 86400,
         rsvpQuestions: [
           {
             id: "diet",
@@ -80,17 +98,36 @@ describe(
       );
 
       expect(response.status).toBe(200);
+
+      const getResponse = await fetch(
+        `${baseEndpoint}/api/v1/rsvp/event/${createdEventUuid}/config`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      expect(getResponse.status).toBe(200);
+      const getResponseJson = await getResponse.json();
+      expect(getResponseJson.rsvpLimit).toBe(50);
+      expect(getResponseJson.rsvpCheckInEnabled).toBe(true);
+      expect(getResponseJson.rsvpQuestions.length).toBe(2);
     });
 
     test("Update RSVP Configuration", { timeout: 30000 }, async () => {
-      if (!createdEventUuid) throw new Error("Event UUID not found");
+      if (!createdEventUuid) {
+        throw new Error("Event UUID not found");
+      }
       const token = await createJwt();
-
+      const newOpenDate = Math.floor(Date.now() / 1000) - 100;
+      const newCloseDate = Math.floor(Date.now() / 1000) + 100;
       const payload = {
         rsvpLimit: 100,
         rsvpCheckInEnabled: false,
-        rsvpOpenAt: Date.now(),
-        rsvpCloseAt: Date.now() + 86400000,
+        rsvpOpenAt: newOpenDate,
+        rsvpCloseAt: newCloseDate,
         rsvpQuestions: [],
       };
 
@@ -107,16 +144,34 @@ describe(
       );
 
       expect(response.status).toBe(200);
+      const getResponse = await fetch(
+        `${baseEndpoint}/api/v1/rsvp/event/${createdEventUuid}/config`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      expect(getResponse.status).toBe(200);
+      const getResponseJson = await getResponse.json();
+      expect(getResponseJson.rsvpLimit).toBe(100);
+      expect(getResponseJson.rsvpCheckInEnabled).toBe(false);
+      expect(getResponseJson.rsvpQuestions.length).toBe(0);
+      expect(getResponseJson.rsvpOpenAt).toBe(newOpenDate);
+      expect(getResponseJson.rsvpCloseAt).toBe(newCloseDate);
     });
 
     test("Fail on Invalid Configuration", { timeout: 30000 }, async () => {
-      if (!createdEventUuid) throw new Error("Event UUID not found");
+      if (!createdEventUuid) {
+        throw new Error("Event UUID not found");
+      }
       const token = await createJwt();
 
       const payload = {
         rsvpLimit: -5,
-        rsvpOpenAt: Date.now(),
-        rsvpCloseAt: Date.now() + 86400000,
+        rsvpOpenAt: Math.floor(Date.now() / 1000) + 5,
+        rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
       };
 
       const response = await fetch(
@@ -132,22 +187,6 @@ describe(
       );
 
       expect(response.status).toBe(400);
-    });
-
-    test("Cleanup: Delete test event", { timeout: 30000 }, async () => {
-      if (!createdEventUuid) throw new Error("Event UUID not found");
-      const token = await createJwt();
-
-      const response = await fetch(
-        `${baseEndpoint}/api/v1/events/${createdEventUuid}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      expect(response.status).toBe(204);
     });
   },
 );

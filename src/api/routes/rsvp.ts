@@ -17,6 +17,7 @@ import {
   DatabaseInsertError,
   ResourceConflictError,
   NotFoundError,
+  ValidationError,
 } from "common/errors/index.js";
 import { rsvpConfigSchema, rsvpItemSchema } from "common/types/rsvp.js";
 import * as z from "zod/v4";
@@ -103,15 +104,15 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           endpointName: request.url,
         });
       }
-      const now = Date.now();
+      const now = Math.floor(Date.now() / 1000);
       if (configItem.rsvpOpenAt && now < configItem.rsvpOpenAt) {
-        throw new ResourceConflictError({
-          message: "RSVPs are not yet open for this event.",
+        throw new ValidationError({
+          message: "RSVPs are not open for this event.",
         });
       }
       if (configItem.rsvpCloseAt && now > configItem.rsvpCloseAt) {
-        throw new ResourceConflictError({
-          message: "RSVPs have closed for this event.",
+        throw new ValidationError({
+          message: "RSVPs are not open for this event.",
         });
       }
       const rsvpEntry = {
@@ -150,7 +151,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       try {
         await fastify.dynamoClient.send(transactionCommand);
-        return reply.status(201).send(null);
+        return reply.status(201).send();
       } catch (err: any) {
         if (err.name === "TransactionCanceledException") {
           if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
@@ -283,7 +284,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 ":questions": configData.rsvpQuestions,
                 ":openAt": configData.rsvpOpenAt,
                 ":closeAt": configData.rsvpCloseAt,
-                ":now": Date.now(),
+                ":now": Math.floor(Date.now() / 1000),
                 ":zero": 0,
                 ":eid": eventId,
               }),
@@ -294,7 +295,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       try {
         await fastify.dynamoClient.send(command);
-        return reply.status(200).send(null);
+        return reply.status(200).send();
       } catch (err: any) {
         if (err.name === "TransactionCanceledException") {
           if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
@@ -307,6 +308,61 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         request.log.error(err, "Failed to update event config");
         throw new DatabaseInsertError({
           message: "Failed to update event configuration.",
+        });
+      }
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "/event/:eventId/config",
+    {
+      schema: withRoles(
+        [AppRoles.RSVP_MANAGER],
+        withTags(["RSVP"], {
+          summary: "Get RSVP configuration for an event.",
+          params: z.object({
+            eventId: z.string().min(1).meta({
+              description: "The event ID to fetch configuration for.",
+            }),
+          }),
+          response: {
+            200: {
+              description: "RSVP configuration for the event.",
+              content: {
+                "application/json": {
+                  schema: rsvpConfigSchema,
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    async (request, reply) => {
+      const { eventId } = request.params;
+      const command = new GetItemCommand({
+        TableName: genericConfig.RSVPDynamoTableName,
+        Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
+      });
+
+      try {
+        const response = await fastify.dynamoClient.send(command);
+        if (!response || !response.Item) {
+          throw new NotFoundError({
+            endpointName: request.url,
+          });
+        }
+        const configItem = unmarshall(response.Item);
+        return reply.send(configItem);
+      } catch (err: any) {
+        if (err.name === "ResourceNotFoundException") {
+          throw new NotFoundError({
+            endpointName: request.url,
+          });
+        }
+        request.log.error(err, "Failed to fetch event config");
+        throw new DatabaseFetchError({
+          message: "Failed to fetch event configuration.",
         });
       }
     },
@@ -439,11 +495,11 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       try {
         await fastify.dynamoClient.send(transactionCommand);
-        return reply.status(204).send(null);
+        return reply.status(204).send();
       } catch (err: any) {
         if (err.name === "TransactionCanceledException") {
           if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
-            return reply.status(204).send(null);
+            return reply.status(204).send();
           }
         }
 
@@ -515,7 +571,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       try {
         await fastify.dynamoClient.send(transactionCommand);
-        return reply.status(204).send(null);
+        return reply.status(204).send();
       } catch (err: any) {
         if (err.name === "TransactionCanceledException") {
           if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {

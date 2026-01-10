@@ -133,8 +133,8 @@ describe("RSVP API tests", () => {
         partitionKey: `CONFIG#${eventId}`,
         eventId,
         rsvpLimit: 100,
-        rsvpOpenAt: Date.now() - 10000,
-        rsvpCloseAt: Date.now() + 10000,
+        rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
+        rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
         rsvpCheckInEnabled: false,
       }),
     });
@@ -175,8 +175,8 @@ describe("RSVP API tests", () => {
         partitionKey: `CONFIG#${eventId}`,
         rsvpLimit: 100,
         rsvpCount: 10,
-        rsvpOpenAt: Date.now() - 10000,
-        rsvpCloseAt: Date.now() + 10000,
+        rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
+        rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
         rsvpCheckInEnabled: false,
       }),
     });
@@ -208,8 +208,8 @@ describe("RSVP API tests", () => {
         partitionKey: `CONFIG#${eventId}`,
         rsvpLimit: 100,
         rsvpCount: 100,
-        rsvpOpenAt: Date.now() - 10000,
-        rsvpCloseAt: Date.now() + 10000,
+        rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
+        rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
         rsvpCheckInEnabled: false,
       }),
     });
@@ -239,14 +239,14 @@ describe("RSVP API tests", () => {
         eventId: "EventA",
         userId: upn,
         isPaidMember: true,
-        createdAt: Date.now(),
+        createdAt: Math.floor(Date.now() / 1000),
       },
       {
         partitionKey: `RSVP#EventB#${upn}`,
         eventId: "EventB",
         userId: upn,
         isPaidMember: true,
-        createdAt: Date.now(),
+        createdAt: Math.floor(Date.now() / 1000),
       },
     ];
 
@@ -279,22 +279,22 @@ describe("RSVP API tests", () => {
         eventId,
         userId: "user1@illinois.edu",
         isPaidMember: true,
-        createdAt: Date.now(),
+        createdAt: Math.floor(Date.now() / 1000),
       },
       {
         partitionKey: `RSVP#${eventId}#user2@illinois.edu`,
         eventId,
         userId: "user2@illinois.edu",
         isPaidMember: false,
-        createdAt: Date.now(),
+        createdAt: Math.floor(Date.now() / 1000),
       },
       {
         partitionKey: `CONFIG#${eventId}`,
         eventId,
         rsvpLimit: 100,
         rsvpCount: 50,
-        rsvpOpenAt: Date.now() - 10000,
-        rsvpCloseAt: Date.now() + 10000,
+        rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
+        rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
         rsvpCheckInEnabled: false,
       },
     ];
@@ -421,13 +421,46 @@ describe("RSVP API tests", () => {
       payload: {
         rsvpLimit: newLimit,
         rsvpCheckInEnabled: false,
-        rsvpOpenAt: Date.now(),
-        rsvpCloseAt: Date.now() + 100000,
+        rsvpOpenAt: Math.floor(Date.now() / 1000),
+        rsvpCloseAt: Math.floor(Date.now() / 1000) + 100,
       },
     });
 
     expect(response.statusCode).toBe(200);
     expect(ddbMock.calls()).toHaveLength(1);
+  });
+
+  test("Test Manager getting RSVP configuration", async () => {
+    const eventId = "Make Your Own Database";
+    const mockConfig = {
+      partitionKey: `CONFIG#${eventId}`,
+      eventId,
+      rsvpLimit: 50,
+      rsvpCheckInEnabled: true,
+      rsvpOpenAt: Math.floor(Date.now() / 1000) - 100,
+      rsvpCloseAt: Math.floor(Date.now() / 1000) + 100,
+    };
+
+    ddbMock.on(GetItemCommand).resolves({
+      Item: marshall(mockConfig),
+    });
+
+    const adminJwt = createJwt();
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/config`,
+      headers: {
+        Authorization: `Bearer ${adminJwt}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.rsvpLimit).toBe(50);
+    expect(body.rsvpCheckInEnabled).toBe(true);
+    expect(body.rsvpOpenAt).toBe(mockConfig.rsvpOpenAt);
+    expect(body.rsvpCloseAt).toBe(mockConfig.rsvpCloseAt);
   });
 
   test("Test Manager configuring non-existent event (404)", async () => {
@@ -450,12 +483,29 @@ describe("RSVP API tests", () => {
         partitionKey: `CONFIG#${eventId}`,
         rsvpLimit: 100,
         rsvpCount: 10,
-        rsvpOpenAt: Date.now() - 10000,
-        rsvpCloseAt: Date.now() + 10000,
+        rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
+        rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
         rsvpCheckInEnabled: false,
       },
     });
 
     expect(response.statusCode).toBe(404);
+  });
+
+  test("Test manager getting non existent event config (500)", async () => {
+    ddbMock.on(GetItemCommand).resolves({});
+
+    const adminJwt = createJwt();
+    const eventId = "GhostEvent";
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/config`,
+      headers: {
+        Authorization: `Bearer ${adminJwt}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(500);
   });
 });
