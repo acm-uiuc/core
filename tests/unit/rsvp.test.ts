@@ -88,18 +88,17 @@ describe("RSVP API tests", () => {
     vi.clearAllMocks();
   });
 
-
   test("Test posting an RSVP for an event", async () => {
     const eventId = "Make Your Own Database";
 
     ddbMock.on(GetItemCommand).resolves({
-        Item: marshall({
-          partitionKey: `CONFIG#${eventId}`,
-          eventId,
-          rsvpLimit: 100,
-          rsvpOpenAt: Date.now() - 10000,
-          rsvpCloseAt: Date.now() + 10000,
-        }),
+      Item: marshall({
+        partitionKey: `CONFIG#${eventId}`,
+        eventId,
+        rsvpLimit: 100,
+        rsvpOpenAt: Date.now() - 10000,
+        rsvpCloseAt: Date.now() + 10000,
+      }),
     });
 
     ddbMock.on(TransactWriteItemsCommand).resolves({});
@@ -141,7 +140,7 @@ describe("RSVP API tests", () => {
     const eventId = "Make Your Own Database";
 
     ddbMock.on(GetItemCommand).resolves({
-        Item: marshall({ partitionKey: `CONFIG#${eventId}`, rsvpLimit: 100 }),
+      Item: marshall({ partitionKey: `CONFIG#${eventId}`, rsvpLimit: 100 }),
     });
 
     const txError = new TransactionError([
@@ -163,14 +162,16 @@ describe("RSVP API tests", () => {
 
     expect(response.statusCode).toBe(409);
     const body = JSON.parse(response.body);
-    expect(body.message).toBe("This user has already submitted an RSVP for this event.");
+    expect(body.message).toBe(
+      "This user has already submitted an RSVP for this event.",
+    );
   });
 
   test("Test posting RSVP when Event is Full (Limit Reached)", async () => {
     const eventId = "Popular Event";
 
     ddbMock.on(GetItemCommand).resolves({
-        Item: marshall({ partitionKey: `CONFIG#${eventId}`, rsvpLimit: 5 }),
+      Item: marshall({ partitionKey: `CONFIG#${eventId}`, rsvpLimit: 5 }),
     });
 
     const txError = new TransactionError([
@@ -192,7 +193,7 @@ describe("RSVP API tests", () => {
 
     expect(response.statusCode).toBe(409);
     const body = JSON.parse(response.body);
-    expect(body.message).toBe("You may not RSVP for this event.");
+    expect(body.message).toBe("RSVP limit has been reached for this event.");
   });
 
   test("Test getting RSVPs for an event (Mocking Query Response)", async () => {
@@ -208,8 +209,8 @@ describe("RSVP API tests", () => {
       {
         partitionKey: `CONFIG#${eventId}`,
         eventId,
-        rsvpLimit: 100
-      }
+        rsvpLimit: 100,
+      },
     ];
 
     ddbMock.on(QueryCommand).resolves({
@@ -248,11 +249,11 @@ describe("RSVP API tests", () => {
         userId: upn,
         isPaidMember: true,
         createdAt: Date.now(),
-      }
+      },
     ];
 
     ddbMock.on(QueryCommand).resolves({
-        Items: mockRsvps.map((item) => marshall(item)),
+      Items: mockRsvps.map((item) => marshall(item)),
     });
 
     const testJwt = createJwt();
@@ -272,7 +273,6 @@ describe("RSVP API tests", () => {
     expect(body[0].eventId).toBe("EventA");
     expect(body[1].eventId).toBe("EventB");
   });
-
 
   test("Test withdrawing own RSVP", async () => {
     ddbMock.on(TransactWriteItemsCommand).resolves({});
@@ -353,7 +353,6 @@ describe("RSVP API tests", () => {
 
     expect(response.statusCode).toBe(404);
   });
-
 
   test("Test Manager configuring rsvp limit", async () => {
     ddbMock.on(TransactWriteItemsCommand).resolves({});

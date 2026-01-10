@@ -10,13 +10,27 @@ export const rsvpSubmissionBodySchema = z.object({
     }),
 });
 
-const rsvpQuestionSchema = z.object({
-  id: z.string().min(1).meta({ description: "Unique ID for storing the answer (e.g., 'dietary')" }),
-  prompt: z.string().min(1).meta({ description: "The actual question text (e.g., 'Do you have dietary restrictions?')" }),
-  type: rsvpQuestionType.meta({ description: "The type of input to show" }),
-  required: z.boolean().default(false),
-  options: z.array(z.string()).optional().meta({ description: "Options if type is SELECT" }),
-});
+export const rsvpQuestionSchema = z.discriminatedUnion("type", [
+  z.object({
+    id: z.string().min(1).meta({ description: "Unique ID for storing the answer (e.g., 'dietary')" }),
+    prompt: z.string().min(1).meta({ description: "The actual question text" }),
+    type: z.literal("TEXT"),
+    required: z.boolean().default(false),
+  }),
+  z.object({
+    id: z.string().min(1).meta({ description: "Unique ID for storing the answer (e.g., 'dietary')" }),
+    prompt: z.string().min(1).meta({ description: "The actual question text" }),
+    type: z.literal("BOOLEAN"),
+    required: z.boolean().default(false),
+  }),
+  z.object({
+    id: z.string().min(1).meta({ description: "Unique ID for storing the answer (e.g., 'dietary')" }),
+    prompt: z.string().min(1).meta({ description: "The actual question text" }),
+    type: z.literal("SELECT"),
+    required: z.boolean().default(false),
+    options: z.array(z.string()).min(1).meta({ description: "Available options for SELECT type" }),
+  }),
+]);
 
 export const rsvpConfigSchema = z
   .object({
@@ -37,13 +51,19 @@ export const rsvpConfigSchema = z
       ]
     }),
     rsvpCloseAt: z.number().int().meta({
-      description: "Epoch timestamp (ms) representing the RSVP deadline. Users cannot RSVP after this time.",
+      description:
+        "Epoch timestamp (ms) representing the RSVP deadline. Users cannot RSVP after this time.",
       example: 1705512000000,
     }),
     rsvpOpenAt: z.number().int().meta({
-      description: "Epoch timestamp (ms) representing when RSVPs open for this event.",
+      description:
+        "Epoch timestamp (ms) representing when RSVPs open for this event.",
       example: 1705512000000,
     }),
+  })
+  .refine((data) => data.rsvpOpenAt < data.rsvpCloseAt, {
+    message: "RSVP open time must be before close time",
+    path: ["rsvpOpenAt"],
   })
   .meta({
     id: "RsvpConfig",
@@ -65,23 +85,6 @@ export const rsvpItemSchema = z
         "Indicates if the user held a paid membership at the time of RSVP.",
       example: true,
     }),
-    responses: z
-      .record(z.string(), z.union([z.string(), z.boolean()]))
-      .optional()
-      .meta({
-        description:
-          "The user's answers to the custom questions configured for this event.",
-        example: {
-          dietary: "Vegetarian",
-          photoRelease: true,
-          tshirt: "L",
-        },
-      }),
-    // checkedIn: z.boolean().optional().meta({
-    //   description:
-    //     "Indicates if the user has checked in. Only present if check-in is enabled for the event.",
-    //   example: false,
-    // }),
     createdAt: z.number().int().meta({
       description: "Epoch timestamp (ms) when the RSVP was created.",
       example: 1705512000000,
