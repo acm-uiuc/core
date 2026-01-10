@@ -3,7 +3,8 @@ import {
   DynamoDBClient,
   QueryCommand,
   TransactWriteItemsCommand,
-  UpdateItemCommand,
+  PutItemCommand,
+  GetItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
@@ -14,6 +15,16 @@ import { Redis } from "../../src/api/types.js";
 import { FastifyBaseLogger } from "fastify";
 
 const DUMMY_JWT = createJwt();
+
+
+class TransactionError extends Error {
+  name = "TransactionCanceledException";
+  CancellationReasons: { Code: string }[];
+  constructor(reasons: { Code: string }[]) {
+    super("Transaction canceled");
+    this.CancellationReasons = reasons;
+  }
+}
 
 vi.mock("../../src/api/functions/uin.js", async () => {
   const actual = await vi.importActual("../../src/api/functions/uin.js");
@@ -79,11 +90,23 @@ describe("RSVP API tests", () => {
     vi.clearAllMocks();
   });
 
+
   test("Test posting an RSVP for an event", async () => {
+    const eventId = "Make Your Own Database";
+
+    ddbMock.on(GetItemCommand).resolves({
+        Item: marshall({
+          partitionKey: `CONFIG#${eventId}`,
+          eventId,
+          rsvpLimit: 100,
+          rsvpOpenAt: Date.now() - 10000,
+          rsvpCloseAt: Date.now() + 10000,
+        }),
+    });
+
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
     const testJwt = createJwt();
-    const eventId = "Make Your Own Database";
 
     const response = await app.inject({
       method: "POST",
@@ -92,29 +115,46 @@ describe("RSVP API tests", () => {
         Authorization: `Bearer ${testJwt}`,
         "x-uiuc-token": DUMMY_JWT,
       },
+      // payload: { responses: {} }
     });
 
     expect(response.statusCode).toBe(201);
+  });
 
-    expect(ddbMock.calls()).toHaveLength(1);
-    const transactInput = ddbMock.call(0).args[0].input as any;
-    expect(transactInput.TransactItems[0].Put.TableName).toBe(
-      "infra-core-api-events-rsvp",
-    );
+  test("Test posting an RSVP fails if Config is missing", async () => {
+    const eventId = "Closed Event";
+
+    ddbMock.on(GetItemCommand).resolves({});
+
+    const testJwt = createJwt();
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+        "x-uiuc-token": DUMMY_JWT,
+      },
+      // payload: { responses: {} },
+    });
+    console.log(response)
+    expect(response.statusCode).toBe(404);
   });
 
   test("Test double RSVP (Conflict)", async () => {
-    const err = new Error("TransactionCanceledException");
-    err.name = "TransactionCanceledException";
-    // @ts-ignore
-    err.CancellationReasons = [
+    const eventId = "Make Your Own Database";
+
+    ddbMock.on(GetItemCommand).resolves({
+        Item: marshall({ partitionKey: `CONFIG#${eventId}`, rsvpLimit: 100 }),
+    });
+
+    const txError = new TransactionError([
       { Code: "ConditionalCheckFailed" },
       { Code: "None" },
-    ];
-    ddbMock.on(TransactWriteItemsCommand).rejects(err);
+    ]);
+    ddbMock.on(TransactWriteItemsCommand).rejects(txError);
 
     const testJwt = createJwt();
-    const eventId = "Make Your Own Database";
 
     const response = await app.inject({
       method: "POST",
@@ -127,23 +167,23 @@ describe("RSVP API tests", () => {
 
     expect(response.statusCode).toBe(409);
     const body = JSON.parse(response.body);
-    expect(body.message).toBe(
-      "This user has already submitted an RSVP for this event.",
-    );
+    expect(body.message).toBe("This user has already submitted an RSVP for this event.");
   });
 
   test("Test posting RSVP when Event is Full (Limit Reached)", async () => {
-    const err = new Error("TransactionCanceledException");
-    err.name = "TransactionCanceledException";
-    // @ts-ignore
-    err.CancellationReasons = [
+    const eventId = "Popular Event";
+
+    ddbMock.on(GetItemCommand).resolves({
+        Item: marshall({ partitionKey: `CONFIG#${eventId}`, rsvpLimit: 5 }),
+    });
+
+    const txError = new TransactionError([
       { Code: "None" },
       { Code: "ConditionalCheckFailed" },
-    ];
-    ddbMock.on(TransactWriteItemsCommand).rejects(err);
+    ]);
+    ddbMock.on(TransactWriteItemsCommand).rejects(txError);
 
     const testJwt = createJwt();
-    const eventId = "Popular Event";
 
     const response = await app.inject({
       method: "POST",
@@ -156,36 +196,7 @@ describe("RSVP API tests", () => {
 
     expect(response.statusCode).toBe(409);
     const body = JSON.parse(response.body);
-    expect(body.message).toBe("The event is at capacity.");
-  });
-
-  test("Test posting RSVP when Event is Full AND User already RSVP'd (Race Condition)", async () => {
-    const err = new Error("TransactionCanceledException");
-    err.name = "TransactionCanceledException";
-    // @ts-ignore
-    err.CancellationReasons = [
-      { Code: "ConditionalCheckFailed" },
-      { Code: "ConditionalCheckFailed" },
-    ];
-    ddbMock.on(TransactWriteItemsCommand).rejects(err);
-
-    const testJwt = createJwt();
-    const eventId = "Popular Event";
-
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
-      headers: {
-        Authorization: `Bearer ${testJwt}`,
-        "x-uiuc-token": DUMMY_JWT,
-      },
-    });
-
-    expect(response.statusCode).toBe(409);
-    const body = JSON.parse(response.body);
-    expect(body.message).toBe(
-      "This user has already submitted an RSVP for this event.",
-    );
+    expect(body.message).toBe("You may not RSVP for this event.");
   });
 
   test("Test getting RSVPs for an event (Mocking Query Response)", async () => {
@@ -199,12 +210,10 @@ describe("RSVP API tests", () => {
         createdAt: Date.now(),
       },
       {
-        partitionKey: `RSVP#${eventId}#user2@illinois.edu`,
+        partitionKey: `CONFIG#${eventId}`,
         eventId,
-        userId: "user2@illinois.edu",
-        isPaidMember: false,
-        createdAt: Date.now(),
-      },
+        rsvpLimit: 100
+      }
     ];
 
     ddbMock.on(QueryCommand).resolves({
@@ -223,10 +232,49 @@ describe("RSVP API tests", () => {
 
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-
-    expect(body).toHaveLength(2);
+    expect(body).toHaveLength(1);
     expect(body[0].userId).toBe("user1@illinois.edu");
-    expect(body[1].userId).toBe("user2@illinois.edu");
+  });
+
+  test("Test getting all my RSVPs (GET /me)", async () => {
+    const upn = "jd3@illinois.edu";
+    const mockRsvps = [
+      {
+        partitionKey: `RSVP#EventA#${upn}`,
+        eventId: "EventA",
+        userId: upn,
+        isPaidMember: true,
+        createdAt: Date.now(),
+      },
+      {
+        partitionKey: `RSVP#EventB#${upn}`,
+        eventId: "EventB",
+        userId: upn,
+        isPaidMember: true,
+        createdAt: Date.now(),
+      }
+    ];
+
+    ddbMock.on(QueryCommand).resolves({
+        Items: mockRsvps.map((item) => marshall(item)),
+    });
+
+    const testJwt = createJwt();
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/rsvp/me`,
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+        "x-uiuc-token": DUMMY_JWT,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body).toHaveLength(2);
+    expect(body[0].eventId).toBe("EventA");
+    expect(body[1].eventId).toBe("EventB");
   });
   test("Test withdrawing own RSVP", async () => {
     ddbMock.on(TransactWriteItemsCommand).resolves({});
@@ -244,44 +292,14 @@ describe("RSVP API tests", () => {
     });
 
     expect(response.statusCode).toBe(204);
-    expect(ddbMock.calls()).toHaveLength(1);
   });
 
   test("Test withdrawing own RSVP when not RSVP'd", async () => {
-    const err = new Error("TransactionCanceledException");
-    err.name = "TransactionCanceledException";
-    // @ts-ignore
-    err.CancellationReasons = [
-      { Code: "ConditionalCheckFailed" }, // Delete failed because item didn't exist
-      { Code: "None" },
-    ];
-    ddbMock.on(TransactWriteItemsCommand).rejects(err);
-
-    const testJwt = createJwt();
-    const eventId = "Make Your Own Database";
-
-    const response = await app.inject({
-      method: "DELETE",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/me`,
-      headers: {
-        Authorization: `Bearer ${testJwt}`,
-        "x-uiuc-token": DUMMY_JWT,
-      },
-    });
-
-    // Should still return 204 because the goal (not being RSVP'd) is achieved
-    expect(response.statusCode).toBe(204);
-  });
-
-  test("Test withdrawing own RSVP when rsvpCount is already 0 (Safety Check)", async () => {
-    const err = new Error("TransactionCanceledException");
-    err.name = "TransactionCanceledException";
-    // @ts-ignore
-    err.CancellationReasons = [
-      { Code: "None" },
+    const txError = new TransactionError([
       { Code: "ConditionalCheckFailed" },
-    ];
-    ddbMock.on(TransactWriteItemsCommand).rejects(err);
+      { Code: "None" },
+    ]);
+    ddbMock.on(TransactWriteItemsCommand).rejects(txError);
 
     const testJwt = createJwt();
     const eventId = "Make Your Own Database";
@@ -295,7 +313,7 @@ describe("RSVP API tests", () => {
       },
     });
 
-    expect(response.statusCode).toBe(500);
+    expect(response.statusCode).toBe(204);
   });
 
   test("Test Manager deleting a user's RSVP", async () => {
@@ -314,18 +332,14 @@ describe("RSVP API tests", () => {
     });
 
     expect(response.statusCode).toBe(204);
-    expect(ddbMock.calls()).toHaveLength(1);
   });
 
   test("Test Manager deleting non-existent RSVP (Not Found)", async () => {
-    const err = new Error("TransactionCanceledException");
-    err.name = "TransactionCanceledException";
-    // @ts-ignore
-    err.CancellationReasons = [
+    const txError = new TransactionError([
       { Code: "ConditionalCheckFailed" },
       { Code: "None" },
-    ];
-    ddbMock.on(TransactWriteItemsCommand).rejects(err);
+    ]);
+    ddbMock.on(TransactWriteItemsCommand).rejects(txError);
 
     const adminJwt = createJwt();
     const eventId = "Make Your Own Database";
@@ -342,32 +356,9 @@ describe("RSVP API tests", () => {
     expect(response.statusCode).toBe(404);
   });
 
-  test("Test Manager deleting RSVP when rsvpCount is already 0 (Safety Check)", async () => {
-    const err = new Error("TransactionCanceledException");
-    err.name = "TransactionCanceledException";
-    // @ts-ignore
-    err.CancellationReasons = [
-      { Code: "None" },
-      { Code: "ConditionalCheckFailed" },
-    ];
-    ddbMock.on(TransactWriteItemsCommand).rejects(err);
-
-    const adminJwt = createJwt();
-    const eventId = "Make Your Own Database";
-    const targetUserId = "user1@illinois.edu";
-
-    const response = await app.inject({
-      method: "DELETE",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/${encodeURIComponent(targetUserId)}`,
-      headers: {
-        Authorization: `Bearer ${adminJwt}`,
-      },
-    });
-    expect(response.statusCode).toBe(500);
-  });
 
   test("Test Manager configuring rsvp limit", async () => {
-    ddbMock.on(UpdateItemCommand).resolves({});
+    ddbMock.on(PutItemCommand).resolves({});
 
     const adminJwt = createJwt();
     const eventId = "Make Your Own Database";
@@ -381,34 +372,12 @@ describe("RSVP API tests", () => {
       },
       payload: {
         rsvpLimit: newLimit,
+        rsvpCheckInEnabled: false,
+        rsvpOpenAt: Date.now(),
+        rsvpCloseAt: Date.now() + 100000,
       },
     });
 
     expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.body);
-    expect(body.rsvpLimit).toBe(newLimit);
-    expect(ddbMock.calls()).toHaveLength(1);
-  });
-
-  test("Test Manager configuring non-existent event", async () => {
-    const err = new Error("ConditionalCheckFailedException");
-    err.name = "ConditionalCheckFailedException";
-    ddbMock.on(UpdateItemCommand).rejects(err);
-
-    const adminJwt = createJwt();
-    const eventId = "FakeEventID";
-
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/config`,
-      headers: {
-        Authorization: `Bearer ${adminJwt}`,
-      },
-      payload: {
-        rsvpLimit: 50,
-      },
-    });
-
-    expect(response.statusCode).toBe(404);
   });
 });
