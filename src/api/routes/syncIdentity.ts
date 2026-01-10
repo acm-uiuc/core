@@ -7,7 +7,11 @@ import rateLimiter from "api/plugins/rateLimiter.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import { notAuthenticatedError, withTags } from "api/components/index.js";
-import { getUserUin, verifyUiucAccessToken } from "api/functions/uin.js";
+import {
+  getUserUin,
+  saveUserUin,
+  verifyUiucAccessToken,
+} from "api/functions/uin.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { genericConfig, roleArns } from "common/config.js";
@@ -95,11 +99,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           accessToken,
           logger: request.log,
         });
-        const uin = await getUserUin({
-          uiucAccessToken: accessToken,
-        });
         await syncFullProfile({
-          uin,
           firstName: givenName,
           lastName: surname,
           netId,
@@ -107,6 +107,12 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           redisClient: fastify.redisClient,
           stripeApiKey: fastify.secretConfig.stripe_secret_key,
           logger: request.log,
+        });
+
+        await saveUserUin({
+          uiucAccessToken: accessToken,
+          dynamoClient: fastify.dynamoClient,
+          netId,
         });
         let isPaidMember = await checkPaidMembershipFromRedis(
           netId,
