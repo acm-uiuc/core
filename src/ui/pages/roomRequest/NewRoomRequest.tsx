@@ -28,6 +28,7 @@ import {
   getSemesters,
   roomRequestSchema,
   specificRoomSetupRooms,
+  getSemesterDateRange,
 } from "@common/types/roomRequest";
 import { useNavigate } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
@@ -38,6 +39,27 @@ import { useAuth } from "@ui/components/AuthContext";
 import { getPrimarySuggestedOrg } from "@ui/util";
 import { getCurrentTimezoneShortCode, isInDefaultTimezone } from "@common/time";
 import { IconInfoCircle } from "@tabler/icons-react";
+
+const getEffectiveMinDate = (
+  semester: string | undefined,
+  fallbackDate: Date,
+): Date => {
+  const semesterRange = getSemesterDateRange(semester);
+  if (!semesterRange) {
+    return fallbackDate;
+  }
+
+  return semesterRange.start > fallbackDate
+    ? semesterRange.start
+    : fallbackDate;
+};
+
+const getEffectiveMaxDate = (
+  semester: string | undefined,
+): Date | undefined => {
+  const semesterRange = getSemesterDateRange(semester);
+  return semesterRange?.end;
+};
 
 // Component for yes/no questions with conditional content
 interface ConditionalFieldProps {
@@ -289,6 +311,13 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     },
   });
 
+  // Compute semester date constraints
+  const semesterMinDate = getEffectiveMinDate(
+    form.values.semester,
+    startingDate,
+  );
+  const semesterMaxDate = getEffectiveMaxDate(form.values.semester);
+
   // Check if the room requirements section should be shown
   const showRoomRequirements =
     form.values.locationType === "in-person" ||
@@ -454,7 +483,8 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             valueFormat={`MM-DD-YYYY hh:mm A [${getCurrentTimezoneShortCode()}]`}
             mt="sm"
             clearable={false}
-            minDate={startingDate}
+            minDate={semesterMinDate}
+            maxDate={semesterMaxDate}
             timePickerProps={{
               withDropdown: true,
               popoverProps: { withinPortal: false },
@@ -470,7 +500,8 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             valueFormat={`MM-DD-YYYY hh:mm A [${getCurrentTimezoneShortCode()}]`}
             mt="sm"
             clearable={false}
-            minDate={startingDate}
+            minDate={semesterMinDate}
+            maxDate={semesterMaxDate}
             timePickerProps={{
               withDropdown: true,
               popoverProps: { withinPortal: false },
@@ -512,8 +543,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                           new Date(form.values.eventEnd).getDate(),
                         ),
                       )
-                    : new Date()
+                    : semesterMinDate
                 }
+                maxDate={semesterMaxDate}
                 {...form.getInputProps("recurrenceEndDate")}
               />
             </>
