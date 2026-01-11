@@ -143,7 +143,6 @@ describe("RSVP API tests", () => {
 
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
-
     const response = await app.inject({
       method: "POST",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
@@ -157,7 +156,6 @@ describe("RSVP API tests", () => {
     const eventId = "Closed Event";
 
     ddbMock.on(GetItemCommand).resolves({});
-
 
     const response = await app.inject({
       method: "POST",
@@ -222,7 +220,6 @@ describe("RSVP API tests", () => {
       { Code: "ConditionalCheckFailed" },
     ]);
     ddbMock.on(TransactWriteItemsCommand).rejects(txError);
-
 
     const response = await app.inject({
       method: "POST",
@@ -503,5 +500,3 @@ describe("RSVP API tests", () => {
     expect(response.statusCode).toBe(500);
   });
 });
-
-
