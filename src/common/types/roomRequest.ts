@@ -439,3 +439,48 @@ export const formatStatus = (status: RoomRequestStatus) => {
     replaceAll('uiuc', 'UIUC').
     replaceAll('acm', 'ACM');
 };
+
+const SEMESTER_DATE_CONFIG = {
+  spring: {
+    startMonth: 0, // January (0-indexed)
+    startDay: 0,
+    endMonth: 4, // May (0-indexed)
+    endDay: 31,
+  },
+  fall: {
+    startMonth: 7, // August (0-indexed)
+    startDay: 0,
+    endMonth: 11, // December (0-indexed)
+    endDay: 31,
+  },
+} as const;
+
+export const getSemesterDateRange = (
+  semester: string | undefined,
+): { start: Date; end: Date } | null => {
+  if (!semester || semester.length < 4) return null;
+
+  const prefix = semester.slice(0, 2).toLowerCase();
+  const yearSuffix = semester.slice(2);
+
+  // Validate year suffix is numeric
+  if (!/^\d{2}$/.test(yearSuffix)) return null;
+
+  const year = 2000 + parseInt(yearSuffix, 10);
+
+  if (prefix === "sp") {
+    const config = SEMESTER_DATE_CONFIG.spring;
+    return {
+      start: new Date(year, config.startMonth, config.startDay),
+      end: new Date(year, config.endMonth, config.endDay, 23, 59, 59),
+    };
+  } else if (prefix === "fa") {
+    const config = SEMESTER_DATE_CONFIG.fall;
+    return {
+      start: new Date(year, config.startMonth, config.startDay),
+      end: new Date(year, config.endMonth, config.endDay, 23, 59, 59),
+    };
+  }
+
+  return null;
+};
