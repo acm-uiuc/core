@@ -62,6 +62,7 @@ import { createRedisModule } from "./redis.js";
 import userRoute from "./routes/user.js";
 import { getSsmParameter } from "./utils.js";
 import { SSMClient } from "@aws-sdk/client-ssm";
+import validateTurnstileTokenPlugin from "./plugins/validateTurnstile.js";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
@@ -258,6 +259,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
     app.register(errorHandlerPlugin),
     app.register(fastifyZodOpenApiPlugin),
     app.register(locationPlugin),
+    app.register(validateTurnstileTokenPlugin),
   ]);
 
   await app.register(fastifyAuthPlugin);
@@ -346,6 +348,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
     req.log.info({ hostname, url, method: req.method }, "received request");
     done();
   });
+  app.addHook("preHandler", app.validateTurnstileToken);
   app.addHook("onResponse", (req, reply, done) => {
     req.log.info(
       {

@@ -194,6 +194,8 @@ ssmMock.on(GetParameterCommand).callsFake((command) => {
     "/infra-core-api/github_app_id": "9179",
     "/infra-core-api/github_installation_id": "123",
     "/infra-core-api/github_private_key": "123",
+    "/infra-core-api/turnstile_secret_key":
+      "1x0000000000000000000000000000000AA",
   };
   const value = ssmParameters[command.Name];
   if (value) {

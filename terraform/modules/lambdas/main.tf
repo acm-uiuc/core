@@ -259,7 +259,8 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "dynamodb:GetItem",
           "dynamodb:Scan",
           "dynamodb:Query",
-          "dynamodb:UpdateItem"
+          "dynamodb:UpdateItem",
+          "dynamodb:TransactWriteItems"
         ],
         Effect = "Allow",
         Resource = [
@@ -290,7 +291,9 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-inventory",
           "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders",
           "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts-orders/index/*",
-          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-limits"
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-limits",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events-rsvp",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events-rsvp/index/*"
         ]
       },
       {

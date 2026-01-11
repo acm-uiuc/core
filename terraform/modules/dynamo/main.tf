@@ -599,9 +599,18 @@ resource "aws_dynamodb_table" "events_rsvp" {
     name = "eventId"
     type = "S"
   }
+  attribute {
+    name = "userId"
+    type = "S"
+  }
   global_secondary_index {
     name            = "EventIdIndex"
     hash_key        = "eventId"
+    projection_type = "ALL"
+  }
+  global_secondary_index {
+    name            = "UserIdIndex"
+    hash_key        = "userId"
     projection_type = "ALL"
   }
   stream_enabled   = true
