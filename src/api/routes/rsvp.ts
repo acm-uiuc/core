@@ -141,7 +141,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 "attribute_exists(partitionKey) AND (rsvpLimit = :null OR rsvpCount < rsvpLimit)",
               ExpressionAttributeValues: marshall({
                 ":inc": 1,
-                ":start": 0,
                 ":null": null,
               }),
             },
@@ -432,30 +431,33 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/event/:eventId/attendee/me",
     {
-      schema: withTags(["RSVP"], {
-        summary: "Withdraw your RSVP for an event.",
-        params: z.object({
-          eventId: z.string().min(1).meta({
-            description: "The event ID to withdraw from.",
+      schema: withTurnstile(
+        {},
+        withTags(["RSVP"], {
+          summary: "Withdraw your RSVP for an event.",
+          params: z.object({
+            eventId: z.string().min(1).meta({
+              description: "The event ID to withdraw from.",
+            }),
           }),
-        }),
-        headers: z.object({
-          "x-uiuc-token": z.jwt().min(1).meta({
-            description:
-              "An access token for the user in the UIUC Entra ID tenant.",
+          headers: z.object({
+            "x-uiuc-token": z.jwt().min(1).meta({
+              description:
+                "An access token for the user in the UIUC Entra ID tenant.",
+            }),
           }),
-        }),
-        response: {
-          204: {
-            description: "RSVP withdrawn successfully.",
-            content: {
-              "application/json": {
-                schema: z.null(),
+          response: {
+            204: {
+              description: "RSVP withdrawn successfully.",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
               },
             },
           },
-        },
-      }),
+        }),
+      ),
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];

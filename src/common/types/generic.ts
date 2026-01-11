@@ -1,4 +1,4 @@
-import { AllOrganizationNameList, Organizations } from "@acm-uiuc/js-shared";
+import { AllOrganizationIdList, Organizations } from "@acm-uiuc/js-shared";
 import * as z from "zod/v4";
 
 
@@ -38,8 +38,8 @@ export const illinoisUin = z
   });
 
 
-export const OrgUniqueId = z.enum(AllOrganizationNameList).meta({
+export const OrgUniqueId = z.enum(AllOrganizationIdList).meta({
   description: "The unique org ID for a given ACM sub-organization. See https://github.com/acm-uiuc/js-shared/blob/main/src/orgs.ts#L15",
   examples: ["A01", "C01"],
   id: "OrgUniqueId"
-})
+});

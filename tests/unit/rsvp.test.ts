@@ -92,9 +92,10 @@ describe("RSVP API tests", () => {
     ddbMock.reset();
     vi.clearAllMocks();
   });
+
   test("Submitting RSVPs requires the turnstile token header", async () => {
     const eventId = randomUUID();
-    let response = await app.inject({
+    const response = await app.inject({
       method: "POST",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
       headers: { "x-uiuc-token": DUMMY_JWT },
@@ -111,7 +112,7 @@ describe("RSVP API tests", () => {
   });
   test("Submitting RSVPs runs turnstile token verification", async () => {
     const eventId = randomUUID();
-    let response = await app.inject({
+    const response = await app.inject({
       method: "POST",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
       headers: { "x-uiuc-token": DUMMY_JWT, "x-turnstile-response": "invalid" }, // 3-char response requires hitting the function
@@ -125,6 +126,7 @@ describe("RSVP API tests", () => {
       message: "Invalid Turnstile token.",
     });
   });
+
   test("Test posting an RSVP for an event", async () => {
     const eventId = "Make Your Own Database";
 
@@ -141,6 +143,7 @@ describe("RSVP API tests", () => {
 
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
+
     const response = await app.inject({
       method: "POST",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
@@ -155,13 +158,11 @@ describe("RSVP API tests", () => {
 
     ddbMock.on(GetItemCommand).resolves({});
 
-    const testJwt = createJwt();
 
     const response = await app.inject({
       method: "POST",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
       headers: DEFAULT_HEADERS,
-      payload: { responses: {} },
     });
 
     expect(response.statusCode).toBe(404);
@@ -186,6 +187,8 @@ describe("RSVP API tests", () => {
       { Code: "None" },
     ]);
     ddbMock.on(TransactWriteItemsCommand).rejects(txError);
+
+    const testJwt = createJwt();
 
     const response = await app.inject({
       method: "POST",
@@ -219,6 +222,7 @@ describe("RSVP API tests", () => {
       { Code: "ConditionalCheckFailed" },
     ]);
     ddbMock.on(TransactWriteItemsCommand).rejects(txError);
+
 
     const response = await app.inject({
       method: "POST",
@@ -328,16 +332,11 @@ describe("RSVP API tests", () => {
   test("Test withdrawing own RSVP", async () => {
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
-    const testJwt = createJwt();
     const eventId = "Make Your Own Database";
-
     const response = await app.inject({
       method: "DELETE",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/me`,
-      headers: {
-        Authorization: `Bearer ${testJwt}`,
-        "x-uiuc-token": DUMMY_JWT,
-      },
+      headers: DEFAULT_HEADERS,
     });
 
     expect(response.statusCode).toBe(204);
@@ -350,16 +349,12 @@ describe("RSVP API tests", () => {
     ]);
     ddbMock.on(TransactWriteItemsCommand).rejects(txError);
 
-    const testJwt = createJwt();
     const eventId = "Make Your Own Database";
 
     const response = await app.inject({
       method: "DELETE",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/me`,
-      headers: {
-        Authorization: `Bearer ${testJwt}`,
-        "x-uiuc-token": DUMMY_JWT,
-      },
+      headers: DEFAULT_HEADERS,
     });
 
     expect(response.statusCode).toBe(204);
@@ -480,7 +475,6 @@ describe("RSVP API tests", () => {
         Authorization: `Bearer ${adminJwt}`,
       },
       payload: {
-        partitionKey: `CONFIG#${eventId}`,
         rsvpLimit: 100,
         rsvpCount: 10,
         rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
@@ -509,3 +503,5 @@ describe("RSVP API tests", () => {
     expect(response.statusCode).toBe(500);
   });
 });
+
+

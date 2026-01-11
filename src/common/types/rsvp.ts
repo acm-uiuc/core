@@ -1,7 +1,5 @@
 import * as z from "zod/v4";
 
-const rsvpQuestionType = z.enum(["TEXT", "BOOLEAN", "SELECT"]);
-
 export const rsvpSubmissionBodySchema = z.object({
   responses: z
     .record(z.string(), z.union([z.string(), z.boolean()]))
@@ -13,30 +11,19 @@ export const rsvpSubmissionBodySchema = z.object({
     }),
 });
 
+const rsvpQuestionBase = z.object({
+  id: z.string().min(1).meta({
+    description: "Unique ID for storing the answer (e.g., 'dietary')",
+  }),
+  prompt: z.string().min(1).meta({ description: "The actual question text" }),
+  required: z.boolean().default(false),
+});
+
 export const rsvpQuestionSchema = z.discriminatedUnion("type", [
-  z.object({
-    id: z.string().min(1).meta({
-      description: "Unique ID for storing the answer (e.g., 'dietary')",
-    }),
-    prompt: z.string().min(1).meta({ description: "The actual question text" }),
-    type: z.literal("TEXT"),
-    required: z.boolean().default(false),
-  }),
-  z.object({
-    id: z.string().min(1).meta({
-      description: "Unique ID for storing the answer (e.g., 'dietary')",
-    }),
-    prompt: z.string().min(1).meta({ description: "The actual question text" }),
-    type: z.literal("BOOLEAN"),
-    required: z.boolean().default(false),
-  }),
-  z.object({
-    id: z.string().min(1).meta({
-      description: "Unique ID for storing the answer (e.g., 'dietary')",
-    }),
-    prompt: z.string().min(1).meta({ description: "The actual question text" }),
+  rsvpQuestionBase.extend({ type: z.literal("TEXT") }),
+  rsvpQuestionBase.extend({ type: z.literal("BOOLEAN") }),
+  rsvpQuestionBase.extend({
     type: z.literal("SELECT"),
-    required: z.boolean().default(false),
     options: z
       .array(z.string())
       .min(1)
@@ -91,7 +78,12 @@ export const rsvpConfigSchema = z
   })
   .refine(
     (data) => {
-      if (!data.rsvpOpenAt || !data.rsvpCloseAt) {
+      if (
+        data.rsvpOpenAt === undefined ||
+        data.rsvpOpenAt === null ||
+        data.rsvpCloseAt === undefined ||
+        data.rsvpCloseAt === null
+      ) {
         return true;
       }
       return data.rsvpOpenAt < data.rsvpCloseAt;
