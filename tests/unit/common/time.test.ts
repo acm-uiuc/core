@@ -217,6 +217,8 @@ describe('applyTimeFromReference', () => {
 
       expect(result).toBeInstanceOf(Date);
       expect(result.getTime()).not.toBeNaN();
+      // Wall-clock time 14:00 is preserved; June 20 is CDT (UTC-5)
+      expect(result.toISOString()).toBe('2025-06-20T19:00:00.000Z');
     });
   });
 });
