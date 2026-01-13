@@ -27,6 +27,7 @@ import { BatchGetItemCommand } from "@aws-sdk/client-dynamodb";
 import { AppRoles } from "common/roles.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { syncFullProfile } from "api/functions/sync.js";
+import { BooleanFromString } from "common/types/generic.js";
 
 const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
@@ -46,14 +47,10 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             }),
           }),
           querystring: z.object({
-            force: z
-              .enum(["true", "false"])
-              .optional()
-              .transform((val) => val === "true")
-              .meta({
-                description:
-                  "If true, the user will be allowed to checkout even if they are already a paid member.",
-              }),
+            force: BooleanFromString.optional().default(false).meta({
+              description:
+                "If true, the user will be allowed to checkout even if they are already a paid member.",
+            }),
           }),
           summary:
             "Create a checkout session to purchase an ACM @ UIUC membership.",
@@ -74,7 +71,6 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
         }),
       },
       async (request, reply) => {
-        console.log(request.query.force);
         const accessToken = request.headers["x-uiuc-token"];
         const verifiedData = await verifyUiucAccessToken({
           accessToken,
