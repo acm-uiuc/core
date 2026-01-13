@@ -61,6 +61,7 @@ import {
   OrganizationId,
   Organizations,
 } from "@acm-uiuc/js-shared";
+import { BooleanFromString } from "common/types/generic.js";
 
 const normalizeEventHost = <T extends { host: string }>(x: T): T => {
   return {
@@ -155,7 +156,7 @@ const isUpcomingEvent = (
 };
 
 const repeatOptions = ["weekly", "biweekly"] as const;
-const zodIncludeMetadata = z.coerce.boolean().default(false).optional().meta({
+const zodIncludeMetadata = BooleanFromString.default(false).optional().meta({
   description: "If true, include metadata for each event entry.",
 });
 export const CLIENT_HTTP_CACHE_POLICY = `public, max-age=${EVENT_CACHED_DURATION}, stale-while-revalidate=${EVENT_CACHED_DURATION * 2}, stale-if-error=${STALE_IF_ERROR_CACHED_TIME}`;
@@ -235,11 +236,11 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       {
         schema: withTags(["Events"], {
           querystring: z.object({
-            upcomingOnly: z.coerce.boolean().default(false).optional().meta({
+            upcomingOnly: BooleanFromString.default(false).optional().meta({
               description:
                 "If true, only get events which have at least one occurance starting after the current time.",
             }),
-            featuredOnly: z.coerce.boolean().default(false).optional().meta({
+            featuredOnly: BooleanFromString.default(false).optional().meta({
               description:
                 "If true, only get events which are marked as featured.",
             }),

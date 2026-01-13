@@ -43,3 +43,8 @@ export const OrgUniqueId = z.enum(AllOrganizationIdList).meta({
   examples: ["A01", "C01"],
   id: "OrgUniqueId"
 });
+
+export const BooleanFromString = z.preprocess(
+  (val) => (typeof val === 'string' || val instanceof String) && val.toLowerCase() === "true",
+  z.boolean()
+);
