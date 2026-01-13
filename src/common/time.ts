@@ -6,19 +6,12 @@ import { DEFAULT_TIMEZONE } from './constants.js';
  * Handles both UTC strings (with Z suffix or offset) and naive datetime strings.
  */
 function toZonedDateTime(dateString: string, timezone: string): Temporal.ZonedDateTime {
-  // Normalize formatting (e.g. "2023-01-01 12:00:00" -> "2023-01-01T12:00:00")
   const isoString = dateString.replace(" ", "T");
 
-  // STRICT CHECK: Only parse as absolute Instant if it ends in 'Z'.
-  // If we try to parse strings like "17:00:00-06:00" as Instants, the -06:00 offset
-  // will be enforced. If that date is actually in CDT (-05:00), the time will shift by 1 hour.
   if (isoString.endsWith("Z")) {
     return Temporal.Instant.from(isoString).toZonedDateTimeISO(timezone);
   }
 
-  // FALLBACK: Treat everything else (no offset OR numeric offset) as "Wall Clock" time.
-  // Temporal.PlainDateTime.from() parses the date/time and explicitly ignores
-  // the offset if one is present (e.g. it sees "17:00" inside "17:00-06:00").
   const plainDateTime = Temporal.PlainDateTime.from(isoString);
   return plainDateTime.toZonedDateTime(timezone);
 }
@@ -54,6 +47,10 @@ export function formatDateInTimezone(dateString: string, timezone: string): stri
 /**
  * Applies the time component from a reference datetime to a date-only string.
  * Used for repeating event exclusions which are stored as dates but need times.
+ *
+ * IMPORTANT: This extracts the literal wall-clock time (e.g., "14:30") from the
+ * reference and applies it to the target date, preserving that wall-clock time
+ * in the target timezone.
  */
 export function applyTimeFromReference(
   dateString: string,
@@ -62,12 +59,14 @@ export function applyTimeFromReference(
 ): Date {
   const refZoned = toZonedDateTime(referenceDateString, timezone);
   const datePlain = Temporal.PlainDate.from(dateString);
+
   const combined = datePlain.toPlainDateTime({
     hour: refZoned.hour,
     minute: refZoned.minute,
     second: refZoned.second,
     millisecond: refZoned.millisecond,
   });
+
   const zonedDateTime = combined.toZonedDateTime(timezone);
   return new Date(zonedDateTime.epochMilliseconds);
 }
@@ -135,12 +134,61 @@ export const currentTimezone = () => Intl.DateTimeFormat().resolvedOptions().tim
 
 export function getCurrentTimezoneShortCode() {
   const date = new Date();
-  // Request the date parts with a short timezone name option
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZoneName: 'short'
   }).formatToParts(date);
 
-  // Find the part with type 'timeZoneName' and return its value
   const timeZoneNamePart = parts.find(part => part.type === 'timeZoneName');
   return timeZoneNamePart ? timeZoneNamePart.value : 'N/A';
+}
+
+export function parseAsLocalDate(dateString: string, targetTimezone: string): Date {
+  const isoString = dateString.replace(" ", "T");
+
+  let plainDateTime: Temporal.PlainDateTime;
+
+  if (isoString.endsWith("Z")) {
+    plainDateTime = Temporal.Instant.from(isoString)
+      .toZonedDateTimeISO(targetTimezone)
+      .toPlainDateTime();
+  } else {
+    plainDateTime = Temporal.PlainDateTime.from(isoString);
+  }
+
+  return new Date(
+    plainDateTime.year,
+    plainDateTime.month - 1,
+    plainDateTime.day,
+    plainDateTime.hour,
+    plainDateTime.minute,
+    plainDateTime.second,
+    plainDateTime.millisecond
+  );
+}
+
+
+export function applyTimeFromReferenceAsLocal(
+  dateString: string,
+  referenceDateString: string,
+  timezone: string,
+): Date {
+  const refZoned = toZonedDateTime(referenceDateString, timezone);
+  const datePlain = Temporal.PlainDate.from(dateString);
+
+  const combined = datePlain.toPlainDateTime({
+    hour: refZoned.hour,
+    minute: refZoned.minute,
+    second: refZoned.second,
+    millisecond: refZoned.millisecond,
+  });
+
+  return new Date(
+    combined.year,
+    combined.month - 1,
+    combined.day,
+    combined.hour,
+    combined.minute,
+    combined.second,
+    combined.millisecond
+  );
 }

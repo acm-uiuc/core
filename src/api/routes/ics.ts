@@ -23,7 +23,12 @@ import {
 } from "fastify-zod-openapi";
 import { acmCoreOrganization, withTags } from "api/components/index.js";
 import * as z from "zod/v4";
-import { applyTimeFromReference, parseInTimezone } from "common/time.js";
+import {
+  applyTimeFromReference,
+  applyTimeFromReferenceAsLocal,
+  parseAsLocalDate,
+  parseInTimezone,
+} from "common/time.js";
 import { DEFAULT_TIMEZONE } from "common/constants.js";
 
 const repeatingIcalMap: Record<EventRepeatOptions, ICalEventJSONRepeatingData> =
@@ -134,10 +139,10 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
       });
       calendar.method(ICalCalendarMethod.PUBLISH);
       for (const rawEvent of dynamoItems) {
-        const startDate = parseInTimezone(rawEvent.start, DEFAULT_TIMEZONE);
+        const startDate = parseAsLocalDate(rawEvent.start, DEFAULT_TIMEZONE);
         const endDate = rawEvent.end
-          ? parseInTimezone(rawEvent.end, DEFAULT_TIMEZONE)
-          : parseInTimezone(rawEvent.start, DEFAULT_TIMEZONE);
+          ? parseAsLocalDate(rawEvent.end, DEFAULT_TIMEZONE)
+          : parseAsLocalDate(rawEvent.start, DEFAULT_TIMEZONE);
 
         let event = calendar.createEvent({
           start: startDate,
@@ -153,13 +158,18 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
 
         if (rawEvent.repeats) {
           const exclusions = ((rawEvent.repeatExcludes as string[]) || []).map(
-            (x) => applyTimeFromReference(x, rawEvent.start, DEFAULT_TIMEZONE),
+            (x) =>
+              applyTimeFromReferenceAsLocal(
+                x,
+                rawEvent.start,
+                DEFAULT_TIMEZONE,
+              ),
           );
 
           if (rawEvent.repeatEnds) {
             event = event.repeating({
               ...repeatingIcalMap[rawEvent.repeats as EventRepeatOptions],
-              until: parseInTimezone(rawEvent.repeatEnds, DEFAULT_TIMEZONE),
+              until: parseAsLocalDate(rawEvent.repeatEnds, DEFAULT_TIMEZONE),
               ...(exclusions.length > 0 && { exclude: exclusions }),
             });
           } else {
