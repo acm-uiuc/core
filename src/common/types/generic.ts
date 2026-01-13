@@ -43,3 +43,7 @@ export const OrgUniqueId = z.enum(AllOrganizationIdList).meta({
   examples: ["A01", "C01"],
   id: "OrgUniqueId"
 });
+
+export const BooleanAsString = z.enum(["true", "false"]).transform((val) => val === "true").meta({
+  id: "BooleanAsString"
+})
