@@ -44,7 +44,6 @@ import vendingPlugin from "./routes/vending.js";
 import iamRoutes from "./routes/iam.js";
 import ticketsPlugin from "./routes/tickets.js";
 import linkryRoutes from "./routes/linkry.js";
-import mobileWalletRoute from "./routes/mobileWallet.js";
 import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
 import roomRequestRoutes from "./routes/roomRequests.js";
@@ -387,7 +386,6 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       api.register(iamRoutes, { prefix: "/iam" });
       api.register(ticketsPlugin, { prefix: "/tickets" });
       api.register(linkryRoutes, { prefix: "/linkry" });
-      api.register(mobileWalletRoute, { prefix: "/mobileWallet" });
       api.register(stripeRoutes, { prefix: "/stripe" });
       api.register(roomRequestRoutes, { prefix: "/roomRequests" });
       api.register(logsPlugin, { prefix: "/logs" });
