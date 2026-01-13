@@ -27,7 +27,7 @@ import { BatchGetItemCommand } from "@aws-sdk/client-dynamodb";
 import { AppRoles } from "common/roles.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { syncFullProfile } from "api/functions/sync.js";
-import { BooleanAsString } from "common/types/generic.js";
+import { BooleanFromString } from "common/types/generic.js";
 
 const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
@@ -47,7 +47,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             }),
           }),
           querystring: z.object({
-            force: BooleanAsString.optional().default(false).meta({
+            force: BooleanFromString.optional().default(false).meta({
               description:
                 "If true, the user will be allowed to checkout even if they are already a paid member.",
             }),

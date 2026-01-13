@@ -44,6 +44,6 @@ export const OrgUniqueId = z.enum(AllOrganizationIdList).meta({
   id: "OrgUniqueId"
 });
 
-export const BooleanAsString = z.enum(["true", "false"]).transform((val) => val === "true").meta({
-  id: "BooleanAsString"
+export const BooleanFromString = z.enum(["true", "false"]).transform((val) => val === "true").meta({
+  id: "BooleanFromString"
 })
