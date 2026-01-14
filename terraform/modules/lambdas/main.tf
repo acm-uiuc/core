@@ -403,7 +403,7 @@ resource "aws_iam_role_policy_attachment" "sqs_attach_addl" {
 resource "aws_lambda_layer_version" "api_vendor_layer" {
   filename                 = data.archive_file.vendor_layer.output_path
   source_code_hash         = data.archive_file.vendor_layer.output_base64sha256
-  layer_name               = "${local.core_api_lambda_name}-${local.node_version}-${local.lambda_arch}-vendor"
+  layer_name               = "${local.core_api_lambda_name}-${local.lambda_arch}-vendor"
   compatible_runtimes      = [local.node_version]
   compatible_architectures = [local.lambda_arch]
   region                   = var.region
