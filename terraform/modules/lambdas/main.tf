@@ -143,7 +143,7 @@ resource "aws_iam_policy" "entra_policy" {
         ]
       },
       {
-        Sid    = "DynamoDBCacheAccess",
+        Sid    = "AuditLogPut",
         Effect = "Allow",
         Action = [
           "dynamodb:PutItem",
