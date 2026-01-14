@@ -474,7 +474,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 },
               ],
             });
-            return await clients.dynamoClient.send(commandTransaction);
+            return await fastify.dynamoClient.send(commandTransaction);
           };
 
           await retryDynamoTransactionWithBackoff(
