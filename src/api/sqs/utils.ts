@@ -6,7 +6,7 @@ import pino from "pino";
 import { currentEnvironmentConfig } from "./index.js";
 import { getSecretValue } from "api/plugins/auth.js";
 import { SSMClient } from "@aws-sdk/client-ssm";
-import { getSsmParameter } from "api/utils.js";
+import { getSsmParameters } from "api/utils.js";
 
 export const getAuthorizedClients = async (
   logger: pino.Logger,
@@ -59,18 +59,16 @@ export const getSecretConfig = async ({
     ),
   );
   const ssmClient = new SSMClient({ region: genericConfig.AwsRegion });
-  const allParameters = await Promise.all(
-    currentEnvironmentConfig.ConfigurationParameterIds.map(
-      async (parameterName) => {
-        const val = await getSsmParameter({
-          parameterName,
-          logger,
-          ssmClient,
-        });
-        const key = parameterName.split("/").at(-1) || parameterName;
-        return { [key]: val };
-      },
-    ),
+  const parameterValues = await getSsmParameters({
+    parameterNames: currentEnvironmentConfig.ConfigurationParameterIds,
+    logger,
+    ssmClient,
+  });
+  const allParameters = Object.entries(parameterValues).map(
+    ([parameterName, val]) => {
+      const key = parameterName.split("/").at(-1) || parameterName;
+      return { [key]: val };
+    },
   );
   const allConfig = [...allSecrets, ...allParameters];
   const secretConfig = allConfig.reduce(
