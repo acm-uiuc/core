@@ -59,7 +59,7 @@ import { docsHtml, securitySchemes } from "./docs.js";
 import syncIdentityPlugin from "./routes/syncIdentity.js";
 import { createRedisModule } from "./redis.js";
 import userRoute from "./routes/user.js";
-import { getSsmParameter } from "./utils.js";
+import { getSsmParameters } from "./utils.js";
 import { SSMClient } from "@aws-sdk/client-ssm";
 import validateTurnstileTokenPlugin from "./plugins/validateTurnstile.js";
 /** END ROUTES */
@@ -303,26 +303,25 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
 
       const ssmClient = new SSMClient({ region: genericConfig.AwsRegion });
 
-      const [allSecrets, allParameters] = await Promise.all([
+      const [allSecrets, parameterValues] = await Promise.all([
         Promise.all(
           app.environmentConfig.ConfigurationSecretIds.map((secretName) =>
             getSecretValue(app.secretsManagerClient, secretName),
           ),
         ),
-        Promise.all(
-          app.environmentConfig.ConfigurationParameterIds.map(
-            async (parameterName) => {
-              const val = await getSsmParameter({
-                parameterName,
-                logger: app.log,
-                ssmClient,
-              });
-              const key = parameterName.split("/").at(-1) || parameterName;
-              return { [key]: val };
-            },
-          ),
-        ),
+        getSsmParameters({
+          parameterNames: app.environmentConfig.ConfigurationParameterIds,
+          logger: app.log,
+          ssmClient,
+        }),
       ]);
+
+      const allParameters = Object.entries(parameterValues).map(
+        ([parameterName, val]) => {
+          const key = parameterName.split("/").at(-1) || parameterName;
+          return { [key]: val };
+        },
+      );
 
       const allConfig = [...allSecrets, ...allParameters];
       app.secretConfig = allConfig.reduce(

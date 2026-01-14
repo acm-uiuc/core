@@ -13,7 +13,11 @@ import {
   UnauthenticatedError,
   ValidationError,
 } from "../../src/common/errors/index.js";
-import { GetParameterCommand, SSMClient } from "@aws-sdk/client-ssm";
+import {
+  GetParameterCommand,
+  GetParametersCommand,
+  SSMClient,
+} from "@aws-sdk/client-ssm";
 
 const ddbMock = mockClient(DynamoDBClient);
 const smMock = mockClient(SecretsManagerClient);
@@ -188,20 +192,36 @@ smMock.on(GetSecretValueCommand).callsFake((command) => {
   return Promise.reject(new Error(`Secret ID ${command.SecretID} not mocked`));
 });
 
+const ssmParameters: Record<string, string> = {
+  "/infra-core-api/jwt_key": "6059bfd2-9179-403f-bf31-affdaa4720c3",
+  "/infra-core-api/github_app_id": "9179",
+  "/infra-core-api/github_installation_id": "123",
+  "/infra-core-api/github_private_key": "123",
+  "/infra-core-api/turnstile_secret_key": "1x0000000000000000000000000000000AA",
+};
+
 ssmMock.on(GetParameterCommand).callsFake((command) => {
-  const ssmParameters: Record<string, string> = {
-    "/infra-core-api/jwt_key": "6059bfd2-9179-403f-bf31-affdaa4720c3",
-    "/infra-core-api/github_app_id": "9179",
-    "/infra-core-api/github_installation_id": "123",
-    "/infra-core-api/github_private_key": "123",
-    "/infra-core-api/turnstile_secret_key":
-      "1x0000000000000000000000000000000AA",
-  };
   const value = ssmParameters[command.Name];
   if (value) {
     return Promise.resolve({ Parameter: { Value: value } });
   }
   return Promise.reject(new Error(`Parameter ${command.Name} not mocked`));
+});
+
+ssmMock.on(GetParametersCommand).callsFake((command) => {
+  const names: string[] = command.Names || [];
+  const parameters = names
+    .filter((name) => name in ssmParameters)
+    .map((name) => ({ Name: name, Value: ssmParameters[name] }));
+  const invalidParameters = names.filter((name) => !(name in ssmParameters));
+
+  if (invalidParameters.length > 0) {
+    return Promise.resolve({
+      Parameters: parameters,
+      InvalidParameters: invalidParameters,
+    });
+  }
+  return Promise.resolve({ Parameters: parameters });
 });
 
 vi.mock("ioredis", () => import("ioredis-mock"));

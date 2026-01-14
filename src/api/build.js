@@ -1,12 +1,13 @@
 /* eslint-disable no-console */
 import esbuild from "esbuild";
-import { copy } from "esbuild-plugin-copy";
 import { packagesToTransfer } from "./createLambdaPackage.js";
+import { excludeVendorFromSourceMapPlugin } from "../common/esbuild-plugins.js";
 
 const commonParams = {
   bundle: true,
   format: "esm",
   minify: true,
+  sourcesContent: false,
   outExtension: { ".js": ".mjs" },
   loader: {
     ".png": "file",
@@ -27,15 +28,7 @@ const commonParams = {
       const __dirname = path.dirname(__filename);
     `.trim(),
   }, // Banner for compatibility with CommonJS
-  plugins: [
-    copy({
-      resolveFrom: "cwd",
-      assets: {
-        from: ["./public/*"],
-        to: ["../../dist/lambda/public"],
-      },
-    }),
-  ],
+  plugins: [excludeVendorFromSourceMapPlugin()],
 };
 esbuild
   .build({

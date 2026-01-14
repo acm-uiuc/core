@@ -4,16 +4,16 @@ import { mockClient } from "aws-sdk-client-mock";
 import { secretObject } from "./secret.testdata.js";
 import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import supertest from "supertest";
-import { v4 as uuidv4 } from "uuid";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import stripe from "stripe";
 import { genericConfig } from "../../src/common/config.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { randomUUID } from "crypto";
 
 const ddbMock = mockClient(DynamoDBClient);
 const sqsMock = mockClient(SQSClient);
 
-const linkId = uuidv4();
+const linkId = randomUUID();
 const paymentLinkMock = {
   id: linkId,
   url: `https://buy.stripe.com/${linkId}`,
@@ -42,7 +42,6 @@ vi.mock(import("../../src/api/functions/stripe.js"), async (importOriginal) => {
 const app = await init();
 describe("Test Stripe webhooks", async () => {
   test("Stripe Payment Link skips non-existing links", async () => {
-    const queueId = uuidv4();
     sqsMock.on(SendMessageCommand).rejects();
     ddbMock
       .on(QueryCommand, {
@@ -88,7 +87,6 @@ describe("Test Stripe webhooks", async () => {
     );
   });
   test("Stripe Payment Link validates webhook signature", async () => {
-    const queueId = uuidv4();
     sqsMock.on(SendMessageCommand).rejects();
     ddbMock
       .on(QueryCommand, {
@@ -130,7 +128,7 @@ describe("Test Stripe webhooks", async () => {
     });
   });
   test("Stripe Payment Link emails successfully", async () => {
-    const queueId = uuidv4();
+    const queueId = randomUUID();
     sqsMock.on(SendMessageCommand).resolves({ MessageId: queueId });
     ddbMock
       .on(QueryCommand, {

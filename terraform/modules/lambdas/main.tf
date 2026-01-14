@@ -1,12 +1,21 @@
 data "archive_file" "api_lambda_code" {
   type        = "zip"
   source_dir  = "${path.module}/../../../dist/lambda"
+  excludes    = ["layer"]
   output_path = "${path.module}/../../../dist/terraform/api.zip"
+}
+
+
+data "archive_file" "vendor_layer" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../../dist/lambda/layer"
+  output_path = "${path.module}/../../../dist/terraform/api_vendor.zip"
 }
 
 data "archive_file" "sqs_lambda_code" {
   type        = "zip"
   source_dir  = "${path.module}/../../../dist/sqsConsumer"
+  excludes    = ["layer"]
   output_path = "${path.module}/../../../dist/terraform/sqs.zip"
 }
 
@@ -19,6 +28,8 @@ data "archive_file" "linkry_edge_lambda_code" {
 locals {
   core_api_lambda_name          = "${var.ProjectId}-main-server"
   core_sqs_consumer_lambda_name = "${var.ProjectId}-sqs-consumer"
+  node_version                  = "nodejs24.x"
+  lambda_arch                   = "arm64"
   entra_policies = {
     entra = aws_iam_policy.entra_policy.arn
   }
@@ -196,7 +207,6 @@ resource "aws_iam_policy" "sqs_policy" {
   }))
 
 }
-
 
 resource "aws_iam_policy" "shared_iam_policy" {
   name_prefix = "${var.ProjectId}-lambda-shared-policy"
@@ -390,22 +400,33 @@ resource "aws_iam_role_policy_attachment" "sqs_attach_addl" {
   policy_arn = each.value
 }
 
+resource "aws_lambda_layer_version" "api_vendor_layer" {
+  filename                 = data.archive_file.vendor_layer.output_path
+  source_code_hash         = data.archive_file.vendor_layer.output_base64sha256
+  layer_name               = "${local.core_api_lambda_name}-${local.lambda_arch}-vendor"
+  compatible_runtimes      = [local.node_version]
+  compatible_architectures = [local.lambda_arch]
+  region                   = var.region
+}
+
 resource "aws_lambda_function" "api_lambda" {
   region           = var.region
   depends_on       = [aws_cloudwatch_log_group.api_logs]
   function_name    = local.core_api_lambda_name
   role             = aws_iam_role.api_role.arn
-  architectures    = ["arm64"]
+  description      = "Main Lambda function serving Core API requests"
+  architectures    = [local.lambda_arch]
   handler          = "lambda.handler"
-  runtime          = "nodejs24.x"
+  runtime          = local.node_version
   filename         = data.archive_file.api_lambda_code.output_path
   timeout          = 15
   memory_size      = 2048
   source_code_hash = data.archive_file.api_lambda_code.output_sha256
+  layers           = [aws_lambda_layer_version.api_vendor_layer.arn]
   environment {
     variables = {
       "RunEnvironment"                      = var.RunEnvironment
-      "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
+      "AWS_CRT_NODEJS_BINARY_ABSOLUTE_PATH" = "/opt/nodejs/node_modules/aws-crt/dist/bin/linux-${local.lambda_arch}-glibc/aws-crt-nodejs.node"
       ORIGIN_VERIFY_KEY                     = var.CurrentOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY            = var.PreviousOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT = var.PreviousOriginVerifyKeyExpiresAt
@@ -423,19 +444,20 @@ resource "aws_lambda_function" "sqs_lambda" {
     log_group  = aws_cloudwatch_log_group.api_logs.name
   }
   function_name    = local.core_sqs_consumer_lambda_name
+  description      = "SQS Consumer Lambda for async Core tasks"
   role             = aws_iam_role.sqs_consumer_role.arn
-  architectures    = ["arm64"]
+  architectures    = [local.lambda_arch]
   handler          = "index.handler"
-  runtime          = "nodejs24.x"
+  runtime          = local.node_version
   filename         = data.archive_file.sqs_lambda_code.output_path
   timeout          = 300
   memory_size      = 2048
   source_code_hash = data.archive_file.sqs_lambda_code.output_sha256
-
+  layers           = [aws_lambda_layer_version.api_vendor_layer.arn]
   environment {
     variables = {
       "RunEnvironment"                      = var.RunEnvironment
-      "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
+      "AWS_CRT_NODEJS_BINARY_ABSOLUTE_PATH" = "/opt/nodejs/node_modules/aws-crt/dist/bin/linux-${local.lambda_arch}-glibc/aws-crt-nodejs.node"
       EntraRoleArn                          = aws_iam_role.entra_role.arn
       "NODE_OPTIONS"                        = "--enable-source-maps"
     }
@@ -512,7 +534,7 @@ resource "aws_lambda_function" "linkry_edge" {
   function_name    = "${var.ProjectId}-linkry-edge"
   role             = aws_iam_role.linkry_lambda_edge_role[0].arn
   handler          = "index.handler"
-  runtime          = "nodejs24.x"
+  runtime          = local.node_version
   publish          = true
   timeout          = 5
   memory_size      = 128

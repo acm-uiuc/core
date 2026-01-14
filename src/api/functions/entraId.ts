@@ -31,7 +31,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { checkPaidMembershipFromTable } from "./membership.js";
 import { RunEnvironment } from "common/roles.js";
 import { ValidLoggers } from "api/types.js";
-import { getSsmParameter } from "api/utils.js";
+import { getSsmParameters } from "api/utils.js";
 import { type SSMClient } from "@aws-sdk/client-ssm";
 
 function validateGroupId(groupId: string): boolean {
@@ -52,35 +52,30 @@ export async function getEntraIdToken({
   logger,
 }: GetEntraIdTokenInput) {
   const ssmClient = clients.ssmClient;
-  const data = await Promise.all([
-    getSsmParameter({
-      parameterName: "/infra-core-api/entra_id_private_key",
-      logger,
-      ssmClient,
-    }),
-    getSsmParameter({
-      parameterName: "/infra-core-api/entra_id_thumbprint",
-      logger,
-      ssmClient,
-    }),
-  ]);
+  const privateKeyParam = "/infra-core-api/entra_id_private_key";
+  const thumbprintParam = "/infra-core-api/entra_id_thumbprint";
+  const data = await getSsmParameters({
+    parameterNames: [privateKeyParam, thumbprintParam],
+    logger,
+    ssmClient,
+  });
+  const privateKey = data[privateKeyParam];
+  const thumbprint = data[thumbprintParam];
   // Cache key has the thumbprint because if the key is rotated we need to get a new token
-  const cacheKey = `entra_id_access_token_${data[1]}_${clientId}`;
+  const cacheKey = `entra_id_access_token_${thumbprint}_${clientId}`;
   // We want to store this cached value in DynamoDB, not Redis, since Upstash redis isn't encrypted.
   // However, DynamoDB is protected by KMS. We take a small latency hit, but that's ok.
   const cachedToken = await getItemFromCache(clients.dynamoClient, cacheKey);
   if (cachedToken) {
     return cachedToken.token as string;
   }
-  const decodedPrivateKey = Buffer.from(data[0] as string, "base64").toString(
-    "utf8",
-  );
+  const decodedPrivateKey = Buffer.from(privateKey, "base64").toString("utf8");
   const config = {
     auth: {
       clientId,
       authority: `https://login.microsoftonline.com/${genericConfig.EntraTenantId}`,
       clientCertificate: {
-        thumbprint: data[1],
+        thumbprint,
         privateKey: decodedPrivateKey,
       },
     },
