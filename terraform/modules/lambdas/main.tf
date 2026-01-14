@@ -1,7 +1,15 @@
 data "archive_file" "api_lambda_code" {
   type        = "zip"
   source_dir  = "${path.module}/../../../dist/lambda"
+  excludes    = ["${path.module}/../../../dist/lambda/node_modules"]
   output_path = "${path.module}/../../../dist/terraform/api.zip"
+}
+
+
+data "archive_file" "api_lambda_vendor_layer" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../../dist/lambda/node_modules"
+  output_path = "${path.module}/../../../dist/terraform/api_vendor.zip"
 }
 
 data "archive_file" "sqs_lambda_code" {
@@ -19,6 +27,7 @@ data "archive_file" "linkry_edge_lambda_code" {
 locals {
   core_api_lambda_name          = "${var.ProjectId}-main-server"
   core_sqs_consumer_lambda_name = "${var.ProjectId}-sqs-consumer"
+  node_version                  = "nodejs24.x"
   entra_policies = {
     entra = aws_iam_policy.entra_policy.arn
   }
@@ -196,7 +205,6 @@ resource "aws_iam_policy" "sqs_policy" {
   }))
 
 }
-
 
 resource "aws_iam_policy" "shared_iam_policy" {
   name_prefix = "${var.ProjectId}-lambda-shared-policy"
@@ -390,6 +398,13 @@ resource "aws_iam_role_policy_attachment" "sqs_attach_addl" {
   policy_arn = each.value
 }
 
+resource "aws_lambda_layer_version" "api_vendor_layer" {
+  filename                 = archive_file.api_lambda_vendor_layer.output_path
+  layer_name               = "${local.core_api_lambda_name}-vendor-layer"
+  compatible_runtimes      = [local.node_version]
+  compatible_architectures = ["arm64"]
+}
+
 resource "aws_lambda_function" "api_lambda" {
   region           = var.region
   depends_on       = [aws_cloudwatch_log_group.api_logs]
@@ -397,11 +412,12 @@ resource "aws_lambda_function" "api_lambda" {
   role             = aws_iam_role.api_role.arn
   architectures    = ["arm64"]
   handler          = "lambda.handler"
-  runtime          = "nodejs24.x"
+  runtime          = local.node_version
   filename         = data.archive_file.api_lambda_code.output_path
   timeout          = 15
   memory_size      = 2048
   source_code_hash = data.archive_file.api_lambda_code.output_sha256
+  layers           = [aws_lambda_layer_version.api_vendor_layer.arn]
   environment {
     variables = {
       "RunEnvironment"                      = var.RunEnvironment
@@ -426,7 +442,7 @@ resource "aws_lambda_function" "sqs_lambda" {
   role             = aws_iam_role.sqs_consumer_role.arn
   architectures    = ["arm64"]
   handler          = "index.handler"
-  runtime          = "nodejs24.x"
+  runtime          = local.node_version
   filename         = data.archive_file.sqs_lambda_code.output_path
   timeout          = 300
   memory_size      = 2048
@@ -512,7 +528,7 @@ resource "aws_lambda_function" "linkry_edge" {
   function_name    = "${var.ProjectId}-linkry-edge"
   role             = aws_iam_role.linkry_lambda_edge_role[0].arn
   handler          = "index.handler"
-  runtime          = "nodejs24.x"
+  runtime          = local.node_version
   publish          = true
   timeout          = 5
   memory_size      = 128
