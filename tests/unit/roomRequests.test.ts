@@ -10,7 +10,6 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import supertest from "supertest";
 import { createJwt } from "./auth.test.js";
-import { v4 as uuidv4 } from "uuid";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { environmentConfig, genericConfig } from "../../src/common/config.js";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";

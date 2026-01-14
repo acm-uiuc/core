@@ -4,16 +4,16 @@ import { mockClient } from "aws-sdk-client-mock";
 import { secretObject } from "./secret.testdata.js";
 import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import supertest from "supertest";
-import { v4 as uuidv4 } from "uuid";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import stripe from "stripe";
 import { genericConfig } from "../../src/common/config.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { randomUUID } from "crypto";
 
 const ddbMock = mockClient(DynamoDBClient);
 const sqsMock = mockClient(SQSClient);
 
-const linkId = uuidv4();
+const linkId = randomUUID();
 const paymentLinkMock = {
   id: linkId,
   url: `https://buy.stripe.com/${linkId}`,

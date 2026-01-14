@@ -9,7 +9,6 @@ import {
 } from "vitest";
 import init from "../../src/api/server.js";
 import { mockClient } from "aws-sdk-client-mock";
-import { secretJson } from "./secret.testdata.js";
 import {
   DynamoDBClient,
   PutItemCommand,
@@ -19,13 +18,13 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import supertest from "supertest";
 import { createJwt } from "./auth.test.js";
-import { v4 as uuidv4 } from "uuid";
 import { marshall } from "@aws-sdk/util-dynamodb";
+import { randomUUID } from "crypto";
 
 const ddbMock = mockClient(DynamoDBClient);
-const linkId = uuidv4();
-const productId = uuidv4();
-const priceId = uuidv4();
+const linkId = randomUUID();
+const productId = randomUUID();
+const priceId = randomUUID();
 const productMock = { id: productId };
 const priceMock = { id: priceId };
 const paymentLinkMock = {
