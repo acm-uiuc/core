@@ -8,7 +8,7 @@ data "archive_file" "api_lambda_code" {
 
 data "archive_file" "api_lambda_vendor_layer" {
   type        = "zip"
-  source_dir  = "${path.module}/../../../dist/lambda/node_modules"
+  source_dir  = "${path.module}/../../../dist/lambda/layer"
   output_path = "${path.module}/../../../dist/terraform/api_vendor.zip"
 }
 
