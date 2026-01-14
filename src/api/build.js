@@ -7,6 +7,7 @@ const commonParams = {
   bundle: true,
   format: "esm",
   minify: true,
+  sourcesContent: false,
   outExtension: { ".js": ".mjs" },
   loader: {
     ".png": "file",
