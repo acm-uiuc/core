@@ -1,20 +1,21 @@
 data "archive_file" "api_lambda_code" {
   type        = "zip"
   source_dir  = "${path.module}/../../../dist/lambda"
-  excludes    = ["node_modules"]
+  excludes    = ["layer"]
   output_path = "${path.module}/../../../dist/terraform/api.zip"
 }
 
 
-data "archive_file" "api_lambda_vendor_layer" {
+data "archive_file" "vendor_layer" {
   type        = "zip"
-  source_dir  = "${path.module}/../../../dist/lambda/node_modules"
+  source_dir  = "${path.module}/../../../dist/lambda/layer"
   output_path = "${path.module}/../../../dist/terraform/api_vendor.zip"
 }
 
 data "archive_file" "sqs_lambda_code" {
   type        = "zip"
   source_dir  = "${path.module}/../../../dist/sqsConsumer"
+  excludes    = ["layer"]
   output_path = "${path.module}/../../../dist/terraform/sqs.zip"
 }
 
@@ -28,6 +29,7 @@ locals {
   core_api_lambda_name          = "${var.ProjectId}-main-server"
   core_sqs_consumer_lambda_name = "${var.ProjectId}-sqs-consumer"
   node_version                  = "nodejs24.x"
+  lambda_arch                   = "arm64"
   entra_policies = {
     entra = aws_iam_policy.entra_policy.arn
   }
@@ -399,11 +401,12 @@ resource "aws_iam_role_policy_attachment" "sqs_attach_addl" {
 }
 
 resource "aws_lambda_layer_version" "api_vendor_layer" {
-  filename                 = data.archive_file.api_lambda_vendor_layer.output_path
-  layer_name               = "${local.core_api_lambda_name}-vendor-layer"
+  filename                 = data.archive_file.vendor_layer.output_path
+  source_code_hash         = data.archive_file.vendor_layer.output_base64sha256
+  layer_name               = "${local.core_api_lambda_name}-${local.node_version}-${local.lambda_arch}-vendor"
   compatible_runtimes      = [local.node_version]
-  compatible_architectures = ["arm64"]
-  region = var.region
+  compatible_architectures = [local.lambda_arch]
+  region                   = var.region
 }
 
 resource "aws_lambda_function" "api_lambda" {
@@ -411,7 +414,8 @@ resource "aws_lambda_function" "api_lambda" {
   depends_on       = [aws_cloudwatch_log_group.api_logs]
   function_name    = local.core_api_lambda_name
   role             = aws_iam_role.api_role.arn
-  architectures    = ["arm64"]
+  description      = "Main Lambda function serving Core API requests"
+  architectures    = [local.lambda_arch]
   handler          = "lambda.handler"
   runtime          = local.node_version
   filename         = data.archive_file.api_lambda_code.output_path
@@ -422,13 +426,12 @@ resource "aws_lambda_function" "api_lambda" {
   environment {
     variables = {
       "RunEnvironment"                      = var.RunEnvironment
-      "AWS_CRT_NODEJS_BINARY_ABSOLUTE_PATH" = "/opt/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
+      "AWS_CRT_NODEJS_BINARY_ABSOLUTE_PATH" = "/opt/nodejs/node_modules/aws-crt/dist/bin/linux-${local.lambda_arch}-glibc/aws-crt-nodejs.node"
       ORIGIN_VERIFY_KEY                     = var.CurrentOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY            = var.PreviousOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT = var.PreviousOriginVerifyKeyExpiresAt
       EntraRoleArn                          = aws_iam_role.entra_role.arn
       "NODE_OPTIONS"                        = "--enable-source-maps"
-      "NODE_PATH"= "/opt"
     }
   }
 }
@@ -441,19 +444,20 @@ resource "aws_lambda_function" "sqs_lambda" {
     log_group  = aws_cloudwatch_log_group.api_logs.name
   }
   function_name    = local.core_sqs_consumer_lambda_name
+  description      = "SQS Consumer Lambda for async Core tasks"
   role             = aws_iam_role.sqs_consumer_role.arn
-  architectures    = ["arm64"]
+  architectures    = [local.lambda_arch]
   handler          = "index.handler"
   runtime          = local.node_version
   filename         = data.archive_file.sqs_lambda_code.output_path
   timeout          = 300
   memory_size      = 2048
   source_code_hash = data.archive_file.sqs_lambda_code.output_sha256
-
+  layers           = [aws_lambda_layer_version.api_vendor_layer.arn]
   environment {
     variables = {
       "RunEnvironment"                      = var.RunEnvironment
-      "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
+      "AWS_CRT_NODEJS_BINARY_ABSOLUTE_PATH" = "/opt/nodejs/node_modules/aws-crt/dist/bin/linux-${local.lambda_arch}-glibc/aws-crt-nodejs.node"
       EntraRoleArn                          = aws_iam_role.entra_role.arn
       "NODE_OPTIONS"                        = "--enable-source-maps"
     }

@@ -38,7 +38,10 @@ build: src/
 			rm /var/task/package.json && \
 			rm /var/task/yarn.lock && \
 			rm -rf node_modules/aws-crt/dist/bin/{win*,darwin*,linux-x64*,linux-arm64-musl} && \
-			rm -rf node_modules/@node-rs/argon2-linux-arm64-musl/argon2.linux-arm64-musl.node"
+			rm -rf node_modules/@node-rs/argon2-linux-arm64-musl/argon2.linux-arm64-musl.node && \
+			mkdir -p layer/nodejs && \
+			rm -rf layer/nodejs/* && \
+			mv node_modules/ layer/nodejs"
 
 	docker run --rm -v "$(shell pwd)/dist/sqsConsumer":/var/task public.ecr.aws/sam/build-nodejs24.x:latest \
 	sh -c "npm i -g yarn && $(yarn_env) yarn $(yarn_install_params) && \
@@ -46,7 +49,10 @@ build: src/
 				rm /var/task/package.json && \
 				rm /var/task/yarn.lock && \
 				rm -rf node_modules/aws-crt/dist/bin/{win*,darwin*,linux-x64*,linux-arm64-musl} && \
-				rm -rf node_modules/@node-rs/argon2-linux-arm64-musl"
+				rm -rf node_modules/@node-rs/argon2-linux-arm64-musl && \
+				mkdir -p layer/nodejs && \
+				rm -rf layer/nodejs/* && \
+				mv node_modules/ layer/nodejs"
 
 local:
 	mkdir -p dist_devel/
