@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import esbuild from "esbuild";
+import { excludeVendorFromSourceMapPlugin } from "../common/esbuild-plugins.js"; // eslint-disable-line import/extensions
 
 const commonParams = {
   bundle: true,
@@ -26,6 +27,7 @@ const commonParams = {
       const __dirname = path.dirname(__filename);
     `.trim(),
   }, // Banner for compatibility with CommonJS
+  plugins: [excludeVendorFromSourceMapPlugin()],
 };
 
 esbuild

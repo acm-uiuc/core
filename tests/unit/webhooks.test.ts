@@ -42,7 +42,6 @@ vi.mock(import("../../src/api/functions/stripe.js"), async (importOriginal) => {
 const app = await init();
 describe("Test Stripe webhooks", async () => {
   test("Stripe Payment Link skips non-existing links", async () => {
-    const queueId = uuidv4();
     sqsMock.on(SendMessageCommand).rejects();
     ddbMock
       .on(QueryCommand, {
@@ -88,7 +87,6 @@ describe("Test Stripe webhooks", async () => {
     );
   });
   test("Stripe Payment Link validates webhook signature", async () => {
-    const queueId = uuidv4();
     sqsMock.on(SendMessageCommand).rejects();
     ddbMock
       .on(QueryCommand, {
@@ -130,7 +128,7 @@ describe("Test Stripe webhooks", async () => {
     });
   });
   test("Stripe Payment Link emails successfully", async () => {
-    const queueId = uuidv4();
+    const queueId = randomUUID();
     sqsMock.on(SendMessageCommand).resolves({ MessageId: queueId });
     ddbMock
       .on(QueryCommand, {
