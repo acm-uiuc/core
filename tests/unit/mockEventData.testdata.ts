@@ -18,7 +18,7 @@ const dynamoTableData = [
       BOOL: true,
     },
     host: {
-      S: "ACM",
+      S: "A01",
     },
     location: {
       S: "Main Quad",
@@ -143,7 +143,7 @@ const dynamoTableData = [
       BOOL: true,
     },
     host: {
-      S: "ACM",
+      S: "A01",
     },
     location: {
       S: "Legends",
@@ -204,7 +204,7 @@ const dynamoEventWithRepeatExclusion = {
     BOOL: false,
   },
   host: {
-    S: "ACM",
+    S: "A01",
   },
   location: {
     S: "ACM Room (Siebel CS 1104)",

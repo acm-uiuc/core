@@ -13,7 +13,12 @@ import ical, {
   ICalEventRepeatingFreq,
 } from "ical-generator";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
-import { AllOrganizationNameList, getOrgIdByName } from "@acm-uiuc/js-shared";
+import {
+  AllOrganizationNameList,
+  getOrgIdByName,
+  OrganizationId,
+  Organizations,
+} from "@acm-uiuc/js-shared";
 import { CLIENT_HTTP_CACHE_POLICY, EventRepeatOptions } from "./events.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { getCacheCounter } from "api/functions/cache.js";
@@ -44,6 +49,10 @@ function generateHostName(host: string) {
   }
   return `ACM@UIUC ${host}`;
 }
+
+const normalizeEventHost = (host: string): string => {
+  return Organizations[host as OrganizationId]?.name || host;
+};
 
 const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {
@@ -147,8 +156,8 @@ const icalPlugin: FastifyPluginAsync = async (fastify, _options) => {
           end: endDate,
           summary: rawEvent.title,
           description: rawEvent.locationLink
-            ? `Host: ${rawEvent.host}\nGoogle Maps Link: ${rawEvent.locationLink}\n\n${rawEvent.description}`
-            : `Host: ${rawEvent.host}\n\n${rawEvent.description}`,
+            ? `Host: ${normalizeEventHost(rawEvent.host)}\nGoogle Maps Link: ${rawEvent.locationLink}\n\n${rawEvent.description}`
+            : `Host: ${normalizeEventHost(rawEvent.host)}\n\n${rawEvent.description}`,
           timezone: DEFAULT_TIMEZONE,
           organizer: generateHostName(host || "ACM"),
           id: rawEvent.id,
