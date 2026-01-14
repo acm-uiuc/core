@@ -1,7 +1,7 @@
 data "archive_file" "api_lambda_code" {
   type        = "zip"
   source_dir  = "${path.module}/../../../dist/lambda"
-  excludes    = ["${path.module}/../../../dist/lambda/node_modules"]
+  excludes    = ["node_modules"]
   output_path = "${path.module}/../../../dist/terraform/api.zip"
 }
 
