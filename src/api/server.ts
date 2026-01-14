@@ -297,28 +297,33 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       app.log.debug(
         `Getting secrets: ${JSON.stringify(app.environmentConfig.ConfigurationSecretIds)}.`,
       );
-      const allSecrets = await Promise.all(
-        app.environmentConfig.ConfigurationSecretIds.map((secretName) =>
-          getSecretValue(app.secretsManagerClient, secretName),
-        ),
-      );
       app.log.debug(
         `Getting secure parameters (SSM): ${JSON.stringify(app.environmentConfig.ConfigurationParameterIds)}.`,
       );
+
       const ssmClient = new SSMClient({ region: genericConfig.AwsRegion });
-      const allParameters = await Promise.all(
-        app.environmentConfig.ConfigurationParameterIds.map(
-          async (parameterName) => {
-            const val = await getSsmParameter({
-              parameterName,
-              logger: app.log,
-              ssmClient,
-            });
-            const key = parameterName.split("/").at(-1) || parameterName;
-            return { [key]: val };
-          },
+
+      const [allSecrets, allParameters] = await Promise.all([
+        Promise.all(
+          app.environmentConfig.ConfigurationSecretIds.map((secretName) =>
+            getSecretValue(app.secretsManagerClient, secretName),
+          ),
         ),
-      );
+        Promise.all(
+          app.environmentConfig.ConfigurationParameterIds.map(
+            async (parameterName) => {
+              const val = await getSsmParameter({
+                parameterName,
+                logger: app.log,
+                ssmClient,
+              });
+              const key = parameterName.split("/").at(-1) || parameterName;
+              return { [key]: val };
+            },
+          ),
+        ),
+      ]);
+
       const allConfig = [...allSecrets, ...allParameters];
       app.secretConfig = allConfig.reduce(
         (acc, currentSecret) => ({ ...acc, ...currentSecret }),
