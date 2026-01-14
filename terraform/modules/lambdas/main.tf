@@ -403,6 +403,7 @@ resource "aws_lambda_layer_version" "api_vendor_layer" {
   layer_name               = "${local.core_api_lambda_name}-vendor-layer"
   compatible_runtimes      = [local.node_version]
   compatible_architectures = ["arm64"]
+  region = var.region
 }
 
 resource "aws_lambda_function" "api_lambda" {
