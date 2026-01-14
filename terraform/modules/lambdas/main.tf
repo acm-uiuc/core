@@ -141,18 +141,7 @@ resource "aws_iam_policy" "entra_policy" {
         Resource = [
           "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-cache",
         ]
-      },
-      {
-        Sid    = "AuditLogPut",
-        Effect = "Allow",
-        Action = [
-          "dynamodb:PutItem",
-          "dynamodb:DescribeTable",
-        ],
-        Resource = [
-          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-audit-log",
-        ]
-      },
+      }
     ]
   }))
 }
