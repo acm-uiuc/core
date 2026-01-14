@@ -1,8 +1,8 @@
 import { readFileSync } from "fs";
 
-const emptySourceMapAsBase64 = Buffer.from(JSON.stringify({ version: 3, sources: [''], mappings: 'AAAA' })).toString(
-  'base64'
-);
+const emptySourceMapAsBase64 = Buffer.from(
+  JSON.stringify({ version: 3, sources: [], names: [], mappings: "" }),
+).toString("base64");
 
 export const excludeVendorFromSourceMapPlugin = () => ({
   name: 'excludeVendorFromSourceMap',
