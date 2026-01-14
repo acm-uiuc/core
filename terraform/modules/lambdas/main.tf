@@ -422,12 +422,13 @@ resource "aws_lambda_function" "api_lambda" {
   environment {
     variables = {
       "RunEnvironment"                      = var.RunEnvironment
-      "AWS_CRT_NODEJS_BINARY_RELATIVE_PATH" = "node_modules/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
+      "AWS_CRT_NODEJS_BINARY_ABSOLUTE_PATH" = "/opt/aws-crt/dist/bin/linux-arm64-glibc/aws-crt-nodejs.node"
       ORIGIN_VERIFY_KEY                     = var.CurrentOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY            = var.PreviousOriginVerifyKey
       PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT = var.PreviousOriginVerifyKeyExpiresAt
       EntraRoleArn                          = aws_iam_role.entra_role.arn
       "NODE_OPTIONS"                        = "--enable-source-maps"
+      "NODE_PATH": "/opt"
     }
   }
 }
