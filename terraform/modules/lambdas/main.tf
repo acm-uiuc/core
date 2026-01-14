@@ -8,7 +8,7 @@ data "archive_file" "api_lambda_code" {
 
 data "archive_file" "api_lambda_vendor_layer" {
   type        = "zip"
-  source_dir  = "${path.module}/../../../dist/lambda/layer"
+  source_dir  = "${path.module}/../../../dist/lambda/node_modules"
   output_path = "${path.module}/../../../dist/terraform/api_vendor.zip"
 }
 
@@ -428,7 +428,7 @@ resource "aws_lambda_function" "api_lambda" {
       PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT = var.PreviousOriginVerifyKeyExpiresAt
       EntraRoleArn                          = aws_iam_role.entra_role.arn
       "NODE_OPTIONS"                        = "--enable-source-maps"
-      "NODE_PATH": "/opt"
+      "NODE_PATH"= "/opt"
     }
   }
 }
