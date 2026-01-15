@@ -231,16 +231,20 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
     },
     {
       key: "target",
-      label: "Target",
+      label: "Target(s)",
       render: (log) =>
         selectedModule === Modules.AUDIT_LOG &&
         Object.values(Modules).includes(log.target as Modules) ? (
           ModulesToHumanName[log.target as Modules]
         ) : (
-          <NameOptionalUserCard
-            email={log.target}
-            fallback={(email) => <>{email}</>}
-          />
+          <div>
+            {log.target.split(";").map((x) => (
+              <NameOptionalUserCard
+                email={x}
+                fallback={(email) => <>{email}</>}
+              />
+            ))}
+          </div>
         ),
     },
     {
