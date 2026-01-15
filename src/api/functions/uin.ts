@@ -223,6 +223,11 @@ export async function getUserIdByUin({
   return cleanedData;
 }
 
+/**
+ * Resolve a list of emails to first and last name.
+ * If there is an acm.illinois.edu email, and no acm.illinois.edu entry,
+ * the illinois.edu entry will be used.
+ */
 export async function batchGetUserInfo({
   emails,
   dynamoClient,
@@ -240,12 +245,29 @@ export async function batchGetUserInfo({
     }
   > = {};
 
+  // Build a map of all emails to query and track ACM email mappings
+  const acmToIllinoisMap = new Map<string, string>(); // acm email -> illinois email
+  const emailsToQuery = new Set<string>();
+
+  for (const email of emails) {
+    emailsToQuery.add(email);
+    if (email.endsWith("@acm.illinois.edu")) {
+      const illinoisEmail = email.replace("@acm.illinois.edu", "@illinois.edu");
+      acmToIllinoisMap.set(email, illinoisEmail);
+      emailsToQuery.add(illinoisEmail);
+    }
+  }
+
+  const allEmailsToQuery = Array.from(emailsToQuery);
+
+  // Temporary storage for all fetched data
+  const fetchedData: Record<string, { firstName?: string; lastName?: string }> =
+    {};
+
   // DynamoDB BatchGetItem has a limit of 100 items per request
   const BATCH_SIZE = 100;
-
-  for (let i = 0; i < emails.length; i += BATCH_SIZE) {
-    const batch = emails.slice(i, i + BATCH_SIZE);
-
+  for (let i = 0; i < allEmailsToQuery.length; i += BATCH_SIZE) {
+    const batch = allEmailsToQuery.slice(i, i + BATCH_SIZE);
     try {
       await retryDynamoTransactionWithBackoff(
         async () => {
@@ -261,19 +283,17 @@ export async function batchGetUserInfo({
               },
             }),
           );
-
           // Process responses
           const items = response.Responses?.[genericConfig.UserInfoTable] || [];
           for (const item of items) {
             const email = item.id?.S;
             if (email) {
-              results[email] = {
+              fetchedData[email] = {
                 firstName: item.firstName?.S,
                 lastName: item.lastName?.S,
               };
             }
           }
-
           // If there are unprocessed keys, throw to trigger retry
           if (
             response.UnprocessedKeys &&
@@ -294,6 +314,21 @@ export async function batchGetUserInfo({
         `Failed to fetch batch ${i / BATCH_SIZE + 1} after retries, returning partial results`,
         { error },
       );
+    }
+  }
+
+  // Build final results using original email keys
+  for (const email of emails) {
+    if (email.endsWith("@acm.illinois.edu")) {
+      const illinoisEmail = acmToIllinoisMap.get(email)!;
+      // Prefer ACM email data, fall back to illinois.edu data
+      if (fetchedData[email]) {
+        results[email] = fetchedData[email];
+      } else if (fetchedData[illinoisEmail]) {
+        results[email] = fetchedData[illinoisEmail];
+      }
+    } else if (fetchedData[email]) {
+      results[email] = fetchedData[email];
     }
   }
 
