@@ -17,8 +17,8 @@
     "test:unit": "yarn run vitest"
   },
   "dependencies": {
-    "@azure/msal-browser": "^4.27.0",
-    "@azure/msal-react": "^3.0.23",
+    "@azure/msal-browser": "^5.0.2",
+    "@azure/msal-react": "^5.0.2",
     "@mantine/core": "^8.3.12",
     "@mantine/dates": "^8.3.12",
     "@mantine/dropzone": "^8.3.12",
