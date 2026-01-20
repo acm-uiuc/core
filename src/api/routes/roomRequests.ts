@@ -46,6 +46,7 @@ import {
 import { createPresignedGet, createPresignedPut } from "api/functions/s3.js";
 import { HeadObjectCommand, NotFound, S3Client } from "@aws-sdk/client-s3";
 import { assertAuthenticated } from "api/authenticated.js";
+import { Organizations } from "@acm-uiuc/js-shared";
 
 async function verifyRoomRequestAccess(
   fastify: FastifyInstance,
@@ -459,7 +460,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         payload: {
           to: [notificationRecipients[fastify.runEnvironment].OfficerBoard],
           subject: "New Room Reservation Request",
-          content: `A new room reservation request has been created (${request.body.host} | ${request.body.title}). Please visit the management portal for more details.`,
+          content: `A new room reservation request "${request.body.title}" has been created by ${Organizations[request.body.host].name}. Please visit the management portal for more details.`,
           callToActionButton: {
             name: "View Room Request",
             url: `${fastify.environmentConfig.UserFacingUrl}/roomRequests/${request.body.semester}/${requestId}`,
