@@ -119,6 +119,7 @@ const environmentConfig: EnvironmentConfigType = {
       "https://core.aws.qa.acmuiuc.org",
       /^https:\/\/(?:.*\.)?acmuiuc\.pages\.dev$/,
       /^https:\/\/(?:.*\.)?acmuiuc-digital-signage\.pages\.dev$/,
+      /^https:\/\/(?:.*\.)?acm-uiuc-rsvp\.pages\.dev$/,
       /^https?:\/\/([a-zA-Z0-9-]+\.)*acmuiuc\.workers\.dev$/,
       /http:\/\/localhost:\d+$/,
     ],
