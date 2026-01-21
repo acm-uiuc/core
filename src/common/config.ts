@@ -32,9 +32,12 @@ export type ConfigType = {
   GroupEmailSuffix: string;
   GithubOrgName: string;
   OrgAdminGithubParentTeam: number;
-  GithubIdpSyncEnabled: boolean
+  GithubIdpSyncEnabled: boolean;
   GithubOrgId: number;
   AssetsBucketId: string;
+  ListmonkBaseUrl: string;
+  ListmonkUsername: string;
+  PaidMemberListmonkLists: number[];
 };
 
 export type GenericConfigType = {
@@ -107,13 +110,13 @@ const genericConfig: GenericConfigType = {
   UserInfoTable: "infra-core-api-user-info",
   SigInfoTableName: "infra-core-api-sigs",
   EntraHostedDomainName: "acmillinois.onmicrosoft.com",
-  StoreInventoryTableName: "infra-core-api-store-inventory"
+  StoreInventoryTableName: "infra-core-api-store-inventory",
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
   dev: {
     UserFacingUrl: "https://core.aws.qa.acmuiuc.org",
-    AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
+    AzureRoleMapping: {},
     ValidCorsOrigins: [
       "https://merch-pwa.pages.dev",
       "https://core.aws.qa.acmuiuc.org",
@@ -129,15 +132,15 @@ const environmentConfig: EnvironmentConfigType = {
       '/infra-core-api/github_installation_id',
       '/infra-core-api/github_app_id',
       '/infra-core-api/github_private_key',
-      '/infra-core-api/turnstile_secret_key'
+      '/infra-core-api/turnstile_secret_key',
+      '/infra-core-api/listmonk_api_token'
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
     PasskitSerialNumber: "0",
     EmailDomain: "aws.qa.acmuiuc.org",
-    SqsQueueUrl:
-      `https://sqs.${genericConfig.AwsRegion}.amazonaws.com/427040638965/infra-core-api-sqs`,
+    SqsQueueUrl: `https://sqs.${genericConfig.AwsRegion}.amazonaws.com/427040638965/infra-core-api-sqs`,
     PaidMemberGroupId: "9222451f-b354-4e64-ba28-c0f367a277c2",
     PaidMemberPriceId: "price_1S5eAqDGHrJxx3mKZYGoulj3",
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
@@ -149,17 +152,21 @@ const environmentConfig: EnvironmentConfigType = {
     GithubOrgId: 235748315,
     OrgAdminGithubParentTeam: 14420860,
     GithubIdpSyncEnabled: false,
-    AssetsBucketId: `427040638965-infra-core-api-assets-${genericConfig.AwsRegion}`
+    AssetsBucketId: `427040638965-infra-core-api-assets-${genericConfig.AwsRegion}`,
+    ListmonkBaseUrl: "https://listmonk.acm.illinois.edu",
+    ListmonkUsername: "coreapiqa",
+    PaidMemberListmonkLists: [16],
   },
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
-    AzureRoleMapping: { AutonomousWriters: [AppRoles.EVENTS_MANAGER] },
+    AzureRoleMapping: {},
     ConfigurationSecretIds: [genericConfig.ConfigSecretName],
     ConfigurationParameterIds: [
       '/infra-core-api/github_installation_id',
       '/infra-core-api/github_app_id',
       '/infra-core-api/github_private_key',
-      '/infra-core-api/turnstile_secret_key'
+      '/infra-core-api/turnstile_secret_key',
+      '/infra-core-api/listmonk_api_token'
     ],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
@@ -175,8 +182,7 @@ const environmentConfig: EnvironmentConfigType = {
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
     PasskitSerialNumber: "0",
     EmailDomain: "acm.illinois.edu",
-    SqsQueueUrl:
-      `https://sqs.${genericConfig.AwsRegion}.amazonaws.com/298118738376/infra-core-api-sqs`,
+    SqsQueueUrl: `https://sqs.${genericConfig.AwsRegion}.amazonaws.com/298118738376/infra-core-api-sqs`,
     PaidMemberGroupId: "172fd9ee-69f0-4384-9786-41ff1a43cf8e",
     PaidMemberPriceId: MembershipPriceIdStripe,
     AadValidReadOnlyClientId: "2c6a0057-5acc-496c-a4e5-4adbf88387ba",
@@ -188,7 +194,10 @@ const environmentConfig: EnvironmentConfigType = {
     GithubOrgId: 425738,
     OrgAdminGithubParentTeam: 12025214,
     GithubIdpSyncEnabled: true,
-    AssetsBucketId: `298118738376-infra-core-api-assets-${genericConfig.AwsRegion}`
+    AssetsBucketId: `298118738376-infra-core-api-assets-${genericConfig.AwsRegion}`,
+    ListmonkBaseUrl: "https://listmonk.acm.illinois.edu",
+    ListmonkUsername: "coreapiprod",
+    PaidMemberListmonkLists: [4, 17],
   },
 };
 
@@ -208,7 +217,8 @@ export type SecretConfig = {
   github_private_key: string;
   github_app_id: string;
   jwt_key?: string;
-  turnstile_secret_key: string
+  turnstile_secret_key: string;
+  listmonk_api_token: string;
 };
 
 const roleArns = {
