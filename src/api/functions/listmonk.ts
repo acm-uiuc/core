@@ -1,14 +1,7 @@
-import {
-  UpdateItemCommand,
-  type DynamoDBClient,
-} from "@aws-sdk/client-dynamodb";
-import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { ValidLoggers } from "api/types.js";
-import { genericConfig } from "common/config.js";
 import { BaseError, InternalServerError } from "common/errors/index.js";
 
 export interface EnsurePaidMemberListmonkEnrollmentInputs {
-  dynamoClient: DynamoDBClient;
   netId: string;
   firstName: string;
   lastName: string;
@@ -176,35 +169,7 @@ export async function handleListmonkEnrollment({
   });
 }
 
-export async function recordUserListmonkEnrollment(
-  netId: string,
-  isEnrolled: boolean,
-  dynamoClient: DynamoDBClient,
-): Promise<{ updated: boolean }> {
-  const result = await dynamoClient.send(
-    new UpdateItemCommand({
-      TableName: genericConfig.UserInfoTable,
-      Key: marshall({
-        id: `${netId}@illinois.edu`,
-      }),
-      UpdateExpression: "SET isListmonkEnrolled = :enrolled",
-      ConditionExpression: "attribute_exists(id)",
-      ExpressionAttributeValues: marshall({
-        ":enrolled": isEnrolled,
-      }),
-      ReturnValues: "UPDATED_OLD",
-    }),
-  );
-
-  const oldValue = result.Attributes
-    ? unmarshall(result.Attributes).isListmonkEnrolled
-    : undefined;
-
-  return { updated: oldValue !== isEnrolled };
-}
-
 export async function ensurePaidMemberListmonkEnrollment({
-  dynamoClient,
   netId,
   firstName,
   lastName,
@@ -214,15 +179,6 @@ export async function ensurePaidMemberListmonkEnrollment({
   listmonkBaseUrl,
   paidMemberLists,
 }: EnsurePaidMemberListmonkEnrollmentInputs) {
-  const { updated: needsEnrollment } = await recordUserListmonkEnrollment(
-    netId,
-    true,
-    dynamoClient,
-  );
-  if (!needsEnrollment) {
-    logger.warn(`User ${netId} is already enrolled in listmonk lists.`);
-    return;
-  }
   try {
     await handleListmonkEnrollment({
       apiToken,
@@ -235,14 +191,6 @@ export async function ensurePaidMemberListmonkEnrollment({
       lists: paidMemberLists,
     });
   } catch (e) {
-    try {
-      await recordUserListmonkEnrollment(netId, false, dynamoClient);
-    } catch (rollbackError) {
-      logger.error(
-        rollbackError,
-        `Failed to rollback Listmonk enrollment state for ${netId}`,
-      );
-    }
     if (e instanceof BaseError) {
       throw e;
     }

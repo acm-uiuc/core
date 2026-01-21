@@ -67,7 +67,6 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
   }
   logger.info("Setting Listmonk membership");
   await ensurePaidMemberListmonkEnrollment({
-    dynamoClient,
     netId,
     firstName,
     lastName,
