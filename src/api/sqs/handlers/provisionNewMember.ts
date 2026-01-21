@@ -14,6 +14,7 @@ import { emailMembershipPassHandler } from "./emailMembershipPassHandler.js";
 import { setKey } from "api/functions/redisCache.js";
 import { createRedisModule } from "api/redis.js";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { ensurePaidMemberListmonkEnrollment } from "api/functions/listmonk.js";
 
 export const provisionNewMemberHandler: SQSHandlerFunction<
   AvailableSQSFunctions.ProvisionNewMember
@@ -36,11 +37,12 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
     logger,
   );
   const netId = email.replace("@illinois.edu", "");
+  const dynamoClient = new DynamoDBClient({ region: genericConfig.AwsRegion });
   const cacheKey = `membership:${netId}:acmpaid`;
   logger.info("Got authorized clients and Entra ID token.");
   const { updated } = await setPaidMembership({
     netId,
-    dynamoClient: new DynamoDBClient({ region: genericConfig.AwsRegion }),
+    dynamoClient,
     entraToken,
     paidMemberGroup: currentEnvironmentConfig.PaidMemberGroupId,
     firstName,
@@ -63,6 +65,18 @@ export const provisionNewMemberHandler: SQSHandlerFunction<
   } else {
     logger.info(`${email} was already a paid member.`);
   }
+  logger.info("Setting Listmonk membership");
+  await ensurePaidMemberListmonkEnrollment({
+    dynamoClient,
+    netId,
+    firstName,
+    lastName,
+    logger,
+    apiToken: secretConfig.listmonk_api_token,
+    apiUsername: currentEnvironmentConfig.ListmonkUsername,
+    listmonkBaseUrl: currentEnvironmentConfig.ListmonkBaseUrl,
+    paidMemberLists: currentEnvironmentConfig.PaidMemberListmonkLists,
+  });
   logger.info("Setting membership in Redis.");
   await setKey({
     redisClient,
