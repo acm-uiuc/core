@@ -131,7 +131,14 @@ export async function ensurePaidMemberListmonkEnrollment({
       lists: paidMemberLists,
     });
   } catch (e) {
-    await recordUserListmonkEnrollment(netId, false, dynamoClient);
+    try {
+      await recordUserListmonkEnrollment(netId, false, dynamoClient);
+    } catch (rollbackError) {
+      logger.error(
+        rollbackError,
+        `Failed to rollback Listmonk enrollment state for ${netId}`,
+      );
+    }
     if (e instanceof BaseError) {
       throw e;
     }
