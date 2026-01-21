@@ -47,9 +47,12 @@ export async function handleListmonkEnrollment({
     "Content-Type": "application/json",
     Authorization: `Basic ${credentials}`,
   };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
   const response = await fetch(`${listmonkBaseUrl}/api/subscribers`, {
     method: "POST",
     headers,
+    signal: controller.signal,
     body: JSON.stringify({
       email,
       name: `${firstName} ${lastName}`.trim(),
@@ -57,7 +60,7 @@ export async function handleListmonkEnrollment({
       lists,
       preconfirm_subscriptions: true,
     }),
-  });
+  }).finally(() => clearTimeout(timeout));
   if (!response.ok) {
     const errorBody = await response.text();
     logger.error(`Listmonk enrollment failed: ${errorBody}`);
