@@ -47,7 +47,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             }),
           }),
           querystring: z.object({
-            force: BooleanFromString.optional().default(false).meta({
+            force: BooleanFromString.optional().meta({
               description:
                 "If true, the user will be allowed to checkout even if they are already a paid member.",
             }),

@@ -76,6 +76,7 @@ const lambdaHandler = async (event: any, context: any) => {
   }
 
   // 3. Call the proxy and return the streaming response
+  console.log(event);
   const { stream, meta } = await proxy(event, context);
 
   // Fix issue with Lambda where streaming responses always require a body to be present
