@@ -1,7 +1,6 @@
 import { AllOrganizationIdList, Organizations } from "@acm-uiuc/js-shared";
 import * as z from "zod/v4";
 
-
 export const illinoisSemesterId = z
   .string()
   .length(4)
@@ -20,7 +19,8 @@ export const illinoisNetId = z
     message: "NetID is malformed.",
   })
   .meta({
-    description: "Valid Illinois NetID. See https://answers.uillinois.edu/illinois/page.php?id=78766 for more information.",
+    description:
+      "Valid Illinois NetID. See https://answers.uillinois.edu/illinois/page.php?id=78766 for more information.",
     example: "rjjones",
     id: "IllinoisNetId",
   });
@@ -37,14 +37,18 @@ export const illinoisUin = z
     id: "IllinoisUin",
   });
 
-
 export const OrgUniqueId = z.enum(AllOrganizationIdList).meta({
-  description: "The unique org ID for a given ACM sub-organization. See https://github.com/acm-uiuc/js-shared/blob/main/src/orgs.ts#L15",
+  description:
+    "The unique org ID for a given ACM sub-organization. See https://github.com/acm-uiuc/js-shared/blob/main/src/orgs.ts#L15",
   examples: ["A01", "C01"],
-  id: "OrgUniqueId"
+  id: "OrgUniqueId",
 });
 
-export const BooleanFromString = z.preprocess(
-  (val) => (typeof val === 'string' || val instanceof String) && val.toLowerCase() === "true",
-  z.boolean()
-);
+export const BooleanFromString = z
+  .union([z.boolean(), z.enum(["true", "false", "0", "1"])])
+  .transform((val) => {
+    if (typeof val === "boolean") {
+      return val;
+    }
+    return val === "true" || val === "1";
+  });

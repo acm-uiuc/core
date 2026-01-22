@@ -72,6 +72,9 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
       },
       async (request, reply) => {
         const accessToken = request.headers["x-uiuc-token"];
+        console.log("Raw query:", request.query);
+        console.log("Force value:", request.query.force);
+        console.log("Force type:", typeof request.query.force);
         const verifiedData = await verifyUiucAccessToken({
           accessToken,
           logger: request.log,
