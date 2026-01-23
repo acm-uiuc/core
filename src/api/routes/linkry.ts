@@ -7,7 +7,6 @@ import {
   DatabaseFetchError,
   DatabaseInsertError,
   NotFoundError,
-  UnauthorizedError,
   ValidationError,
 } from "../../common/errors/index.js";
 import {
@@ -37,8 +36,8 @@ import {
   fetchLinkEntry,
   getAllLinks,
   fetchOrgRecords,
+  authorizeLinkAccess,
 } from "api/functions/linkry.js";
-import { intersection } from "api/plugins/auth.js";
 import {
   buildAuditLogTransactPut,
   createAuditLogEntry,
@@ -66,6 +65,7 @@ type OrgRecord = {
   updatedAt: string;
   createdAt: string;
   lastModifiedBy: string;
+  isOrgOwned?: boolean;
 };
 
 type AccessRecord = {
@@ -73,12 +73,6 @@ type AccessRecord = {
   access: string;
   createdAt: string;
   updatedAt: string;
-};
-
-type LinkyCreateRequest = {
-  Params: undefined;
-  Querystring: undefined;
-  Body: z.infer<typeof createRequest>;
 };
 
 type LinkryGetRequest = {
@@ -152,7 +146,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           try {
             delegatedLinks = (
               await getAllLinks(tableName, fastify.dynamoClient)
-            ).filter((x) => x.owner !== username);
+            ).filter((x) => x.owner !== username && !x.isOrgOwned);
           } catch (error) {
             request.log.error(
               `Failed to get all links for admin: ${error instanceof Error ? error.toString() : "Unknown error"}`,
@@ -170,6 +164,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
               ownedUniqueSlugs,
               tableName,
               fastify.dynamoClient,
+              request.log,
             );
           } catch (error) {
             request.log.error(
@@ -220,19 +215,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           tableName,
           fastify.dynamoClient,
         );
-
-        if (currentRecord && !request.userRoles.has(AppRoles.LINKS_ADMIN)) {
-          const setUserGroups = new Set(request.tokenPayload?.groups || []);
-          const mutualGroups = intersection(
-            new Set(currentRecord.access),
-            setUserGroups,
-          );
-          if (mutualGroups.size === 0) {
-            throw new UnauthorizedError({
-              message:
-                "You do not own this record and have not been delegated access.",
-            });
-          }
+        if (currentRecord) {
+          authorizeLinkAccess(request, currentRecord);
         }
 
         // Use a transaction to handle if one/multiple of these writes fail
@@ -269,42 +253,30 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
           const existingGroups = await fastify.dynamoClient.send(queryCommand);
           const existingGroupSet = new Set<string>();
-          let existingGroupTimestampMismatch = false;
 
           if (existingGroups.Items && existingGroups.Items.length > 0) {
             for (const item of existingGroups.Items) {
               const unmarshalledItem = unmarshall(item);
               existingGroupSet.add(unmarshalledItem.access);
-
-              // Check if all existing GROUP records have the same updatedAt timestamp
-              // This ensures no other process has modified any part of the record
-              if (
-                currentUpdatedAt &&
-                unmarshalledItem.updatedAt &&
-                unmarshalledItem.updatedAt !== currentUpdatedAt
-              ) {
-                existingGroupTimestampMismatch = true;
-              }
             }
           }
 
-          // If timestamp mismatch found, reject the operation
-          if (existingGroupTimestampMismatch) {
-            throw new ValidationError({
-              message:
-                "Record was modified by another process. Please try again.",
-            });
-          }
+          // Determine the owner for the record
+          // If modifying, preserve the original owner; if creating, use current user
+          const recordOwner = currentRecord
+            ? currentRecord.owner
+            : request.username;
 
           const ownerRecord: OwnerRecord = {
             slug: request.body.slug,
             redirect: request.body.redirect,
-            access: `OWNER#${request.username}`,
+            access: `OWNER#${recordOwner}`,
             updatedAt: newUpdatedAt,
             createdAt: newCreatedAt,
           };
 
           // Add the OWNER record with a condition check to ensure it hasn't been modified
+          // This is the only place we need optimistic locking
           const ownerPutItem: TransactWriteItem = {
             Put: {
               TableName: genericConfig.LinkryDynamoTableName,
@@ -332,9 +304,8 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           for (const accessGroup of accessGroups) {
             const groupKey = `GROUP#${accessGroup}`;
 
-            // Skip if this group already exists
             if (existingGroupSet.has(groupKey)) {
-              // Update existing GROUP record with new updatedAt
+              // Update existing GROUP record with new updatedAt (no condition check)
               const updateItem: TransactWriteItem = {
                 Update: {
                   TableName: genericConfig.LinkryDynamoTableName,
@@ -345,15 +316,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   UpdateExpression: "SET updatedAt = :updatedAt",
                   ExpressionAttributeValues: marshall({
                     ":updatedAt": newUpdatedAt,
-                    ...(mode === "modify"
-                      ? { ":currentUpdatedAt": currentUpdatedAt }
-                      : {}),
                   }),
-                  ...(mode === "modify"
-                    ? {
-                        ConditionExpression: "updatedAt = :currentUpdatedAt",
-                      }
-                    : {}),
                 },
               };
 
@@ -378,7 +341,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             }
           }
 
-          // Delete GROUP records that are no longer needed
+          // Delete GROUP records that are no longer needed (no condition check)
           for (const existingGroup of existingGroupSet) {
             // Skip if this is a group we want to keep
             if (newGroupSet.has(existingGroup)) {
@@ -392,14 +355,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   slug: request.body.slug,
                   access: existingGroup,
                 }),
-                ...(mode === "modify"
-                  ? {
-                      ConditionExpression: "updatedAt = :updatedAt",
-                      ExpressionAttributeValues: marshall({
-                        ":updatedAt": currentUpdatedAt,
-                      }),
-                    }
-                  : {}),
               },
             };
 
@@ -465,28 +420,18 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
         try {
           const { slug } = request.params;
           const tableName = genericConfig.LinkryDynamoTableName;
-          // It's likely faster to just fetch and not return if not found
-          // Rather than checking each individual group manually
           const item = await fetchLinkEntry(
             slug,
             tableName,
             fastify.dynamoClient,
           );
+
           if (!item) {
             throw new NotFoundError({ endpointName: request.url });
           }
-          if (!request.userRoles.has(AppRoles.LINKS_ADMIN)) {
-            const setUserGroups = new Set(request.tokenPayload?.groups || []);
-            const mutualGroups = intersection(
-              new Set(item.access),
-              setUserGroups,
-            );
-            if (mutualGroups.size === 0) {
-              throw new UnauthorizedError({
-                message: "You have not been delegated access.",
-              });
-            }
-          }
+
+          authorizeLinkAccess(request, item);
+
           return reply.status(200).send(item);
         } catch (e: unknown) {
           fastify.log.error(e);
@@ -526,21 +471,10 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           throw new NotFoundError({ endpointName: request.url });
         }
 
-        if (currentRecord && !request.userRoles.has(AppRoles.LINKS_ADMIN)) {
-          const setUserGroups = new Set(request.tokenPayload?.groups || []);
-          const mutualGroups = intersection(
-            new Set(currentRecord.access),
-            setUserGroups,
-          );
-          if (mutualGroups.size === 0) {
-            throw new UnauthorizedError({
-              message:
-                "You do not own this record and have not been delegated access.",
-            });
-          }
-        }
+        authorizeLinkAccess(request, currentRecord);
 
         const TransactItems: TransactWriteItem[] = [
+          // Delete GROUP records without condition check
           ...currentRecord.access.map((x) => ({
             Delete: {
               TableName: genericConfig.LinkryDynamoTableName,
@@ -548,12 +482,9 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 slug: { S: slug },
                 access: { S: `GROUP#${x}` },
               },
-              ConditionExpression: "updatedAt = :updatedAt",
-              ExpressionAttributeValues: marshall({
-                ":updatedAt": currentRecord.updatedAt,
-              }),
             },
           })),
+          // Delete OWNER record with condition check for optimistic locking
           {
             Delete: {
               TableName: genericConfig.LinkryDynamoTableName,
@@ -606,7 +537,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             module: Modules.LINKRY,
             actor: request.username,
             target: slug,
-            message: `Deleted short link redirect."`,
+            message: `Deleted short link redirect.`,
           },
         });
         reply.code(204).send();
@@ -687,6 +618,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             updatedAt: newUpdatedAt,
             createdAt: newCreatedAt,
             lastModifiedBy: request.username,
+            isOrgOwned: true,
           };
 
           // Add the OWNER record with a condition check to ensure it hasn't been modified

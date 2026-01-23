@@ -200,6 +200,8 @@ test("Unhappy path: Edit linkry redirect not authorized", async () => {
 
 test("Unhappy path: Edit linkry time stamp mismatch", async () => {
   const userJwt = createJwt(undefined, ["LINKS_ADMIN"], "alice@illinois.edu");
+
+  // Return existing record data
   ddbMock
     .on(QueryCommand, { TableName: genericConfig.LinkryDynamoTableName })
     .resolves({
@@ -216,27 +218,39 @@ test("Unhappy path: Edit linkry time stamp mismatch", async () => {
             S: "2030-04-18T18:36:50.706Z",
           },
           updatedAt: {
-            S: "2030-04-18T18:37:40.681Z",
+            S: "2030-04-18T18:36:50.706Z",
           },
         },
       ],
     });
 
-  ddbMock.on(TransactWriteItemsCommand).resolves({});
+  // Simulate optimistic locking failure on the OWNER record
+  const transactionCanceledException = new TransactionCanceledException({
+    message: "Transaction cancelled",
+    $metadata: {},
+    CancellationReasons: [
+      {
+        Code: "ConditionalCheckFailed",
+        Message: "The conditional request failed",
+      },
+    ],
+  });
+  ddbMock.on(TransactWriteItemsCommand).rejects(transactionCanceledException);
 
   const payload = {
     access: [],
     redirect: "https://www.acm.illinois.edu/",
     slug: "WlQDmu",
   };
-
   const response = await supertest(app.server)
     .post("/api/v1/linkry/redir")
     .set("Authorization", `Bearer ${userJwt}`)
     .send(payload);
-
   expect(response.statusCode).toBe(400);
   expect(response.body.name).toEqual("ValidationError");
+  expect(response.body.message).toEqual(
+    "The record was modified by another process. Please try again.",
+  );
 });
 
 vi.spyOn(app, "hasRoute").mockImplementation(({ url, method }) => {
