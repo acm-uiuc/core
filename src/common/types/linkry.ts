@@ -44,7 +44,7 @@ export const linkRecord = z.object({
   updatedAt: z.iso.datetime(),
   redirect: z.url(),
   owner: z.string().min(1),
-  isOrgOwned: z.boolean().meta({
+  isOrgOwned: z.boolean().default(false).meta({
     description: "Whether the link is owned by an organization.",
     example: true,
   }),
