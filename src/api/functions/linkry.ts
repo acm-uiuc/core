@@ -4,7 +4,11 @@ import {
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { intersection } from "api/plugins/auth.js";
+import { ValidLoggers } from "api/types.js";
 import { LinkryGroupUUIDToGroupNameMap } from "common/config.js";
+import { UnauthorizedError } from "common/errors/index.js";
+import { AppRoles } from "common/roles.js";
 import { LinkRecord, OrgLinkRecord } from "common/types/linkry.js";
 import { FastifyRequest } from "fastify";
 
@@ -207,6 +211,7 @@ export async function getDelegatedLinks(
   ownedSlugs: string[],
   tableName: string,
   dynamoClient: DynamoDBClient,
+  logger: ValidLoggers,
 ): Promise<LinkRecord[]> {
   const groupQueries = userGroups.map(async (groupId) => {
     try {
@@ -291,15 +296,15 @@ export async function getDelegatedLinks(
               owner: ownerRecord.access.replace("OWNER#", ""),
             } as LinkRecord;
           } catch (error) {
-            console.error(`Error processing delegated slug ${slug}:`, error);
+            logger.error(`Error processing delegated slug ${slug}:`, error);
             return null;
           }
         }),
       );
 
-      return results.filter(Boolean);
+      return results.filter(Boolean).filter((x) => !x.isOrgOwned);
     } catch (error) {
-      console.error(`Error processing group ${groupId}:`, error);
+      logger.error(`Error processing group ${groupId}:`, error);
       return [];
     }
   });
@@ -315,4 +320,61 @@ export async function getDelegatedLinks(
   });
 
   return Array.from(slugMap.values());
+}
+
+type AuthenticatedRequest = FastifyRequest & {
+  username: string;
+  userRoles: Set<string>;
+  tokenPayload?: { groups?: string[] };
+};
+
+type AuthorizeLinkAccessOptions = {
+  /** If true, owners are allowed access even without delegated groups */
+  allowOwner?: boolean;
+  /** Custom error message */
+  errorMessage?: string;
+};
+
+/**
+ * Checks if the user has access to a link record via:
+ * 1. Being a LINKS_ADMIN
+ * 2. Being the owner (if allowOwner is true, which is the default)
+ * 3. Having a mutual group in the access list
+ *
+ * @throws UnauthorizedError if the user doesn't have access
+ */
+export function authorizeLinkAccess(
+  request: AuthenticatedRequest,
+  record: LinkRecord,
+  options: AuthorizeLinkAccessOptions = {},
+): void {
+  const { allowOwner = true, errorMessage } = options;
+
+  // Admins always have access
+  if (request.userRoles.has(AppRoles.LINKS_ADMIN)) {
+    return;
+  }
+
+  const isOwner = record.owner === request.username;
+
+  // Check ownership if allowed
+  if (allowOwner && isOwner) {
+    return;
+  }
+
+  // Check delegated access via groups
+  const userGroups = new Set(request.tokenPayload?.groups || []);
+  const recordGroups = new Set(record.access);
+  const mutualGroups = intersection(recordGroups, userGroups);
+
+  if (mutualGroups.size > 0) {
+    return;
+  }
+
+  // No access - throw appropriate error
+  throw new UnauthorizedError({
+    message:
+      errorMessage ||
+      "You do not own this record and have not been delegated access.",
+  });
 }
