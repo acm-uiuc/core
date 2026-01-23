@@ -302,7 +302,7 @@ export async function getDelegatedLinks(
         }),
       );
 
-      return results.filter(Boolean).filter((x) => !x.isOrgOwned);
+      return results.filter(Boolean).filter((x) => x && !x.isOrgOwned);
     } catch (error) {
       logger.error(`Error processing group ${groupId}:`, error);
       return [];
