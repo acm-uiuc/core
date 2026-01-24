@@ -23,13 +23,14 @@ clean:
 	rm -rf dist_devel/
 	rm -rf coverage/
 
+# If needed, setup QEMU emulation first: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 build: src/
 	yarn
 	yarn build
 	cp -r src/api/resources/ dist/api/resources
 	rm -rf dist/lambda/sqs
 	mkdir -p dist_ui/docs/
-	docker run --rm -v "$(shell pwd)/dist/lambda":/var/task -v "$(shell pwd)/dist_ui":/var/dist_ui -e RunEnvironment -e VITE_BUILD_HASH public.ecr.aws/sam/build-nodejs24.x:latest \
+	docker run --platform linux/arm64/v8 --rm -v "$(shell pwd)/dist/lambda":/var/task -v "$(shell pwd)/dist_ui":/var/dist_ui -e RunEnvironment -e VITE_BUILD_HASH public.ecr.aws/sam/build-nodejs24.x:latest \
 	sh -c "npm i -g yarn && $(yarn_env) yarn $(yarn_install_params) && \
 			node /var/task/createSwagger.mjs && \
 			rm /var/task/createSwagger.mjs && \
@@ -43,7 +44,7 @@ build: src/
 			rm -rf layer/nodejs/* && \
 			mv node_modules/ layer/nodejs"
 
-	docker run --rm -v "$(shell pwd)/dist/sqsConsumer":/var/task public.ecr.aws/sam/build-nodejs24.x:latest \
+	docker run --platform linux/arm64/v8 --rm -v "$(shell pwd)/dist/sqsConsumer":/var/task public.ecr.aws/sam/build-nodejs24.x:latest \
 	sh -c "npm i -g yarn && $(yarn_env) yarn $(yarn_install_params) && \
 				rm /var/task/package-*.json && \
 				rm /var/task/package.json && \

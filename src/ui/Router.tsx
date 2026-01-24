@@ -20,7 +20,7 @@ import { ScanTicketsPage } from "./pages/tickets/ScanTickets.page";
 import { SelectTicketsPage } from "./pages/tickets/SelectEventId.page";
 import { ViewTicketsPage } from "./pages/tickets/ViewTickets.page";
 import { ManageIamPage } from "./pages/iam/ManageIam.page";
-import { ManageProfilePage } from "./pages/profile/ManageProfile.page";
+import { ViewProfilePage } from "./pages/profile/ViewProfile.page";
 import { ManageStripeLinksPage } from "./pages/stripe/ViewLinks.page";
 import { ManageRoomRequestsPage } from "./pages/roomRequest/RoomRequestLanding.page";
 import { ViewRoomRequest } from "./pages/roomRequest/ViewRoomRequest.page";
@@ -102,7 +102,7 @@ const profileRouter = createBrowserRouter([
       ...commonRoutes,
       {
         path: "/profile",
-        element: <ManageProfilePage />,
+        element: <ViewProfilePage />,
       },
       {
         path: "*",
@@ -154,7 +154,7 @@ const authenticatedRouter = createBrowserRouter([
       },
       {
         path: "/profile",
-        element: <ManageProfilePage />,
+        element: <ViewProfilePage />,
       },
       {
         path: "/home",
