@@ -2,13 +2,20 @@ import React from "react";
 import { Container, Title } from "@mantine/core";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
-import { UserProfileData } from "@common/types/msGraphApi";
-import { ManageProfileComponent } from "./ManageProfileComponent";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@ui/components/AuthContext";
 import { transformCommaSeperatedName } from "@common/utils";
+import { ViewProfileComponent } from "./ViewProfileComponent";
 
-export const ManageProfilePage: React.FC = () => {
+export interface UserProfileData {
+  userPrincipalName: string;
+  displayName?: string;
+  givenName?: string;
+  surname?: string;
+  mail?: string;
+}
+
+export const ViewProfilePage: React.FC = () => {
   const graphApi = useApi("msGraphApi");
   const api = useApi("core");
   const { setLoginStatus } = useAuth();
@@ -36,26 +43,11 @@ export const ManageProfilePage: React.FC = () => {
     };
   };
 
-  const setProfile = async (data: UserProfileData) => {
-    const response = await api.patch("/api/v1/iam/profile", data);
-    if (response.status < 299 && firstTime) {
-      setLoginStatus(true);
-    }
-    if (returnTo) {
-      return navigate(returnTo);
-    }
-    return response.data;
-  };
-
   return (
     <AuthGuard resourceDef={{ service: "core", validRoles: [] }} showSidebar>
       <Container fluid>
-        <Title>Edit Profile</Title>
-        <ManageProfileComponent
-          getProfile={getProfile}
-          setProfile={setProfile}
-          firstTime={firstTime}
-        />
+        <Title>View Profile</Title>
+        <ViewProfileComponent getProfile={getProfile} firstTime={firstTime} />
       </Container>
     </AuthGuard>
   );

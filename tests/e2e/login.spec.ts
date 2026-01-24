@@ -24,7 +24,7 @@ describe("Login tests", () => {
     ).toBeVisible();
     await page.getByRole("link", { name: "PU", exact: true }).click();
     await expect(page.getByLabel("PUMy Account")).toContainText(
-      "NamePlaywright UserEmailcore-e2e-testing@acm.illinois.eduEdit ProfileLog Out",
+      "NamePlaywright UserEmailcore-e2e-testing@acm.illinois.eduProfileLog Out",
     );
     expect(page.url()).toEqual("https://core.aws.qa.acmuiuc.org/home");
   });

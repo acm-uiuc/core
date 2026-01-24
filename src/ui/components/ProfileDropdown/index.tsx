@@ -125,7 +125,7 @@ const AuthenticatedProfileDropdown: React.FC<ProfileDropdownProps> = ({
               navigate("/profile");
             }}
           >
-            Edit Profile
+            Profile
           </Button>
           <Button
             variant="outline"
