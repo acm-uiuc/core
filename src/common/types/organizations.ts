@@ -1,4 +1,4 @@
-import { AllOrganizationNameList, OrganizationsByName } from "@acm-uiuc/js-shared";
+import { AllOrganizationNameList, OrgType } from "@acm-uiuc/js-shared";
 import { AppRoleHumanMapper, AppRoles } from "../roles.js";
 import { z } from "zod/v4";
 import { OrgUniqueId } from "./generic.js";
@@ -31,12 +31,13 @@ export const enforcedOrgLeadEntry = orgLeadEntry.extend({ title: z.string().min(
 export const getOrganizationInfoResponse = z.object({
   id: OrgUniqueId,
   name: z.enum(AllOrganizationNameList),
+  type: z.enum(OrgType),
   description: z.optional(z.string()),
   website: z.optional(z.url()),
   leads: z.optional(z.array(orgLeadEntry)),
   links: z.optional(z.array(orgLinkEntry)),
   leadsEntraGroupId: z.optional(z.string().min(1)).meta({ description: `Only returned for users with the ${AppRoleHumanMapper[AppRoles.ALL_ORG_MANAGER]} role.` })
-})
+});
 
 export const setOrganizationMetaBody = getOrganizationInfoResponse.omit({ id: true, name: true, leads: true, leadsEntraGroupId: true }).extend({
   description: z.optional(z.string().max(MAX_ORG_DESCRIPTION_CHARS)),
