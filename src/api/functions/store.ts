@@ -531,6 +531,7 @@ export async function createStoreCheckout({
             createdAt: now,
             itemId: `${li.productId}#${li.variantId}`, // For GSI
             expiresAt,
+            userId,
           },
           { removeUndefinedValues: true },
         ),
@@ -1060,6 +1061,7 @@ export async function getOrder({
       createdAt: li.createdAt as number,
       itemId: li.itemId as string | undefined,
       isFulfilled: (li.isFulfilled as boolean) ?? false,
+      userId: li.userId as string,
     })),
   };
 }

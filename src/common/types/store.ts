@@ -79,7 +79,8 @@ export const lineItemSchema = z.object({
   unitPriceCents: z.number().int().min(0).optional(),
   createdAt: z.number().int(),
   itemId: z.string().optional(), // For GSI: `${productId}#${variantId}`
-  isFulfilled: z.boolean()
+  isFulfilled: z.boolean(),
+  userId: z.string().min(1),
 });
 
 export type LineItem = z.infer<typeof lineItemSchema>;
