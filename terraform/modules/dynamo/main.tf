@@ -600,8 +600,8 @@ resource "aws_dynamodb_table" "store_carts" {
     projection_type = "ALL"
   }
   global_secondary_index {
-    name            = "ProductId"
-    hash_key        = "userId"
+    name            = "ProductIdIndex"
+    hash_key        = "productId"
     projection_type = "ALL"
   }
   stream_enabled   = true
