@@ -31,7 +31,7 @@ import {
   getOrder,
   processStorePaymentSuccess,
   createProduct,
-  listProductOrders,
+  listProductLineItems,
 } from "api/functions/store.js";
 import {
   listProductsResponseSchema,
@@ -306,7 +306,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       schema: withRoles(
         [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
         withTags(["Store"], {
-          summary: "List all orders for a given product.",
+          summary: "List all orders/line items for a given product.",
           querystring: z.object({
             status: orderStatusEnum.optional(),
           }),
@@ -315,7 +315,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }),
           response: {
             200: {
-              description: "List of orders.",
+              description: "List of line items.",
               content: {
                 "application/json": {
                   schema: listOrdersResponseSchema,
@@ -328,12 +328,11 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
-      const orders = await listProductOrders({
+      const items = await listProductLineItems({
         dynamoClient: fastify.dynamoClient,
-        status: request.query.status,
         productId: request.params.productId,
       });
-      return reply.send({ orders });
+      return reply.send({ items });
     }),
   );
 

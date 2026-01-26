@@ -249,7 +249,7 @@ export async function listProducts({
         name: v.name as string,
         description: v.description as string | undefined,
         imageUrl: v.imageUrl as string | undefined,
-        memberLists: v.memberLists as string[] | undefined,
+        memberLists: (v.memberLists as string[]) ?? ["acmpaid"],
         memberPriceId: v.memberPriceId as string,
         nonmemberPriceId: v.nonmemberPriceId as string,
         inventoryCount: v.inventoryCount as number | null | undefined,
@@ -693,6 +693,12 @@ export async function processStorePaymentSuccess({
   });
 
   // B. Process Inventory & Remove expiresAt from Line Items
+  // Also collect limit updates to aggregate by limitId to avoid operation errors
+  const limitUpdates = new Map<
+    string,
+    { limitConfig: LimitConfiguration; totalQty: number }
+  >();
+
   for (const lineItem of lineItems) {
     // 1. Add update to remove expiresAt from the line item record
     transactItems.push({
@@ -761,7 +767,7 @@ export async function processStorePaymentSuccess({
       });
     }
 
-    // --- USER LIMITS ---
+    // --- USER LIMITS (aggregate by limitId) ---
     const limitConfig =
       (variant?.limitConfiguration as LimitConfiguration | undefined) ||
       (product?.limitConfiguration as LimitConfiguration | undefined);
@@ -772,22 +778,32 @@ export async function processStorePaymentSuccess({
           ? `${productId}#${variantId}`
           : productId;
 
-      transactItems.push({
-        Update: {
-          TableName: genericConfig.StoreLimitsTableName,
-          Key: marshall({ userId, limitId }),
-          UpdateExpression:
-            "SET quantity = if_not_exists(quantity, :zero) + :qty",
-          ConditionExpression:
-            "(attribute_not_exists(quantity) OR quantity <= :maxMinusQty)",
-          ExpressionAttributeValues: marshall({
-            ":qty": quantity,
-            ":zero": 0,
-            ":maxMinusQty": limitConfig.maxQuantity - quantity,
-          }),
-        },
-      });
+      const existing = limitUpdates.get(limitId);
+      if (existing) {
+        existing.totalQty += quantity;
+      } else {
+        limitUpdates.set(limitId, { limitConfig, totalQty: quantity });
+      }
     }
+  }
+
+  // C. Add aggregated limit updates to the transaction
+  for (const [limitId, { limitConfig, totalQty }] of limitUpdates) {
+    transactItems.push({
+      Update: {
+        TableName: genericConfig.StoreLimitsTableName,
+        Key: marshall({ userId, limitId }),
+        UpdateExpression:
+          "SET quantity = if_not_exists(quantity, :zero) + :qty",
+        ConditionExpression:
+          "(attribute_not_exists(quantity) OR quantity <= :maxMinusQty)",
+        ExpressionAttributeValues: marshall({
+          ":qty": totalQty,
+          ":zero": 0,
+          ":maxMinusQty": limitConfig.maxQuantity - totalQty,
+        }),
+      },
+    });
   }
 
   // 4. Execute Transaction (PENDING -> CAPTURING with inventory updates)
@@ -865,26 +881,46 @@ export async function processStorePaymentSuccess({
             });
           }
 
-          // Update order to CANCELLED
+          // Update order to CANCELLED and delete all line items
           try {
+            const cancelTransactItems: TransactWriteItemsCommandInput["TransactItems"] =
+              [
+                // Update order status to CANCELLED
+                {
+                  Update: {
+                    TableName: genericConfig.StoreCartsOrdersTableName,
+                    Key: marshall({ orderId, lineItemId: "ORDER" }),
+                    UpdateExpression:
+                      "SET #status = :cancelled, cancelledAt = :now",
+                    ExpressionAttributeNames: { "#status": "status" },
+                    ExpressionAttributeValues: marshall({
+                      ":cancelled": "CANCELLED",
+                      ":now": now,
+                    }),
+                  },
+                },
+                // Delete all line items
+                ...lineItems.map((lineItem) => ({
+                  Delete: {
+                    TableName: genericConfig.StoreCartsOrdersTableName,
+                    Key: marshall({ orderId, lineItemId: lineItem.lineItemId }),
+                  },
+                })),
+              ];
+
             await dynamoClient.send(
-              new UpdateItemCommand({
-                TableName: genericConfig.StoreCartsOrdersTableName,
-                Key: marshall({ orderId, lineItemId: "ORDER" }),
-                UpdateExpression:
-                  "SET #status = :cancelled, cancelledAt = :now",
-                ExpressionAttributeNames: { "#status": "status" },
-                ExpressionAttributeValues: marshall({
-                  ":cancelled": "CANCELLED",
-                  ":now": now,
-                }),
+              new TransactWriteItemsCommand({
+                TransactItems: cancelTransactItems,
               }),
             );
-            logger.info({ orderId }, "Order marked as CANCELLED");
+            logger.info(
+              { orderId, lineItemCount: lineItems.length },
+              "Order marked as CANCELLED and line items deleted",
+            );
           } catch (e) {
             logger.error(
               { e, orderId },
-              "Failed to update order status to CANCELLED",
+              "Failed to update order status to CANCELLED and delete line items",
             );
             throw new InternalServerError({
               message: "Failed to update order status after cancellation",
@@ -1023,6 +1059,7 @@ export async function getOrder({
       unitPriceCents: li.unitPriceCents as number | undefined,
       createdAt: li.createdAt as number,
       itemId: li.itemId as string | undefined,
+      isFulfilled: (li.isFulfilled as boolean) ?? false,
     })),
   };
 }
@@ -1067,52 +1104,39 @@ export async function listOrdersByUser({
   }));
 }
 
-export async function listProductOrders({
+export async function listProductLineItems({
   dynamoClient,
-  status,
   productId,
 }: {
   dynamoClient: DynamoDBClient;
   status?: Order["status"];
   productId: string;
-}): Promise<Order[]> {
+}) {
   const queryParams: QueryCommandInput = {
     TableName: genericConfig.StoreCartsOrdersTableName,
-    FilterExpression: "lineItemId = :orderMarker",
     KeyConditionExpression: "productId = :productId",
     IndexName: "ProductIdIndex",
     ExpressionAttributeValues: marshall({
-      ":orderMarker": "ORDER",
       ":productId": productId,
     }),
   };
-
-  if (status) {
-    queryParams.FilterExpression += " AND #status = :status";
-    queryParams.ExpressionAttributeNames = { "#status": "status" };
-    queryParams.ExpressionAttributeValues = marshall({
-      ":orderMarker": "ORDER",
-      ":status": status,
-      ":productId": productId,
-    });
-  }
 
   const response = await dynamoClient.send(new QueryCommand(queryParams));
 
   if (!response.Items) {
     return [];
   }
-
   return response.Items.map((i) => unmarshall(i)).map((i) => ({
     orderId: i.orderId as string,
-    userId: i.userId as string,
-    status: i.status as Order["status"],
-    stripePaymentIntentId: i.stripePaymentIntentId as string | undefined,
+    lineItemId: i.lineItemId as string,
     createdAt: i.createdAt as number,
-    confirmedAt: i.confirmedAt as number | undefined,
-    cancelledAt: i.cancelledAt as number | undefined,
-    refundId: i.refundId as string | undefined,
-    expiresAt: i.expiresAt as number | undefined,
+    expiresAt: i.expiresAt as number,
+    itemId: i.itemId as string,
+    priceId: i.priceId as string,
+    productId: i.productId as string,
+    quantity: i.quantity as number,
+    variantId: i.variantId as string,
+    isFulfilled: (i.isFulfilled as boolean) ?? false,
   }));
 }
 

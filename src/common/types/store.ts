@@ -79,6 +79,7 @@ export const lineItemSchema = z.object({
   unitPriceCents: z.number().int().min(0).optional(),
   createdAt: z.number().int(),
   itemId: z.string().optional(), // For GSI: `${productId}#${variantId}`
+  isFulfilled: z.boolean()
 });
 
 export type LineItem = z.infer<typeof lineItemSchema>;
@@ -149,7 +150,7 @@ export type GetProductResponse = z.infer<typeof getProductResponseSchema>;
 
 // List Orders Response
 export const listOrdersResponseSchema = z.object({
-  orders: z.array(orderSchema),
+  items: z.array(lineItemSchema),
 });
 
 export type ListOrdersResponse = z.infer<typeof listOrdersResponseSchema>;
