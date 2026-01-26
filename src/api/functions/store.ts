@@ -320,9 +320,12 @@ export async function checkItemSellable({
     return null;
   }
 
-  // 3. Check inventory
+  // 3. Check inventory (UPDATED FOR ATOMIC DECREMENT MODEL)
+  // Logic: inventoryCount now tracks *Remaining* stock directly.
+  // If the field is null/undefined, we treat it as infinite stock.
   if (variant.inventoryCount !== null && variant.inventoryCount !== undefined) {
-    const available = variant.inventoryCount - (variant.soldCount || 0);
+    const available = variant.inventoryCount;
+
     if (available < quantity) {
       logger.info(
         { productId, variantId, available, requested: quantity },
@@ -336,6 +339,7 @@ export async function checkItemSellable({
   const limitConfig =
     (variant.limitConfiguration as LimitConfiguration | undefined) ||
     (product.limitConfiguration as LimitConfiguration | undefined);
+
   if (limitConfig) {
     const limitId =
       limitConfig.limitType === "PER_VARIANT"
@@ -385,7 +389,7 @@ export async function checkItemSellable({
 
   return {
     priceId,
-    unitPriceCents: 0, // Would be fetched from Stripe if needed
+    unitPriceCents: 0,
     isMemberPrice: isMember,
   };
 }
@@ -612,7 +616,7 @@ export async function processStorePaymentSuccess({
 }: ProcessStoreWebhookInputs): Promise<{ success: boolean; error?: string }> {
   const now = Math.floor(Date.now() / 1000);
 
-  // 1. Get order and line items
+  // 1. Get order details
   const orderResponse = await dynamoClient.send(
     new QueryCommand({
       TableName: genericConfig.StoreCartsOrdersTableName,
@@ -630,27 +634,19 @@ export async function processStorePaymentSuccess({
   const orderMeta = items.find((i) => i.lineItemId === "ORDER");
   const lineItems = items.filter((i) => i.lineItemId !== "ORDER");
 
+  // Idempotency Check
   if (!orderMeta || orderMeta.status !== "PENDING") {
-    logger.info(
-      { orderId, status: orderMeta?.status },
-      "Order not in PENDING status, may already be processed",
-    );
-    // If already ACTIVE, this is a duplicate webhook - return success
     if (orderMeta?.status === "ACTIVE") {
       return { success: true };
     }
     return { success: false, error: "Order not in pending status" };
   }
 
-  // 2. Build transaction to:
-  //    - Update order status to ACTIVE
-  //    - Increment sold_count on each variant (with conditional check)
-  //    - Update user limits
-
+  // 2. Build Transaction
   const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [];
 
-  // Update order status
-  transactItems!.push({
+  // A. Update Order Status
+  transactItems.push({
     Update: {
       TableName: genericConfig.StoreCartsOrdersTableName,
       Key: marshall({ orderId, lineItemId: "ORDER" }),
@@ -667,27 +663,12 @@ export async function processStorePaymentSuccess({
     },
   });
 
-  // Increment sold counts and update limits for each line item
+  // B. Process Inventory
+  // We MUST fetch current variant data to know if it is "Limited" or "Unlimited"
+  // so we can construct the correct DynamoDB update expression.
   for (const lineItem of lineItems) {
     const { productId, variantId, quantity } = lineItem;
 
-    // Update inventory sold_count with conditional check
-    transactItems!.push({
-      Update: {
-        TableName: genericConfig.StoreInventoryTableName,
-        Key: marshall({ productId, variantId }),
-        UpdateExpression:
-          "SET soldCount = if_not_exists(soldCount, :zero) + :qty",
-        ConditionExpression:
-          "attribute_not_exists(inventoryCount) OR (inventoryCount - if_not_exists(soldCount, :zero)) >= :qty",
-        ExpressionAttributeValues: marshall({
-          ":qty": quantity,
-          ":zero": 0,
-        }),
-      },
-    });
-
-    // Get product to check limit configuration
     const [productData, variantData] = await Promise.all([
       dynamoClient.send(
         new GetItemCommand({
@@ -705,6 +686,46 @@ export async function processStorePaymentSuccess({
 
     const product = productData.Item ? unmarshall(productData.Item) : null;
     const variant = variantData.Item ? unmarshall(variantData.Item) : null;
+
+    // --- LOGIC FOR UNLIMITED VS LIMITED ---
+    const isLimited =
+      variant &&
+      variant.inventoryCount !== null &&
+      variant.inventoryCount !== undefined;
+
+    if (isLimited) {
+      // LIMITED: Decrement inventory + Increment sold + Condition Check
+      transactItems.push({
+        Update: {
+          TableName: genericConfig.StoreInventoryTableName,
+          Key: marshall({ productId, variantId }),
+          UpdateExpression:
+            "SET inventoryCount = inventoryCount - :qty, soldCount = if_not_exists(soldCount, :zero) + :qty",
+          // The atomic guard:
+          ConditionExpression: "inventoryCount >= :qty",
+          ExpressionAttributeValues: marshall({
+            ":qty": quantity,
+            ":zero": 0,
+          }),
+        },
+      });
+    } else {
+      // UNLIMITED: Only Increment sold (No inventory decrement, No condition)
+      transactItems.push({
+        Update: {
+          TableName: genericConfig.StoreInventoryTableName,
+          Key: marshall({ productId, variantId }),
+          UpdateExpression:
+            "SET soldCount = if_not_exists(soldCount, :zero) + :qty",
+          ExpressionAttributeValues: marshall({
+            ":qty": quantity,
+            ":zero": 0,
+          }),
+        },
+      });
+    }
+
+    // --- USER LIMITS ---
     const limitConfig =
       (variant?.limitConfiguration as LimitConfiguration | undefined) ||
       (product?.limitConfiguration as LimitConfiguration | undefined);
@@ -715,35 +736,32 @@ export async function processStorePaymentSuccess({
           ? `${productId}#${variantId}`
           : productId;
 
-      // Update user limits
-      transactItems!.push({
+      transactItems.push({
         Update: {
           TableName: genericConfig.StoreLimitsTableName,
           Key: marshall({ userId, limitId }),
           UpdateExpression:
             "SET quantity = if_not_exists(quantity, :zero) + :qty",
-          ExpressionAttributeValues: marshall({
-            ":qty": quantity,
-            ":zero": 0,
-          }),
+          ExpressionAttributeValues: marshall({ ":qty": quantity, ":zero": 0 }),
         },
       });
     }
   }
 
-  // Audit log
+  // 3. Audit Log
   const auditLog = buildAuditLogTransactPut({
     entry: {
       module: Modules.STORE,
       actor: "stripe-webhook",
       target: orderId,
-      message: `Payment confirmed for order. Payment Intent: ${paymentIntentId}`,
+      message: `Payment confirmed. Payment Intent: ${paymentIntentId}`,
     },
   });
   if (auditLog) {
-    transactItems!.push(auditLog);
+    transactItems.push(auditLog);
   }
 
+  // 4. Execute Transaction
   try {
     await retryDynamoTransactionWithBackoff(
       () =>
@@ -753,79 +771,62 @@ export async function processStorePaymentSuccess({
       logger,
       "ProcessStorePaymentSuccess",
     );
-  } catch (error: unknown) {
-    const err = error as {
-      name?: string;
-      CancellationReasons?: Array<{ Code?: string }>;
-    };
-    if (err.name === "TransactionCanceledException") {
-      // Check which condition failed
-      const reasons = err.CancellationReasons || [];
+  } catch (error: any) {
+    if (error.name === "TransactionCanceledException") {
+      const reasons = error.CancellationReasons || [];
 
-      for (let i = 0; i < reasons.length; i++) {
-        if (reasons[i].Code === "ConditionalCheckFailed") {
-          // 1. Check if it was the Order Status check (index 0)
-          if (i === 0) {
-            logger.warn({ orderId }, "Order already processed");
-            return { success: true }; // Idempotent success
-          }
+      // Check for Idempotency first (Order status failed)
+      if (reasons[0]?.Code === "ConditionalCheckFailed") {
+        logger.warn({ orderId }, "Order already processed");
+        return { success: true };
+      }
 
-          // 2. Otherwise, it was an Inventory check failure
-          // (No 'else' needed here because the previous block returns)
-          logger.error({ orderId }, "Inventory check failed, voiding payment");
+      // Check for Inventory Failure
+      // Since we build the array dynamically, we look for any failure > 0
+      const inventoryFailed = reasons.some(
+        (r: any, index: number) =>
+          index > 0 && r.Code === "ConditionalCheckFailed",
+      );
 
-          try {
-            await cancelPaymentIntent({
-              paymentIntentId,
-              stripeApiKey,
-              cancellationReason: "abandoned",
-            });
-
-            // Update order to CANCELLED
-            await dynamoClient.send(
-              new UpdateItemCommand({
-                TableName: genericConfig.StoreCartsOrdersTableName,
-                Key: marshall({ orderId, lineItemId: "ORDER" }),
-                UpdateExpression:
-                  "SET #status = :cancelled, cancelledAt = :now",
-                ExpressionAttributeNames: { "#status": "status" },
-                ExpressionAttributeValues: marshall({
-                  ":cancelled": "CANCELLED",
-                  ":now": now,
-                }),
+      if (inventoryFailed) {
+        logger.error(
+          { orderId },
+          "Inventory check failed (OOS), voiding payment",
+        );
+        try {
+          await cancelPaymentIntent({
+            paymentIntentId,
+            stripeApiKey,
+            cancellationReason: "abandoned",
+          });
+          await dynamoClient.send(
+            new UpdateItemCommand({
+              TableName: genericConfig.StoreCartsOrdersTableName,
+              Key: marshall({ orderId, lineItemId: "ORDER" }),
+              UpdateExpression: "SET #status = :cancelled, cancelledAt = :now",
+              ExpressionAttributeNames: { "#status": "status" },
+              ExpressionAttributeValues: marshall({
+                ":cancelled": "CANCELLED",
+                ":now": now,
               }),
-            );
-          } catch (cancelError) {
-            logger.error(
-              { cancelError, orderId, paymentIntentId },
-              "Failed to cancel payment intent",
-            );
-          }
-
-          return { success: false, error: "Insufficient inventory" };
+            }),
+          );
+        } catch (e) {
+          logger.error({ e, orderId }, "Failed to refund/cancel after OOS");
         }
+        return { success: false, error: "Insufficient inventory" };
       }
     }
     throw error;
   }
 
-  // 3. Capture the payment intent
+  // 5. Capture Payment
   try {
     await capturePaymentIntent({ paymentIntentId, stripeApiKey });
-    logger.info({ orderId, paymentIntentId }, "Payment captured successfully");
-  } catch (captureError) {
-    logger.error(
-      { captureError, orderId, paymentIntentId },
-      "Failed to capture payment - may need manual intervention",
-    );
-    // Don't throw - the order is already marked as ACTIVE
-    // This should be rare and would need manual reconciliation
+  } catch (e) {
+    logger.error({ e, orderId }, "Manual capture required");
   }
 
-  logger.info(
-    { orderId, paymentIntentId },
-    "Successfully processed store payment",
-  );
   return { success: true };
 }
 
