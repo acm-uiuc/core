@@ -13,7 +13,7 @@
     "prettier:write": "prettier --write *.ts **/*.ts"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.138"
+    "@types/aws-lambda": "^8.10.160"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.967.0",
