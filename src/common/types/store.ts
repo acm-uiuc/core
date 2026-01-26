@@ -1,4 +1,3 @@
-import { FIRST_VALID_EPOCH_TS } from "common/constants.js";
 import * as z from "zod/v4";
 
 // ============ Constants ============
@@ -49,8 +48,8 @@ export const productSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   imageUrl: z.url().optional(),
-  openAt: z.number().min(FIRST_VALID_EPOCH_TS).int().optional(), // Unix timestamp when sales open
-  closeAt: z.number().min(FIRST_VALID_EPOCH_TS).int().optional(), // Unix timestamp when sales close
+  openAt: z.number().min(0).int().optional(), // Unix timestamp when sales open
+  closeAt: z.number().min(0).int().optional(), // Unix timestamp when sales close
   stripeProductId: z.string().optional(), // Stripe product ID
   limitConfiguration: limitConfigurationSchema.optional(),
   verifiedIdentityRequired: z.boolean().default(true)
