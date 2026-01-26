@@ -430,24 +430,13 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         throw new ValidationError({ message: "Could not get raw body." });
       }
 
-      const secretApiConfig =
-        (await getSecretValue(
-          fastify.secretsManagerClient,
-          genericConfig.ConfigSecretName,
-        )) || {};
-
       try {
         const sig = request.headers["stripe-signature"];
         if (!sig || typeof sig !== "string") {
           throw new Error("Missing or invalid Stripe signature");
         }
-        if (!secretApiConfig) {
-          throw new InternalServerError({
-            message: "Could not connect to Stripe.",
-          });
-        }
         // Use the store-specific webhook secret
-        const webhookSecret = secretApiConfig.stripe_endpoint_secret;
+        const webhookSecret = fastify.secretConfig.store_stripe_endpoint_secret;
         event = stripe.webhooks.constructEvent(
           request.rawBody,
           sig,

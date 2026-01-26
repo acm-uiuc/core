@@ -138,6 +138,7 @@ const environmentConfig: EnvironmentConfigType = {
       "/infra-core-api/github_private_key",
       "/infra-core-api/turnstile_secret_key",
       "/infra-core-api/listmonk_api_token",
+      "/infra-core-api/store_stripe_endpoint_secret",
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
@@ -223,6 +224,7 @@ export type SecretConfig = {
   jwt_key?: string;
   turnstile_secret_key: string;
   listmonk_api_token: string;
+  store_stripe_endpoint_secret: string;
 };
 
 const roleArns = {

@@ -199,6 +199,7 @@ const ssmParameters: Record<string, string> = {
   "/infra-core-api/github_private_key": "123",
   "/infra-core-api/turnstile_secret_key": "1x0000000000000000000000000000000AA",
   "/infra-core-api/listmonk_api_token": "abcdef",
+  "/infra-core-api/store_stripe_endpoint_secret": "whsec_abcd123",
 };
 
 ssmMock.on(GetParameterCommand).callsFake((command) => {
