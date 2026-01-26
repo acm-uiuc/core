@@ -17,7 +17,7 @@
     "@types/node": "^25.0.10"
   },
   "dependencies": {
-    "@acm-uiuc/js-shared": "^3.3.1",
-    "@aws-sdk/client-dynamodb": "^3.967.0"
+    "@acm-uiuc/js-shared": "^3.4.0",
+    "@aws-sdk/client-dynamodb": "^3.975.0"
   }
 }
