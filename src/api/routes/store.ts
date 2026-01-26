@@ -492,7 +492,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             userId,
             paymentIntentId,
             dynamoClient: fastify.dynamoClient,
-            stripeApiKey: secretApiConfig.stripe_secret_key as string,
+            stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
             logger: request.log,
           });
 
