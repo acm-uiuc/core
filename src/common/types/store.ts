@@ -60,6 +60,10 @@ export const productWithVariantsSchema = productSchema.extend({
   variants: z.array(variantSchema.omit({ productId: true })),
 });
 
+export const productWithVariantsPublicCountSchema = productSchema.extend({
+  variants: z.array(variantSchema.omit({ productId: true, soldCount: true, memberPriceId: true, nonmemberPriceId: true })),
+}).omit({ stripeProductId: true });
+
 export type ProductWithVariants = z.infer<typeof productWithVariantsSchema>;
 
 // ============ Line Item Schema (DynamoDB item) ============
@@ -128,6 +132,9 @@ export type CreateCheckoutResponse = z.infer<typeof createCheckoutResponseSchema
 // List Products Response
 export const listProductsResponseSchema = z.object({
   products: z.array(productWithVariantsSchema),
+});
+export const listProductsPublicResponseSchema = z.object({
+  products: z.array(productWithVariantsPublicCountSchema),
 });
 
 export type ListProductsResponse = z.infer<typeof listProductsResponseSchema>;

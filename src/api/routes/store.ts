@@ -19,22 +19,21 @@ import {
   getProduct,
   createStoreCheckout,
   getOrder,
-  listOrdersByUser,
-  listAllOrders,
   processStorePaymentSuccess,
   processStorePaymentFailure,
   createProduct,
+  listProductOrders,
 } from "api/functions/store.js";
 import {
   listProductsResponseSchema,
-  getProductResponseSchema,
   createCheckoutRequestSchema,
   createCheckoutResponseSchema,
   getOrderResponseSchema,
   listOrdersResponseSchema,
   orderStatusEnum,
-  productWithVariantsSchema,
   createProductRequestSchema,
+  listProductsPublicResponseSchema,
+  productWithVariantsPublicCountSchema,
 } from "common/types/store.js";
 import { assertAuthenticated } from "api/authenticated.js";
 
@@ -66,14 +65,14 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             description: "List of products.",
             content: {
               "application/json": {
-                schema: listProductsResponseSchema,
+                schema: listProductsPublicResponseSchema,
               },
             },
           },
         },
       }),
     },
-    async (request, reply) => {
+    async (_request, reply) => {
       const products = await listProducts({
         dynamoClient: fastify.dynamoClient,
         includeInactive: false,
@@ -96,7 +95,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             description: "Product details.",
             content: {
               "application/json": {
-                schema: getProductResponseSchema,
+                schema: productWithVariantsPublicCountSchema,
               },
             },
           },
@@ -171,108 +170,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
 
-  // Get user's orders
-  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/orders/me",
-    {
-      schema: withTags(["Store"], {
-        summary: "Get your orders.",
-        headers: z.object({
-          "x-uiuc-token": z.jwt().min(1).meta({
-            description:
-              "An access token for the user in the UIUC Entra ID tenant.",
-          }),
-        }),
-        response: {
-          200: {
-            description: "List of your orders.",
-            content: {
-              "application/json": {
-                schema: listOrdersResponseSchema,
-              },
-            },
-          },
-        },
-      }),
-    },
-    async (request, reply) => {
-      const accessToken = request.headers["x-uiuc-token"];
-      const { userPrincipalName } = await verifyUiucAccessToken({
-        accessToken,
-        logger: request.log,
-      });
-
-      const orders = await listOrdersByUser({
-        userId: userPrincipalName,
-        dynamoClient: fastify.dynamoClient,
-        logger: request.log,
-      });
-
-      return reply.send({ orders });
-    },
-  );
-
-  // Get a specific order
-  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/orders/:orderId",
-    {
-      schema: withTags(["Store"], {
-        summary: "Get details of a specific order.",
-        headers: z.object({
-          "x-uiuc-token": z.jwt().min(1).meta({
-            description:
-              "An access token for the user in the UIUC Entra ID tenant.",
-          }),
-        }),
-        params: z.object({
-          orderId: z.string().min(1),
-        }),
-        response: {
-          200: {
-            description: "Order details.",
-            content: {
-              "application/json": {
-                schema: getOrderResponseSchema,
-              },
-            },
-          },
-        },
-      }),
-    },
-    async (request, reply) => {
-      const accessToken = request.headers["x-uiuc-token"];
-      const { userPrincipalName } = await verifyUiucAccessToken({
-        accessToken,
-        logger: request.log,
-      });
-
-      const order = await getOrder({
-        orderId: request.params.orderId,
-        dynamoClient: fastify.dynamoClient,
-      });
-
-      // Verify user owns this order (unless they have admin access)
-      if (order.userId !== userPrincipalName) {
-        // Check if user has admin role to bypass ownership check
-        try {
-          await fastify.authorize(
-            request,
-            {} as any, // reply not needed for role check
-            [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
-            false,
-          );
-        } catch {
-          // User doesn't have admin access, pretend order doesn't exist
-          throw new ValidationError({ message: "Order not found." });
-        }
-      }
-
-      return reply.send(order);
-    },
-  );
-
-  // ============ Admin Routes ============
-
   // List all products (including inactive) - Admin only
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/admin/products",
@@ -345,15 +242,17 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
   // Get all orders (admin) with optional filters
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/admin/orders",
+    "/admin/orders/:productId",
     {
       schema: withRoles(
         [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
         withTags(["Store"], {
-          summary: "List all orders for management.",
+          summary: "List all orders for a given product.",
           querystring: z.object({
             status: orderStatusEnum.optional(),
-            limit: z.coerce.number().int().min(1).max(100).optional(),
+          }),
+          params: z.object({
+            productId: z.string().min(1),
           }),
           response: {
             200: {
@@ -370,10 +269,10 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
-      const orders = await listAllOrders({
+      const orders = await listProductOrders({
         dynamoClient: fastify.dynamoClient,
         status: request.query.status,
-        limit: request.query.limit,
+        productId: request.params.productId,
       });
       return reply.send({ orders });
     }),
@@ -381,7 +280,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
   // Get order by ID (admin)
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/admin/orders/:orderId",
+    "/admin/order/:orderId",
     {
       schema: withRoles(
         [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],

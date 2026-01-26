@@ -2,6 +2,7 @@ import {
   DynamoDBClient,
   GetItemCommand,
   QueryCommand,
+  QueryCommandInput,
   ScanCommand,
   ScanInput,
   TransactWriteItemsCommand,
@@ -506,19 +507,6 @@ export async function createStoreCheckout({
     });
   }
 
-  // Add audit log
-  const auditLog = buildAuditLogTransactPut({
-    entry: {
-      module: Modules.STORE,
-      actor: userId,
-      target: orderId,
-      message: `Created checkout session with ${items.length} item(s)`,
-    },
-  });
-  if (auditLog) {
-    transactItems!.push(auditLog);
-  }
-
   try {
     await retryDynamoTransactionWithBackoff(
       () =>
@@ -989,23 +977,23 @@ export async function listOrdersByUser({
   dynamoClient: DynamoDBClient;
   logger: ValidLoggers;
 }): Promise<Order[]> {
-  // Note: This uses a Scan with filter which is inefficient.
-  // In production, add a GSI on userId for better performance.
-  // For now, this works for low volume.
   const response = await dynamoClient.send(
-    new ScanCommand({
+    new QueryCommand({
       TableName: genericConfig.StoreCartsOrdersTableName,
-      FilterExpression: "userId = :uid AND lineItemId = :orderMarker",
+      FilterExpression: "lineItemId = :orderMarker",
+      IndexName: "UserIdIndex",
+      KeyConditionExpression: "userId = :uid",
       ExpressionAttributeValues: marshall({
         ":uid": userId,
         ":orderMarker": "ORDER",
       }),
     }),
   );
-
   if (!response.Items) {
+    logger.debug({ userId }, "Found 0 store orders.");
     return [];
   }
+  logger.debug({ userId }, `Found ${response.Items.length} store orders.`);
 
   return response.Items.map((i) => unmarshall(i)).map((i) => ({
     orderId: i.orderId as string,
@@ -1020,34 +1008,37 @@ export async function listOrdersByUser({
   }));
 }
 
-export async function listAllOrders({
+export async function listProductOrders({
   dynamoClient,
   status,
-  limit,
+  productId,
 }: {
   dynamoClient: DynamoDBClient;
   status?: Order["status"];
-  limit?: number;
+  productId: string;
 }): Promise<Order[]> {
-  const scanParams: ScanInput = {
+  const queryParams: QueryCommandInput = {
     TableName: genericConfig.StoreCartsOrdersTableName,
     FilterExpression: "lineItemId = :orderMarker",
+    KeyConditionExpression: "productId = :productId",
+    IndexName: "ProductIdIndex",
     ExpressionAttributeValues: marshall({
       ":orderMarker": "ORDER",
+      ":productId": productId,
     }),
-    Limit: limit,
   };
 
   if (status) {
-    scanParams.FilterExpression += " AND #status = :status";
-    scanParams.ExpressionAttributeNames = { "#status": "status" };
-    scanParams.ExpressionAttributeValues = marshall({
+    queryParams.FilterExpression += " AND #status = :status";
+    queryParams.ExpressionAttributeNames = { "#status": "status" };
+    queryParams.ExpressionAttributeValues = marshall({
       ":orderMarker": "ORDER",
       ":status": status,
+      ":productId": productId,
     });
   }
 
-  const response = await dynamoClient.send(new ScanCommand(scanParams));
+  const response = await dynamoClient.send(new QueryCommand(queryParams));
 
   if (!response.Items) {
     return [];

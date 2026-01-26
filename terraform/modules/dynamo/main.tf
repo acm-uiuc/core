@@ -572,6 +572,10 @@ resource "aws_dynamodb_table" "store_carts" {
     type = "S"
   }
   attribute {
+    name = "productId"
+    type = "S"
+  }
+  attribute {
     name = "itemId"
     type = "S"
   }
@@ -580,10 +584,24 @@ resource "aws_dynamodb_table" "store_carts" {
     name = "createdAt"
     type = "N"
   }
+  attribute {
+    name = "userId"
+    type = "S"
+  }
   global_secondary_index {
     name            = "ItemIdIndex"
     hash_key        = "itemId"
     range_key       = "createdAt"
+    projection_type = "ALL"
+  }
+  global_secondary_index {
+    name            = "UserIdIndex"
+    hash_key        = "userId"
+    projection_type = "ALL"
+  }
+  global_secondary_index {
+    name            = "ProductId"
+    hash_key        = "userId"
     projection_type = "ALL"
   }
   stream_enabled   = true
