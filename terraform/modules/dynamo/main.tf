@@ -534,7 +534,7 @@ resource "aws_dynamodb_table" "store_carts_orders" {
 
   attribute {
     name = "createdAt"
-    type = "S"
+    type = "N"
   }
   global_secondary_index {
     name            = "ItemIdIndex"
