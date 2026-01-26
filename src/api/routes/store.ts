@@ -20,7 +20,6 @@ import {
   createStoreCheckout,
   getOrder,
   processStorePaymentSuccess,
-  processStorePaymentFailure,
   createProduct,
   listProductOrders,
 } from "api/functions/store.js";
@@ -51,8 +50,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     duration: 60,
     rateLimitIdentifier: "store",
   });
-
-  // ============ Public Routes ============
 
   // List all available products
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
@@ -110,8 +107,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       return reply.send(product);
     },
   );
-
-  // ============ Authenticated User Routes ============
 
   // Create checkout session
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
@@ -200,6 +195,8 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       return reply.send({ products });
     }),
   );
+
+  // Create a product - Admin only
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/admin/products",
     {
@@ -235,6 +232,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         dynamoClient: fastify.dynamoClient,
         logger: request.log,
         stripeApiKey: fastify.secretConfig.stripe_secret_key,
+        actor: request.username,
       });
 
       return reply.status(201).send({
@@ -389,7 +387,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             "Processing store payment success",
           );
 
-          const result = await processStorePaymentSuccess({
+          await processStorePaymentSuccess({
             orderId,
             userId,
             paymentIntentId,
@@ -399,48 +397,10 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           });
 
           return reply.status(200).send({
-            handled: result.success,
+            handled: true,
             requestId: request.id,
-            error: result.error,
           });
         }
-
-        case "checkout.session.expired":
-        case "checkout.session.async_payment_failed": {
-          const session = event.data.object as Stripe.Checkout.Session;
-          const metadata = session.metadata;
-
-          // Only process store checkouts
-          if (metadata?.initiator !== "acm-store") {
-            return reply
-              .status(200)
-              .send({ handled: false, requestId: request.id });
-          }
-
-          const orderId = metadata.orderId;
-          const userId = metadata.userId;
-          const paymentIntentId = session.payment_intent?.toString() || "";
-
-          if (orderId && userId) {
-            request.log.info(
-              { orderId, userId, eventType: event.type },
-              "Processing store payment failure/expiry",
-            );
-
-            await processStorePaymentFailure({
-              orderId,
-              userId,
-              paymentIntentId,
-              dynamoClient: fastify.dynamoClient,
-              logger: request.log,
-            });
-          }
-
-          return reply
-            .status(200)
-            .send({ handled: true, requestId: request.id });
-        }
-
         default:
           request.log.info(
             { eventType: event.type },

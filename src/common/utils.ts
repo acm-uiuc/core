@@ -76,9 +76,10 @@ export const getAllUserEmails = (username?: string) => {
  * @returns The netId in lowercase
  */
 export function getNetIdFromEmail(email: string): string {
-  if (!email.endsWith("@illinois.edu") && !email.endsWith("@acm.illinois.edu")) {
+  const normalizedEmail = email.toLowerCase();
+  if (!normalizedEmail.endsWith("@illinois.edu") && !normalizedEmail.endsWith("@acm.illinois.edu")) {
     throw new ValidationError({ message: "Email cannot be converted to NetID by simple replacment." })
   }
-  const [netId] = email.split("@");
+  const [netId] = normalizedEmail.split("@");
   return netId.toLowerCase();
 }

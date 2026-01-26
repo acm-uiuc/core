@@ -6,6 +6,7 @@ export const DEFAULT_VARIANT_ID = "DEFAULT";
 // ============ Enums ============
 export const orderStatusEnum = z.enum([
   "PENDING",    // Cart created, payment not yet confirmed
+  "CAPTURING",  // Waiting to capture payment
   "ACTIVE",     // Payment confirmed, order is active
   "REFUNDED",   // Order has been fully refunded
   "CANCELLED",  // Order was cancelled (payment voided or failed)

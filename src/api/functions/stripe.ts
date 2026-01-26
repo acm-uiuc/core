@@ -346,12 +346,16 @@ export const createStripeCustomer = async ({
 export const capturePaymentIntent = async ({
   paymentIntentId,
   stripeApiKey,
+  idempotencyKey,
 }: {
   paymentIntentId: string;
   stripeApiKey: string;
+  idempotencyKey: string;
 }): Promise<Stripe.PaymentIntent> => {
   const stripe = new Stripe(stripeApiKey);
-  return await stripe.paymentIntents.capture(paymentIntentId);
+  return await stripe.paymentIntents.capture(paymentIntentId, {
+    idempotencyKey,
+  });
 };
 
 /**
@@ -361,13 +365,39 @@ export const cancelPaymentIntent = async ({
   paymentIntentId,
   stripeApiKey,
   cancellationReason,
+  idempotencyKey,
 }: {
+  idempotencyKey: string;
   paymentIntentId: string;
   stripeApiKey: string;
   cancellationReason?: Stripe.PaymentIntentCancelParams.CancellationReason;
 }): Promise<Stripe.PaymentIntent> => {
   const stripe = new Stripe(stripeApiKey);
-  return await stripe.paymentIntents.cancel(paymentIntentId, {
-    cancellation_reason: cancellationReason,
-  });
+  return await stripe.paymentIntents.cancel(
+    paymentIntentId,
+    {
+      cancellation_reason: cancellationReason,
+    },
+    { idempotencyKey },
+  );
+};
+
+export const shouldRetryStripeError = (error: any): boolean => {
+  if (error.type === "StripeConnectionError") {
+    return true;
+  }
+
+  if (error.type === "StripeRateLimitError") {
+    return true;
+  }
+
+  if (error.statusCode && error.statusCode >= 500) {
+    return true;
+  }
+
+  if (error.statusCode === 409) {
+    return true;
+  }
+
+  return false;
 };
