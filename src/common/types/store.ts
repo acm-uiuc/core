@@ -165,7 +165,7 @@ export type GetOrderResponse = z.infer<typeof getOrderResponseSchema>;
 export const storeWebhookMetadataSchema = z.object({
   initiator: z.literal("acm-store"),
   orderId: z.string().min(1),
-  userId: z.string().email(),
+  userId: z.email(),
 });
 
 export type StoreWebhookMetadata = z.infer<typeof storeWebhookMetadataSchema>;
