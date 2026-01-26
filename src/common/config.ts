@@ -232,6 +232,7 @@ const roleArns = {
 };
 
 export const EVENT_CACHED_DURATION = 120;
+export const STORE_CACHED_DURATION = 30;
 export const STALE_IF_ERROR_CACHED_TIME = 86400; // 1 day
 
 type NotificationRecipientsType = {

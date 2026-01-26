@@ -3,13 +3,23 @@ import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import rawbody from "fastify-raw-body";
 import stripe, { Stripe } from "stripe";
 import * as z from "zod/v4";
-import { withRoles, withTags, withTurnstile } from "api/components/index.js";
+import {
+  ts,
+  withRoles,
+  withTags,
+  withTurnstile,
+} from "api/components/index.js";
 import { AppRoles } from "common/roles.js";
-import { genericConfig } from "common/config.js";
+import {
+  genericConfig,
+  STALE_IF_ERROR_CACHED_TIME,
+  STORE_CACHED_DURATION,
+} from "common/config.js";
 import { getSecretValue } from "api/plugins/auth.js";
 import {
   BaseError,
   InternalServerError,
+  UnauthenticatedError,
   ValidationError,
 } from "common/errors/index.js";
 import { verifyUiucAccessToken } from "api/functions/uin.js";
@@ -36,6 +46,8 @@ import {
 } from "common/types/store.js";
 import { assertAuthenticated } from "api/authenticated.js";
 
+export const STORE_CLIENT_HTTP_CACHE_POLICY = `public, max-age=${STORE_CACHED_DURATION}, stale-while-revalidate=${STORE_CACHED_DURATION * 2}, stale-if-error=${STALE_IF_ERROR_CACHED_TIME}`;
+
 const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   // Register raw body plugin for webhook signature verification
   await fastify.register(rawbody, {
@@ -56,6 +68,9 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/products",
     {
       schema: withTags(["Store"], {
+        querystring: z.object({
+          ts,
+        }),
         summary: "List all available products in the store.",
         response: {
           200: {
@@ -69,7 +84,19 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         },
       }),
     },
-    async (_request, reply) => {
+    async (request, reply) => {
+      const ts = request.query?.ts;
+      if (ts) {
+        try {
+          await fastify.authorize(request, reply, [], false);
+        } catch {
+          throw new UnauthenticatedError({
+            message: "You must be authenticated to specify a staleness bound.",
+          });
+        }
+      } else {
+        reply.header("Cache-Control", STORE_CLIENT_HTTP_CACHE_POLICY);
+      }
       const products = await listProducts({
         dynamoClient: fastify.dynamoClient,
         includeInactive: false,
@@ -84,6 +111,9 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     {
       schema: withTags(["Store"], {
         summary: "Get details of a specific product.",
+        querystring: z.object({
+          ts,
+        }),
         params: z.object({
           productId: z.string().min(1),
         }),
@@ -100,11 +130,25 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }),
     },
     async (request, reply) => {
+      const ts = request.query?.ts;
+      if (ts) {
+        try {
+          await fastify.authorize(request, reply, [], false);
+        } catch {
+          throw new UnauthenticatedError({
+            message: "You must be authenticated to specify a staleness bound.",
+          });
+        }
+      } else {
+        reply.header("Cache-Control", STORE_CLIENT_HTTP_CACHE_POLICY);
+      }
       const product = await getProduct({
         productId: request.params.productId,
         dynamoClient: fastify.dynamoClient,
       });
-      return reply.send(product);
+      return reply
+        .header("Cache-Control", STORE_CLIENT_HTTP_CACHE_POLICY)
+        .send(product);
     },
   );
 
