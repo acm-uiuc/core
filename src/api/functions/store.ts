@@ -779,11 +779,11 @@ export async function processStorePaymentSuccess({
           UpdateExpression:
             "SET quantity = if_not_exists(quantity, :zero) + :qty",
           ConditionExpression:
-            "attribute_not_exists(quantity) OR quantity + :qty <= :max",
+            "(attribute_not_exists(quantity) OR quantity <= :maxMinusQty)",
           ExpressionAttributeValues: marshall({
             ":qty": quantity,
             ":zero": 0,
-            ":max": limitConfig.maxQuantity,
+            ":maxMinusQty": limitConfig.maxQuantity - quantity,
           }),
         },
       });
