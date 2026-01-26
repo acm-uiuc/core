@@ -1,3 +1,4 @@
+import { FIRST_VALID_EPOCH_TS } from "common/constants.js";
 import * as z from "zod/v4";
 
 export const rsvpSubmissionBodySchema = z.object({
@@ -65,12 +66,12 @@ export const rsvpConfigSchema = z
           },
         ],
       }),
-    rsvpCloseAt: z.number().int().min(0).meta({
+    rsvpCloseAt: z.number().min(FIRST_VALID_EPOCH_TS).int().min(0).meta({
       description:
         "Epoch timestamp (sec) representing the RSVP deadline. Users cannot RSVP after this time.",
       example: 1705512000,
     }),
-    rsvpOpenAt: z.number().int().min(0).meta({
+    rsvpOpenAt: z.number().min(FIRST_VALID_EPOCH_TS).int().min(0).meta({
       description:
         "Epoch timestamp (sec) representing when RSVPs open for this event.",
       example: 1705512000,
