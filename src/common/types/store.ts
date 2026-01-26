@@ -37,7 +37,6 @@ export const variantSchema = z.object({
   inventoryCount: z.number().int().min(0).nullable().optional(), // null = unlimited
   soldCount: z.number().int().min(0).default(0),
   exchangesAllowed: z.boolean().default(true),
-  limitConfiguration: limitConfigurationSchema.optional(),
 });
 
 export type Variant = z.infer<typeof variantSchema>;
@@ -47,7 +46,7 @@ export const productSchema = z.object({
   productId: z.string().min(1),
   name: z.string().min(1),
   description: z.string().optional(),
-  imageUrl: z.string().url().optional(),
+  imageUrl: z.url().optional(),
   openAt: z.number().int().optional(), // Unix timestamp when sales open
   closeAt: z.number().int().optional(), // Unix timestamp when sales close
   stripeProductId: z.string().optional(), // Stripe product ID
@@ -84,7 +83,6 @@ export const orderSchema = z.object({
   userId: z.string().email(), // User's email
   status: orderStatusEnum,
   stripePaymentIntentId: z.string().optional(),
-  stripeCheckoutSessionId: z.string().optional(),
   createdAt: z.number().int(),
   confirmedAt: z.number().int().optional(),
   cancelledAt: z.number().int().optional(),

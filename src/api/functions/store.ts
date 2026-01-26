@@ -427,7 +427,7 @@ export async function createStoreCheckout({
 }: CreateStoreCheckoutInputs): Promise<CreateStoreCheckoutOutputs> {
   const orderId = `ord_${randomUUID()}`;
   const now = Math.floor(Date.now() / 1000);
-  const expiresAt = now + 24 * 60 * 60; // 24 hours
+  const expiresAt = now + 24 * 60 * 60; // 24 hours to complete checkout
 
   // 1. Validate all items are sellable and get price IDs
   const lineItems: Array<{
@@ -498,6 +498,7 @@ export async function createStoreCheckout({
             priceId: li.priceId,
             createdAt: now,
             itemId: `${li.productId}#${li.variantId}`, // For GSI
+            expiresAt,
           },
           { removeUndefinedValues: true },
         ),
@@ -578,16 +579,6 @@ export async function createStoreCheckout({
     });
   }
 
-  // 5. Update order with checkout session URL
-  await dynamoClient.send(
-    new UpdateItemCommand({
-      TableName: genericConfig.StoreCartsOrdersTableName,
-      Key: marshall({ orderId, lineItemId: "ORDER" }),
-      UpdateExpression: "SET stripeCheckoutSessionId = :sessionUrl",
-      ExpressionAttributeValues: marshall({ ":sessionUrl": checkoutUrl }),
-    }),
-  );
-
   return {
     checkoutUrl,
     orderId,
@@ -645,13 +636,13 @@ export async function processStorePaymentSuccess({
   // 2. Build Transaction
   const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [];
 
-  // A. Update Order Status
+  // A. Update Order Status & Remove expiresAt
   transactItems.push({
     Update: {
       TableName: genericConfig.StoreCartsOrdersTableName,
       Key: marshall({ orderId, lineItemId: "ORDER" }),
       UpdateExpression:
-        "SET #status = :newStatus, confirmedAt = :now, stripePaymentIntentId = :piId",
+        "SET #status = :newStatus, confirmedAt = :now, stripePaymentIntentId = :piId REMOVE expiresAt",
       ConditionExpression: "#status = :pendingStatus",
       ExpressionAttributeNames: { "#status": "status" },
       ExpressionAttributeValues: marshall({
@@ -663,10 +654,18 @@ export async function processStorePaymentSuccess({
     },
   });
 
-  // B. Process Inventory
-  // We MUST fetch current variant data to know if it is "Limited" or "Unlimited"
-  // so we can construct the correct DynamoDB update expression.
+  // B. Process Inventory & Remove expiresAt from Line Items
   for (const lineItem of lineItems) {
+    // 1. Add update to remove expiresAt from the line item record
+    transactItems.push({
+      Update: {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        Key: marshall({ orderId, lineItemId: lineItem.lineItemId }),
+        UpdateExpression: "REMOVE expiresAt",
+      },
+    });
+
+    // 2. Fetch Product/Variant Data for Inventory
     const { productId, variantId, quantity } = lineItem;
 
     const [productData, variantData] = await Promise.all([
@@ -838,33 +837,91 @@ export async function processStorePaymentFailure({
 }: Omit<ProcessStoreWebhookInputs, "stripeApiKey">): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
 
-  try {
-    // Update order status to CANCELLED
-    await dynamoClient.send(
-      new UpdateItemCommand({
-        TableName: genericConfig.StoreCartsOrdersTableName,
-        Key: marshall({ orderId, lineItemId: "ORDER" }),
-        UpdateExpression: "SET #status = :cancelled, cancelledAt = :now",
-        ConditionExpression: "#status = :pending",
-        ExpressionAttributeNames: { "#status": "status" },
-        ExpressionAttributeValues: marshall({
-          ":cancelled": "CANCELLED",
-          ":pending": "PENDING",
-          ":now": now,
-        }),
+  // 1. Fetch order items (Order Meta + Line Items) to handle expiresAt removal
+  const orderResponse = await dynamoClient.send(
+    new QueryCommand({
+      TableName: genericConfig.StoreCartsOrdersTableName,
+      KeyConditionExpression: "orderId = :oid",
+      ExpressionAttributeValues: marshall({ ":oid": orderId }),
+    }),
+  );
+
+  if (!orderResponse.Items || orderResponse.Items.length === 0) {
+    logger.warn(
+      { orderId },
+      "Order not found processing payment failure webhook",
+    );
+    return;
+  }
+
+  const items = orderResponse.Items.map((i) => unmarshall(i));
+  const lineItems = items.filter((i) => i.lineItemId !== "ORDER");
+
+  // 2. Build Transaction
+  const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [];
+
+  // Update Order Status: Set CANCELLED & Remove expiresAt
+  transactItems.push({
+    Update: {
+      TableName: genericConfig.StoreCartsOrdersTableName,
+      Key: marshall({ orderId, lineItemId: "ORDER" }),
+      UpdateExpression:
+        "SET #status = :cancelled, cancelledAt = :now REMOVE expiresAt",
+      ConditionExpression: "#status = :pending",
+      ExpressionAttributeNames: { "#status": "status" },
+      ExpressionAttributeValues: marshall({
+        ":cancelled": "CANCELLED",
+        ":pending": "PENDING",
+        ":now": now,
       }),
+    },
+  });
+
+  // Remove expiresAt from all Line Items
+  for (const lineItem of lineItems) {
+    transactItems.push({
+      Update: {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        Key: marshall({ orderId, lineItemId: lineItem.lineItemId }),
+        UpdateExpression: "REMOVE expiresAt",
+      },
+    });
+  }
+
+  // 3. Execute Transaction
+  try {
+    await retryDynamoTransactionWithBackoff(
+      () =>
+        dynamoClient.send(
+          new TransactWriteItemsCommand({ TransactItems: transactItems }),
+        ),
+      logger,
+      "ProcessStorePaymentFailure",
     );
 
     logger.info(
       { orderId, paymentIntentId },
       "Marked order as cancelled due to payment failure",
     );
-  } catch (error) {
-    // If condition check fails, order may already be processed - that's OK
-    logger.info(
-      { orderId, error },
-      "Could not cancel order - may already be processed",
-    );
+  } catch (error: any) {
+    if (error.name === "TransactionCanceledException") {
+      const reasons = error.CancellationReasons || [];
+
+      // Check if Order Status condition failed (first item)
+      if (reasons[0]?.Code === "ConditionalCheckFailed") {
+        logger.info(
+          { orderId, error },
+          "Could not cancel order - may already be processed",
+        );
+        return;
+      }
+    }
+
+    // Log unexpected errors
+    logger.error({ orderId, error }, "Failed to process payment failure");
+    // We do not throw here to avoid endless webhook retries if it's a permanent logic error,
+    // but typically you might want to throw if you expect retries.
+    // Given the original code did not throw on failure, we suppress it here unless desired.
   }
 }
 
@@ -902,9 +959,6 @@ export async function getOrder({
     userId: orderMeta.userId as string,
     status: orderMeta.status as Order["status"],
     stripePaymentIntentId: orderMeta.stripePaymentIntentId as
-      | string
-      | undefined,
-    stripeCheckoutSessionId: orderMeta.stripeCheckoutSessionId as
       | string
       | undefined,
     createdAt: orderMeta.createdAt as number,
@@ -958,7 +1012,6 @@ export async function listOrdersByUser({
     userId: i.userId as string,
     status: i.status as Order["status"],
     stripePaymentIntentId: i.stripePaymentIntentId as string | undefined,
-    stripeCheckoutSessionId: i.stripeCheckoutSessionId as string | undefined,
     createdAt: i.createdAt as number,
     confirmedAt: i.confirmedAt as number | undefined,
     cancelledAt: i.cancelledAt as number | undefined,
@@ -1005,7 +1058,6 @@ export async function listAllOrders({
     userId: i.userId as string,
     status: i.status as Order["status"],
     stripePaymentIntentId: i.stripePaymentIntentId as string | undefined,
-    stripeCheckoutSessionId: i.stripeCheckoutSessionId as string | undefined,
     createdAt: i.createdAt as number,
     confirmedAt: i.confirmedAt as number | undefined,
     cancelledAt: i.cancelledAt as number | undefined,
