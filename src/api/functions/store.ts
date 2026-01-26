@@ -763,7 +763,8 @@ export async function processStorePaymentSuccess({
           Key: marshall({ userId, limitId }),
           UpdateExpression:
             "SET quantity = if_not_exists(quantity, :zero) + :qty",
-          ConditionExpression: "if_not_exists(quantity, :zero) + :qty <= :max",
+          ConditionExpression:
+            "attribute_not_exists(quantity) OR quantity + :qty <= :max",
           ExpressionAttributeValues: marshall({
             ":qty": quantity,
             ":zero": 0,
