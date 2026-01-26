@@ -65,12 +65,12 @@ export const rsvpConfigSchema = z
           },
         ],
       }),
-    rsvpCloseAt: z.number().min(0).int().min(0).meta({
+    rsvpCloseAt: z.number().int().min(0).meta({
       description:
         "Epoch timestamp (sec) representing the RSVP deadline. Users cannot RSVP after this time.",
       example: 1705512000,
     }),
-    rsvpOpenAt: z.number().min(0).int().min(0).meta({
+    rsvpOpenAt: z.number().int().min(0).meta({
       description:
         "Epoch timestamp (sec) representing when RSVPs open for this event.",
       example: 1705512000,

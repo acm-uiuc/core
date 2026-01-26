@@ -48,8 +48,8 @@ export const productSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   imageUrl: z.url().optional(),
-  openAt: z.number().min(0).int().optional(), // Unix timestamp when sales open
-  closeAt: z.number().min(0).int().optional(), // Unix timestamp when sales close
+  openAt: z.number().int().min(0).optional(), // Unix timestamp when sales open
+  closeAt: z.number().int().min(0).optional(), // Unix timestamp when sales close
   stripeProductId: z.string().optional(), // Stripe product ID
   limitConfiguration: limitConfigurationSchema.optional(),
   verifiedIdentityRequired: z.boolean().default(true)
@@ -127,7 +127,7 @@ export type CreateCheckoutRequest = z.infer<typeof createCheckoutRequestSchema>;
 
 // Create Checkout Response
 export const createCheckoutResponseSchema = z.object({
-  checkoutUrl: z.string().url(),
+  checkoutUrl: z.url(),
   orderId: z.string().min(1),
   expiresAt: z.number().int(),
 });
@@ -173,7 +173,7 @@ export type StoreWebhookMetadata = z.infer<typeof storeWebhookMetadataSchema>;
 // ============ Sellability Check Result ============
 export const sellabilityResultSchema = z.object({
   priceId: z.string().min(1),
-  unitPriceCents: z.number().int().min(0),
+  unitPriceCents: z.number().int().min(0).optional(),
   isMemberPrice: z.boolean(),
 });
 

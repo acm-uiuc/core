@@ -146,9 +146,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         productId: request.params.productId,
         dynamoClient: fastify.dynamoClient,
       });
-      return reply
-        .header("Cache-Control", STORE_CLIENT_HTTP_CACHE_POLICY)
-        .send(product);
+      return reply.send(product);
     },
   );
 

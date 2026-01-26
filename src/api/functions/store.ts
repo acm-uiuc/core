@@ -424,7 +424,6 @@ export async function checkItemSellable({
 
   return {
     priceId,
-    unitPriceCents: 0,
     isMemberPrice: isMember,
   };
 }
@@ -797,11 +796,12 @@ export async function processStorePaymentSuccess({
         UpdateExpression:
           "SET quantity = if_not_exists(quantity, :zero) + :qty",
         ConditionExpression:
-          "(attribute_not_exists(quantity) OR quantity <= :maxMinusQty)",
+          "(attribute_not_exists(quantity) AND :qty <= :maxQuantity) OR quantity <= :maxMinusQty",
         ExpressionAttributeValues: marshall({
           ":qty": totalQty,
           ":zero": 0,
           ":maxMinusQty": limitConfig.maxQuantity - totalQty,
+          ":maxQuantity": limitConfig.maxQuantity,
         }),
       },
     });
