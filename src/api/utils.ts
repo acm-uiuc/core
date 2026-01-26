@@ -37,10 +37,10 @@ export async function retryDynamoTransactionWithBackoff<T>(
       const exponentialDelay = BASE_RETRY_DELAY * 2 ** attempt;
       const jitter = Math.random() * exponentialDelay;
       const delay = exponentialDelay + jitter;
-
-      logger.info(
+      logger.warn(
         `${operationName} failed (attempt ${attempt + 1}/${MAX_RETRIES}), retrying in ${Math.round(delay)}ms...`,
       );
+      logger.error(error);
       await sleep(delay);
     }
   }

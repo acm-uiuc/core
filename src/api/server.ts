@@ -59,6 +59,7 @@ import { docsHtml, securitySchemes } from "./docs.js";
 import syncIdentityPlugin from "./routes/syncIdentity.js";
 import { createRedisModule } from "./redis.js";
 import userRoute from "./routes/user.js";
+import storeRoutes from "./routes/store.js";
 import { getSsmParameters } from "./utils.js";
 import { SSMClient } from "@aws-sdk/client-ssm";
 import validateTurnstileTokenPlugin from "./plugins/validateTurnstile.js";
@@ -391,6 +392,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       api.register(ticketsPlugin, { prefix: "/tickets" });
       api.register(linkryRoutes, { prefix: "/linkry" });
       api.register(stripeRoutes, { prefix: "/stripe" });
+      api.register(storeRoutes, { prefix: "/store" });
       api.register(roomRequestRoutes, { prefix: "/roomRequests" });
       api.register(logsPlugin, { prefix: "/logs" });
       api.register(apiKeyRoute, { prefix: "/apiKey" });

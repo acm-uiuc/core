@@ -22,6 +22,7 @@ export type StripeCheckoutSessionCreateParams = {
   metadata?: Record<string, string>;
   allowPromotionCodes: boolean;
   customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
+  captureMethod?: "automatic" | "manual"; // manual = pre-auth only
 };
 
 export type StripeCheckoutSessionCreateWithCustomerParams = {
@@ -34,6 +35,7 @@ export type StripeCheckoutSessionCreateWithCustomerParams = {
   metadata?: Record<string, string>;
   allowPromotionCodes: boolean;
   customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
+  captureMethod?: "automatic" | "manual"; // manual = pre-auth only
 };
 
 /**
@@ -92,6 +94,7 @@ export const createCheckoutSession = async ({
   allowPromotionCodes,
   customFields,
   metadata,
+  captureMethod,
 }: StripeCheckoutSessionCreateParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
@@ -110,6 +113,11 @@ export const createCheckoutSession = async ({
     },
     allow_promotion_codes: allowPromotionCodes,
     custom_fields: customFields,
+    ...(captureMethod && {
+      payment_intent_data: {
+        capture_method: captureMethod,
+      },
+    }),
   };
   const session = await stripe.checkout.sessions.create(payload);
   if (!session.url) {
@@ -130,6 +138,7 @@ export const createCheckoutSessionWithCustomer = async ({
   allowPromotionCodes,
   customFields,
   metadata,
+  captureMethod,
 }: StripeCheckoutSessionCreateWithCustomerParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
@@ -148,6 +157,11 @@ export const createCheckoutSessionWithCustomer = async ({
     },
     allow_promotion_codes: allowPromotionCodes,
     custom_fields: customFields,
+    ...(captureMethod && {
+      payment_intent_data: {
+        capture_method: captureMethod,
+      },
+    }),
   };
   const session = await stripe.checkout.sessions.create(payload);
   if (!session.url) {
@@ -324,4 +338,36 @@ export const createStripeCustomer = async ({
     idempotencyKey ? { idempotencyKey } : undefined,
   );
   return customer.id;
+};
+
+/**
+ * Capture a pre-authorized payment intent
+ */
+export const capturePaymentIntent = async ({
+  paymentIntentId,
+  stripeApiKey,
+}: {
+  paymentIntentId: string;
+  stripeApiKey: string;
+}): Promise<Stripe.PaymentIntent> => {
+  const stripe = new Stripe(stripeApiKey);
+  return await stripe.paymentIntents.capture(paymentIntentId);
+};
+
+/**
+ * Cancel (void) a payment intent that has not been captured
+ */
+export const cancelPaymentIntent = async ({
+  paymentIntentId,
+  stripeApiKey,
+  cancellationReason,
+}: {
+  paymentIntentId: string;
+  stripeApiKey: string;
+  cancellationReason?: Stripe.PaymentIntentCancelParams.CancellationReason;
+}): Promise<Stripe.PaymentIntent> => {
+  const stripe = new Stripe(stripeApiKey);
+  return await stripe.paymentIntents.cancel(paymentIntentId, {
+    cancellation_reason: cancellationReason,
+  });
 };

@@ -3,7 +3,7 @@ import { OrganizationId } from "@acm-uiuc/js-shared";
 /* eslint-disable import/prefer-default-export */
 export const runEnvironments = ["dev", "prod"] as const;
 export type RunEnvironment = (typeof runEnvironments)[number];
-export const META_ROLE_PREFIX = "__metaRole:"
+export const META_ROLE_PREFIX = "__metaRole:";
 
 export enum BaseRoles {
   EVENTS_MANAGER = "manage:events",
@@ -26,6 +26,8 @@ export enum BaseRoles {
   MANAGE_EXTERNAL_MEMBERSHIP_LIST = "manage:externalMembershipList",
   ALL_ORG_MANAGER = "manage:orgDefinitions",
   VIEW_USER_INFO = "view:userInfo",
+  STORE_MANAGER = "manage:store",
+  STORE_FULFILLMENT = "fulfill:store",
 }
 
 export enum MetaRoles {
@@ -35,11 +37,11 @@ export enum MetaRoles {
 export const AppRoles = { ...BaseRoles, ...MetaRoles } as const;
 export type AppRoles = BaseRoles | MetaRoles;
 export const orgRoles = ["LEAD", "MEMBER"] as const;
-export type OrgRole = typeof orgRoles[number];
+export type OrgRole = (typeof orgRoles)[number];
 export type OrgRoleDefinition = {
-  org: OrganizationId,
-  role: OrgRole
-}
+  org: OrganizationId;
+  role: OrgRole;
+};
 
 export const allAppRoles = Object.values(BaseRoles).filter(
   (value) => typeof value === "string",
@@ -63,8 +65,11 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.MANAGE_ORG_API_KEYS]: "Org API Keys Manager",
   [AppRoles.VIEW_INTERNAL_MEMBERSHIP_LIST]: "Internal Membership List Viewer",
   [AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Viewer",
-  [AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST]: "External Membership List Manager",
+  [AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST]:
+    "External Membership List Manager",
   [AppRoles.ALL_ORG_MANAGER]: "Organization Definition Manager",
   [AppRoles.AT_LEAST_ONE_ORG_MANAGER]: "Manager of at least one org",
-  [AppRoles.VIEW_USER_INFO]: "User Information Viewer"
-}
+  [AppRoles.VIEW_USER_INFO]: "User Information Viewer",
+  [AppRoles.STORE_MANAGER]: "Store Manager",
+  [AppRoles.STORE_FULFILLMENT]: "Store Fulfillment",
+};
