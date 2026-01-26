@@ -1,4 +1,5 @@
 import {
+  BatchGetItemCommand,
   DynamoDBClient,
   GetItemCommand,
   QueryCommand,
@@ -530,7 +531,6 @@ export async function createStoreCheckout({
             createdAt: now,
             itemId: `${li.productId}#${li.variantId}`, // For GSI
             expiresAt,
-            userId,
           },
           { removeUndefinedValues: true },
         ),
@@ -882,36 +882,19 @@ export async function processStorePaymentSuccess({
             });
           }
 
-          // Update order to CANCELLED and delete all line items
+          // Update order to CANCELLED
           try {
-            const cancelTransactItems: TransactWriteItemsCommandInput["TransactItems"] =
-              [
-                // Update order status to CANCELLED
-                {
-                  Update: {
-                    TableName: genericConfig.StoreCartsOrdersTableName,
-                    Key: marshall({ orderId, lineItemId: "ORDER" }),
-                    UpdateExpression:
-                      "SET #status = :cancelled, cancelledAt = :now",
-                    ExpressionAttributeNames: { "#status": "status" },
-                    ExpressionAttributeValues: marshall({
-                      ":cancelled": "CANCELLED",
-                      ":now": now,
-                    }),
-                  },
-                },
-                // Delete all line items
-                ...lineItems.map((lineItem) => ({
-                  Delete: {
-                    TableName: genericConfig.StoreCartsOrdersTableName,
-                    Key: marshall({ orderId, lineItemId: lineItem.lineItemId }),
-                  },
-                })),
-              ];
-
             await dynamoClient.send(
-              new TransactWriteItemsCommand({
-                TransactItems: cancelTransactItems,
+              new UpdateItemCommand({
+                TableName: genericConfig.StoreCartsOrdersTableName,
+                Key: marshall({ orderId, lineItemId: "ORDER" }),
+                UpdateExpression:
+                  "SET #status = :cancelled, cancelledAt = :now",
+                ExpressionAttributeNames: { "#status": "status" },
+                ExpressionAttributeValues: marshall({
+                  ":cancelled": "CANCELLED",
+                  ":now": now,
+                }),
               }),
             );
             logger.info(
@@ -1066,53 +1049,14 @@ export async function getOrder({
   };
 }
 
-export async function listOrdersByUser({
-  userId,
-  dynamoClient,
-  logger,
-}: {
-  userId: string;
-  dynamoClient: DynamoDBClient;
-  logger: ValidLoggers;
-}): Promise<Order[]> {
-  const response = await dynamoClient.send(
-    new QueryCommand({
-      TableName: genericConfig.StoreCartsOrdersTableName,
-      FilterExpression: "lineItemId = :orderMarker",
-      IndexName: "UserIdIndex",
-      KeyConditionExpression: "userId = :uid",
-      ExpressionAttributeValues: marshall({
-        ":uid": userId,
-        ":orderMarker": "ORDER",
-      }),
-    }),
-  );
-  if (!response.Items) {
-    logger.debug({ userId }, "Found 0 store orders.");
-    return [];
-  }
-  logger.debug({ userId }, `Found ${response.Items.length} store orders.`);
-
-  return response.Items.map((i) => unmarshall(i)).map((i) => ({
-    orderId: i.orderId as string,
-    userId: i.userId as string,
-    status: i.status as Order["status"],
-    stripePaymentIntentId: i.stripePaymentIntentId as string | undefined,
-    createdAt: i.createdAt as number,
-    confirmedAt: i.confirmedAt as number | undefined,
-    cancelledAt: i.cancelledAt as number | undefined,
-    refundId: i.refundId as string | undefined,
-    expiresAt: i.expiresAt as number | undefined,
-  }));
-}
-
 export async function listProductLineItems({
   dynamoClient,
   productId,
+  logger,
 }: {
   dynamoClient: DynamoDBClient;
-  status?: Order["status"];
   productId: string;
+  logger: ValidLoggers;
 }) {
   const queryParams: QueryCommandInput = {
     TableName: genericConfig.StoreCartsOrdersTableName,
@@ -1125,21 +1069,124 @@ export async function listProductLineItems({
 
   const response = await dynamoClient.send(new QueryCommand(queryParams));
 
-  if (!response.Items) {
+  if (!response.Items || response.Items.length === 0) {
     return [];
   }
-  return response.Items.map((i) => unmarshall(i)).map((i) => ({
-    orderId: i.orderId as string,
-    lineItemId: i.lineItemId as string,
-    createdAt: i.createdAt as number,
-    expiresAt: i.expiresAt as number,
-    itemId: i.itemId as string,
-    priceId: i.priceId as string,
-    productId: i.productId as string,
-    quantity: i.quantity as number,
-    variantId: i.variantId as string,
-    isFulfilled: (i.isFulfilled as boolean) ?? false,
-  }));
+
+  const lineItems = response.Items.map((i) => unmarshall(i));
+
+  // Get unique order IDs to fetch order metadata
+  const uniqueOrderIds = [
+    ...new Set(lineItems.map((li) => li.orderId as string)),
+  ];
+
+  // BatchGetItem has a limit of 100 items per request, so we need to chunk
+  const chunkSize = 100;
+  const chunks: string[][] = [];
+
+  for (let i = 0; i < uniqueOrderIds.length; i += chunkSize) {
+    chunks.push(uniqueOrderIds.slice(i, i + chunkSize));
+  }
+
+  class UnprocessedKeysError extends Error {
+    constructor() {
+      super("BatchGetItem returned unprocessed keys");
+      this.name = "UnprocessedKeysError";
+    }
+  }
+
+  // Process all chunks in parallel
+  const batchResults = await Promise.all(
+    chunks.map(async (chunk) => {
+      const results: {
+        orderId: string;
+        userId: string;
+        status: Order["status"];
+      }[] = [];
+      let keysToFetch = chunk.map((orderId) =>
+        marshall({ orderId, lineItemId: "ORDER" }),
+      );
+
+      await retryWithBackoff(
+        async () => {
+          const batchGetResponse = await dynamoClient.send(
+            new BatchGetItemCommand({
+              RequestItems: {
+                [genericConfig.StoreCartsOrdersTableName]: {
+                  Keys: keysToFetch,
+                  ProjectionExpression: "orderId, userId, #status",
+                  ExpressionAttributeNames: { "#status": "status" },
+                },
+              },
+            }),
+          );
+
+          const orderItems =
+            batchGetResponse.Responses?.[
+              genericConfig.StoreCartsOrdersTableName
+            ] || [];
+
+          for (const item of orderItems) {
+            const unmarshalled = unmarshall(item);
+            results.push({
+              orderId: unmarshalled.orderId as string,
+              userId: unmarshalled.userId as string,
+              status: unmarshalled.status as Order["status"],
+            });
+          }
+
+          const unprocessedKeys =
+            batchGetResponse.UnprocessedKeys?.[
+              genericConfig.StoreCartsOrdersTableName
+            ]?.Keys;
+
+          if (unprocessedKeys && unprocessedKeys.length > 0) {
+            keysToFetch = unprocessedKeys;
+            throw new UnprocessedKeysError();
+          }
+        },
+        {
+          maxRetries: 3,
+          shouldRetry: (error) => error instanceof UnprocessedKeysError,
+          onRetry: logOnRetry("BatchGetOrderMetadata", logger),
+        },
+      );
+
+      return results;
+    }),
+  );
+
+  // Flatten results and build the map
+  const orderMetadataMap = new Map<
+    string,
+    { userId: string; status: Order["status"] }
+  >();
+
+  for (const results of batchResults) {
+    for (const result of results) {
+      orderMetadataMap.set(result.orderId, {
+        userId: result.userId,
+        status: result.status,
+      });
+    }
+  }
+
+  return lineItems.map((i) => {
+    const orderMeta = orderMetadataMap.get(i.orderId as string);
+    return {
+      orderId: i.orderId as string,
+      lineItemId: i.lineItemId as string,
+      createdAt: i.createdAt as number,
+      expiresAt: i.expiresAt as number,
+      priceId: i.priceId as string,
+      productId: i.productId as string,
+      quantity: i.quantity as number,
+      variantId: i.variantId as string,
+      isFulfilled: (i.isFulfilled as boolean) ?? false,
+      userId: orderMeta?.userId as string,
+      status: orderMeta?.status as Order["status"],
+    };
+  });
 }
 
 export type CreateProductInputs = {

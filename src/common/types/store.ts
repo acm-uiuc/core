@@ -52,7 +52,7 @@ export const productSchema = z.object({
   closeAt: z.number().int().min(0).optional(), // Unix timestamp when sales close
   stripeProductId: z.string().optional(), // Stripe product ID
   limitConfiguration: limitConfigurationSchema.optional(),
-  verifiedIdentityRequired: z.boolean().default(true)
+  verifiedIdentityRequired: z.boolean().default(true),
 });
 
 export type Product = z.infer<typeof productSchema>;
@@ -80,7 +80,8 @@ export const lineItemSchema = z.object({
   createdAt: z.number().int(),
   itemId: z.string().optional(), // For GSI: `${productId}#${variantId}`
   isFulfilled: z.boolean(),
-  userId: z.string().min(1),
+  userId: z.string().min(1).optional(),
+  status: orderStatusEnum.optional(),
 });
 
 export type LineItem = z.infer<typeof lineItemSchema>;
