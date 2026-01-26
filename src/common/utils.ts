@@ -1,4 +1,5 @@
 import * as z from "zod/v4";
+import { ValidationError } from "./errors/index.js";
 export function transformCommaSeperatedName(name: string) {
   if (name.includes(",")) {
     try {
@@ -75,6 +76,9 @@ export const getAllUserEmails = (username?: string) => {
  * @returns The netId in lowercase
  */
 export function getNetIdFromEmail(email: string): string {
+  if (!email.endsWith("@illinois.edu") && !email.endsWith("@acm.illinois.edu")) {
+    throw new ValidationError({ message: "Email cannot be converted to NetID by simple replacment." })
+  }
   const [netId] = email.split("@");
   return netId.toLowerCase();
 }

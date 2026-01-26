@@ -45,13 +45,9 @@ import {
   DEFAULT_VARIANT_ID,
 } from "common/types/store.js";
 import Stripe from "stripe";
+import { getNetIdFromEmail } from "common/utils.js";
 
 // ============ Helper Functions ============
-
-export function getNetIdFromEmail(email: string): string {
-  const [netId] = email.split("@");
-  return netId.toLowerCase();
-}
 
 export async function checkUserMembership({
   userId,
@@ -87,7 +83,11 @@ export async function checkUserMembership({
 
   // Execute all checks concurrently using allSettled
   const results = await Promise.allSettled(checks);
-
+  for (const result of results) {
+    if (result.status === "rejected") {
+      logger.warn({ err: result.reason }, "Membership check failed");
+    }
+  }
   // Return true if any check succeeded and returned true
   return results.some(
     (result) => result.status === "fulfilled" && result.value === true,
@@ -148,7 +148,7 @@ export async function getProduct({
       nonmemberPriceId: v.nonmemberPriceId,
       inventoryCount: v.inventoryCount,
       soldCount: v.soldCount || 0,
-      exchangesAllowed: v.exchangesAllowed || false,
+      exchangesAllowed: v.exchangesAllowed ?? false,
       limitConfiguration: v.limitConfiguration,
     })),
   };
@@ -232,7 +232,7 @@ export async function listProducts({
         nonmemberPriceId: v.nonmemberPriceId as string,
         inventoryCount: v.inventoryCount as number | null | undefined,
         soldCount: (v.soldCount as number) || 0,
-        exchangesAllowed: (v.exchangesAllowed as boolean) || false,
+        exchangesAllowed: (v.exchangesAllowed as boolean) ?? false,
         limitConfiguration: v.limitConfiguration as
           | LimitConfiguration
           | undefined,
@@ -431,37 +431,31 @@ export async function createStoreCheckout({
   const expiresAt = now + 24 * 60 * 60; // 24 hours to complete checkout
 
   // 1. Validate all items are sellable and get price IDs
-  const lineItems: Array<{
-    productId: string;
-    variantId: string;
-    quantity: number;
-    priceId: string;
-    isMemberPrice: boolean;
-  }> = [];
-
-  for (const item of items) {
-    const sellableResult = await checkItemSellable({
-      userId,
-      productId: item.productId,
-      variantId: item.variantId,
-      quantity: item.quantity,
-      dynamoClient,
-      redisClient,
-      logger,
-    });
-
-    if (!sellableResult) {
-      throw new ItemNotAvailableError({
-        message: `Item ${item.productId}/${item.variantId} is not available for purchase.`,
+  const lineItems = await Promise.all(
+    items.map(async (item) => {
+      const sellableResult = await checkItemSellable({
+        userId,
+        productId: item.productId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        dynamoClient,
+        redisClient,
+        logger,
       });
-    }
 
-    lineItems.push({
-      ...item,
-      priceId: sellableResult.priceId,
-      isMemberPrice: sellableResult.isMemberPrice,
-    });
-  }
+      if (!sellableResult) {
+        throw new ItemNotAvailableError({
+          message: `Item ${item.productId}/${item.variantId} is not available for purchase.`,
+        });
+      }
+
+      return {
+        ...item,
+        priceId: sellableResult.priceId,
+        isMemberPrice: sellableResult.isMemberPrice,
+      };
+    }),
+  );
 
   // 2. Create order record with PENDING status
   const orderItem = {
@@ -727,9 +721,15 @@ export async function processStorePaymentSuccess({
         Update: {
           TableName: genericConfig.StoreLimitsTableName,
           Key: marshall({ userId, limitId }),
+          // Update limit quantity with atomic conditional check
           UpdateExpression:
             "SET quantity = if_not_exists(quantity, :zero) + :qty",
-          ExpressionAttributeValues: marshall({ ":qty": quantity, ":zero": 0 }),
+          ConditionExpression: "if_not_exists(quantity, :zero) + :qty <= :max",
+          ExpressionAttributeValues: marshall({
+            ":qty": quantity,
+            ":zero": 0,
+            ":max": limitConfig.maxQuantity,
+          }),
         },
       });
     }
@@ -762,24 +762,33 @@ export async function processStorePaymentSuccess({
     if (error.name === "TransactionCanceledException") {
       const reasons = error.CancellationReasons || [];
 
-      // Check for Idempotency first (Order status failed)
+      // Check for Idempotency first (Order status failed at index 0)
       if (reasons[0]?.Code === "ConditionalCheckFailed") {
         logger.warn({ orderId }, "Order already processed");
         return { success: true };
       }
 
-      // Check for Inventory Failure
-      // Since we build the array dynamically, we look for any failure > 0
-      const inventoryFailed = reasons.some(
+      // Check for Conditional Failures in subsequent items (Inventory or Limits)
+      const failedIndex = reasons.findIndex(
         (r: any, index: number) =>
           index > 0 && r.Code === "ConditionalCheckFailed",
       );
 
-      if (inventoryFailed) {
-        logger.error(
-          { orderId },
-          "Inventory check failed (OOS), voiding payment",
-        );
+      if (failedIndex > 0) {
+        // Retrieve the item that failed to distinguish between Inventory and Limit
+        const failedItem = transactItems[failedIndex];
+        const isLimitFailure =
+          failedItem.Update?.TableName === genericConfig.StoreLimitsTableName;
+
+        const errorLogMsg = isLimitFailure
+          ? "User limit check failed, voiding payment"
+          : "Inventory check failed (OOS), voiding payment";
+        const returnErrorMsg = isLimitFailure
+          ? "Limit exceeded"
+          : "Insufficient inventory";
+
+        logger.error({ orderId }, errorLogMsg);
+
         try {
           await cancelPaymentIntent({
             paymentIntentId,
@@ -799,9 +808,9 @@ export async function processStorePaymentSuccess({
             }),
           );
         } catch (e) {
-          logger.error({ e, orderId }, "Failed to refund/cancel after OOS");
+          logger.error({ e, orderId }, "Failed to refund/cancel after failure");
         }
-        return { success: false, error: "Insufficient inventory" };
+        return { success: false, error: returnErrorMsg };
       }
     }
     throw error;
@@ -1076,7 +1085,7 @@ export async function createProduct({
 
   if (variants.length > 24) {
     throw new ValidationError({
-      message: "Too many variants. DynamoDB transaction limit is 25 items.",
+      message: "Too many variants.",
     });
   }
 
@@ -1099,49 +1108,72 @@ export async function createProduct({
   }
 
   // 2. Create Prices in Stripe for each variant
-  // We map the incoming request variants to the DB structure including the new Stripe IDs
-  const dbVariants = [];
+  const createdPriceIds: string[] = [];
+  let dbVariants = [];
 
   try {
-    for (const variant of variants) {
-      // Create Member Price
-      const variantId = randomUUID();
-      const memberPrice = await stripeClient.prices.create({
-        product: stripeProduct.id,
-        currency: "usd",
-        unit_amount: variant.memberPriceCents,
-        metadata: {
-          variantId,
-          type: "member",
-        },
-      });
+    dbVariants = await Promise.all(
+      variants.map(async (variant) => {
+        const variantId = randomUUID();
 
-      // Create Non-Member Price
-      const nonMemberPrice = await stripeClient.prices.create({
-        product: stripeProduct.id,
-        currency: "usd",
-        unit_amount: variant.nonmemberPriceCents,
-        metadata: {
-          variantId,
-          type: "non_member",
-        },
-      });
+        // Concurrently create Member and Non-Member prices
+        const [memberPrice, nonMemberPrice] = await Promise.all([
+          stripeClient.prices.create({
+            product: stripeProduct.id,
+            currency: "usd",
+            unit_amount: variant.memberPriceCents,
+            metadata: {
+              variantId,
+              type: "member",
+            },
+          }),
+          stripeClient.prices.create({
+            product: stripeProduct.id,
+            currency: "usd",
+            unit_amount: variant.nonmemberPriceCents,
+            metadata: {
+              variantId,
+              type: "non_member",
+            },
+          }),
+        ]);
 
-      dbVariants.push({
-        ...variant, // name, description, limits, etc.
-        variantId,
-        productId: productMeta.productId,
-        memberPriceId: memberPrice.id,
-        nonmemberPriceId: nonMemberPrice.id,
-        soldCount: 0,
-      });
-    }
-  } catch (err) {
-    logger.error(
-      { err, stripeProductId: stripeProduct.id },
-      "Failed to create Stripe prices",
+        // Push to local array for potential cleanup
+        createdPriceIds.push(memberPrice.id, nonMemberPrice.id);
+
+        return {
+          ...variant,
+          variantId,
+          productId: productMeta.productId,
+          memberPriceId: memberPrice.id,
+          nonmemberPriceId: nonMemberPrice.id,
+          soldCount: 0,
+        };
+      }),
     );
-    // Optional: Attempt to clean up the orphaned Stripe product here if desired
+  } catch (err) {
+    // Cleanup: Deactivate Product and any successfully created Prices
+    try {
+      await stripeClient.products.update(stripeProduct.id, { active: false });
+      await Promise.all(
+        createdPriceIds.map((id) =>
+          stripeClient.prices.update(id, { active: false }),
+        ),
+      );
+
+      // Log initial error with note that cleanup succeeded
+      logger.error(
+        { err, stripeProductId: stripeProduct.id },
+        "Failed to create Stripe prices; orphaned resources deactivated.",
+      );
+    } catch (cleanupErr) {
+      // Log both errors if cleanup fails
+      logger.error(
+        { err, cleanupErr, stripeProductId: stripeProduct.id },
+        "Failed to create Stripe prices and failed to cleanup orphaned resources.",
+      );
+    }
+
     throw new InternalServerError({
       message: "Failed to create variant prices in payment provider.",
     });
@@ -1175,8 +1207,6 @@ export async function createProduct({
         Item: marshall(
           {
             ...dbVariant,
-            // remove the raw cents fields before saving to DB if you want to keep it clean,
-            // or keep them for reference. The schema expects *PriceId, so we are good.
             createdAt: now,
           },
           { removeUndefinedValues: true },

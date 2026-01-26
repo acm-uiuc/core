@@ -112,8 +112,8 @@ export const createCheckoutRequestSchema = z.object({
     variantId: z.string().min(1),
     quantity: z.number().int().positive().max(10),
   })).min(1).max(20), // Max 20 items, max 10 of each
-  successRedirPath: z.string().min(1), // will be path on origin domain, origin must pass CORS
-  cancelRedirPath: z.string().min(1)
+  successRedirPath: z.string().startsWith('/').max(512),
+  cancelRedirPath: z.string().startsWith('/').max(512)
 });
 
 export type CreateCheckoutRequest = z.infer<typeof createCheckoutRequestSchema>;

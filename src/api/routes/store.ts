@@ -207,7 +207,11 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         [AppRoles.STORE_MANAGER],
         withTags(["Store"], {
           summary: "Create a new product with variants.",
-          body: createProductRequestSchema,
+          body: createProductRequestSchema.refine(
+            (data) =>
+              !data.openAt || !data.closeAt || data.openAt < data.closeAt,
+            { message: "openAt must be before closeAt" },
+          ),
           response: {
             201: {
               description: "Product created successfully.",
@@ -334,12 +338,11 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         if (!sig || typeof sig !== "string") {
           throw new Error("Missing or invalid Stripe signature");
         }
-        // Use the store-specific webhook secret
         const webhookSecret = fastify.secretConfig.store_stripe_endpoint_secret;
         event = stripe.webhooks.constructEvent(
           request.rawBody,
           sig,
-          webhookSecret as string,
+          webhookSecret,
         );
       } catch (err: unknown) {
         if (err instanceof BaseError) {
