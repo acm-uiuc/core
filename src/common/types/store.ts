@@ -32,7 +32,7 @@ export const variantSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   imageUrl: z.string().url().optional(),
-  memberLists: z.array(z.string()).optional(), // Lists user must be in for member pricing
+  memberLists: z.array(z.string()).default(["acmpaid"]), // Lists user must be in for member pricing
   memberPriceId: z.string().min(1), // Stripe price ID for members
   nonmemberPriceId: z.string().min(1), // Stripe price ID for non-members
   inventoryCount: z.number().int().min(0).nullable().optional(), // null = unlimited
