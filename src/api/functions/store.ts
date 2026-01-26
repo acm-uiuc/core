@@ -168,13 +168,28 @@ export async function listProducts({
   includeInactive?: boolean;
 }): Promise<ProductWithVariants[]> {
   // Scan the inventory table
-  const { Items } = await dynamoClient.send(
-    new ScanCommand({
-      TableName: genericConfig.StoreInventoryTableName,
-    }),
-  );
+  const allItems: Record<string, unknown>[] = [];
+  let lastEvaluatedKey: Record<string, unknown> | undefined;
 
-  if (!Items || Items.length === 0) {
+  do {
+    const response = await dynamoClient.send(
+      new ScanCommand({
+        TableName: genericConfig.StoreInventoryTableName,
+        ExclusiveStartKey: lastEvaluatedKey
+          ? marshall(lastEvaluatedKey)
+          : undefined,
+      }),
+    );
+
+    if (response.Items) {
+      allItems.push(...response.Items.map((i) => unmarshall(i)));
+    }
+    lastEvaluatedKey = response.LastEvaluatedKey
+      ? unmarshall(response.LastEvaluatedKey)
+      : undefined;
+  } while (lastEvaluatedKey);
+
+  if (!allItems || allItems.length === 0) {
     return [];
   }
 
@@ -184,7 +199,7 @@ export async function listProducts({
     { product?: Record<string, unknown>; variants: Record<string, unknown>[] }
   >();
 
-  for (const item of Items.map((i) => unmarshall(i))) {
+  for (const item of allItems) {
     const pid = item.productId as string;
     if (!productMap.has(pid)) {
       productMap.set(pid, { variants: [] });
