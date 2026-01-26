@@ -156,6 +156,7 @@ export async function getProduct({
       exchangesAllowed: v.exchangesAllowed ?? false,
       limitConfiguration: v.limitConfiguration,
     })),
+    verifiedIdentityRequired: defaultVariant.verifiedIdentityRequired ?? true,
   };
 }
 
@@ -224,6 +225,7 @@ export async function listProducts({
       openAt: p.openAt as number | undefined,
       closeAt: p.closeAt as number | undefined,
       stripeProductId: p.stripeProductId as string | undefined,
+      verifiedIdentityRequired: (p.verifiedIdentityRequired as boolean) ?? true,
       limitConfiguration: p.limitConfiguration as
         | LimitConfiguration
         | undefined,
@@ -280,6 +282,7 @@ export type CheckItemSellableInputs = {
   dynamoClient: DynamoDBClient;
   redisClient: Redis;
   logger: ValidLoggers;
+  isVerifiedIdentity: boolean;
 };
 
 export async function checkItemSellable({
@@ -290,6 +293,7 @@ export async function checkItemSellable({
   dynamoClient,
   redisClient,
   logger,
+  isVerifiedIdentity,
 }: CheckItemSellableInputs): Promise<SellabilityResult | null> {
   // 1. Get product and variant data
   const [productData, variantData] = await Promise.all([
@@ -314,6 +318,14 @@ export async function checkItemSellable({
 
   const product = unmarshall(productData.Item);
   const variant = unmarshall(variantData.Item);
+
+  if (product.verifiedIdentityRequired && !isVerifiedIdentity) {
+    logger.info(
+      { productId, userId },
+      "Product requires verified identity for purchase.",
+    );
+    return null;
+  }
 
   // 2. Check if product is open for sales
   const now = Math.floor(Date.now() / 1000);
@@ -381,13 +393,15 @@ export async function checkItemSellable({
   }
 
   // 5. Check membership for pricing
-  const isMember = await checkUserMembership({
-    userId,
-    memberLists: (variant.memberLists as string[]) || [],
-    dynamoClient,
-    redisClient,
-    logger,
-  });
+  const isMember = isVerifiedIdentity
+    ? await checkUserMembership({
+        userId,
+        memberLists: (variant.memberLists as string[]) || [],
+        dynamoClient,
+        redisClient,
+        logger,
+      })
+    : false;
 
   const priceId = isMember
     ? (variant.memberPriceId as string)
@@ -412,6 +426,7 @@ export type CreateStoreCheckoutInputs = {
   stripeApiKey: string;
   logger: ValidLoggers;
   baseUrl: string;
+  isVerifiedIdentity: boolean;
 };
 
 export type CreateStoreCheckoutOutputs = {
@@ -430,6 +445,7 @@ export async function createStoreCheckout({
   stripeApiKey,
   logger,
   baseUrl,
+  isVerifiedIdentity,
 }: CreateStoreCheckoutInputs): Promise<CreateStoreCheckoutOutputs> {
   const orderId = `ord_${randomUUID()}`;
   const now = Math.floor(Date.now() / 1000);
@@ -439,13 +455,14 @@ export async function createStoreCheckout({
   const lineItems = await Promise.all(
     items.map(async (item) => {
       const sellableResult = await checkItemSellable({
-        userId,
+        userId, // Always pass userId for purchase limit enforcement
         productId: item.productId,
         variantId: item.variantId,
         quantity: item.quantity,
         dynamoClient,
         redisClient,
         logger,
+        isVerifiedIdentity,
       });
 
       if (!sellableResult) {
@@ -520,10 +537,14 @@ export async function createStoreCheckout({
     throw new DatabaseInsertError({ message: "Failed to create order." });
   }
 
-  // 3. Check if user has a Stripe customer ID
-  const netId = getNetIdFromEmail(userId);
-  const userIdentity = await getUserIdentity({ netId, dynamoClient, logger });
-  const stripeCustomerId = userIdentity?.stripeCustomerId;
+  // 3. Check if user has a Stripe customer ID (only if verified identity)
+  let stripeCustomerId: string | undefined;
+
+  if (isVerifiedIdentity) {
+    const netId = getNetIdFromEmail(userId);
+    const userIdentity = await getUserIdentity({ netId, dynamoClient, logger });
+    stripeCustomerId = userIdentity?.stripeCustomerId;
+  }
 
   // 4. Create Stripe checkout session with capture_method: manual (pre-auth only)
   const metadata = {
@@ -547,19 +568,19 @@ export async function createStoreCheckout({
   };
 
   let checkoutUrl: string;
-  if (stripeCustomerId) {
-    // Use existing Stripe customer
-    logger.info({ userId, stripeCustomerId }, "Using existing Stripe customer");
+  if (isVerifiedIdentity && stripeCustomerId) {
+    // Use existing Stripe customer (only for verified identities)
+    logger.info(
+      { userId, stripeCustomerId },
+      "Using existing Stripe customer for verified identity",
+    );
     checkoutUrl = await createCheckoutSessionWithCustomer({
       ...checkoutParams,
       customerId: stripeCustomerId,
     });
   } else {
-    // Use email-based checkout
-    logger.info(
-      { userId },
-      "Creating checkout with email (no Stripe customer)",
-    );
+    // Use email-based checkout (for unverified or no existing customer)
+    logger.info({ userId, isVerifiedIdentity }, "Creating checkout with email");
     checkoutUrl = await createCheckoutSession({
       ...checkoutParams,
       customerEmail: userId,
@@ -572,7 +593,6 @@ export async function createStoreCheckout({
     expiresAt,
   };
 }
-
 // ============ Webhook Processing ============
 
 export type ProcessStoreWebhookInputs = {

@@ -117,7 +117,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Store"], {
           summary: "Create a checkout session for purchasing items.",
           headers: z.object({
-            "x-uiuc-token": z.jwt().min(1).meta({
+            "x-uiuc-token": z.jwt().optional().meta({
               description:
                 "An access token for the user in the UIUC Entra ID tenant.",
             }),
@@ -138,10 +138,22 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];
-      const { userPrincipalName } = await verifyUiucAccessToken({
-        accessToken,
-        logger: request.log,
-      });
+      let userId: string;
+      let isVerifiedIdentity = false;
+      if (accessToken) {
+        userId = (
+          await verifyUiucAccessToken({
+            accessToken,
+            logger: request.log,
+          })
+        ).userPrincipalName;
+        isVerifiedIdentity = true;
+      } else if (request.body.email) {
+        userId = request.body.email;
+      } else {
+        throw new ValidationError({ message: "Could not find user ID." });
+      }
+
       let accessedFrom = request.headers.origin;
       if (!accessedFrom) {
         request.log.warn(
@@ -150,7 +162,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         accessedFrom = "https://acm.illinois.edu";
       }
       const result = await createStoreCheckout({
-        userId: userPrincipalName,
+        userId,
         items: request.body.items,
         successUrl: `${accessedFrom}${request.body.successRedirPath}`,
         cancelUrl: `${accessedFrom}${request.body.cancelRedirPath}`,
@@ -159,6 +171,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         stripeApiKey: fastify.secretConfig.stripe_secret_key,
         logger: request.log,
         baseUrl: fastify.environmentConfig.UserFacingUrl,
+        isVerifiedIdentity,
       });
 
       return reply.status(201).send(result);

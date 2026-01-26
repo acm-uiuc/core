@@ -52,6 +52,7 @@ export const productSchema = z.object({
   closeAt: z.number().int().optional(), // Unix timestamp when sales close
   stripeProductId: z.string().optional(), // Stripe product ID
   limitConfiguration: limitConfigurationSchema.optional(),
+  verifiedIdentityRequired: z.boolean().default(true)
 });
 
 export type Product = z.infer<typeof productSchema>;
@@ -114,7 +115,8 @@ export const createCheckoutRequestSchema = z.object({
     quantity: z.number().int().positive().max(10),
   })).min(1).max(20), // Max 20 items, max 10 of each
   successRedirPath: z.string().startsWith('/').max(512),
-  cancelRedirPath: z.string().startsWith('/').max(512)
+  cancelRedirPath: z.string().startsWith('/').max(512),
+  email: z.email().optional()
 });
 
 export type CreateCheckoutRequest = z.infer<typeof createCheckoutRequestSchema>;
