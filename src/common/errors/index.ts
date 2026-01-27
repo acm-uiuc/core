@@ -364,7 +364,7 @@ export class ItemNotAvailableError extends BaseError<"ItemNotAvailableError"> {
       name: "ItemNotAvailableError",
       id: 120,
       message: message || "This item is not available for purchase.",
-      httpStatusCode: 400,
+      httpStatusCode: 404,
     });
   }
 }

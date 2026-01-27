@@ -105,9 +105,11 @@ export async function checkUserMembership({
 export async function getProduct({
   productId,
   dynamoClient,
+  includeInactive,
 }: {
   productId: string;
   dynamoClient: DynamoDBClient;
+  includeInactive: boolean | undefined;
 }): Promise<ProductWithVariants> {
   // Query all items with this productId (includes DEFAULT variant for product-level data)
   const command = new QueryCommand({
@@ -133,6 +135,17 @@ export async function getProduct({
     throw new ItemNotAvailableError({
       message: "Product configuration not found.",
     });
+  }
+
+  // Filter inactive products unless requested
+  if (!includeInactive) {
+    const now = Math.floor(Date.now() / 1000);
+    if (defaultVariant.openAt && now < defaultVariant.openAt) {
+      throw new ItemNotAvailableError({ message: "Product not found." });
+    }
+    if (defaultVariant.closeAt && now > defaultVariant.closeAt) {
+      throw new ItemNotAvailableError({ message: "Product not found." });
+    }
   }
 
   return {

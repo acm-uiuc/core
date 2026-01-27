@@ -139,6 +139,7 @@ vi.mock(
       }),
       checkPaidMembership: vi.fn(async (obj) => {
         switch (obj.netId) {
+          case "jd3":
           case "valid":
           case "oldlead":
           case "newlead":

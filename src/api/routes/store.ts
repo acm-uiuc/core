@@ -145,6 +145,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const product = await getProduct({
         productId: request.params.productId,
         dynamoClient: fastify.dynamoClient,
+        includeInactive: false,
       });
       return reply.send(product);
     },
@@ -329,6 +330,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const items = await listProductLineItems({
         dynamoClient: fastify.dynamoClient,
         productId: request.params.productId,
+        logger: request.log,
       });
       return reply.send({ items });
     }),
