@@ -270,10 +270,10 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               (data) =>
                 data.inventoryMode !== "PER_PRODUCT"
                   ? !data.totalInventoryCount
-                  : true,
+                  : data.totalInventoryCount !== null,
               {
                 message:
-                  "totalInventoryCount is only valid when inventoryMode is PER_PRODUCT",
+                  "totalInventoryCount is required when inventoryMode is PER_PRODUCT, and must not be provided otherwise",
               },
             ),
           response: {

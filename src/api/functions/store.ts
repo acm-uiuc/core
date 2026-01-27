@@ -412,8 +412,7 @@ export async function checkItemSellable({
       | null
       | undefined;
     if (totalInventory !== null && totalInventory !== undefined) {
-      const totalSold = (product.totalSoldCount as number) || 0;
-      const available = totalInventory - totalSold;
+      const available = totalInventory;
 
       if (available < quantity) {
         logger.info(
