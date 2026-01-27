@@ -306,9 +306,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
         withTags(["Store"], {
           summary: "List all orders/line items for a given product.",
-          querystring: z.object({
-            status: orderStatusEnum.optional(),
-          }),
           params: z.object({
             productId: z.string().min(1),
           }),

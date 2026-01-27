@@ -167,7 +167,7 @@ export async function getProduct({
       nonmemberPriceId: v.nonmemberPriceId,
       inventoryCount: v.inventoryCount,
       soldCount: v.soldCount || 0,
-      exchangesAllowed: v.exchangesAllowed ?? false,
+      exchangesAllowed: v.exchangesAllowed ?? true,
       limitConfiguration: v.limitConfiguration,
     })),
     verifiedIdentityRequired: defaultVariant.verifiedIdentityRequired ?? true,
@@ -268,7 +268,7 @@ export async function listProducts({
         nonmemberPriceId: v.nonmemberPriceId as string,
         inventoryCount: v.inventoryCount as number | null | undefined,
         soldCount: (v.soldCount as number) || 0,
-        exchangesAllowed: (v.exchangesAllowed as boolean) ?? false,
+        exchangesAllowed: (v.exchangesAllowed as boolean) ?? true,
         limitConfiguration: v.limitConfiguration as
           | LimitConfiguration
           | undefined,
