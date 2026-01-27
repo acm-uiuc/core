@@ -901,15 +901,14 @@ export async function processStorePaymentSuccess({
       totalInventoryCount !== null && totalInventoryCount !== undefined;
 
     if (isLimited) {
-      // LIMITED: Increment totalSoldCount with condition check
+      // LIMITED: Decrement totalInventoryCount + Increment totalSoldCount + Condition Check
       transactItems.push({
         Update: {
           TableName: genericConfig.StoreInventoryTableName,
           Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
           UpdateExpression:
-            "SET totalSoldCount = if_not_exists(totalSoldCount, :zero) + :qty",
-          ConditionExpression:
-            "totalInventoryCount >= (if_not_exists(totalSoldCount, :zero) + :qty)",
+            "SET totalInventoryCount = totalInventoryCount - :qty, totalSoldCount = if_not_exists(totalSoldCount, :zero) + :qty",
+          ConditionExpression: "totalInventoryCount >= :qty",
           ExpressionAttributeValues: marshall({
             ":qty": totalQty,
             ":zero": 0,
