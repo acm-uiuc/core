@@ -212,7 +212,6 @@ export type SecretConfig = {
   entra_id_thumbprint?: string;
   acm_passkit_signerCert_base64: string;
   acm_passkit_signerKey_base64: string;
-  apple_signing_cert_base64: string;
   stripe_secret_key: string;
   stripe_endpoint_secret: string;
   stripe_links_endpoint_secret: string;

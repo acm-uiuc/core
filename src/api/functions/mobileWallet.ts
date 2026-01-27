@@ -21,6 +21,7 @@ import { createAuditLogEntry } from "./auditLog.js";
 import { Modules } from "common/modules.js";
 import { FastifyBaseLogger } from "fastify";
 import { ValidLoggers } from "api/types.js";
+import { wwdrCert } from "api/components/wwdr.js";
 
 function trim(s: string) {
   return (s || "").replace(/^\s+|\s+$/g, "");
@@ -65,10 +66,6 @@ export async function issueAppleWalletMembershipCard(
     secretApiConfig.acm_passkit_signerKey_base64,
     "base64",
   ).toString("utf-8");
-  const wwdr = Buffer.from(
-    secretApiConfig.apple_signing_cert_base64,
-    "base64",
-  ).toString("utf-8");
   pass.passTypeIdentifier = environmentConfig.PasskitIdentifier;
   const pkpass = new PKPass(
     {
@@ -78,7 +75,7 @@ export async function issueAppleWalletMembershipCard(
       "pass.json": Buffer.from(JSON.stringify(pass)),
     },
     {
-      wwdr,
+      wwdr: wwdrCert,
       signerCert,
       signerKey,
     },

@@ -10,7 +10,6 @@ const secretObject = {
   stripe_links_endpoint_secret: "whsec_56789",
   acm_passkit_signerCert_base64: "",
   acm_passkit_signerKey_base64: "",
-  apple_signing_cert_base64: "",
   redis_url: "",
   github_installation_id: "abc123testing",
   fallback_redis_url: "abc",
