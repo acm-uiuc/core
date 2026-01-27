@@ -59,7 +59,7 @@ export const productSchema = z.object({
   totalInventoryCount: z.number().int().min(0).nullable().optional().meta({
     description: "Total inventory across all variants. Only used when inventoryMode is PER_PRODUCT.",
   }),
-  totalSoldCount: z.number().int().min(0).default(0),
+  totalSoldCount: z.number().int().min(0).default(0).optional(),
 });
 
 export type Product = z.infer<typeof productSchema>;
