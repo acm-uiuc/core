@@ -477,10 +477,19 @@ export const checkOrCreateCustomer = async ({
         },
       ],
     });
+
     try {
       await dynamoClient.send(ensureEmailMap);
     } catch (e) {
-      // ignore
+      if (
+        !(e instanceof Error) ||
+        !e.name.includes("ConditionalCheckFailedException")
+      ) {
+        console.warn(
+          `Failed to create EMAIL# mapping for ${normalizedEmail}:`,
+          e,
+        );
+      }
     }
 
     if (needsConfirmation) {
