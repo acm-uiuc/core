@@ -71,7 +71,7 @@ export const productWithVariantsSchema = productSchema.extend({
 
 export const productWithVariantsPublicCountSchema = productSchema.extend({
   variants: z.array(variantSchema.omit({ productId: true, soldCount: true, memberPriceId: true, nonmemberPriceId: true, inventoryCount: true })),
-}).omit({ stripeProductId: true, inventoryMode: true, totalInventoryCount: true });
+}).omit({ stripeProductId: true, inventoryMode: true, totalInventoryCount: true, totalSoldCount: true });
 
 export type ProductWithVariants = z.infer<typeof productWithVariantsSchema>;
 
