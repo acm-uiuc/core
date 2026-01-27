@@ -434,7 +434,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
           const orderId = metadata.orderId;
           const userId = metadata.userId;
-          const paymentIntentId = session.payment_intent?.toString();
+          const paymentIntentId = session.id.toString();
 
           if (!orderId || !userId || !paymentIntentId) {
             request.log.warn(

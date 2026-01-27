@@ -48,7 +48,7 @@ export const productSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   imageUrl: z.url().optional(),
-  openAt: z.number().int().min(0).optional(), // Unix timestamp when sales open
+  openAt: z.number().int().positive().optional(), // Unix timestamp when sales open
   closeAt: z.number().int().min(0).optional(), // Unix timestamp when sales close
   stripeProductId: z.string().optional(), // Stripe product ID
   limitConfiguration: limitConfigurationSchema.optional(),
@@ -82,7 +82,7 @@ export const lineItemSchema = z.object({
   productId: z.string().min(1),
   variantId: z.string().min(1),
   quantity: z.number().int().positive(),
-  priceId: z.string().min(1), // Stripe price ID used
+  priceId: z.string(), // Stripe price ID used
   unitPriceCents: z.number().int().min(0).optional(),
   createdAt: z.number().int(),
   itemId: z.string().optional(), // For GSI: `${productId}#${variantId}`
