@@ -53,6 +53,13 @@ export const productSchema = z.object({
   stripeProductId: z.string().optional(), // Stripe product ID
   limitConfiguration: limitConfigurationSchema.optional(),
   verifiedIdentityRequired: z.boolean().default(true),
+  inventoryMode: limitTypeEnum.default("PER_VARIANT").meta({
+    description: "Whether inventory is tracked per-variant or as a total across all variants.",
+  }),
+  totalInventoryCount: z.number().int().min(0).nullable().optional().meta({
+    description: "Total inventory across all variants. Only used when inventoryMode is PER_PRODUCT.",
+  }),
+  totalSoldCount: z.number().int().min(0).default(0).optional(),
 });
 
 export type Product = z.infer<typeof productSchema>;
@@ -63,8 +70,8 @@ export const productWithVariantsSchema = productSchema.extend({
 });
 
 export const productWithVariantsPublicCountSchema = productSchema.extend({
-  variants: z.array(variantSchema.omit({ productId: true, soldCount: true, memberPriceId: true, nonmemberPriceId: true, inventoryCount: true })),
-}).omit({ stripeProductId: true });
+  variants: z.array(variantSchema.omit({ productId: true, soldCount: true, memberPriceId: true, nonmemberPriceId: true })),
+}).omit({ stripeProductId: true, totalSoldCount: true });
 
 export type ProductWithVariants = z.infer<typeof productWithVariantsSchema>;
 
@@ -197,9 +204,10 @@ export const createVariantRequestSchema = variantSchema
 export const createProductRequestSchema = productSchema
   .omit({
     stripeProductId: true, // We will generate this
+    totalSoldCount: true,
   })
   .extend({
     variants: z.array(createVariantRequestSchema).min(1),
-  });
+  })
 
 export type CreateProductRequest = z.infer<typeof createProductRequestSchema>;

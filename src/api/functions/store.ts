@@ -47,6 +47,7 @@ import {
   type LimitConfiguration,
   type CreateProductRequest,
   DEFAULT_VARIANT_ID,
+  LimitType,
 } from "common/types/store.js";
 import Stripe from "stripe";
 import { getNetIdFromEmail } from "common/utils.js";
@@ -148,29 +149,49 @@ export async function getProduct({
     }
   }
 
+  const inventoryMode =
+    (defaultVariant.inventoryMode as LimitType) ?? "PER_VARIANT";
+
   return {
-    productId: defaultVariant.productId,
-    name: defaultVariant.name,
-    description: defaultVariant.description,
-    imageUrl: defaultVariant.imageUrl,
-    openAt: defaultVariant.openAt,
-    closeAt: defaultVariant.closeAt,
-    stripeProductId: defaultVariant.stripeProductId,
-    limitConfiguration: defaultVariant.limitConfiguration,
+    productId: defaultVariant.productId as string,
+    name: defaultVariant.name as string,
+    description: defaultVariant.description as string | undefined,
+    imageUrl: defaultVariant.imageUrl as string | undefined,
+    openAt: defaultVariant.openAt as number | undefined,
+    closeAt: defaultVariant.closeAt as number | undefined,
+    stripeProductId: defaultVariant.stripeProductId as string | undefined,
+    limitConfiguration: defaultVariant.limitConfiguration as
+      | LimitConfiguration
+      | undefined,
+    verifiedIdentityRequired:
+      (defaultVariant.verifiedIdentityRequired as boolean) ?? true,
+    inventoryMode,
+    totalInventoryCount:
+      inventoryMode === "PER_PRODUCT"
+        ? (defaultVariant.totalInventoryCount as number | null | undefined)
+        : undefined,
+    totalSoldCount:
+      inventoryMode === "PER_PRODUCT"
+        ? (defaultVariant.totalSoldCount as number) || 0
+        : undefined,
     variants: variants.map((v) => ({
-      variantId: v.variantId,
-      name: v.name,
-      description: v.description,
-      imageUrl: v.imageUrl,
-      memberLists: v.memberLists,
-      memberPriceId: v.memberPriceId,
-      nonmemberPriceId: v.nonmemberPriceId,
-      inventoryCount: v.inventoryCount,
-      soldCount: v.soldCount || 0,
-      exchangesAllowed: v.exchangesAllowed ?? true,
-      limitConfiguration: v.limitConfiguration,
+      variantId: v.variantId as string,
+      name: v.name as string,
+      description: v.description as string | undefined,
+      imageUrl: v.imageUrl as string | undefined,
+      memberLists: (v.memberLists as string[]) ?? ["acmpaid"],
+      memberPriceId: v.memberPriceId as string,
+      nonmemberPriceId: v.nonmemberPriceId as string,
+      inventoryCount:
+        inventoryMode === "PER_VARIANT"
+          ? (v.inventoryCount as number | null | undefined)
+          : undefined,
+      soldCount: (v.soldCount as number) || 0,
+      exchangesAllowed: (v.exchangesAllowed as boolean) ?? true,
+      limitConfiguration: v.limitConfiguration as
+        | LimitConfiguration
+        | undefined,
     })),
-    verifiedIdentityRequired: defaultVariant.verifiedIdentityRequired ?? true,
   };
 }
 
@@ -210,7 +231,10 @@ export async function listProducts({
   // Group by productId
   const productMap = new Map<
     string,
-    { product?: Record<string, unknown>; variants: Record<string, unknown>[] }
+    {
+      product?: Record<string, unknown>;
+      variants: Record<string, unknown>[];
+    }
   >();
 
   for (const item of allItems) {
@@ -246,6 +270,8 @@ export async function listProducts({
       }
     }
 
+    const inventoryMode = (p.inventoryMode as LimitType) ?? "PER_VARIANT";
+
     products.push({
       productId: p.productId as string,
       name: p.name as string,
@@ -258,6 +284,15 @@ export async function listProducts({
       limitConfiguration: p.limitConfiguration as
         | LimitConfiguration
         | undefined,
+      inventoryMode,
+      totalInventoryCount:
+        inventoryMode === "PER_PRODUCT"
+          ? (p.totalInventoryCount as number | null | undefined)
+          : undefined,
+      totalSoldCount:
+        inventoryMode === "PER_PRODUCT"
+          ? (p.totalSoldCount as number) || 0
+          : undefined,
       variants: data.variants.map((v) => ({
         variantId: v.variantId as string,
         name: v.name as string,
@@ -266,7 +301,10 @@ export async function listProducts({
         memberLists: (v.memberLists as string[]) ?? ["acmpaid"],
         memberPriceId: v.memberPriceId as string,
         nonmemberPriceId: v.nonmemberPriceId as string,
-        inventoryCount: v.inventoryCount as number | null | undefined,
+        inventoryCount:
+          inventoryMode === "PER_VARIANT"
+            ? (v.inventoryCount as number | null | undefined)
+            : undefined,
         soldCount: (v.soldCount as number) || 0,
         exchangesAllowed: (v.exchangesAllowed as boolean) ?? true,
         limitConfiguration: v.limitConfiguration as
@@ -367,10 +405,27 @@ export async function checkItemSellable({
     return null;
   }
 
-  // 3. Check inventory (UPDATED FOR ATOMIC DECREMENT MODEL)
-  // Logic: inventoryCount now tracks *Remaining* stock directly.
-  // If the field is null/undefined, we treat it as infinite stock.
-  if (variant.inventoryCount !== null && variant.inventoryCount !== undefined) {
+  const inventoryMode = (product.inventoryMode as string) || "PER_VARIANT";
+  if (inventoryMode === "PER_PRODUCT") {
+    const totalInventory = product.totalInventoryCount as
+      | number
+      | null
+      | undefined;
+    if (totalInventory !== null && totalInventory !== undefined) {
+      const available = totalInventory;
+
+      if (available < quantity) {
+        logger.info(
+          { productId, available, requested: quantity },
+          "Insufficient product-level inventory",
+        );
+        throw new InsufficientInventoryError({});
+      }
+    }
+  } else if (
+    variant.inventoryCount !== null &&
+    variant.inventoryCount !== undefined
+  ) {
     const available = variant.inventoryCount;
 
     if (available < quantity) {
@@ -712,6 +767,12 @@ export async function processStorePaymentSuccess({
     { limitConfig: LimitConfiguration; totalQty: number }
   >();
 
+  // Track product-level inventory updates to aggregate across line items
+  const productInventoryUpdates = new Map<
+    string,
+    { product: Record<string, unknown>; totalQty: number }
+  >();
+
   for (const lineItem of lineItems) {
     // 1. Add update to remove expiresAt from the line item record
     transactItems.push({
@@ -743,29 +804,21 @@ export async function processStorePaymentSuccess({
     const product = productData.Item ? unmarshall(productData.Item) : null;
     const variant = variantData.Item ? unmarshall(variantData.Item) : null;
 
-    // --- LOGIC FOR UNLIMITED VS LIMITED ---
-    const isLimited =
-      variant &&
-      variant.inventoryCount !== null &&
-      variant.inventoryCount !== undefined;
+    const inventoryMode = (product?.inventoryMode as string) || "PER_VARIANT";
 
-    if (isLimited) {
-      // LIMITED: Decrement inventory + Increment sold + Condition Check
-      transactItems.push({
-        Update: {
-          TableName: genericConfig.StoreInventoryTableName,
-          Key: marshall({ productId, variantId }),
-          UpdateExpression:
-            "SET inventoryCount = inventoryCount - :qty, soldCount = if_not_exists(soldCount, :zero) + :qty",
-          ConditionExpression: "inventoryCount >= :qty",
-          ExpressionAttributeValues: marshall({
-            ":qty": quantity,
-            ":zero": 0,
-          }),
-        },
-      });
-    } else {
-      // UNLIMITED: Only Increment sold (No inventory decrement, No condition)
+    if (inventoryMode === "PER_PRODUCT") {
+      // Aggregate product-level inventory updates
+      const existing = productInventoryUpdates.get(productId);
+      if (existing) {
+        existing.totalQty += quantity;
+      } else {
+        productInventoryUpdates.set(productId, {
+          product: product!,
+          totalQty: quantity,
+        });
+      }
+
+      // Still track per-variant soldCount for reporting (no condition check)
       transactItems.push({
         Update: {
           TableName: genericConfig.StoreInventoryTableName,
@@ -778,6 +831,43 @@ export async function processStorePaymentSuccess({
           }),
         },
       });
+    } else {
+      // PER_VARIANT mode - existing logic
+      const isLimited =
+        variant &&
+        variant.inventoryCount !== null &&
+        variant.inventoryCount !== undefined;
+
+      if (isLimited) {
+        // LIMITED: Decrement inventory + Increment sold + Condition Check
+        transactItems.push({
+          Update: {
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({ productId, variantId }),
+            UpdateExpression:
+              "SET inventoryCount = inventoryCount - :qty, soldCount = if_not_exists(soldCount, :zero) + :qty",
+            ConditionExpression: "inventoryCount >= :qty",
+            ExpressionAttributeValues: marshall({
+              ":qty": quantity,
+              ":zero": 0,
+            }),
+          },
+        });
+      } else {
+        // UNLIMITED: Only Increment sold (No inventory decrement, No condition)
+        transactItems.push({
+          Update: {
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({ productId, variantId }),
+            UpdateExpression:
+              "SET soldCount = if_not_exists(soldCount, :zero) + :qty",
+            ExpressionAttributeValues: marshall({
+              ":qty": quantity,
+              ":zero": 0,
+            }),
+          },
+        });
+      }
     }
 
     // --- USER LIMITS (aggregate by limitId) ---
@@ -800,7 +890,48 @@ export async function processStorePaymentSuccess({
     }
   }
 
-  // C. Add aggregated limit updates to the transaction
+  // C. Add aggregated product-level inventory updates
+  for (const [productId, { product, totalQty }] of productInventoryUpdates) {
+    const totalInventoryCount = product.totalInventoryCount as
+      | number
+      | null
+      | undefined;
+    const isLimited =
+      totalInventoryCount !== null && totalInventoryCount !== undefined;
+
+    if (isLimited) {
+      // LIMITED: Decrement totalInventoryCount + Increment totalSoldCount + Condition Check
+      transactItems.push({
+        Update: {
+          TableName: genericConfig.StoreInventoryTableName,
+          Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
+          UpdateExpression:
+            "SET totalInventoryCount = totalInventoryCount - :qty, totalSoldCount = if_not_exists(totalSoldCount, :zero) + :qty",
+          ConditionExpression: "totalInventoryCount >= :qty",
+          ExpressionAttributeValues: marshall({
+            ":qty": totalQty,
+            ":zero": 0,
+          }),
+        },
+      });
+    } else {
+      // UNLIMITED: Just track totalSoldCount (no condition)
+      transactItems.push({
+        Update: {
+          TableName: genericConfig.StoreInventoryTableName,
+          Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
+          UpdateExpression:
+            "SET totalSoldCount = if_not_exists(totalSoldCount, :zero) + :qty",
+          ExpressionAttributeValues: marshall({
+            ":qty": totalQty,
+            ":zero": 0,
+          }),
+        },
+      });
+    }
+  }
+
+  // D. Add aggregated user limit updates to the transaction
   for (const [limitId, { limitConfig, totalQty }] of limitUpdates) {
     transactItems.push({
       Update: {
@@ -860,10 +991,22 @@ export async function processStorePaymentSuccess({
           const failedItem = transactItems[failedIndex];
           const isLimitFailure =
             failedItem.Update?.TableName === genericConfig.StoreLimitsTableName;
+          const isProductInventoryFailure =
+            failedItem.Update?.TableName ===
+              genericConfig.StoreInventoryTableName &&
+            failedItem.Update?.Key &&
+            unmarshall(failedItem.Update.Key).variantId === DEFAULT_VARIANT_ID;
 
-          const errorLogMsg = isLimitFailure
-            ? "User limit check failed, cancelling payment"
-            : "Inventory check failed (OOS), cancelling payment";
+          let errorLogMsg: string;
+          if (isLimitFailure) {
+            errorLogMsg = "User limit check failed, cancelling payment";
+          } else if (isProductInventoryFailure) {
+            errorLogMsg =
+              "Product-level inventory check failed (OOS), cancelling payment";
+          } else {
+            errorLogMsg =
+              "Variant inventory check failed (OOS), cancelling payment";
+          }
 
           logger.error({ orderId, failedIndex }, errorLogMsg);
 
@@ -912,12 +1055,12 @@ export async function processStorePaymentSuccess({
             );
             logger.info(
               { orderId, lineItemCount: lineItems.length },
-              "Order marked as CANCELLED and line items deleted",
+              "Order marked as CANCELLED",
             );
           } catch (e) {
             logger.error(
               { e, orderId },
-              "Failed to update order status to CANCELLED and delete line items",
+              "Failed to update order status to CANCELLED",
             );
             throw new InternalServerError({
               message: "Failed to update order status after cancellation",
@@ -1231,7 +1374,15 @@ export async function createProduct({
   const stripeClient = new Stripe(stripeApiKey);
   const { variants, ...productMeta } = productData;
   const now = Math.floor(Date.now() / 1000);
-
+  if (
+    productMeta.inventoryMode === "PER_PRODUCT" &&
+    productMeta.totalInventoryCount === undefined
+  ) {
+    throw new ValidationError({
+      message:
+        "totalInventoryCount is required when inventoryMode is PER_PRODUCT",
+    });
+  }
   if (variants.length > 24) {
     throw new ValidationError({
       message: "Too many variants.",
@@ -1341,6 +1492,11 @@ export async function createProduct({
           stripeProductId: stripeProduct.id, // Injected
           variantId: DEFAULT_VARIANT_ID,
           createdAt: now,
+          inventoryMode: productMeta.inventoryMode || "PER_VARIANT",
+          ...(productMeta.inventoryMode === "PER_PRODUCT" && {
+            totalInventoryCount: productMeta.totalInventoryCount,
+            totalSoldCount: 0,
+          }),
         },
         { removeUndefinedValues: true },
       ),
@@ -1357,6 +1513,10 @@ export async function createProduct({
           {
             ...dbVariant,
             createdAt: now,
+            soldCount: 0,
+            ...(productMeta.inventoryMode !== "PER_PRODUCT" && {
+              inventoryCount: dbVariant.inventoryCount,
+            }),
           },
           { removeUndefinedValues: true },
         ),

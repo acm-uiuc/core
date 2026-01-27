@@ -260,11 +260,22 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         [AppRoles.STORE_MANAGER],
         withTags(["Store"], {
           summary: "Create a new product with variants.",
-          body: createProductRequestSchema.refine(
-            (data) =>
-              !data.openAt || !data.closeAt || data.openAt < data.closeAt,
-            { message: "openAt must be before closeAt" },
-          ),
+          body: createProductRequestSchema
+            .refine(
+              (data) =>
+                !data.openAt || !data.closeAt || data.openAt < data.closeAt,
+              { message: "openAt must be before closeAt" },
+            )
+            .refine(
+              (data) =>
+                data.inventoryMode !== "PER_PRODUCT"
+                  ? !data.totalInventoryCount
+                  : data.totalInventoryCount !== null,
+              {
+                message:
+                  "totalInventoryCount is required when inventoryMode is PER_PRODUCT, and must not be provided otherwise",
+              },
+            ),
           response: {
             201: {
               description: "Product created successfully.",
