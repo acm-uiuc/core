@@ -1,11 +1,11 @@
 import {
+  type AttributeValue,
   BatchGetItemCommand,
   DynamoDBClient,
   GetItemCommand,
   QueryCommand,
   QueryCommandInput,
   ScanCommand,
-  ScanInput,
   TransactWriteItemsCommand,
   TransactWriteItemsCommandInput,
   UpdateItemCommand,
@@ -1080,13 +1080,24 @@ export async function listProductLineItems({
     }),
   };
 
-  const response = await dynamoClient.send(new QueryCommand(queryParams));
+  const lineItems: Record<string, unknown>[] = [];
+  let lastEvaluatedKey: Record<string, AttributeValue> | undefined;
+  do {
+    const response = await dynamoClient.send(
+      new QueryCommand({
+        ...queryParams,
+        ExclusiveStartKey: lastEvaluatedKey,
+      }),
+    );
+    if (response.Items) {
+      lineItems.push(...response.Items.map((i) => unmarshall(i)));
+    }
+    lastEvaluatedKey = response.LastEvaluatedKey;
+  } while (lastEvaluatedKey);
 
-  if (!response.Items || response.Items.length === 0) {
+  if (lineItems.length === 0) {
     return [];
   }
-
-  const lineItems = response.Items.map((i) => unmarshall(i));
 
   // Get unique order IDs to fetch order metadata
   const uniqueOrderIds = [
