@@ -43,6 +43,7 @@ export const testingProductDefinition = marshall({
     limitType: "PER_PRODUCT",
     maxQuantity: 4,
   },
+  inventoryMode: "PER_VARIANT",
   name: "Testing product",
   openAt: 0,
   stripeProductId: "prod_TrfZ3GzBPdSfjY",
