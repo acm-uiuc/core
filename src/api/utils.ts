@@ -7,45 +7,78 @@ import {
 } from "@aws-sdk/client-ssm";
 import { genericConfig } from "common/config.js";
 
-const MAX_RETRIES = 3;
-
-const BASE_RETRY_DELAY = 100;
-
 export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function retryDynamoTransactionWithBackoff<T>(
+export interface RetryOptions {
+  maxRetries?: number;
+  baseDelay?: number;
+  maxDelay?: number;
+  shouldRetry?: (error: any, attempt: number) => boolean;
+  onRetry?: (error: any, attempt: number, delay: number) => void;
+}
+
+export async function retryWithBackoff<T>(
   operation: () => Promise<T>,
-  logger: ValidLoggers,
-  operationName: string,
+  options: RetryOptions = {},
 ): Promise<T> {
+  const {
+    maxRetries = 3,
+    baseDelay = 100,
+    maxDelay = 2000,
+    shouldRetry = () => true,
+    onRetry,
+  } = options;
+
   let lastError: Error | undefined;
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       return await operation();
     } catch (error: any) {
       lastError = error;
-      const isRetryable =
-        error.name === "TransactionCanceledException" ||
-        error.name === "ConditionalCheckFailedException";
 
-      if (!isRetryable || attempt === MAX_RETRIES - 1) {
+      const isLastAttempt = attempt === maxRetries - 1;
+      const isRetryable = shouldRetry(error, attempt);
+
+      if (!isRetryable || isLastAttempt) {
         throw error;
       }
 
-      const exponentialDelay = BASE_RETRY_DELAY * 2 ** attempt;
+      const exponentialDelay = baseDelay * 2 ** attempt;
       const jitter = Math.random() * exponentialDelay;
-      const delay = exponentialDelay + jitter;
+      const delay = Math.min(exponentialDelay + jitter, maxDelay);
 
-      logger.info(
-        `${operationName} failed (attempt ${attempt + 1}/${MAX_RETRIES}), retrying in ${Math.round(delay)}ms...`,
-      );
+      onRetry?.(error, attempt, delay);
+
       await sleep(delay);
     }
   }
 
   throw lastError;
+}
+
+export function logOnRetry(op: string, logger: ValidLoggers) {
+  return (error: any, attempt: number, delay: number) => {
+    logger.warn(
+      `${op} failed (attempt ${attempt + 1}/${3}), retrying in ${Math.round(delay)}ms...`,
+    );
+    logger.error(error);
+  };
+}
+export async function retryDynamoTransactionWithBackoff<T>(
+  operation: () => Promise<T>,
+  logger: ValidLoggers,
+  operationName: string,
+): Promise<T> {
+  return retryWithBackoff(operation, {
+    maxRetries: 3,
+    baseDelay: 100,
+    shouldRetry: (error) =>
+      error.name === "TransactionCanceledException" ||
+      error.name === "ConditionalCheckFailedException",
+    onRetry: logOnRetry(operationName, logger),
+  });
 }
 
 type GetSsmParameterInputs = {

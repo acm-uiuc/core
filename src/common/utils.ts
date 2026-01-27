@@ -1,4 +1,5 @@
 import * as z from "zod/v4";
+import { ValidationError } from "./errors/index.js";
 export function transformCommaSeperatedName(name: string) {
   if (name.includes(",")) {
     try {
@@ -20,37 +21,45 @@ type GenerateProjectionParamsInput = {
 /**
  * Generates DynamoDB projection parameters for select filters, while safely handle reserved keywords.
  */
-export const generateProjectionParams = ({ userFields }: GenerateProjectionParamsInput) => {
+export const generateProjectionParams = ({
+  userFields,
+}: GenerateProjectionParamsInput) => {
   const attributes = userFields || [];
   const expressionAttributeNames: Record<string, string> = {};
-  const projectionExpression = attributes.
-    map((attr, index) => {
+  const projectionExpression = attributes
+    .map((attr, index) => {
       const placeholder = `#proj${index}`;
       expressionAttributeNames[placeholder] = attr;
       return placeholder;
-    }).
-    join(',');
+    })
+    .join(",");
   return {
     ProjectionExpression: projectionExpression,
-    ExpressionAttributeNames: expressionAttributeNames
+    ExpressionAttributeNames: expressionAttributeNames,
   };
 };
 
-
-export const nonEmptyCommaSeparatedStringSchema = z.
-  array(z.string().min(1)).
-  min(1, { message: "Filter expression must select at least one item." }).
-  transform((val) => val.map((item) => item.trim()))
+export const nonEmptyCommaSeparatedStringSchema = z
+  .array(z.string().min(1))
+  .min(1, { message: "Filter expression must select at least one item." })
+  .transform((val) => val.map((item) => item.trim()));
 
 type GetDefaultFilteringQuerystringInput = {
   defaultSelect: string[];
 };
-export const getDefaultFilteringQuerystring = ({ defaultSelect }: GetDefaultFilteringQuerystringInput) => {
+export const getDefaultFilteringQuerystring = ({
+  defaultSelect,
+}: GetDefaultFilteringQuerystringInput) => {
   return {
-    select: z.optional(nonEmptyCommaSeparatedStringSchema).default(defaultSelect).meta({
-      description: "A list of attributes to return.",
-      ...(defaultSelect.length === 0 ? { default: ["<ALL ATTRIBUTES>"] } : { example: defaultSelect })
-    })
+    select: z
+      .optional(nonEmptyCommaSeparatedStringSchema)
+      .default(defaultSelect)
+      .meta({
+        description: "A list of attributes to return.",
+        ...(defaultSelect.length === 0
+          ? { default: ["<ALL ATTRIBUTES>"] }
+          : { example: defaultSelect }),
+      }),
   };
 };
 
@@ -58,5 +67,19 @@ export const getAllUserEmails = (username?: string) => {
   if (!username) {
     return [];
   }
-  return [username.replace("@illinois.edu", "@acm.illinois.edu")]
+  return [username.replace("@illinois.edu", "@acm.illinois.edu")];
+};
+
+/**
+ * Extracts the netId from an Illinois email address.
+ * @param email - The email address (e.g., "netid@illinois.edu")
+ * @returns The netId in lowercase
+ */
+export function getNetIdFromEmail(email: string): string {
+  const normalizedEmail = email.toLowerCase();
+  if (!normalizedEmail.endsWith("@illinois.edu") && !normalizedEmail.endsWith("@acm.illinois.edu")) {
+    throw new ValidationError({ message: "Email cannot be converted to NetID by simple replacment." })
+  }
+  const [netId] = normalizedEmail.split("@");
+  return netId.toLowerCase();
 }

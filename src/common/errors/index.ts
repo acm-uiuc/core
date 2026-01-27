@@ -17,7 +17,13 @@ export abstract class BaseError<T extends string> extends Error {
 
   public internalLog: string | undefined;
 
-  constructor({ name, id, message, httpStatusCode, internalLog }: BaseErrorParams<T>) {
+  constructor({
+    name,
+    id,
+    message,
+    httpStatusCode,
+    internalLog,
+  }: BaseErrorParams<T>) {
     super(message || name || "Error");
     this.name = name;
     this.id = id;
@@ -30,7 +36,7 @@ export abstract class BaseError<T extends string> extends Error {
   }
 
   toString() {
-    return `Error ${this.id} (${this.name}): ${this.message}${this.internalLog ? `\n\nInternal Message: ${this.internalLog}` : ''}\n\n${this.stack}`;
+    return `Error ${this.id} (${this.name}): ${this.message}${this.internalLog ? `\n\nInternal Message: ${this.internalLog}` : ""}\n\n${this.stack}`;
   }
 
   toJson() {
@@ -56,7 +62,12 @@ export class NotImplementedError extends BaseError<"NotImplementedError"> {
 
 export class UnauthorizedError extends BaseError<"UnauthorizedError"> {
   constructor({ message }: { message?: string }) {
-    super({ name: "UnauthorizedError", id: 101, message: message || "User does not have the privileges for this task.", httpStatusCode: 401 });
+    super({
+      name: "UnauthorizedError",
+      id: 101,
+      message: message || "User does not have the privileges for this task.",
+      httpStatusCode: 401,
+    });
   }
 }
 
@@ -72,7 +83,10 @@ export class UnauthenticatedError extends BaseError<"UnauthenticatedError"> {
 }
 
 export class InternalServerError extends BaseError<"InternalServerError"> {
-  constructor({ message, internalLog }: { message?: string, internalLog?: string } = {}) {
+  constructor({
+    message,
+    internalLog,
+  }: { message?: string; internalLog?: string } = {}) {
     super({
       name: "InternalServerError",
       id: 100,
@@ -80,7 +94,7 @@ export class InternalServerError extends BaseError<"InternalServerError"> {
         message ||
         "An internal server error occurred. Please try again or contact support.",
       httpStatusCode: 500,
-      internalLog
+      internalLog,
     });
   }
 }
@@ -235,21 +249,21 @@ export class EntraGroupsFromEmailError extends BaseError<"EntraGroupsFromEmailEr
   constructor({
     code,
     message,
-    email
+    email,
   }: {
     code?: number;
     message?: string;
-    email: string
+    email: string;
   }) {
     super({
       name: "EntraGroupsFromEmailError",
       id: 309, //TODO: What should this be?
       message: message || `Could not fetch the groups for user ${email}.`,
-      httpStatusCode: code || 500
+      httpStatusCode: code || 500,
     });
     this.email = email;
   }
-};
+}
 
 export class EntraFetchError extends BaseError<"EntraFetchError"> {
   email: string;
@@ -284,8 +298,11 @@ export abstract class InternalError<T extends string> extends Error {
 
   public message: string;
 
-
-  constructor({ name, id, message }: Omit<BaseErrorParams<T>, "httpStatusCode">) {
+  constructor({
+    name,
+    id,
+    message,
+  }: Omit<BaseErrorParams<T>, "httpStatusCode">) {
     super(message || name || "Error");
     this.name = name;
     this.id = id;
@@ -301,7 +318,7 @@ export abstract class InternalError<T extends string> extends Error {
 }
 
 export class EncryptionError extends InternalError<"EncryptionError"> {
-  constructor({ message }: { message?: string; }) {
+  constructor({ message }: { message?: string }) {
     super({
       name: "EncryptionError",
       id: 601,
@@ -311,7 +328,7 @@ export class EncryptionError extends InternalError<"EncryptionError"> {
 }
 
 export class DecryptionError extends InternalError<"DecryptionError"> {
-  constructor({ message }: { message?: string; }) {
+  constructor({ message }: { message?: string }) {
     super({
       name: "DecryptionError",
       id: 602,
@@ -321,7 +338,7 @@ export class DecryptionError extends InternalError<"DecryptionError"> {
 }
 
 export class GithubError extends InternalError<"GithubError"> {
-  constructor({ message }: { message?: string; }) {
+  constructor({ message }: { message?: string }) {
     super({
       name: "GithubError",
       id: 701,
@@ -331,11 +348,56 @@ export class GithubError extends InternalError<"GithubError"> {
 }
 
 export class AuthenticationError extends InternalError<"AuthenticationError"> {
-  constructor({ message }: { message?: string; }) {
+  constructor({ message }: { message?: string }) {
     super({
       name: "AuthenticationError",
       id: 702,
       message: message || "Failed to authenticate user.",
+    });
+  }
+}
+
+// Store-related errors
+export class ItemNotAvailableError extends BaseError<"ItemNotAvailableError"> {
+  constructor({ message }: { message?: string }) {
+    super({
+      name: "ItemNotAvailableError",
+      id: 120,
+      message: message || "This item is not available for purchase.",
+      httpStatusCode: 404,
+    });
+  }
+}
+
+export class LimitExceededError extends BaseError<"LimitExceededError"> {
+  constructor({ message }: { message?: string }) {
+    super({
+      name: "LimitExceededError",
+      id: 121,
+      message: message || "Purchase limit exceeded for this item.",
+      httpStatusCode: 400,
+    });
+  }
+}
+
+export class InsufficientInventoryError extends BaseError<"InsufficientInventoryError"> {
+  constructor({ message }: { message?: string }) {
+    super({
+      name: "InsufficientInventoryError",
+      id: 122,
+      message: message || "Insufficient inventory for this item.",
+      httpStatusCode: 400,
+    });
+  }
+}
+
+export class OrderNotFoundError extends BaseError<"OrderNotFoundError"> {
+  constructor({ message }: { message?: string }) {
+    super({
+      name: "OrderNotFoundError",
+      id: 123,
+      message: message || "Order not found.",
+      httpStatusCode: 404,
     });
   }
 }

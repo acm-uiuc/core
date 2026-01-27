@@ -20,6 +20,10 @@ const errorHandlerPlugin = fp(async (fastify) => {
         finalErr = new ValidationError({
           message: (err as FastifyError).message,
         });
+      } else if (
+        (err as FastifyError).code === "FST_ERR_CTP_INVALID_JSON_BODY"
+      ) {
+        finalErr = new ValidationError({ message: "Invalid JSON body." });
       }
       if (finalErr && finalErr instanceof BaseError) {
         request.log.error(

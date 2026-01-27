@@ -17,7 +17,7 @@ export type ConfigType = {
   ValidCorsOrigins: ValueOrArray<OriginType> | OriginFunction;
   AadValidClientId: string;
   EntraServicePrincipalId: string;
-  LinkryBaseUrl: string
+  LinkryBaseUrl: string;
   PasskitIdentifier: string;
   PasskitSerialNumber: string;
   EmailDomain: string;
@@ -68,7 +68,8 @@ export type GenericConfigType = {
   SigInfoTableName: string;
   EntraHostedDomainName: string;
   StoreInventoryTableName: string;
-  // TODO: (store) add other tables
+  StoreCartsOrdersTableName: string;
+  StoreLimitsTableName: string;
 };
 
 type EnvironmentConfigType = {
@@ -106,11 +107,14 @@ const genericConfig: GenericConfigType = {
   AuditLogTable: "infra-core-api-audit-log",
   ApiKeyTable: "infra-core-api-keys",
   ConfigSecretName: "infra-core-api-config",
-  UinExtendedAttributeName: "extension_a70c2e1556954056a6a8edfb1f42f556_uiucEduUIN",
+  UinExtendedAttributeName:
+    "extension_a70c2e1556954056a6a8edfb1f42f556_uiucEduUIN",
   UserInfoTable: "infra-core-api-user-info",
   SigInfoTableName: "infra-core-api-sigs",
   EntraHostedDomainName: "acmillinois.onmicrosoft.com",
   StoreInventoryTableName: "infra-core-api-store-inventory",
+  StoreCartsOrdersTableName: "infra-core-api-store-carts",
+  StoreLimitsTableName: "infra-core-api-store-limits",
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
@@ -128,12 +132,13 @@ const environmentConfig: EnvironmentConfigType = {
     ],
     ConfigurationSecretIds: [genericConfig.ConfigSecretName],
     ConfigurationParameterIds: [
-      '/infra-core-api/jwt_key',
-      '/infra-core-api/github_installation_id',
-      '/infra-core-api/github_app_id',
-      '/infra-core-api/github_private_key',
-      '/infra-core-api/turnstile_secret_key',
-      '/infra-core-api/listmonk_api_token'
+      "/infra-core-api/jwt_key",
+      "/infra-core-api/github_installation_id",
+      "/infra-core-api/github_app_id",
+      "/infra-core-api/github_private_key",
+      "/infra-core-api/turnstile_secret_key",
+      "/infra-core-api/listmonk_api_token",
+      "/infra-core-api/store_stripe_endpoint_secret",
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
@@ -162,11 +167,11 @@ const environmentConfig: EnvironmentConfigType = {
     AzureRoleMapping: {},
     ConfigurationSecretIds: [genericConfig.ConfigSecretName],
     ConfigurationParameterIds: [
-      '/infra-core-api/github_installation_id',
-      '/infra-core-api/github_app_id',
-      '/infra-core-api/github_private_key',
-      '/infra-core-api/turnstile_secret_key',
-      '/infra-core-api/listmonk_api_token'
+      "/infra-core-api/github_installation_id",
+      "/infra-core-api/github_app_id",
+      "/infra-core-api/github_private_key",
+      "/infra-core-api/turnstile_secret_key",
+      "/infra-core-api/listmonk_api_token",
     ],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
@@ -219,6 +224,7 @@ export type SecretConfig = {
   jwt_key?: string;
   turnstile_secret_key: string;
   listmonk_api_token: string;
+  store_stripe_endpoint_secret: string;
 };
 
 const roleArns = {
@@ -226,6 +232,7 @@ const roleArns = {
 };
 
 export const EVENT_CACHED_DURATION = 120;
+export const STORE_CACHED_DURATION = 30;
 export const STALE_IF_ERROR_CACHED_TIME = 86400; // 1 day
 
 type NotificationRecipientsType = {
@@ -238,24 +245,24 @@ type NotificationRecipientsType = {
 
 const notificationRecipients: NotificationRecipientsType = {
   dev: {
-    OfficerBoard: 'infrasharedservices-l@acm.illinois.edu',
-    InfraChairs: 'infrasharedservices-l@acm.illinois.edu',
-    Treasurer: 'infrasharedservices-l@acm.illinois.edu'
+    OfficerBoard: "infrasharedservices-l@acm.illinois.edu",
+    InfraChairs: "infrasharedservices-l@acm.illinois.edu",
+    Treasurer: "infrasharedservices-l@acm.illinois.edu",
   },
   prod: {
-    OfficerBoard: 'officers@acm.illinois.edu',
-    InfraChairs: 'infra@acm.illinois.edu',
-    Treasurer: 'treasurer@acm.illinois.edu'
-  }
-}
+    OfficerBoard: "officers@acm.illinois.edu",
+    InfraChairs: "infra@acm.illinois.edu",
+    Treasurer: "treasurer@acm.illinois.edu",
+  },
+};
 
 export const LinkryGroupUUIDToGroupNameMap = new Map([
-  ['ad81254b-4eeb-4c96-8191-3acdce9194b1', 'ACM Exec'],
-  ['270c2d58-11f6-4c45-a217-d46a035fe853', 'ACM Link Shortener Managers'],
-  ['c4ddcc9f-a9c0-47e7-98c1-f1b345d53121', 'ACM Officers'],
-  ['f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6', 'ACM Infra Leads'],
-  ['c0702752-50da-49da-83d4-bcbe6f7a9b1b', 'ACM Infra Chairs'],
-  ['940e4f9e-6891-4e28-9e29-148798495cdb', 'ACM Infra Team']
+  ["ad81254b-4eeb-4c96-8191-3acdce9194b1", "ACM Exec"],
+  ["270c2d58-11f6-4c45-a217-d46a035fe853", "ACM Link Shortener Managers"],
+  ["c4ddcc9f-a9c0-47e7-98c1-f1b345d53121", "ACM Officers"],
+  ["f8dfc4cf-456b-4da3-9053-f7fdeda5d5d6", "ACM Infra Leads"],
+  ["c0702752-50da-49da-83d4-bcbe6f7a9b1b", "ACM Infra Chairs"],
+  ["940e4f9e-6891-4e28-9e29-148798495cdb", "ACM Infra Team"],
 ]);
 
 export { genericConfig, environmentConfig, roleArns, notificationRecipients };
