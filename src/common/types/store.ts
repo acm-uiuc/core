@@ -204,9 +204,10 @@ export const createVariantRequestSchema = variantSchema
 export const createProductRequestSchema = productSchema
   .omit({
     stripeProductId: true, // We will generate this
+    totalSoldCount: true,
   })
   .extend({
     variants: z.array(createVariantRequestSchema).min(1),
-  });
+  })
 
 export type CreateProductRequest = z.infer<typeof createProductRequestSchema>;
