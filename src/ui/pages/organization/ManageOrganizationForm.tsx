@@ -42,7 +42,7 @@ import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 import * as z from "zod/v4";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
-import { OrganizationId } from "@acm-uiuc/js-shared";
+import { OrganizationId, Organizations } from "@acm-uiuc/js-shared";
 
 type OrganizationData = z.infer<typeof setOrganizationMetaBody>;
 
@@ -555,8 +555,8 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
                 </Combobox>
 
                 <Checkbox
-                  label="Non-voting member"
-                  description={`Check this if the lead should not have voting rights for ${organizationId} in the Executive Council`}
+                  label="Non-voting lead"
+                  description={`Check this if the lead should not have voting rights for ${Organizations[organizationId].name} in the Executive Council`}
                   checked={newLeadNonVoting}
                   onChange={(e) => setNewLeadNonVoting(e.currentTarget.checked)}
                 />
