@@ -46,7 +46,7 @@ import {
 } from "common/types/store.js";
 import { assertAuthenticated } from "api/authenticated.js";
 
-export const STORE_CLIENT_HTTP_CACHE_POLICY = `public, max-age=${STORE_CACHED_DURATION}, stale-while-revalidate=${STORE_CACHED_DURATION * 2}, stale-if-error=${STALE_IF_ERROR_CACHED_TIME}`;
+export const STORE_CLIENT_HTTP_CACHE_POLICY = `public, max-age=${STORE_CACHED_DURATION}, stale-while-revalidate=${STORE_CACHED_DURATION}, stale-if-error=${STORE_CACHED_DURATION}`;
 
 const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   // Register raw body plugin for webhook signature verification
