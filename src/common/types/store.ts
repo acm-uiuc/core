@@ -1,3 +1,4 @@
+import { X25519KeyPairOptions } from "node:crypto";
 import * as z from "zod/v4";
 
 // ============ Constants ============
@@ -69,6 +70,20 @@ export const productSchema = z.object({
 });
 
 export type Product = z.infer<typeof productSchema>;
+
+export const modifyProductSchema = productSchema.pick({
+  name: true,
+  description: true,
+  imageUrl: true,
+  openAt: true,
+  closeAt: true,
+  limitConfiguration: true,
+  verifiedIdentityRequired: true,
+}).partial().extend({
+  verifiedIdentityRequired: z.boolean().optional(), // Override to remove the default
+});
+
+export type ModifyProduct = z.infer<typeof modifyProductSchema>;
 
 // ============ Product with Variants (for API responses) ============
 export const productWithVariantsSchema = productSchema.extend({

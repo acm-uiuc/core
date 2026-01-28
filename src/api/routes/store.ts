@@ -32,6 +32,7 @@ import {
   processStorePaymentSuccess,
   createProduct,
   listProductLineItems,
+  modifyProduct,
 } from "api/functions/store.js";
 import {
   listProductsResponseSchema,
@@ -43,6 +44,7 @@ import {
   createProductRequestSchema,
   listProductsPublicResponseSchema,
   productWithVariantsPublicCountSchema,
+  modifyProductSchema,
 } from "common/types/store.js";
 import { assertAuthenticated } from "api/authenticated.js";
 
@@ -306,6 +308,43 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         success: true,
         productId: request.body.productId,
       });
+    }),
+  );
+
+  // Modify a product entry
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
+    "/admin/products/:productId",
+    {
+      schema: withRoles(
+        [AppRoles.STORE_MANAGER],
+        withTags(["Store"], {
+          summary: "Modify the metadata for a given product.",
+          params: z.object({
+            productId: z.string().min(1),
+          }),
+          body: modifyProductSchema,
+          response: {
+            204: {
+              description: "The product has been modified.",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    assertAuthenticated(async (request, reply) => {
+      await modifyProduct({
+        productId: request.params.productId,
+        data: request.body,
+        actor: request.username,
+        dynamoClient: fastify.dynamoClient,
+      });
+      reply.status(204).send();
     }),
   );
 
