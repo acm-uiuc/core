@@ -1125,6 +1125,7 @@ export async function processStorePaymentSuccess(
     }
   } else {
     logger.warn(
+      { orderId },
       "No payment intent found for transaction, continuing without claiming!",
     );
   }
