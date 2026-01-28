@@ -685,20 +685,25 @@ export async function createStoreCheckout({
 export type ProcessStoreWebhookInputs = {
   orderId: string;
   userId: string;
-  paymentIntentId: string;
+  paymentIdentifier: string;
+  paymentIntentId?: string | undefined;
   dynamoClient: DynamoDBClient;
   stripeApiKey: string;
   logger: ValidLoggers;
 };
 
-export async function processStorePaymentSuccess({
-  orderId,
-  userId,
-  paymentIntentId,
-  dynamoClient,
-  stripeApiKey,
-  logger,
-}: ProcessStoreWebhookInputs) {
+export async function processStorePaymentSuccess(
+  props: ProcessStoreWebhookInputs,
+) {
+  const {
+    orderId,
+    userId,
+    paymentIdentifier,
+    paymentIntentId,
+    dynamoClient,
+    stripeApiKey,
+    logger,
+  } = props;
   const now = Math.floor(Date.now() / 1000);
 
   // 1. Get order details
@@ -752,14 +757,14 @@ export async function processStorePaymentSuccess({
       TableName: genericConfig.StoreCartsOrdersTableName,
       Key: marshall({ orderId, lineItemId: "ORDER" }),
       UpdateExpression:
-        "SET #status = :capturing, confirmedAt = :now, stripePaymentIntentId = :piId REMOVE expiresAt",
+        "SET #status = :capturing, confirmedAt = :now, stripePaymentIdentifier = :pId REMOVE expiresAt",
       ConditionExpression: "#status = :pendingStatus",
       ExpressionAttributeNames: { "#status": "status" },
       ExpressionAttributeValues: marshall({
         ":capturing": "CAPTURING",
         ":pendingStatus": "PENDING",
         ":now": now,
-        ":piId": paymentIntentId,
+        ":pId": paymentIdentifier,
       }),
     },
   });
@@ -975,14 +980,7 @@ export async function processStorePaymentSuccess({
         if (reasons[0]?.Code === "ConditionalCheckFailed") {
           logger.warn({ orderId }, "Order already processed (not PENDING)");
           // Recursive retry to handle state
-          return processStorePaymentSuccess({
-            orderId,
-            userId,
-            paymentIntentId,
-            dynamoClient,
-            stripeApiKey,
-            logger,
-          });
+          return processStorePaymentSuccess(props);
         }
 
         // Check for Conditional Failures in inventory or limits
@@ -1015,31 +1013,35 @@ export async function processStorePaymentSuccess({
           logger.error({ orderId, failedIndex }, errorLogMsg);
 
           // Payment NOT captured yet, so we can cancel/void it
-          const cancelIdempotencyKey = `${orderId}-cancel`;
-          try {
-            await retryWithBackoff(
-              async () => {
-                await cancelPaymentIntent({
-                  idempotencyKey: cancelIdempotencyKey,
-                  paymentIntentId,
-                  stripeApiKey,
-                  cancellationReason: "abandoned",
-                });
-              },
-              {
-                shouldRetry: shouldRetryStripeError,
-                onRetry: logOnRetry("CancelPaymentIntent", logger),
-              },
-            );
-            logger.info({ orderId }, "Payment cancelled successfully");
-          } catch (e) {
-            logger.error(
-              { e, orderId },
-              "Failed to cancel payment after inventory/limit failure",
-            );
-            throw new InternalServerError({
-              message: "Failed to cancel payment after failure",
-            });
+          // Payment intents are not defined for fully-discounted purchases,
+          // So we skip payment ops for those.
+          if (paymentIntentId) {
+            const cancelIdempotencyKey = `${orderId}-cancel`;
+            try {
+              await retryWithBackoff(
+                async () => {
+                  await cancelPaymentIntent({
+                    idempotencyKey: cancelIdempotencyKey,
+                    paymentIntentId,
+                    stripeApiKey,
+                    cancellationReason: "abandoned",
+                  });
+                },
+                {
+                  shouldRetry: shouldRetryStripeError,
+                  onRetry: logOnRetry("CancelPaymentIntent", logger),
+                },
+              );
+              logger.info({ orderId }, "Payment cancelled successfully");
+            } catch (e) {
+              logger.error(
+                { e, orderId },
+                "Failed to cancel payment after inventory/limit failure",
+              );
+              throw new InternalServerError({
+                message: "Failed to cancel payment after failure",
+              });
+            }
           }
 
           // Update order to CANCELLED
@@ -1090,33 +1092,42 @@ export async function processStorePaymentSuccess({
     );
   }
 
-  // 5. Capture Payment (deterministic idempotency key)
-  const captureIdempotencyKey = `${orderId}-capture`;
+  // 5. Capture Payment
+  // Payment intents are not defined for fully-discounted purchases,
+  // So we skip payment ops for those.
+  if (paymentIntentId) {
+    const captureIdempotencyKey = `${orderId}-capture`;
 
-  try {
-    await retryWithBackoff(
-      async () => {
-        await capturePaymentIntent({
-          idempotencyKey: captureIdempotencyKey,
-          paymentIntentId,
-          stripeApiKey,
-        });
-      },
-      {
-        shouldRetry: shouldRetryStripeError,
-        onRetry: logOnRetry("CapturePaymentIntent", logger),
-      },
+    try {
+      await retryWithBackoff(
+        async () => {
+          await capturePaymentIntent({
+            idempotencyKey: captureIdempotencyKey,
+            paymentIntentId,
+            stripeApiKey,
+          });
+        },
+        {
+          shouldRetry: shouldRetryStripeError,
+          onRetry: logOnRetry("CapturePaymentIntent", logger),
+        },
+      );
+      logger.info({ orderId }, "Payment captured successfully");
+    } catch (e) {
+      logger.error(
+        { e, orderId },
+        "Capture failed after retries, will retry on webhook",
+      );
+      // Inventory is already decremented, payment will be captured on retry
+      throw new InternalServerError({
+        message: "Failed to capture payment, will retry",
+      });
+    }
+  } else {
+    logger.warn(
+      { orderId },
+      "No payment intent found for transaction, continuing without claiming!",
     );
-    logger.info({ orderId }, "Payment captured successfully");
-  } catch (e) {
-    logger.error(
-      { e, orderId },
-      "Capture failed after retries, will retry on webhook",
-    );
-    // Inventory is already decremented, payment will be captured on retry
-    throw new InternalServerError({
-      message: "Failed to capture payment, will retry",
-    });
   }
 
   // 6. Update Order Status to ACTIVE
@@ -1185,9 +1196,9 @@ export async function getOrder({
     orderId: orderMeta.orderId as string,
     userId: orderMeta.userId as string,
     status: orderMeta.status as Order["status"],
-    stripePaymentIntentId: orderMeta.stripePaymentIntentId as
-      | string
-      | undefined,
+    // Some older records store the stripePaymentIntentId, but this is no longer used.
+    stripePaymentIdentifier: (orderMeta.stripePaymentIdentifier ||
+      orderMeta.stripePaymentIntentId) as string | undefined,
     createdAt: orderMeta.createdAt as number,
     confirmedAt: orderMeta.confirmedAt as number | undefined,
     cancelledAt: orderMeta.cancelledAt as number | undefined,

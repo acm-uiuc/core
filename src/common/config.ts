@@ -172,6 +172,7 @@ const environmentConfig: EnvironmentConfigType = {
       "/infra-core-api/github_private_key",
       "/infra-core-api/turnstile_secret_key",
       "/infra-core-api/listmonk_api_token",
+      "/infra-core-api/store_stripe_endpoint_secret",
     ],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
