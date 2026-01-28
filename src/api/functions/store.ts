@@ -1843,8 +1843,8 @@ export async function fulfillLineItems({
       ConditionCheck: {
         TableName: genericConfig.StoreCartsOrdersTableName,
         Key: {
-          PK: { S: orderId },
-          SK: { S: "ORDER" },
+          orderId: { S: orderId },
+          lineItemId: { S: "ORDER" },
         },
         ConditionExpression: "#status = :active",
         ExpressionAttributeNames: {
@@ -1867,12 +1867,13 @@ export async function fulfillLineItems({
         }),
         UpdateExpression: "SET #isFulfilled = :isFulfilled",
         ConditionExpression:
-          "attribute_exists(orderId) AND attribute_exists(lineItemId)",
+          "attribute_exists(orderId) AND attribute_exists(lineItemId) AND (#isFulfilled = :notFulfilled OR attribute_not_exists(#isFulfilled))",
         ExpressionAttributeNames: {
           "#isFulfilled": "isFulfilled",
         },
         ExpressionAttributeValues: marshall({
           ":isFulfilled": true,
+          ":notFulfilled": false,
         }),
       },
     });
@@ -1909,18 +1910,23 @@ export async function fulfillLineItems({
         });
       }
 
-      // Check for failed line item operations (starting from index 1)
-      const failedItems = cancellationReasons
-        .slice(1)
+      // Check for failed line item operations
+      const lineItemReasons = cancellationReasons.slice(
+        1,
+        1 + lineItemIds.length,
+      );
+      const failedItems = lineItemReasons
         .map((reason, index) =>
           reason.Code === "ConditionalCheckFailed" ? lineItemIds[index] : null,
         )
-        .filter(Boolean);
+        .filter((id): id is string => id !== null);
 
       if (failedItems.length > 0) {
-        logger.error(`Line items not found: ${failedItems.join(", ")}`);
+        logger.error(
+          `Line items not in fulfillable state: ${failedItems.join(", ")}`,
+        );
         throw new ValidationError({
-          message: `Line items do not exist: ${failedItems.join(", ")}`,
+          message: `Line items are not in a fulfillable state: ${failedItems.join(", ")}`,
         });
       }
     }
