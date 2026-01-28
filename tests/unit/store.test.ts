@@ -450,3 +450,233 @@ describe("POST /checkout", () => {
     expect(callArgs.items[0].price).toBe("price_1StwEfDGHrJxx3mKxM5XROvP");
   });
 });
+
+describe("PATCH /admin/products/:productId", () => {
+  beforeEach(() => {
+    (app as any).redisClient.flushall();
+    ddbMock.reset();
+    sqsMock.reset();
+    smMock.reset();
+    vi.clearAllMocks();
+  });
+
+  test("Modifies product metadata successfully", async () => {
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        name: "Updated Testing Product",
+        description: "An updated description for testing.",
+        openAt: 1000,
+        closeAt: 2000000000,
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(transactCalls).toHaveLength(1);
+
+    const transactItems = transactCalls[0].args[0].input.TransactItems;
+    expect(transactItems).toBeDefined();
+    expect(transactItems!.length).toBeGreaterThanOrEqual(1);
+
+    // Verify the product update item
+    const updateItem = transactItems?.find((item) => item.Update !== undefined);
+    expect(updateItem).toBeDefined();
+    expect(updateItem?.Update?.TableName).toBe(
+      genericConfig.StoreInventoryTableName,
+    );
+    expect(updateItem?.Update?.Key).toEqual({
+      productId: { S: "testing" },
+      variantId: { S: "DEFAULT" },
+    });
+    expect(updateItem?.Update?.UpdateExpression).toContain("SET");
+    expect(updateItem?.Update?.ExpressionAttributeNames).toEqual(
+      expect.objectContaining({
+        "#name": "name",
+        "#description": "description",
+        "#openAt": "openAt",
+        "#closeAt": "closeAt",
+      }),
+    );
+    expect(updateItem?.Update?.ExpressionAttributeValues).toEqual(
+      expect.objectContaining({
+        ":name": { S: "Updated Testing Product" },
+        ":description": { S: "An updated description for testing." },
+        ":openAt": { N: "1000" },
+        ":closeAt": { N: "2000000000" },
+      }),
+    );
+
+    const auditLogItem = transactItems?.find(
+      (item) =>
+        item.Put !== undefined &&
+        item.Put.TableName === genericConfig.AuditLogTable,
+    );
+    expect(auditLogItem).toBeDefined();
+    expect(auditLogItem?.Put?.Item).toEqual(
+      expect.objectContaining({
+        module: { S: "store" },
+        target: { S: "testing" },
+      }),
+    );
+    const auditMessage = auditLogItem?.Put?.Item?.message?.S;
+    expect(auditMessage).toBeDefined();
+    expect(auditMessage).toContain("Modified product metadata fields");
+    expect(auditMessage).toContain("name");
+    expect(auditMessage).toContain("description");
+    expect(auditMessage).toContain("openAt");
+    expect(auditMessage).toContain("closeAt");
+  });
+
+  test("Modifies single field successfully", async () => {
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        name: "New Product Name",
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(transactCalls).toHaveLength(1);
+
+    const transactItems = transactCalls[0].args[0].input.TransactItems;
+
+    // Verify only the name field is being updated
+    const updateItem = transactItems?.find((item) => item.Update !== undefined);
+    expect(updateItem?.Update?.ExpressionAttributeNames).toEqual(
+      expect.objectContaining({
+        "#name": "name",
+      }),
+    );
+    expect(updateItem?.Update?.ExpressionAttributeValues).toEqual(
+      expect.objectContaining({
+        ":name": { S: "New Product Name" },
+      }),
+    );
+    const auditLogItem = transactItems?.find(
+      (item) =>
+        item.Put !== undefined &&
+        item.Put.TableName === genericConfig.AuditLogTable,
+    );
+    expect(auditLogItem).toBeDefined();
+    const auditMessage = auditLogItem?.Put?.Item?.message?.S;
+    expect(auditMessage).toBeDefined();
+    expect(auditMessage).toContain("name");
+    expect(auditMessage).not.toContain("description");
+    expect(auditMessage).not.toContain("openAt");
+    expect(auditMessage).not.toContain("closeAt");
+  });
+
+  test("Modifies limit configuration successfully", async () => {
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        limitConfiguration: {
+          limitType: "PER_VARIANT",
+          maxQuantity: 10,
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    const transactItems = transactCalls[0].args[0].input.TransactItems;
+
+    const updateItem = transactItems?.find((item) => item.Update !== undefined);
+    expect(updateItem?.Update?.ExpressionAttributeNames).toEqual(
+      expect.objectContaining({
+        "#limitConfiguration": "limitConfiguration",
+      }),
+    );
+    // marshall() produces the DynamoDB format directly without wrapping in M:
+    expect(updateItem?.Update?.ExpressionAttributeValues).toEqual(
+      expect.objectContaining({
+        ":limitConfiguration": {
+          limitType: { S: "PER_VARIANT" },
+          maxQuantity: { N: "10" },
+        },
+      }),
+    );
+    const auditLogItem = transactItems?.find(
+      (item) =>
+        item.Put !== undefined &&
+        item.Put.TableName === genericConfig.AuditLogTable,
+    );
+    expect(auditLogItem).toBeDefined();
+    expect(auditLogItem?.Put?.Item?.message?.S).toContain("limitConfiguration");
+  });
+
+  test("Modifies verifiedIdentityRequired successfully", async () => {
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        verifiedIdentityRequired: false,
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    const transactItems = transactCalls[0].args[0].input.TransactItems;
+
+    const updateItem = transactItems?.find((item) => item.Update !== undefined);
+    expect(updateItem?.Update?.ExpressionAttributeValues).toEqual(
+      expect.objectContaining({
+        ":verifiedIdentityRequired": { BOOL: false },
+      }),
+    );
+    const auditLogItem = transactItems?.find(
+      (item) =>
+        item.Put !== undefined &&
+        item.Put.TableName === genericConfig.AuditLogTable,
+    );
+    expect(auditLogItem).toBeDefined();
+    expect(auditLogItem?.Put?.Item?.message?.S).toContain(
+      "verifiedIdentityRequired",
+    );
+  });
+
+  test("Returns 403 without authentication", async () => {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      body: {
+        name: "Updated Name",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+
+    // Verify no DynamoDB calls were made
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(transactCalls).toHaveLength(0);
+  });
+});

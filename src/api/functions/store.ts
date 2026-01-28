@@ -48,6 +48,7 @@ import {
   type CreateProductRequest,
   DEFAULT_VARIANT_ID,
   LimitType,
+  ModifyProduct,
 } from "common/types/store.js";
 import Stripe from "stripe";
 import { getNetIdFromEmail } from "common/utils.js";
@@ -1615,6 +1616,71 @@ export async function createProduct({
     logger.error(
       { auditError, productId: productMeta.productId },
       "Failed to write audit logs for product creation",
+    );
+  }
+}
+
+export async function modifyProduct({
+  productId,
+  data,
+  actor,
+  dynamoClient,
+}: {
+  productId: string;
+  data: ModifyProduct;
+  actor: string;
+  dynamoClient: DynamoDBClient;
+}) {
+  const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [];
+
+  // Build the update expression dynamically based on keys in data
+  const expressionAttributeNames: Record<string, string> = {};
+  const expressionAttributeValues: Record<string, AttributeValue> = {};
+  const updateClauses: string[] = [];
+
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined) {
+      const attrName = `#${key}`;
+      const attrValue = `:${key}`;
+
+      expressionAttributeNames[attrName] = key;
+      expressionAttributeValues[attrValue] = marshall(value);
+      updateClauses.push(`${attrName} = ${attrValue}`);
+    }
+  });
+
+  if (updateClauses.length > 0) {
+    transactItems.push({
+      Update: {
+        TableName: genericConfig.StoreInventoryTableName,
+        Key: {
+          productId: { S: productId },
+          variantId: { S: "DEFAULT" },
+        },
+        UpdateExpression: `SET ${updateClauses.join(", ")}`,
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: expressionAttributeValues,
+      },
+    });
+  }
+
+  const variantAuditLog = buildAuditLogTransactPut({
+    entry: {
+      module: Modules.STORE,
+      actor,
+      target: `${productId}`,
+      message: `Modified product metadata fields: ${Object.keys(data).join(", ")}.`,
+    },
+  });
+
+  if (variantAuditLog) {
+    transactItems.push(variantAuditLog);
+  }
+
+  // Execute the transaction
+  if (transactItems.length > 0) {
+    await dynamoClient.send(
+      new TransactWriteItemsCommand({ TransactItems: transactItems }),
     );
   }
 }
