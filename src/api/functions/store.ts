@@ -191,6 +191,8 @@ export async function getProduct({
       limitConfiguration: v.limitConfiguration as
         | LimitConfiguration
         | undefined,
+      memberPriceCents: v.memberPriceCents,
+      nonmemberPriceCents: v.nonmemberPriceCents,
     })),
   };
 }
@@ -310,6 +312,8 @@ export async function listProducts({
         limitConfiguration: v.limitConfiguration as
           | LimitConfiguration
           | undefined,
+        memberPriceCents: v.memberPriceCents as number,
+        nonmemberPriceCents: v.nonmemberPriceCents as number,
       })),
     });
   }

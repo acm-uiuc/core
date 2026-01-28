@@ -38,6 +38,12 @@ export const variantSchema = z.object({
   inventoryCount: z.number().int().min(0).nullable().optional(), // null = unlimited
   soldCount: z.number().int().min(0).default(0),
   exchangesAllowed: z.boolean().default(true),
+  memberPriceCents: z.number().int().nonnegative().meta({
+    description: "The cost to purchase this variant if the customer is a member of `memberLists`."
+  }),
+  nonmemberPriceCents: z.number().int().nonnegative().meta({
+    description: "The cost to purchase this variant if the customer is NOT a member of `memberLists`."
+  }),
 });
 
 export type Variant = z.infer<typeof variantSchema>;
