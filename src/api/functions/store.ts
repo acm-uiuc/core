@@ -6,6 +6,7 @@ import {
   QueryCommand,
   QueryCommandInput,
   ScanCommand,
+  TransactionCanceledException,
   TransactWriteItemsCommand,
   TransactWriteItemsCommandInput,
   UpdateItemCommand,
@@ -1682,5 +1683,226 @@ export async function modifyProduct({
     await dynamoClient.send(
       new TransactWriteItemsCommand({ TransactItems: transactItems }),
     );
+  }
+}
+
+export type RefundOrderInputs = {
+  orderId: string;
+  actor: string;
+  dynamoClient: DynamoDBClient;
+  logger: ValidLoggers;
+  stripeApiKey: string;
+};
+
+export async function refundOrder({
+  orderId,
+  actor,
+  dynamoClient,
+  logger,
+  stripeApiKey,
+}: RefundOrderInputs) {
+  const order = await getOrder({
+    orderId,
+    dynamoClient,
+  });
+  if (!order.stripePaymentIdentifier) {
+    throw new OrderNotFoundError({
+      message:
+        "This order does not have a stripe payment identifier. No refund can be issued.",
+    });
+  }
+  const stripeClient = new Stripe(stripeApiKey);
+  if (order.stripePaymentIdentifier.startsWith("pi_")) {
+    // Refund the payment intent
+    const paymentIntent = await stripeClient.paymentIntents.retrieve(
+      order.stripePaymentIdentifier,
+    );
+    if (paymentIntent.status !== "succeeded") {
+      logger.info("Payment intent is not succeeded, attempting to cancel.");
+      await stripeClient.paymentIntents.cancel(order.stripePaymentIdentifier);
+      return;
+    }
+    try {
+      await stripeClient.refunds.create({
+        payment_intent: order.stripePaymentIdentifier,
+        reason: "requested_by_customer",
+      });
+    } catch (e) {
+      if (
+        e instanceof Stripe.errors.StripeInvalidRequestError &&
+        e.code === "charge_already_refunded"
+      ) {
+        logger.info("Charge already refunded", {
+          paymentIntent: order.stripePaymentIdentifier,
+        });
+        return;
+      }
+      logger.error(e);
+      throw e;
+    }
+  } else if (order.stripePaymentIdentifier.startsWith("cs_")) {
+    // Traverse through the checkout session
+    const checkoutSession = await stripeClient.checkout.sessions.retrieve(
+      order.stripePaymentIdentifier,
+    );
+
+    if (!checkoutSession.payment_intent) {
+      logger.info("Checkout session has no payment intent", {
+        checkoutSession: order.stripePaymentIdentifier,
+      });
+      return;
+    }
+
+    const paymentIntentId =
+      typeof checkoutSession.payment_intent === "string"
+        ? checkoutSession.payment_intent
+        : checkoutSession.payment_intent.id;
+
+    const paymentIntent =
+      await stripeClient.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.status !== "succeeded") {
+      logger.info("Payment intent is not succeeded, attempting to cancel.", {
+        paymentIntentId,
+      });
+      await stripeClient.paymentIntents.cancel(paymentIntentId);
+      return;
+    }
+
+    try {
+      await stripeClient.refunds.create({
+        payment_intent: paymentIntentId,
+        reason: "requested_by_customer",
+      });
+    } catch (e) {
+      if (
+        e instanceof Stripe.errors.StripeInvalidRequestError &&
+        e.code === "charge_already_refunded"
+      ) {
+        logger.info("Charge already refunded", {
+          paymentIntentId,
+          checkoutSession: order.stripePaymentIdentifier,
+        });
+        return;
+      }
+      logger.error(e);
+      throw e;
+    }
+  } else {
+    throw new InternalServerError({
+      message: `Unknown Stripe payment identifier type ${order.stripePaymentIdentifier.split("_")[0]}`,
+    });
+  }
+
+  const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [
+    {
+      Update: {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        Key: marshall({
+          orderId,
+          lineItemId: "ORDER",
+        }),
+        UpdateExpression:
+          "SET #status = :status, #refundedAt = :refundedAt, #updatedBy = :updatedBy",
+        ExpressionAttributeNames: {
+          "#status": "status",
+          "#refundedAt": "refundedAt",
+        },
+        ExpressionAttributeValues: marshall({
+          ":status": "REFUNDED",
+          ":refundedAt": Math.floor(Date.now() / 1000),
+        }),
+      },
+    },
+  ];
+
+  const productAuditLog = buildAuditLogTransactPut({
+    entry: {
+      module: Modules.STORE,
+      actor,
+      target: orderId,
+      message: "Refunded order",
+    },
+  });
+  if (productAuditLog) {
+    transactItems.push(productAuditLog);
+  }
+
+  await dynamoClient.send(
+    new TransactWriteItemsCommand({
+      TransactItems: transactItems,
+    }),
+  );
+}
+
+export type FulfillOrderLineItemsInputs = {
+  orderId: string;
+  actor: string;
+  dynamoClient: DynamoDBClient;
+  logger: ValidLoggers;
+  lineItemIds: string[];
+};
+
+export async function fulfillLineItems({
+  orderId,
+  actor,
+  lineItemIds,
+  dynamoClient,
+  logger,
+}: FulfillOrderLineItemsInputs) {
+  const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [];
+
+  for (const lineItemId of lineItemIds) {
+    transactItems.push({
+      Update: {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        Key: marshall({
+          orderId,
+          lineItemId,
+        }),
+        UpdateExpression: "SET #isFulfilled = :isFulfilled",
+        ConditionExpression:
+          "attribute_exists(orderId) AND attribute_exists(lineItemId)",
+        ExpressionAttributeNames: {
+          "#isFulfilled": "isFulfilled",
+        },
+        ExpressionAttributeValues: marshall({
+          ":isFulfilled": true,
+        }),
+      },
+    });
+  }
+
+  const productAuditLog = buildAuditLogTransactPut({
+    entry: {
+      module: Modules.STORE,
+      actor,
+      target: orderId,
+      message: `Fulfilled line items: ${lineItemIds.join(", ")}`,
+    },
+  });
+
+  if (productAuditLog) {
+    transactItems.push(productAuditLog);
+  }
+
+  try {
+    await dynamoClient.send(
+      new TransactWriteItemsCommand({
+        TransactItems: transactItems,
+      }),
+    );
+  } catch (error) {
+    if (error instanceof TransactionCanceledException) {
+      const failedItems = error.CancellationReasons?.map((reason, index) =>
+        reason.Code === "ConditionalCheckFailed" ? lineItemIds[index] : null,
+      ).filter(Boolean);
+
+      logger.error(`Line items not found: ${failedItems?.join(", ")}`);
+      throw new ValidationError({
+        message: `Line items do not exist: ${failedItems?.join(", ")}`,
+      });
+    }
+    throw error;
   }
 }

@@ -33,6 +33,8 @@ import {
   createProduct,
   listProductLineItems,
   modifyProduct,
+  refundOrder,
+  fulfillLineItems,
 } from "api/functions/store.js";
 import {
   listProductsResponseSchema,
@@ -380,6 +382,83 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         logger: request.log,
       });
       return reply.send({ items });
+    }),
+  );
+
+  // Get all orders (admin) with optional filters
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/admin/orders/:orderId/refund",
+    {
+      schema: withRoles(
+        [AppRoles.STORE_MANAGER],
+        withTags(["Store"], {
+          summary: "Refund an order.",
+          params: z.object({
+            orderId: z.string().min(1),
+          }),
+          response: {
+            204: {
+              description: "The order was refunded.",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    assertAuthenticated(async (request, reply) => {
+      await refundOrder({
+        dynamoClient: fastify.dynamoClient,
+        orderId: request.params.orderId,
+        logger: request.log,
+        actor: request.username,
+        stripeApiKey: fastify.secretConfig.stripe_secret_key,
+      });
+      return reply.status(204).send();
+    }),
+  );
+
+  // Fulfill order
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/admin/orders/:orderId/fulfill",
+    {
+      schema: withRoles(
+        [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
+        withTags(["Store"], {
+          summary: "Fulfill an order's line items.",
+          params: z.object({
+            orderId: z.string().min(1),
+          }),
+          body: z.object({
+            lineItemIds: z.array(z.string().min(1)).min(1).max(20),
+          }),
+          response: {
+            204: {
+              description: "The order's specified line items were fulfilled.",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    assertAuthenticated(async (request, reply) => {
+      await fulfillLineItems({
+        dynamoClient: fastify.dynamoClient,
+        orderId: request.params.orderId,
+        logger: request.log,
+        actor: request.username,
+        lineItemIds: request.body.lineItemIds,
+      });
+      return reply.status(204).send();
     }),
   );
 
