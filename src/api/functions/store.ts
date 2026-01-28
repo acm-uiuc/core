@@ -1013,6 +1013,8 @@ export async function processStorePaymentSuccess(
           logger.error({ orderId, failedIndex }, errorLogMsg);
 
           // Payment NOT captured yet, so we can cancel/void it
+          // Payment intents are not defined for fully-discounted purchases,
+          // So we skip payment ops for those.
           if (paymentIntentId) {
             const cancelIdempotencyKey = `${orderId}-cancel`;
             try {
@@ -1090,7 +1092,9 @@ export async function processStorePaymentSuccess(
     );
   }
 
-  // 5. Capture Payment (deterministic idempotency key)
+  // 5. Capture Payment
+  // Payment intents are not defined for fully-discounted purchases,
+  // So we skip payment ops for those.
   if (paymentIntentId) {
     const captureIdempotencyKey = `${orderId}-capture`;
 
