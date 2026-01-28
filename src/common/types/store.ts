@@ -104,7 +104,7 @@ export const orderSchema = z.object({
   orderId: z.string().min(1),
   userId: z.string().email(), // User's email
   status: orderStatusEnum,
-  stripePaymentIntentId: z.string().optional(),
+  stripePaymentIdentifier: z.string().optional(),
   createdAt: z.number().int(),
   confirmedAt: z.number().int().optional(),
   cancelledAt: z.number().int().optional(),

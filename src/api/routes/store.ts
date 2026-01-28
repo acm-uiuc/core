@@ -434,11 +434,12 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
           const orderId = metadata.orderId;
           const userId = metadata.userId;
-          const paymentIntentId = session.id.toString();
+          const paymentIdentifier = session.id.toString();
+          const paymentIntentId = session.payment_intent?.toString();
 
-          if (!orderId || !userId || !paymentIntentId) {
+          if (!orderId || !userId || !paymentIdentifier) {
             request.log.warn(
-              { orderId, userId, paymentIntentId },
+              { orderId, userId, paymentIdentifier },
               "Missing required metadata in store webhook",
             );
             return reply
@@ -447,13 +448,14 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
 
           request.log.info(
-            { orderId, userId, paymentIntentId },
+            { orderId, userId, paymentIdentifier },
             "Processing store payment success",
           );
 
           await processStorePaymentSuccess({
             orderId,
             userId,
+            paymentIdentifier,
             paymentIntentId,
             dynamoClient: fastify.dynamoClient,
             stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
