@@ -1705,43 +1705,25 @@ export async function refundOrder({
     orderId,
     dynamoClient,
   });
+
   if (!order.stripePaymentIdentifier) {
-    throw new OrderNotFoundError({
+    throw new ValidationError({
       message:
-        "This order does not have a stripe payment identifier. No refund can be issued.",
+        "This order does not have a Stripe payment identifier. No refund can be issued.",
     });
   }
+
+  if (order.status === "REFUNDED") {
+    throw new ValidationError({ message: "Order has already been refunded." });
+  }
+
   const stripeClient = new Stripe(stripeApiKey);
+  let paymentIntentId: string | null = null;
+
+  // 1. Resolve the Payment Intent ID based on identifier type
   if (order.stripePaymentIdentifier.startsWith("pi_")) {
-    // Refund the payment intent
-    const paymentIntent = await stripeClient.paymentIntents.retrieve(
-      order.stripePaymentIdentifier,
-    );
-    if (paymentIntent.status !== "succeeded") {
-      logger.info("Payment intent is not succeeded, attempting to cancel.");
-      await stripeClient.paymentIntents.cancel(order.stripePaymentIdentifier);
-      return;
-    }
-    try {
-      await stripeClient.refunds.create({
-        payment_intent: order.stripePaymentIdentifier,
-        reason: "requested_by_customer",
-      });
-    } catch (e) {
-      if (
-        e instanceof Stripe.errors.StripeInvalidRequestError &&
-        e.code === "charge_already_refunded"
-      ) {
-        logger.info("Charge already refunded", {
-          paymentIntent: order.stripePaymentIdentifier,
-        });
-        return;
-      }
-      logger.error(e);
-      throw e;
-    }
+    paymentIntentId = order.stripePaymentIdentifier;
   } else if (order.stripePaymentIdentifier.startsWith("cs_")) {
-    // Traverse through the checkout session
     const checkoutSession = await stripeClient.checkout.sessions.retrieve(
       order.stripePaymentIdentifier,
     );
@@ -1750,43 +1732,12 @@ export async function refundOrder({
       logger.info("Checkout session has no payment intent", {
         checkoutSession: order.stripePaymentIdentifier,
       });
-      return;
-    }
-
-    const paymentIntentId =
-      typeof checkoutSession.payment_intent === "string"
-        ? checkoutSession.payment_intent
-        : checkoutSession.payment_intent.id;
-
-    const paymentIntent =
-      await stripeClient.paymentIntents.retrieve(paymentIntentId);
-
-    if (paymentIntent.status !== "succeeded") {
-      logger.info("Payment intent is not succeeded, attempting to cancel.", {
-        paymentIntentId,
-      });
-      await stripeClient.paymentIntents.cancel(paymentIntentId);
-      return;
-    }
-
-    try {
-      await stripeClient.refunds.create({
-        payment_intent: paymentIntentId,
-        reason: "requested_by_customer",
-      });
-    } catch (e) {
-      if (
-        e instanceof Stripe.errors.StripeInvalidRequestError &&
-        e.code === "charge_already_refunded"
-      ) {
-        logger.info("Charge already refunded", {
-          paymentIntentId,
-          checkoutSession: order.stripePaymentIdentifier,
-        });
-        return;
-      }
-      logger.error(e);
-      throw e;
+      // Fall through to mark as refunded in DB
+    } else {
+      paymentIntentId =
+        typeof checkoutSession.payment_intent === "string"
+          ? checkoutSession.payment_intent
+          : checkoutSession.payment_intent.id;
     }
   } else {
     throw new InternalServerError({
@@ -1794,6 +1745,42 @@ export async function refundOrder({
     });
   }
 
+  // Perform Stripe operations if we found a valid Payment Intent
+  if (paymentIntentId) {
+    const paymentIntent =
+      await stripeClient.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.status !== "succeeded") {
+      // Case A: Payment wasn't successful, cancel it.
+      logger.info("Payment intent is not succeeded, attempting to cancel.", {
+        paymentIntentId,
+      });
+      await stripeClient.paymentIntents.cancel(paymentIntentId);
+    } else {
+      // Case B: Payment succeeded, attempt refund.
+      try {
+        await stripeClient.refunds.create({
+          payment_intent: paymentIntentId,
+          reason: "requested_by_customer",
+        });
+      } catch (e) {
+        // If already refunded, log and continue to DB update
+        if (
+          e instanceof Stripe.errors.StripeInvalidRequestError &&
+          e.code === "charge_already_refunded"
+        ) {
+          logger.info("Charge already refunded", {
+            paymentIntent: paymentIntentId,
+          });
+        } else {
+          logger.error(e);
+          throw e;
+        }
+      }
+    }
+  }
+
+  // 3. Mark as REFUNDED in Database
   const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [
     {
       Update: {
@@ -1802,8 +1789,7 @@ export async function refundOrder({
           orderId,
           lineItemId: "ORDER",
         }),
-        UpdateExpression:
-          "SET #status = :status, #refundedAt = :refundedAt, #updatedBy = :updatedBy",
+        UpdateExpression: "SET #status = :status, #refundedAt = :refundedAt",
         ExpressionAttributeNames: {
           "#status": "status",
           "#refundedAt": "refundedAt",
@@ -1824,6 +1810,7 @@ export async function refundOrder({
       message: "Refunded order",
     },
   });
+
   if (productAuditLog) {
     transactItems.push(productAuditLog);
   }
@@ -1850,7 +1837,25 @@ export async function fulfillLineItems({
   dynamoClient,
   logger,
 }: FulfillOrderLineItemsInputs) {
-  const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [];
+  // Orders must be active
+  const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [
+    {
+      ConditionCheck: {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        Key: {
+          PK: { S: orderId },
+          SK: { S: "ORDER" },
+        },
+        ConditionExpression: "#status = :active",
+        ExpressionAttributeNames: {
+          "#status": "status",
+        },
+        ExpressionAttributeValues: {
+          ":active": { S: "ACTIVE" },
+        },
+      },
+    },
+  ];
 
   for (const lineItemId of lineItemIds) {
     transactItems.push({
@@ -1894,14 +1899,30 @@ export async function fulfillLineItems({
     );
   } catch (error) {
     if (error instanceof TransactionCanceledException) {
-      const failedItems = error.CancellationReasons?.map((reason, index) =>
-        reason.Code === "ConditionalCheckFailed" ? lineItemIds[index] : null,
-      ).filter(Boolean);
+      const cancellationReasons = error.CancellationReasons ?? [];
 
-      logger.error(`Line items not found: ${failedItems?.join(", ")}`);
-      throw new ValidationError({
-        message: `Line items do not exist: ${failedItems?.join(", ")}`,
-      });
+      // Check if the first item (condition check) failed
+      if (cancellationReasons[0]?.Code === "ConditionalCheckFailed") {
+        logger.error(`Order ${orderId} is not in ACTIVE status`);
+        throw new ValidationError({
+          message: `Order is not active and cannot be modified`,
+        });
+      }
+
+      // Check for failed line item operations (starting from index 1)
+      const failedItems = cancellationReasons
+        .slice(1)
+        .map((reason, index) =>
+          reason.Code === "ConditionalCheckFailed" ? lineItemIds[index] : null,
+        )
+        .filter(Boolean);
+
+      if (failedItems.length > 0) {
+        logger.error(`Line items not found: ${failedItems.join(", ")}`);
+        throw new ValidationError({
+          message: `Line items do not exist: ${failedItems.join(", ")}`,
+        });
+      }
     }
     throw error;
   }
