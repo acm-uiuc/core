@@ -548,7 +548,7 @@ resource "aws_dynamodb_table" "store_carts_orders" {
     for_each = var.ReplicationRegions
     content {
       region_name                 = replica.value
-      deletion_protection_enabled = true
+      deletion_protection_enabled = false
     }
   }
 }
@@ -587,6 +587,10 @@ resource "aws_dynamodb_table" "store_carts" {
   attribute {
     name = "userId"
     type = "S"
+  }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
   }
   global_secondary_index {
     name            = "ItemIdIndex"
