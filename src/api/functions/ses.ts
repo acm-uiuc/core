@@ -160,8 +160,8 @@ export function generateSalesEmail(
     .join(", ");
 
   const verificationInstructions = payload.isVerifiedIdentity
-    ? "Show your Illinois iCard or Illinois App QR code to our staff to verify your purchase."
-    : "Show the attached QR code to our staff to verify your purchase.";
+    ? "Show your Illinois iCard or Illinois App QR code to our staff to verify your purchase at pickup."
+    : "Show the attached QR code to our staff to verify your purchase at pickup.";
 
   const emailTemplate = `
 <!doctype html>
