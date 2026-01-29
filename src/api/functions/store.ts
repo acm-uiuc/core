@@ -6,6 +6,7 @@ import {
   QueryCommand,
   QueryCommandInput,
   ScanCommand,
+  TransactionCanceledException,
   TransactWriteItemsCommand,
   TransactWriteItemsCommandInput,
   UpdateItemCommand,
@@ -28,6 +29,7 @@ import {
   capturePaymentIntent,
   cancelPaymentIntent,
   shouldRetryStripeError,
+  refundOrCancelPaymentIntent,
 } from "./stripe.js";
 import { getUserIdentity } from "./identity.js";
 import {
@@ -54,6 +56,9 @@ import Stripe from "stripe";
 import { getNetIdFromEmail } from "common/utils.js";
 import { buildAuditLogTransactPut } from "./auditLog.js";
 import { Modules } from "common/modules.js";
+import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { sendSaleEmailHandler } from "api/sqs/handlers/sendSaleEmailHandler.js";
 
 // ============ Helper Functions ============
 
@@ -639,6 +644,7 @@ export async function createStoreCheckout({
     orderId,
     userId,
     initiator: "acm-store",
+    isVerifiedIdentity: isVerifiedIdentity ? "true" : "false",
   };
 
   const checkoutParams = {
@@ -686,11 +692,15 @@ export async function createStoreCheckout({
 export type ProcessStoreWebhookInputs = {
   orderId: string;
   userId: string;
+  requestId: string;
+  eventId: string;
   paymentIdentifier: string;
   paymentIntentId?: string | undefined;
   dynamoClient: DynamoDBClient;
   stripeApiKey: string;
   logger: ValidLoggers;
+  isVerifiedIdentity: boolean;
+  sqsQueueUrl: string;
 };
 
 export async function processStorePaymentSuccess(
@@ -704,9 +714,12 @@ export async function processStorePaymentSuccess(
     dynamoClient,
     stripeApiKey,
     logger,
+    requestId,
+    eventId,
+    isVerifiedIdentity,
+    sqsQueueUrl,
   } = props;
   const now = Math.floor(Date.now() / 1000);
-
   // 1. Get order details
   const orderResponse = await dynamoClient.send(
     new QueryCommand({
@@ -1160,8 +1173,81 @@ export async function processStorePaymentSuccess(
       message: "Failed to finalize order status",
     });
   }
+  // 7. Send email to purchaser
+  // Batch get all products and variants needed for email
+  const keysToFetch: { productId: string; variantId: string }[] = [];
+  const productIdsToFetch = new Set<string>();
 
-  logger.info({ orderId }, "Order processing completed successfully");
+  for (const lineItem of lineItems) {
+    const { productId, variantId } = lineItem;
+    // Fetch variant
+    keysToFetch.push({ productId, variantId });
+    // Fetch product (for product name)
+    productIdsToFetch.add(productId);
+  }
+
+  // Add product-level records
+  for (const productId of productIdsToFetch) {
+    keysToFetch.push({ productId, variantId: DEFAULT_VARIANT_ID });
+  }
+
+  const batchGetResponse = await dynamoClient.send(
+    new BatchGetItemCommand({
+      RequestItems: {
+        [genericConfig.StoreInventoryTableName]: {
+          Keys: keysToFetch.map((k) => marshall(k)),
+        },
+      },
+    }),
+  );
+
+  const inventoryItems =
+    batchGetResponse.Responses?.[genericConfig.StoreInventoryTableName]?.map(
+      (item) => unmarshall(item),
+    ) || [];
+
+  // Create lookup maps
+  const productMap = new Map<string, Record<string, unknown>>();
+  const variantMap = new Map<string, Record<string, unknown>>();
+
+  for (const item of inventoryItems) {
+    if (item.variantId === DEFAULT_VARIANT_ID) {
+      productMap.set(item.productId as string, item);
+    } else {
+      variantMap.set(`${item.productId}#${item.variantId}`, item);
+    }
+  }
+
+  // Build itemsPurchased array
+  const itemsPurchased: SQSPayload<AvailableSQSFunctions.SendSaleEmail>["payload"]["itemsPurchased"] =
+    lineItems.map((lineItem) => {
+      const { productId, variantId, quantity } = lineItem;
+      const product = productMap.get(productId);
+      const variant = variantMap.get(`${productId}#${variantId}`);
+
+      return {
+        itemName: (product?.name as string) || "Unknown Item",
+        variantName:
+          variantId !== DEFAULT_VARIANT_ID
+            ? (variant?.name as string)
+            : undefined,
+        quantity: quantity as number,
+      };
+    });
+  logger.info(`Sending email to customer at ${userId}!`);
+  await sendSaleEmailHandler(
+    {
+      email: userId,
+      qrCodeContent: orderId,
+      isVerifiedIdentity,
+      itemsPurchased,
+    },
+    {
+      reqId: requestId,
+      initiator: eventId,
+    },
+    logger,
+  );
 }
 
 // ============ Order Management Functions ============
@@ -1682,5 +1768,259 @@ export async function modifyProduct({
     await dynamoClient.send(
       new TransactWriteItemsCommand({ TransactItems: transactItems }),
     );
+  }
+}
+
+export type RefundOrderInputs = {
+  orderId: string;
+  actor: string;
+  dynamoClient: DynamoDBClient;
+  logger: ValidLoggers;
+  stripeApiKey: string;
+};
+
+export async function refundOrder({
+  orderId,
+  actor,
+  dynamoClient,
+  logger,
+  stripeApiKey,
+}: RefundOrderInputs) {
+  const order = await getOrder({
+    orderId,
+    dynamoClient,
+  });
+
+  if (!order.stripePaymentIdentifier) {
+    throw new ValidationError({
+      message:
+        "This order does not have a Stripe payment identifier. No refund can be issued.",
+    });
+  }
+
+  if (order.status === "REFUNDED") {
+    throw new ValidationError({ message: "Order has already been refunded." });
+  }
+
+  const stripeClient = new Stripe(stripeApiKey);
+  let paymentIntentId: string | null = null;
+
+  // 1. Resolve the Payment Intent ID based on identifier type
+  if (order.stripePaymentIdentifier.startsWith("pi_")) {
+    paymentIntentId = order.stripePaymentIdentifier;
+  } else if (order.stripePaymentIdentifier.startsWith("cs_")) {
+    const checkoutSession = await stripeClient.checkout.sessions.retrieve(
+      order.stripePaymentIdentifier,
+    );
+
+    if (!checkoutSession.payment_intent) {
+      logger.info("Checkout session has no payment intent", {
+        checkoutSession: order.stripePaymentIdentifier,
+      });
+      // Fall through to mark as refunded in DB
+    } else {
+      paymentIntentId =
+        typeof checkoutSession.payment_intent === "string"
+          ? checkoutSession.payment_intent
+          : checkoutSession.payment_intent.id;
+    }
+  } else {
+    throw new InternalServerError({
+      message: `Unknown Stripe payment identifier type ${order.stripePaymentIdentifier.split("_")[0]}`,
+    });
+  }
+
+  // Perform Stripe operations if we found a valid Payment Intent
+  if (paymentIntentId) {
+    const idempotencyKey = randomUUID();
+    try {
+      await retryWithBackoff(
+        async () => {
+          await refundOrCancelPaymentIntent({
+            paymentIntentId,
+            stripeApiKey,
+            cancellationReason: "requested_by_customer",
+            idempotencyKey,
+            logger,
+          });
+        },
+        {
+          shouldRetry: shouldRetryStripeError,
+          onRetry: logOnRetry("RefundOrCancelPayment", logger),
+        },
+      );
+      logger.info(
+        { orderId, paymentIntentId },
+        "Payment refunded successfully",
+      );
+    } catch (e) {
+      // If already refunded, log and continue to DB update
+      if (
+        e instanceof Stripe.errors.StripeInvalidRequestError &&
+        e.code === "charge_already_refunded"
+      ) {
+        logger.info("Charge already refunded", {
+          paymentIntent: paymentIntentId,
+        });
+      } else {
+        logger.error(e);
+        throw e;
+      }
+    }
+  }
+  // 3. Mark as REFUNDED in Database
+  const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [
+    {
+      Update: {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        Key: marshall({
+          orderId,
+          lineItemId: "ORDER",
+        }),
+        UpdateExpression:
+          "SET `#status` = :status, `#refundedAt` = :refundedAt",
+        ConditionExpression: "#status <> :refundedStatus",
+        ExpressionAttributeNames: {
+          "#status": "status",
+          "#refundedAt": "refundedAt",
+        },
+        ExpressionAttributeValues: marshall({
+          ":status": "REFUNDED",
+          ":refundedAt": Math.floor(Date.now() / 1000),
+          ":refundedStatus": "REFUNDED",
+        }),
+      },
+    },
+  ];
+
+  const productAuditLog = buildAuditLogTransactPut({
+    entry: {
+      module: Modules.STORE,
+      actor,
+      target: orderId,
+      message: "Refunded order",
+    },
+  });
+
+  if (productAuditLog) {
+    transactItems.push(productAuditLog);
+  }
+
+  await dynamoClient.send(
+    new TransactWriteItemsCommand({
+      TransactItems: transactItems,
+    }),
+  );
+}
+
+export type FulfillOrderLineItemsInputs = {
+  orderId: string;
+  actor: string;
+  dynamoClient: DynamoDBClient;
+  logger: ValidLoggers;
+  lineItemIds: string[];
+};
+
+export async function fulfillLineItems({
+  orderId,
+  actor,
+  lineItemIds,
+  dynamoClient,
+  logger,
+}: FulfillOrderLineItemsInputs) {
+  // Orders must be active
+  const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [
+    {
+      ConditionCheck: {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        Key: {
+          orderId: { S: orderId },
+          lineItemId: { S: "ORDER" },
+        },
+        ConditionExpression: "#status = :active",
+        ExpressionAttributeNames: {
+          "#status": "status",
+        },
+        ExpressionAttributeValues: {
+          ":active": { S: "ACTIVE" },
+        },
+      },
+    },
+  ];
+
+  for (const lineItemId of lineItemIds) {
+    transactItems.push({
+      Update: {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        Key: marshall({
+          orderId,
+          lineItemId,
+        }),
+        UpdateExpression: "SET #isFulfilled = :isFulfilled",
+        ConditionExpression:
+          "attribute_exists(orderId) AND attribute_exists(lineItemId) AND (#isFulfilled = :notFulfilled OR attribute_not_exists(#isFulfilled))",
+        ExpressionAttributeNames: {
+          "#isFulfilled": "isFulfilled",
+        },
+        ExpressionAttributeValues: marshall({
+          ":isFulfilled": true,
+          ":notFulfilled": false,
+        }),
+      },
+    });
+  }
+
+  const productAuditLog = buildAuditLogTransactPut({
+    entry: {
+      module: Modules.STORE,
+      actor,
+      target: orderId,
+      message: `Fulfilled line items: ${lineItemIds.join(", ")}`,
+    },
+  });
+
+  if (productAuditLog) {
+    transactItems.push(productAuditLog);
+  }
+
+  try {
+    await dynamoClient.send(
+      new TransactWriteItemsCommand({
+        TransactItems: transactItems,
+      }),
+    );
+  } catch (error) {
+    if (error instanceof TransactionCanceledException) {
+      const cancellationReasons = error.CancellationReasons ?? [];
+
+      // Check if the first item (condition check) failed
+      if (cancellationReasons[0]?.Code === "ConditionalCheckFailed") {
+        logger.error(`Order ${orderId} is not in ACTIVE status`);
+        throw new ValidationError({
+          message: `Order is not active and cannot be modified`,
+        });
+      }
+
+      // Check for failed line item operations
+      const lineItemReasons = cancellationReasons.slice(
+        1,
+        1 + lineItemIds.length,
+      );
+      const failedItems = lineItemReasons
+        .map((reason, index) =>
+          reason.Code === "ConditionalCheckFailed" ? lineItemIds[index] : null,
+        )
+        .filter((id): id is string => id !== null);
+
+      if (failedItems.length > 0) {
+        logger.error(
+          `Line items not in fulfillable state: ${failedItems.join(", ")}`,
+        );
+        throw new ValidationError({
+          message: `Line items are not in a fulfillable state: ${failedItems.join(", ")}`,
+        });
+      }
+    }
+    throw error;
   }
 }

@@ -146,12 +146,22 @@ ${encodedAttachment}
 export function generateSalesEmail(
   payload: SQSPayload<AvailableSQSFunctions.SendSaleEmail>["payload"],
   senderEmail: string,
-  imageBuffer: ArrayBufferLike,
+  imageBuffer?: ArrayBufferLike,
 ): SendRawEmailCommand {
-  const encodedImage = encode(imageBuffer as ArrayBuffer);
   const boundary = "----BoundaryForEmail";
+  const subject = `Your purchase has been confirmed!`;
 
-  const subject = `Your ${payload.type === "merch" ? "order" : "ticket"} has been confirmed!`;
+  // Format items list
+  const itemsList = payload.itemsPurchased
+    .map((item) => {
+      const variant = item.variantName ? ` (${item.variantName})` : "";
+      return `${item.quantity}x ${item.itemName}${variant}`;
+    })
+    .join(", ");
+
+  const verificationInstructions = payload.isVerifiedIdentity
+    ? "Show your Illinois iCard or Illinois App QR code to our staff to verify your purchase at pickup."
+    : "Show the attached QR code to our staff to verify your purchase at pickup.";
 
   const emailTemplate = `
 <!doctype html>
@@ -218,8 +228,8 @@ export function generateSalesEmail(
     <div class="wrap">
         <h2 style="text-align: center;">${subject}</h2>
         <p>
-            Thank you for your purchase of ${payload.quantity} ${payload.itemName} ${payload.size ? `(size ${payload.size})` : ""}.
-            ${payload.type === "merch" ? "When picking up your order" : "When attending the event"}, show the attached QR code to our staff to verify your purchase.
+            Thank you for your purchase of ${itemsList}.
+            ${verificationInstructions}
         </p>
         ${payload.customText ? `<p>${payload.customText}</p>` : ""}
         <p>
@@ -231,7 +241,7 @@ export function generateSalesEmail(
     </div>
     <div class="footer">
         <p>
-            <a href="https://acm.illinois.edu">ACM @ UIUC Homepage</a>
+            <a href="https://www.acm.illinois.edu?utm_source=store_email">ACM @ UIUC Homepage</a>
             <a href="mailto:admin@acm.illinois.edu">Email ACM @ UIUC</a>
         </p>
     </div>
@@ -239,10 +249,32 @@ export function generateSalesEmail(
 </html>
   `;
 
-  const rawEmail = `
+  // Build email based on whether we need to attach a QR code
+  let rawEmail: string;
+
+  if (payload.isVerifiedIdentity) {
+    // Simple email without attachment
+    rawEmail = `
+MIME-Version: 1.0
+Content-Type: text/html; charset="UTF-8"
+From: ACM @ UIUC Store <${senderEmail}>
+To: ${payload.email}
+Subject: Your ACM @ UIUC Purchase
+
+${emailTemplate}`.trim();
+  } else {
+    // Email with QR code attachment
+    if (!imageBuffer) {
+      throw new Error(
+        "imageBuffer is required when isVerifiedIdentity is false",
+      );
+    }
+    const encodedImage = encode(imageBuffer as ArrayBuffer);
+
+    rawEmail = `
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="${boundary}"
-From: ACM @ UIUC <${senderEmail}>
+From: ACM @ UIUC Store <${senderEmail}>
 To: ${payload.email}
 Subject: Your ACM @ UIUC Purchase
 
@@ -254,10 +286,11 @@ ${emailTemplate}
 --${boundary}
 Content-Type: image/png
 Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="${payload.itemName}.png"
+Content-Disposition: attachment; filename="purchase-qr.png"
 
 ${encodedImage}
 --${boundary}--`.trim();
+  }
 
   return new SendRawEmailCommand({
     RawMessage: {

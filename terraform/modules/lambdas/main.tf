@@ -450,7 +450,7 @@ resource "aws_lambda_function" "sqs_lambda" {
   handler          = "index.handler"
   runtime          = local.node_version
   filename         = data.archive_file.sqs_lambda_code.output_path
-  timeout          = 300
+  timeout          = 20
   memory_size      = 2048
   source_code_hash = data.archive_file.sqs_lambda_code.output_sha256
   layers           = [aws_lambda_layer_version.api_vendor_layer.arn]

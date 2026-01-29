@@ -7,6 +7,7 @@ import {
   GetItemCommand,
   QueryCommand,
   ScanCommand,
+  TransactionCanceledException,
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import { SQSClient } from "@aws-sdk/client-sqs";
@@ -674,6 +675,264 @@ describe("PATCH /admin/products/:productId", () => {
     });
 
     expect(response.statusCode).toBe(403);
+
+    // Verify no DynamoDB calls were made
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(transactCalls).toHaveLength(0);
+  });
+});
+
+describe("POST /admin/orders/:orderId/fulfill", () => {
+  beforeEach(() => {
+    (app as any).redisClient.flushall();
+    ddbMock.reset();
+    sqsMock.reset();
+    smMock.reset();
+    vi.clearAllMocks();
+  });
+
+  test("Fulfills line items successfully", async () => {
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/store/admin/orders/order-123/fulfill",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        lineItemIds: ["line-item-1", "line-item-2"],
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(transactCalls).toHaveLength(1);
+
+    const transactItems = transactCalls[0].args[0].input.TransactItems;
+    expect(transactItems).toBeDefined();
+    expect(transactItems!.length).toBe(4); // 1 conditional check on order + 2 line items + 1 audit log
+
+    // Verify condition check on active order
+    const conditionalItem = transactItems?.find(
+      (item) => item.ConditionCheck !== undefined,
+    );
+    expect(conditionalItem?.ConditionCheck).toEqual({
+      TableName: genericConfig.StoreCartsOrdersTableName,
+      Key: {
+        orderId: { S: "order-123" },
+        lineItemId: { S: "ORDER" },
+      },
+      ConditionExpression: "#status = :active",
+      ExpressionAttributeNames: {
+        "#status": "status",
+      },
+      ExpressionAttributeValues: {
+        ":active": { S: "ACTIVE" },
+      },
+    });
+
+    // Verify first line item update
+    const firstUpdate = transactItems?.find(
+      (item) =>
+        item.Update !== undefined &&
+        item.Update.Key?.lineItemId?.S === "line-item-1",
+    );
+    expect(firstUpdate).toBeDefined();
+    expect(firstUpdate?.Update?.TableName).toBe(
+      genericConfig.StoreCartsOrdersTableName,
+    );
+    expect(firstUpdate?.Update?.Key).toEqual({
+      orderId: { S: "order-123" },
+      lineItemId: { S: "line-item-1" },
+    });
+    expect(firstUpdate?.Update?.UpdateExpression).toContain(
+      "SET #isFulfilled = :isFulfilled",
+    );
+    expect(firstUpdate?.Update?.ConditionExpression).toBe(
+      "attribute_exists(orderId) AND attribute_exists(lineItemId) AND (#isFulfilled = :notFulfilled OR attribute_not_exists(#isFulfilled))",
+    );
+    expect(firstUpdate?.Update?.ExpressionAttributeValues).toEqual(
+      expect.objectContaining({
+        ":isFulfilled": { BOOL: true },
+      }),
+    );
+
+    // Verify second line item update
+    const secondUpdate = transactItems?.find(
+      (item) =>
+        item.Update !== undefined &&
+        item.Update.Key?.lineItemId?.S === "line-item-2",
+    );
+    expect(secondUpdate).toBeDefined();
+    expect(secondUpdate?.Update?.Key).toEqual({
+      orderId: { S: "order-123" },
+      lineItemId: { S: "line-item-2" },
+    });
+
+    // Verify audit log entry
+    const auditLogItem = transactItems?.find(
+      (item) =>
+        item.Put !== undefined &&
+        item.Put.TableName === genericConfig.AuditLogTable,
+    );
+    expect(auditLogItem).toBeDefined();
+    expect(auditLogItem?.Put?.Item).toEqual(
+      expect.objectContaining({
+        module: { S: "store" },
+        target: { S: "order-123" },
+      }),
+    );
+    const auditMessage = auditLogItem?.Put?.Item?.message?.S;
+    expect(auditMessage).toBeDefined();
+    expect(auditMessage).toContain("Fulfilled line items");
+    expect(auditMessage).toContain("line-item-1");
+    expect(auditMessage).toContain("line-item-2");
+  });
+
+  test("Fulfills single line item successfully", async () => {
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/store/admin/orders/order-456/fulfill",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        lineItemIds: ["single-line-item"],
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(transactCalls).toHaveLength(1);
+
+    const transactItems = transactCalls[0].args[0].input.TransactItems;
+    expect(transactItems!.length).toBe(3); // 1 conditional check + 1 line item + 1 audit log
+
+    const conditionalItem = transactItems?.find(
+      (item) => item.ConditionCheck !== undefined,
+    );
+    expect(conditionalItem?.ConditionCheck).toEqual({
+      TableName: genericConfig.StoreCartsOrdersTableName,
+      Key: {
+        orderId: { S: "order-456" },
+        lineItemId: { S: "ORDER" },
+      },
+      ConditionExpression: "#status = :active",
+      ExpressionAttributeNames: {
+        "#status": "status",
+      },
+      ExpressionAttributeValues: {
+        ":active": { S: "ACTIVE" },
+      },
+    });
+
+    const updateItem = transactItems?.find((item) => item.Update !== undefined);
+    expect(updateItem?.Update?.Key).toEqual({
+      orderId: { S: "order-456" },
+      lineItemId: { S: "single-line-item" },
+    });
+  });
+
+  test("Returns 400 when line items do not exist", async () => {
+    const cancellationReasons = [
+      { Code: "None" },
+      { Code: "ConditionalCheckFailed" },
+      { Code: "None" },
+      { Code: "ConditionalCheckFailed" },
+    ];
+    const error = new TransactionCanceledException({
+      message: "Transaction cancelled",
+      $metadata: {},
+      CancellationReasons: cancellationReasons,
+    });
+    ddbMock.on(TransactWriteItemsCommand).rejects(error);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/store/admin/orders/order-789/fulfill",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        lineItemIds: ["nonexistent-1", "existing-1", "nonexistent-2"],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const responseJson = response.json();
+    expect(responseJson.message).toContain(
+      "Line items are not in a fulfillable state: nonexistent-1, nonexistent-2",
+    );
+    expect(responseJson.message).toContain("nonexistent-1");
+    expect(responseJson.message).toContain("nonexistent-2");
+  });
+
+  test("Returns 400 when order is not in ACTIVE state", async () => {
+    const cancellationReasons = [
+      { Code: "ConditionalCheckFailed" },
+      { Code: "None" },
+      { Code: "None" },
+      { Code: "None" },
+    ];
+    const error = new TransactionCanceledException({
+      message: "Transaction cancelled",
+      $metadata: {},
+      CancellationReasons: cancellationReasons,
+    });
+    ddbMock.on(TransactWriteItemsCommand).rejects(error);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/store/admin/orders/order-789/fulfill",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        lineItemIds: ["existing-1"],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const responseJson = response.json();
+    expect(responseJson.message).toStrictEqual(
+      "Order is not active and cannot be modified",
+    );
+  });
+
+  test("Returns 403 without authentication", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/store/admin/orders/order-123/fulfill",
+      body: {
+        lineItemIds: ["line-item-1"],
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+
+    // Verify no DynamoDB calls were made
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(transactCalls).toHaveLength(0);
+  });
+
+  test("Returns 400 with duplicates in lineItemIds array", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/store/admin/orders/order-123/fulfill",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        lineItemIds: ["e1", "e1"],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
 
     // Verify no DynamoDB calls were made
     const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);

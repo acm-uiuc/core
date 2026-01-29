@@ -9,6 +9,7 @@ export enum AvailableSQSFunctions {
   EmailNotifications = "emailNotifications",
   CreateOrgGithubTeam = "createOrgGithubTeam",
   SyncExecCouncil = "syncExecCouncil",
+  HandleStorePurchase = "handleStorePurchase",
 }
 
 const sqsMessageMetadataSchema = z.object({
@@ -52,11 +53,13 @@ export const sqsPayloadSchemas = {
     z.object({
       email: z.email(),
       qrCodeContent: z.string().min(1),
-      itemName: z.string().min(1),
-      quantity: z.number().min(1),
-      size: z.string().optional(),
       customText: z.string().optional(),
-      type: z.union([z.literal('event'), z.literal('merch')])
+      itemsPurchased: z.array(z.object({
+        itemName: z.string().min(1),
+        variantName: z.string().min(1).optional(),
+        quantity: z.number().nonnegative(),
+      })).min(1),
+      isVerifiedIdentity: z.boolean().default(false)
     })
   ),
   [AvailableSQSFunctions.EmailNotifications]: createSQSSchema(
@@ -81,6 +84,15 @@ export const sqsPayloadSchemas = {
   ),
   [AvailableSQSFunctions.SyncExecCouncil]: createSQSSchema(
     AvailableSQSFunctions.SyncExecCouncil, z.object({})
+  ),
+  [AvailableSQSFunctions.HandleStorePurchase]: createSQSSchema(
+    AvailableSQSFunctions.HandleStorePurchase, z.object({
+      orderId: z.string().min(1),
+      userId: z.email(),
+      paymentIdentifier: z.string().min(1),
+      paymentIntentId: z.string().min(1).optional(),
+      isVerifiedIdentity: z.boolean()
+    })
   )
 } as const;
 
@@ -89,19 +101,14 @@ type AllSchemas = {
   [K in AvailableSQSFunctions]: (typeof sqsPayloadSchemas)[K];
 };
 
-// This will cause a TypeScript error if you're missing any schemas in the union
-const _exhaustivenessCheck: AllSchemas = sqsPayloadSchemas;
-
-export const sqsPayloadSchema = z.discriminatedUnion("function", [
-  sqsPayloadSchemas[AvailableSQSFunctions.Ping],
-  sqsPayloadSchemas[AvailableSQSFunctions.EmailMembershipPass],
-  sqsPayloadSchemas[AvailableSQSFunctions.ProvisionNewMember],
-  sqsPayloadSchemas[AvailableSQSFunctions.SendSaleEmail],
-  sqsPayloadSchemas[AvailableSQSFunctions.EmailNotifications],
-  sqsPayloadSchemas[AvailableSQSFunctions.CreateOrgGithubTeam],
-  sqsPayloadSchemas[AvailableSQSFunctions.SyncExecCouncil]
-] as
-  const);
+export const sqsPayloadSchema = z.discriminatedUnion(
+  "function",
+  Object.values(sqsPayloadSchemas) as [
+    (typeof sqsPayloadSchemas)[AvailableSQSFunctions],
+    (typeof sqsPayloadSchemas)[AvailableSQSFunctions],
+    ...((typeof sqsPayloadSchemas)[AvailableSQSFunctions])[]
+  ]
+);
 
 export type SQSPayload<T extends AvailableSQSFunctions> = z.infer<
   (typeof sqsPayloadSchemas)[T]>;
