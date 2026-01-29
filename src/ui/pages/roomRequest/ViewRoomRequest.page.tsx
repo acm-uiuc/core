@@ -51,6 +51,7 @@ import {
 import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 import { DEFAULT_TIMEZONE } from "@common/constants";
 import { currentTimezone, formatWithOrdinal, fromNow } from "@common/time";
+import { formatChicagoTime } from "@ui/components/UrbanaDateTimePicker";
 
 export const ViewRoomRequest: React.FC = () => {
   const { semesterId, requestId } = useParams();
@@ -495,9 +496,8 @@ export const ViewRoomRequest: React.FC = () => {
                     )}
                     {x.createdAt && (
                       <Tooltip
-                        label={formatWithOrdinal(
-                          x.createdAt,
-                          currentTimezone(),
+                        label={formatChicagoTime(
+                          Math.floor(new Date(x.createdAt).getTime() / 1000),
                         )}
                         position="top"
                         withArrow
@@ -510,9 +510,6 @@ export const ViewRoomRequest: React.FC = () => {
                   </Timeline.Item>
                 ))}
               </Timeline>
-              <Text mt="md" size="sm" c="dimmed">
-                All times in your local timezone.
-              </Text>
             </>
           )}
         </Grid.Col>

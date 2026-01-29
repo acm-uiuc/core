@@ -294,6 +294,7 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
               }
               data-testid="start-time-input"
               required
+              firstDayOfWeek={0}
             />
 
             <DateTimePicker
@@ -314,6 +315,7 @@ export const LogRenderer: React.FC<LogRendererProps> = ({ getLogs }) => {
                   : `MM-DD-YYYY h:mm A [Local Time]`
               }
               data-testid="end-time-input"
+              firstDayOfWeek={0}
               required
             />
 

@@ -18,7 +18,7 @@ import {
   Alert,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { DateInput, DateTimePicker } from "@mantine/dates";
+import { DateInput } from "@mantine/dates";
 import { Organizations } from "@acm-uiuc/js-shared";
 import {
   eventThemeOptions,
@@ -37,8 +37,14 @@ import { ZodError } from "zod/v4";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 import { useAuth } from "@ui/components/AuthContext";
 import { getPrimarySuggestedOrg } from "@ui/util";
-import { getCurrentTimezoneShortCode, isInDefaultTimezone } from "@common/time";
 import { IconInfoCircle } from "@tabler/icons-react";
+import {
+  UrbanaDateTimePicker,
+  formatChicagoTime,
+  utcUnixToChicagoDisplayDate,
+} from "@ui/components/UrbanaDateTimePicker";
+import { isInDefaultTimezone } from "@common/time";
+import { NonUrbanaTimezoneAlert } from "@ui/components/NonUrbanaTimezoneAlert";
 
 const getEffectiveMinDate = (
   semester: string | undefined,
@@ -66,7 +72,7 @@ interface ConditionalFieldProps {
   label: string;
   description?: string;
   field: string;
-  form: any; // The form object from useForm
+  form: any;
   conditionalContent: ReactNode;
   required?: boolean;
 }
@@ -79,9 +85,7 @@ const ConditionalField: React.FC<ConditionalFieldProps> = ({
   conditionalContent,
   required = true,
 }) => {
-  // Get the current value to determine state
   const value = form.values[field];
-  // undefined = unanswered, null = "No", any value = "Yes"
   const radioValue = value === undefined ? "" : value === null ? "no" : "yes";
 
   return (
@@ -176,6 +180,20 @@ const recurrencePatternOptions = [
   { value: "monthly", label: "Monthly" },
 ];
 
+// Convert Date to unix timestamp (seconds)
+const dateToUnix = (date: Date | string): number => {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return Math.floor(d.getTime() / 1000);
+};
+
+// Convert unix timestamp to Date
+const unixToDate = (unix: number | undefined): Date | undefined => {
+  if (unix == null) {
+    return undefined;
+  }
+  return new Date(unix * 1000);
+};
+
 const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   createRoomRequest,
   initialValues,
@@ -189,62 +207,91 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   const { orgRoles } = useAuth();
   const userPrimaryOrg = getPrimarySuggestedOrg(orgRoles);
 
-  // Initialize with today's date and times
+  // Initialize with tomorrow's date at the start of the hour
   let startingDate = new Date();
-  startingDate = new Date(startingDate.setMinutes(0));
+  startingDate = new Date(startingDate.setMinutes(0, 0, 0));
   startingDate = new Date(startingDate.setDate(startingDate.getDate() + 1));
   const oneHourAfterStarting = new Date(
     startingDate.getTime() + 60 * 60 * 1000,
   );
 
+  // Convert initial dates to unix timestamps
+  const initialEventStart = initialValues?.eventStart
+    ? dateToUnix(initialValues.eventStart)
+    : dateToUnix(startingDate);
+  const initialEventEnd = initialValues?.eventEnd
+    ? dateToUnix(initialValues.eventEnd)
+    : dateToUnix(oneHourAfterStarting);
+  const initialRecurrenceEndDate = initialValues?.recurrenceEndDate
+    ? dateToUnix(initialValues.recurrenceEndDate)
+    : undefined;
+
   type InterimRoomRequestFormValues = {
-    [K in keyof RoomRequestFormValues]: RoomRequestFormValues[K] extends any
+    [K in keyof Omit<
+      RoomRequestFormValues,
+      "eventStart" | "eventEnd" | "recurrenceEndDate"
+    >]: RoomRequestFormValues[K] extends any
       ? RoomRequestFormValues[K] | undefined
       : RoomRequestFormValues[K];
+  } & {
+    eventStart: number | undefined;
+    eventEnd: number | undefined;
+    recurrenceEndDate: number | undefined;
   };
 
   const form = useForm<InterimRoomRequestFormValues>({
     enhanceGetInputProps: () => ({ readOnly: viewOnly }),
-    initialValues:
-      initialValues ||
-      ({
-        host: userPrimaryOrg,
-        title: "",
-        theme: "",
-        semester: semesterOptions[0].value,
-        description: "",
-        eventStart: startingDate,
-        eventEnd: oneHourAfterStarting,
-        isRecurring: false,
-        recurrencePattern: undefined,
-        recurrenceEndDate: undefined,
-        setupNeeded: false,
-        hostingMinors: undefined,
-        locationType: undefined,
-        spaceType: "",
-        specificRoom: "",
-        estimatedAttendees: undefined,
-        seatsNeeded: undefined,
-        setupDetails: undefined,
-        onCampusPartners: undefined,
-        offCampusPartners: undefined,
-        nonIllinoisSpeaker: undefined,
-        nonIllinoisAttendees: undefined,
-        foodOrDrink: undefined,
-        crafting: undefined,
-        comments: "",
-      } as InterimRoomRequestFormValues),
+    initialValues: initialValues
+      ? {
+          ...initialValues,
+          eventStart: initialEventStart,
+          eventEnd: initialEventEnd,
+          recurrenceEndDate: initialRecurrenceEndDate,
+        }
+      : ({
+          host: userPrimaryOrg,
+          title: "",
+          theme: "",
+          semester: semesterOptions[0].value,
+          description: "",
+          eventStart: initialEventStart,
+          eventEnd: initialEventEnd,
+          isRecurring: false,
+          recurrencePattern: undefined,
+          recurrenceEndDate: undefined,
+          setupNeeded: false,
+          hostingMinors: undefined,
+          locationType: undefined,
+          spaceType: "",
+          specificRoom: "",
+          estimatedAttendees: undefined,
+          seatsNeeded: undefined,
+          setupDetails: undefined,
+          onCampusPartners: undefined,
+          offCampusPartners: undefined,
+          nonIllinoisSpeaker: undefined,
+          nonIllinoisAttendees: undefined,
+          foodOrDrink: undefined,
+          crafting: undefined,
+          comments: "",
+        } as InterimRoomRequestFormValues),
 
     validate: (values) => {
-      // Get all validation errors from zod, which returns ReactNode
+      // Convert unix timestamps back to Dates for validation
+      const valuesForValidation = {
+        ...values,
+        eventStart: unixToDate(values.eventStart),
+        eventEnd: unixToDate(values.eventEnd),
+        recurrenceEndDate: unixToDate(values.recurrenceEndDate),
+      };
+
       const allErrors: Record<string, React.ReactNode> =
-        zodResolver(roomRequestSchema)(values);
-      // If in view mode, return no errors
+        zodResolver(roomRequestSchema)(valuesForValidation);
+
       if (viewOnly) {
         return {};
       }
 
-      // Define which fields belong to each step
       const step0Fields = [
         "host",
         "title",
@@ -279,7 +326,6 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
 
       const step3Fields = ["foodOrDrink", "crafting", "comments"];
 
-      // Filter errors based on current step
       const currentStepFields =
         active === 0
           ? step0Fields
@@ -291,13 +337,10 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 ? step3Fields
                 : [];
 
-      // Skip Room Requirements validation if the event is virtual
       if (active === 2 && values.locationType === "virtual") {
         return {};
       }
 
-      // Return only errors for the current step
-      // Using 'as' to tell TypeScript that we're intentionally returning ReactNode as errors
       const filteredErrors = {} as Record<string, React.ReactNode>;
       for (const key in allErrors) {
         if (currentStepFields.includes(key)) {
@@ -318,14 +361,11 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   );
   const semesterMaxDate = getEffectiveMaxDate(form.values.semester);
 
-  // Check if the room requirements section should be shown
   const showRoomRequirements =
     form.values.locationType === "in-person" ||
     form.values.locationType === "both";
 
-  // Handle clearing field values when conditions change
   useEffect(() => {
-    // Clear room requirements data if event is not in-person or hybrid
     if (
       form.values.locationType !== "in-person" &&
       form.values.locationType !== "both"
@@ -338,7 +378,6 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     }
   }, [form.values.locationType]);
 
-  // Handle clearing recurrence fields if isRecurring is toggled off
   useEffect(() => {
     if (!form.values.isRecurring) {
       form.setFieldValue("recurrencePattern", undefined);
@@ -350,15 +389,24 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     if (viewOnly || isSubmitting) {
       return;
     }
-    const apiFormValues = { ...form.values };
+
+    // Convert unix timestamps back to Dates for API submission
+    const apiFormValues = {
+      ...form.values,
+      eventStart: unixToDate(form.values.eventStart),
+      eventEnd: unixToDate(form.values.eventEnd),
+      recurrenceEndDate: unixToDate(form.values.recurrenceEndDate),
+    };
+
     Object.keys(apiFormValues).forEach((key) => {
-      const value = apiFormValues[key as keyof RoomRequestFormValues];
+      const value = apiFormValues[key as keyof typeof apiFormValues];
       if (value === "") {
         console.warn(
           `Empty string found for ${key}. This field should have content.`,
         );
       }
     });
+
     try {
       if (!createRoomRequest) {
         return;
@@ -399,7 +447,6 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         return current;
       }
 
-      // Skip Room Requirements step if the event is virtual only
       if (current === 1 && form.values.locationType === "virtual") {
         return current + 2;
       }
@@ -409,7 +456,6 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
 
   const prevStep = () =>
     setActive((current) => {
-      // If coming back from step 3 to step 2 and event is virtual, skip Room Requirements step
       if (current === 3 && form.values.locationType === "virtual") {
         return current - 2;
       }
@@ -418,18 +464,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
 
   return (
     <>
-      {!isInDefaultTimezone() && (
-        <Alert
-          variant="light"
-          color="red"
-          mb="md"
-          title="Timezone Alert"
-          icon={<IconInfoCircle />}
-        >
-          All dates and times are shown in your current timezone. Please ensure
-          you enter dates and times in your current timezone.
-        </Alert>
-      )}
+      <NonUrbanaTimezoneAlert />
       <Stepper active={active}>
         <Stepper.Step label="Step 1" description="Basic Information">
           <Select
@@ -476,11 +511,11 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             {...form.getInputProps("description")}
           />
 
-          <DateTimePicker
+          <UrbanaDateTimePicker
             label="Event Start"
             placeholder="Select date and time"
             withAsterisk
-            valueFormat={`MM-DD-YYYY hh:mm A [${getCurrentTimezoneShortCode()}]`}
+            valueFormat="MM-DD-YYYY hh:mm A [CT]"
             mt="sm"
             clearable={false}
             minDate={semesterMinDate}
@@ -490,14 +525,19 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
               popoverProps: { withinPortal: false },
               format: "12h",
             }}
-            {...form.getInputProps("eventStart")}
+            firstDayOfWeek={0}
+            value={form.values.eventStart}
+            onChange={(value) =>
+              viewOnly ? undefined : form.setFieldValue("eventStart", value)
+            }
+            error={form.errors.eventStart}
           />
 
-          <DateTimePicker
+          <UrbanaDateTimePicker
             label="Event End"
             placeholder="Select date and time"
             withAsterisk
-            valueFormat={`MM-DD-YYYY hh:mm A [${getCurrentTimezoneShortCode()}]`}
+            valueFormat="MM-DD-YYYY hh:mm A [CT]"
             mt="sm"
             clearable={false}
             minDate={semesterMinDate}
@@ -507,7 +547,12 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
               popoverProps: { withinPortal: false },
               format: "12h",
             }}
-            {...form.getInputProps("eventEnd")}
+            firstDayOfWeek={0}
+            value={form.values.eventEnd}
+            onChange={(value) =>
+              viewOnly ? undefined : form.setFieldValue("eventEnd", value)
+            }
+            error={form.errors.eventEnd}
           />
 
           <Checkbox
@@ -515,7 +560,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             mt="sm"
             checked={form.values.isRecurring}
             onChange={(event) =>
-              form.setFieldValue("isRecurring", event.currentTarget.checked)
+              viewOnly
+                ? undefined
+                : form.setFieldValue("isRecurring", event.currentTarget.checked)
             }
           />
 
@@ -538,15 +585,20 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 placeholder="When does this recurring event end?"
                 minDate={
                   form.values.eventEnd
-                    ? new Date(
-                        new Date(form.values.eventEnd).setDate(
-                          new Date(form.values.eventEnd).getDate(),
-                        ),
-                      )
+                    ? new Date(form.values.eventEnd * 1000)
                     : semesterMinDate
                 }
                 maxDate={semesterMaxDate}
-                {...form.getInputProps("recurrenceEndDate")}
+                value={unixToDate(form.values.recurrenceEndDate) ?? null}
+                onChange={(date) =>
+                  viewOnly
+                    ? undefined
+                    : form.setFieldValue(
+                        "recurrenceEndDate",
+                        date ? dateToUnix(date) : undefined,
+                      )
+                }
+                error={form.errors.recurrenceEndDate}
               />
             </>
           )}
@@ -556,9 +608,11 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             mt="xl"
             checked={form.values.setupNeeded}
             onChange={(event) => {
-              form.setFieldValue("setupNeeded", event.currentTarget.checked);
-              if (!event.currentTarget.checked) {
-                form.setFieldValue("setupMinutesBefore", undefined);
+              if (!viewOnly) {
+                form.setFieldValue("setupNeeded", event.currentTarget.checked);
+                if (!event.currentTarget.checked) {
+                  form.setFieldValue("setupMinutesBefore", undefined);
+                }
               }
             }}
           />
@@ -804,7 +858,18 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
           <Stepper.Completed>
             Click the Submit button to submit the following room request:
             <Code block mt="xl">
-              {JSON.stringify(form.values, null, 2)}
+              {JSON.stringify(
+                {
+                  ...form.values,
+                  eventStart: formatChicagoTime(form.values.eventStart),
+                  eventEnd: formatChicagoTime(form.values.eventEnd),
+                  recurrenceEndDate: formatChicagoTime(
+                    form.values.recurrenceEndDate,
+                  ),
+                },
+                null,
+                2,
+              )}
             </Code>
           </Stepper.Completed>
         )}

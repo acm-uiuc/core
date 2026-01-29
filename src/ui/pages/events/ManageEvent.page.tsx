@@ -53,6 +53,7 @@ import { getPrimarySuggestedOrg } from "@ui/util";
 import { EVENT_TEMPLATES } from "./templates";
 import { parseInTimezone } from "@common/time";
 import { DEFAULT_TIMEZONE } from "@common/constants";
+import { NonUrbanaTimezoneAlert } from "@ui/components/NonUrbanaTimezoneAlert";
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -329,19 +330,7 @@ const EventFormComponent: React.FC<EventFormProps> = ({
         </Text>
       </Alert>
 
-      {Intl.DateTimeFormat().resolvedOptions().timeZone !==
-        DEFAULT_TIMEZONE && (
-        <Alert
-          variant="light"
-          color="red"
-          mb="md"
-          title="Timezone Alert"
-          icon={<IconInfoCircle />}
-        >
-          All dates and times are shown in the America/Chicago timezone. Please
-          ensure you enter them in the America/Chicago timezone.
-        </Alert>
-      )}
+      <NonUrbanaTimezoneAlert />
 
       <TextInput
         label="Event Title"
@@ -361,26 +350,28 @@ const EventFormComponent: React.FC<EventFormProps> = ({
       <DateTimePicker
         label="Start Date & Time"
         withAsterisk
-        valueFormat="MM/DD/YYYY hh:mm A [Urbana Time]"
+        valueFormat="MM/DD/YYYY hh:mm A [CT]"
         placeholder="Pick start date"
         timePickerProps={{
           withDropdown: true,
           popoverProps: { withinPortal: false },
           format: "12h",
         }}
+        firstDayOfWeek={0}
         {...form.getInputProps("start")}
       />
 
       <DateTimePicker
         label="End Date & Time"
         withAsterisk
-        valueFormat="MM/DD/YYYY hh:mm A [Urbana Time]"
+        valueFormat="MM/DD/YYYY hh:mm A [CT]"
         placeholder="Pick end date"
         timePickerProps={{
           withDropdown: true,
           popoverProps: { withinPortal: false },
           format: "12h",
         }}
+        firstDayOfWeek={0}
         {...form.getInputProps("end")}
       />
 
@@ -435,6 +426,7 @@ const EventFormComponent: React.FC<EventFormProps> = ({
               popoverProps: { withinPortal: false },
               format: "12h",
             }}
+            firstDayOfWeek={0}
             {...form.getInputProps("repeatEnds")}
           />
 

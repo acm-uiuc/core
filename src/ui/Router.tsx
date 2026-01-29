@@ -27,6 +27,7 @@ import { TermsOfService } from "./pages/tos/TermsOfService.page";
 import { ManageApiKeysPage } from "./pages/apiKeys/ManageKeys.page";
 import { ManageExternalMembershipPage } from "./pages/membershipLists/MembershipListsPage";
 import { OrgInfoPage } from "./pages/organization/OrgInfo.page";
+import { ViewStoreItemsPage } from "./pages/store/ViewStoreItems.page";
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -181,6 +182,10 @@ const authenticatedRouter = createBrowserRouter([
       {
         path: "/linkry/edit/:slug",
         element: <ManageLinkPage />,
+      },
+      {
+        path: "/store",
+        element: <ViewStoreItemsPage />,
       },
       // {
       //   path: "/store/fulfill",

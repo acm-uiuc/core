@@ -46,6 +46,7 @@ import {
   listProductsPublicResponseSchema,
   productWithVariantsPublicCountSchema,
   modifyProductSchema,
+  listProductsAdminResponseSchema,
 } from "common/types/store.js";
 import { assertAuthenticated } from "api/authenticated.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
@@ -239,7 +240,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "List of all products.",
               content: {
                 "application/json": {
-                  schema: listProductsResponseSchema,
+                  schema: listProductsAdminResponseSchema,
                 },
               },
             },
@@ -248,7 +249,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    assertAuthenticated(async (request, reply) => {
+    assertAuthenticated(async (_request, reply) => {
       const products = await listProducts({
         dynamoClient: fastify.dynamoClient,
         includeInactive: true,
@@ -341,6 +342,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
+      console.log(request.body);
       await modifyProduct({
         productId: request.params.productId,
         data: request.body,

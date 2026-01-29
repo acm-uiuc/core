@@ -82,9 +82,13 @@ export const modifyProductSchema = productSchema.pick({
   additionalEmailText: true,
 }).partial().extend({
   verifiedIdentityRequired: z.boolean().optional(), // Override to remove the default
-});
+}).refine(
+  (data) =>
+    !data.openAt || !data.closeAt || data.openAt < data.closeAt,
+  { message: "openAt must be before closeAt" },
+);
 
-export type ModifyProduct = z.infer<typeof modifyProductSchema>;
+export type ModifyProductRequest = z.infer<typeof modifyProductSchema>;
 
 // ============ Product with Variants (for API responses) ============
 export const productWithVariantsSchema = productSchema.extend({
@@ -165,6 +169,12 @@ export const createCheckoutResponseSchema = z.object({
 export type CreateCheckoutResponse = z.infer<typeof createCheckoutResponseSchema>;
 
 // List Products Response
+export const listProductsAdminResponseSchema = z.object({
+  products: z.array(productWithVariantsSchema.extend({ isOpen: z.boolean() })),
+});
+
+export type AdminListProductsResponse = z.infer<typeof listProductsAdminResponseSchema>;
+
 export const listProductsResponseSchema = z.object({
   products: z.array(productWithVariantsSchema),
 });

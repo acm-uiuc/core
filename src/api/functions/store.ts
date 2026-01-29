@@ -50,7 +50,7 @@ import {
   type CreateProductRequest,
   DEFAULT_VARIANT_ID,
   LimitType,
-  ModifyProduct,
+  ModifyProductRequest,
 } from "common/types/store.js";
 import Stripe from "stripe";
 import { getNetIdFromEmail } from "common/utils.js";
@@ -269,14 +269,14 @@ export async function listProducts({
 
     const p = data.product;
 
+    // Determine if product is currently active
+    const isBeforeOpen = p.openAt && now < (p.openAt as number);
+    const isAfterClose = p.closeAt && now > (p.closeAt as number);
+    const isOpen = !isBeforeOpen && !isAfterClose;
+
     // Filter inactive products unless requested
-    if (!includeInactive) {
-      if (p.openAt && now < (p.openAt as number)) {
-        continue;
-      }
-      if (p.closeAt && now > (p.closeAt as number)) {
-        continue;
-      }
+    if (!includeInactive && !isOpen) {
+      continue;
     }
 
     const inventoryMode = (p.inventoryMode as LimitType) ?? "PER_VARIANT";
@@ -302,6 +302,7 @@ export async function listProducts({
         inventoryMode === "PER_PRODUCT"
           ? (p.totalSoldCount as number) || 0
           : undefined,
+      ...(includeInactive && { isOpen }),
       variants: data.variants.map((v) => ({
         variantId: v.variantId as string,
         name: v.name as string,
@@ -1736,7 +1737,7 @@ export async function modifyProduct({
   dynamoClient,
 }: {
   productId: string;
-  data: ModifyProduct;
+  data: ModifyProductRequest;
   actor: string;
   dynamoClient: DynamoDBClient;
 }) {
