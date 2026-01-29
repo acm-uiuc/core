@@ -643,6 +643,7 @@ export async function createStoreCheckout({
     orderId,
     userId,
     initiator: "acm-store",
+    isVerifiedIdentity: isVerifiedIdentity ? "true" : "false",
   };
 
   const checkoutParams = {
@@ -669,9 +670,6 @@ export async function createStoreCheckout({
     checkoutUrl = await createCheckoutSessionWithCustomer({
       ...checkoutParams,
       customerId: stripeCustomerId,
-      metadata: {
-        isVerifiedIdentity: isVerifiedIdentity ? "true" : "false",
-      },
     });
   } else {
     // Use email-based checkout (for unverified or no existing customer)
