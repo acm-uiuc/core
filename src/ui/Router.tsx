@@ -16,9 +16,7 @@ import { ManageEventPage } from "./pages/events/ManageEvent.page";
 import { ViewEventsPage } from "./pages/events/ViewEvents.page";
 import { LinkShortener } from "./pages/linkry/LinkShortener.page";
 import { ManageLinkPage } from "./pages/linkry/ManageLink.page";
-import { ScanTicketsPage } from "./pages/tickets/ScanTickets.page";
-import { SelectTicketsPage } from "./pages/tickets/SelectEventId.page";
-import { ViewTicketsPage } from "./pages/tickets/ViewTickets.page";
+import { FulfillStorePurchasesPage } from "./pages/store/FulfillStorePurchases.page";
 import { ManageIamPage } from "./pages/iam/ManageIam.page";
 import { ViewProfilePage } from "./pages/profile/ViewProfile.page";
 import { ManageStripeLinksPage } from "./pages/stripe/ViewLinks.page";
@@ -184,14 +182,10 @@ const authenticatedRouter = createBrowserRouter([
         path: "/linkry/edit/:slug",
         element: <ManageLinkPage />,
       },
-      {
-        path: "/tickets/scan",
-        element: <ScanTicketsPage />,
-      },
-      {
-        path: "/tickets",
-        element: <SelectTicketsPage />,
-      },
+      // {
+      //   path: "/store/fulfill",
+      //   element: <FulfillStorePurchasesPage />,
+      // },
       {
         path: "/iam",
         element: <ManageIamPage />,
@@ -199,10 +193,6 @@ const authenticatedRouter = createBrowserRouter([
       {
         path: "/membershipLists",
         element: <ManageExternalMembershipPage />,
-      },
-      {
-        path: "/tickets/manage/:eventId",
-        element: <ViewTicketsPage />,
       },
       {
         path: "/stripe",

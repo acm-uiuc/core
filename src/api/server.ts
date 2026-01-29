@@ -42,7 +42,6 @@ import organizationsPlugin from "./routes/organizations.js";
 import icalPlugin from "./routes/ics.js";
 import vendingPlugin from "./routes/vending.js";
 import iamRoutes from "./routes/iam.js";
-import ticketsPlugin from "./routes/tickets.js";
 import linkryRoutes from "./routes/linkry.js";
 import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
@@ -199,10 +198,6 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
             {
               name: "Membership",
               description: "Purchasing or checking ACM @ UIUC membership.",
-            },
-            {
-              name: "Tickets/Merchandise",
-              description: "Handling the tickets and merchandise lifecycle.",
             },
             {
               name: "Mobile Wallet",
@@ -389,7 +384,6 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       api.register(membershipPlugin, { prefix: "/membership" });
       api.register(icalPlugin, { prefix: "/ical" });
       api.register(iamRoutes, { prefix: "/iam" });
-      api.register(ticketsPlugin, { prefix: "/tickets" });
       api.register(linkryRoutes, { prefix: "/linkry" });
       api.register(stripeRoutes, { prefix: "/stripe" });
       api.register(storeRoutes, { prefix: "/store" });
