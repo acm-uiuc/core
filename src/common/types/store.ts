@@ -66,6 +66,7 @@ export const productSchema = z.object({
     description: "Total inventory across all variants. Only used when inventoryMode is PER_PRODUCT.",
   }),
   totalSoldCount: z.number().int().min(0).default(0).optional(),
+  additionalEmailText: z.string().min(1).optional().meta({ description: "This additional text will be included on confirmation emails sent to purchasers." }),
 });
 
 export type Product = z.infer<typeof productSchema>;
@@ -78,6 +79,7 @@ export const modifyProductSchema = productSchema.pick({
   closeAt: true,
   limitConfiguration: true,
   verifiedIdentityRequired: true,
+  additionalEmailText: true,
 }).partial().extend({
   verifiedIdentityRequired: z.boolean().optional(), // Override to remove the default
 });
