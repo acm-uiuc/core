@@ -199,6 +199,7 @@ export async function getProduct({
         | undefined,
       memberPriceCents: v.memberPriceCents,
       nonmemberPriceCents: v.nonmemberPriceCents,
+      additionalEmailText: v.additionalEmailText as string,
     })),
   };
 }
@@ -1234,6 +1235,27 @@ export async function processStorePaymentSuccess(
         quantity: quantity as number,
       };
     });
+  const productsWithNotes = [...productIdsToFetch]
+    .map((productId) => {
+      const product = productMap.get(productId);
+      return {
+        name: product?.name as string | undefined,
+        additionalEmailText: product?.additionalEmailText as string | undefined,
+      };
+    })
+    .filter(
+      (p): p is { name: string; additionalEmailText: string } =>
+        !!p.name && !!p.additionalEmailText,
+    );
+
+  let customText: string | undefined;
+  if (productsWithNotes.length === 1) {
+    customText = productsWithNotes[0].additionalEmailText;
+  } else if (productsWithNotes.length > 1) {
+    customText = productsWithNotes
+      .map((p) => `Notes for ${p.name}: ${p.additionalEmailText}`)
+      .join("\n\n");
+  }
   logger.info(`Sending email to customer at ${userId}!`);
   await sendSaleEmailHandler(
     {
@@ -1241,6 +1263,7 @@ export async function processStorePaymentSuccess(
       qrCodeContent: orderId,
       isVerifiedIdentity,
       itemsPurchased,
+      customText,
     },
     {
       reqId: requestId,
