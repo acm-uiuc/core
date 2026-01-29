@@ -58,6 +58,7 @@ import { buildAuditLogTransactPut } from "./auditLog.js";
 import { Modules } from "common/modules.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { sendSaleEmailHandler } from "api/sqs/handlers/sendSaleEmailHandler.js";
 
 // ============ Helper Functions ============
 
@@ -1233,29 +1234,20 @@ export async function processStorePaymentSuccess(
         quantity: quantity as number,
       };
     });
-
-  const sqsPayload: SQSPayload<AvailableSQSFunctions.SendSaleEmail> = {
-    metadata: {
-      reqId: requestId,
-      initiator: eventId,
-    },
-    function: AvailableSQSFunctions.SendSaleEmail,
-    payload: {
+  logger.info(`Sending email to customer at ${userId}!`);
+  await sendSaleEmailHandler(
+    {
       email: userId,
       qrCodeContent: orderId,
       isVerifiedIdentity,
       itemsPurchased,
     },
-  };
-
-  const sqsClient = new SQSClient({ region: genericConfig.AwsRegion });
-  const cmd = new SendMessageCommand({
-    QueueUrl: sqsQueueUrl,
-    MessageBody: JSON.stringify(sqsPayload),
-    MessageGroupId: "storeNotifications",
-  });
-  await sqsClient.send(cmd);
-  logger.info({ orderId }, "Order processing completed successfully");
+    {
+      reqId: requestId,
+      initiator: eventId,
+    },
+    logger,
+  );
 }
 
 // ============ Order Management Functions ============

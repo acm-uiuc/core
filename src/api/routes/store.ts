@@ -29,7 +29,6 @@ import {
   getProduct,
   createStoreCheckout,
   getOrder,
-  processStorePaymentSuccess,
   createProduct,
   listProductLineItems,
   modifyProduct,
