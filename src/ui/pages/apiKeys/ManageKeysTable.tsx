@@ -350,6 +350,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
           }}
           clearable
           mt="md"
+          firstDayOfWeek={0}
         />
 
         <JsonInput

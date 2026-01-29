@@ -16,14 +16,13 @@ import {
   IconLink,
   IconFileDollar,
   IconPizza,
-  IconTicket,
   IconLock,
   IconDoor,
   IconHistory,
   IconKey,
-  IconExternalLink,
   IconUser,
   IconInfoCircle,
+  IconShoppingBag,
 } from "@tabler/icons-react";
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
@@ -52,11 +51,11 @@ export const navItems = [
     validRoles: [AppRoles.EVENTS_MANAGER],
   },
   {
-    link: "/tickets",
-    name: "Ticketing/Merch",
-    icon: IconTicket,
+    link: "/store",
+    name: "Store",
+    icon: IconShoppingBag,
     description: null,
-    validRoles: [AppRoles.TICKETS_MANAGER, AppRoles.TICKETS_SCANNER],
+    validRoles: [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
   },
   {
     link: "/iam",
@@ -79,6 +78,7 @@ export const navItems = [
     description: null,
     validRoles: [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_UPDATE],
   },
+
   {
     link: "/linkry",
     name: "Link Shortener",
