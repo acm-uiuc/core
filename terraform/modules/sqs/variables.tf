@@ -6,7 +6,7 @@ variable "resource_prefix" {
 variable "sqs_message_timeout" {
   type        = number
   description = "SQS Message timeout in seconds"
-  default     = 720
+  default     = 120
 }
 
 variable "dlq_message_retention" {
