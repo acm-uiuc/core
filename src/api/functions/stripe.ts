@@ -1,3 +1,4 @@
+import { ValidLoggers } from "api/types.js";
 import { isProd } from "api/utils.js";
 import { InternalServerError, ValidationError } from "common/errors/index.js";
 import { capitalizeFirstLetter } from "common/types/roomRequest.js";
@@ -32,7 +33,7 @@ export type StripeCheckoutSessionCreateWithCustomerParams = {
   stripeApiKey: string;
   items: { price: string; quantity: number }[];
   initiator: string;
-  metadata?: Record<string, string>;
+  metadata?: Stripe.Checkout.SessionCreateParams["metadata"];
   allowPromotionCodes: boolean;
   customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
   captureMethod?: "automatic" | "manual"; // manual = pre-auth only
@@ -380,6 +381,45 @@ export const cancelPaymentIntent = async ({
     },
     { idempotencyKey },
   );
+};
+
+export const refundOrCancelPaymentIntent = async ({
+  paymentIntentId,
+  stripeApiKey,
+  cancellationReason,
+  idempotencyKey,
+  logger,
+}: {
+  idempotencyKey: string;
+  paymentIntentId: string;
+  stripeApiKey: string;
+  cancellationReason?: Stripe.RefundCreateParams.Reason;
+  logger: ValidLoggers;
+}) => {
+  const stripe = new Stripe(stripeApiKey);
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  if (paymentIntent.status !== "succeeded") {
+    logger.info("Payment intent is not succeeded, attempting to cancel.", {
+      paymentIntentId,
+    });
+    await cancelPaymentIntent({
+      paymentIntentId,
+      stripeApiKey,
+      cancellationReason,
+      idempotencyKey: `${idempotencyKey}-cancel`,
+    });
+  } else {
+    logger.info("Payment intent is succeeded, attempting to create refund.", {
+      paymentIntentId,
+    });
+    await stripe.refunds.create(
+      {
+        payment_intent: paymentIntentId,
+        reason: cancellationReason,
+      },
+      { idempotencyKey: `${idempotencyKey}-refund` },
+    );
+  }
 };
 
 export const shouldRetryStripeError = (error: any): boolean => {

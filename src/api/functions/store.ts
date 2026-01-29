@@ -29,6 +29,7 @@ import {
   capturePaymentIntent,
   cancelPaymentIntent,
   shouldRetryStripeError,
+  refundOrCancelPaymentIntent,
 } from "./stripe.js";
 import { getUserIdentity } from "./identity.js";
 import {
@@ -55,6 +56,8 @@ import Stripe from "stripe";
 import { getNetIdFromEmail } from "common/utils.js";
 import { buildAuditLogTransactPut } from "./auditLog.js";
 import { Modules } from "common/modules.js";
+import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
 // ============ Helper Functions ============
 
@@ -666,6 +669,9 @@ export async function createStoreCheckout({
     checkoutUrl = await createCheckoutSessionWithCustomer({
       ...checkoutParams,
       customerId: stripeCustomerId,
+      metadata: {
+        isVerifiedIdentity: isVerifiedIdentity ? "true" : "false",
+      },
     });
   } else {
     // Use email-based checkout (for unverified or no existing customer)
@@ -687,11 +693,15 @@ export async function createStoreCheckout({
 export type ProcessStoreWebhookInputs = {
   orderId: string;
   userId: string;
+  requestId: string;
+  eventId: string;
   paymentIdentifier: string;
   paymentIntentId?: string | undefined;
   dynamoClient: DynamoDBClient;
   stripeApiKey: string;
   logger: ValidLoggers;
+  isVerifiedIdentity: boolean;
+  sqsQueueUrl: string;
 };
 
 export async function processStorePaymentSuccess(
@@ -705,9 +715,12 @@ export async function processStorePaymentSuccess(
     dynamoClient,
     stripeApiKey,
     logger,
+    requestId,
+    eventId,
+    isVerifiedIdentity,
+    sqsQueueUrl,
   } = props;
   const now = Math.floor(Date.now() / 1000);
-
   // 1. Get order details
   const orderResponse = await dynamoClient.send(
     new QueryCommand({
@@ -1161,7 +1174,89 @@ export async function processStorePaymentSuccess(
       message: "Failed to finalize order status",
     });
   }
+  // 7. Send email to purchaser
+  // Batch get all products and variants needed for email
+  const keysToFetch: { productId: string; variantId: string }[] = [];
+  const productIdsToFetch = new Set<string>();
 
+  for (const lineItem of lineItems) {
+    const { productId, variantId } = lineItem;
+    // Fetch variant
+    keysToFetch.push({ productId, variantId });
+    // Fetch product (for product name)
+    productIdsToFetch.add(productId);
+  }
+
+  // Add product-level records
+  for (const productId of productIdsToFetch) {
+    keysToFetch.push({ productId, variantId: DEFAULT_VARIANT_ID });
+  }
+
+  const batchGetResponse = await dynamoClient.send(
+    new BatchGetItemCommand({
+      RequestItems: {
+        [genericConfig.StoreInventoryTableName]: {
+          Keys: keysToFetch.map((k) => marshall(k)),
+        },
+      },
+    }),
+  );
+
+  const inventoryItems =
+    batchGetResponse.Responses?.[genericConfig.StoreInventoryTableName]?.map(
+      (item) => unmarshall(item),
+    ) || [];
+
+  // Create lookup maps
+  const productMap = new Map<string, Record<string, unknown>>();
+  const variantMap = new Map<string, Record<string, unknown>>();
+
+  for (const item of inventoryItems) {
+    if (item.variantId === DEFAULT_VARIANT_ID) {
+      productMap.set(item.productId as string, item);
+    } else {
+      variantMap.set(`${item.productId}#${item.variantId}`, item);
+    }
+  }
+
+  // Build itemsPurchased array
+  const itemsPurchased: SQSPayload<AvailableSQSFunctions.SendSaleEmail>["payload"]["itemsPurchased"] =
+    lineItems.map((lineItem) => {
+      const { productId, variantId, quantity } = lineItem;
+      const product = productMap.get(productId);
+      const variant = variantMap.get(`${productId}#${variantId}`);
+
+      return {
+        itemName: (product?.name as string) || "Unknown Item",
+        variantName:
+          variantId !== DEFAULT_VARIANT_ID
+            ? (variant?.name as string)
+            : undefined,
+        quantity: quantity as number,
+      };
+    });
+
+  const sqsPayload: SQSPayload<AvailableSQSFunctions.SendSaleEmail> = {
+    metadata: {
+      reqId: requestId,
+      initiator: eventId,
+    },
+    function: AvailableSQSFunctions.SendSaleEmail,
+    payload: {
+      email: userId,
+      qrCodeContent: orderId,
+      isVerifiedIdentity,
+      itemsPurchased,
+    },
+  };
+
+  const sqsClient = new SQSClient({ region: genericConfig.AwsRegion });
+  const cmd = new SendMessageCommand({
+    QueueUrl: sqsQueueUrl,
+    MessageBody: JSON.stringify(sqsPayload),
+    MessageGroupId: "storeNotifications",
+  });
+  await sqsClient.send(cmd);
   logger.info({ orderId }, "Order processing completed successfully");
 }
 
@@ -1747,39 +1842,42 @@ export async function refundOrder({
 
   // Perform Stripe operations if we found a valid Payment Intent
   if (paymentIntentId) {
-    const paymentIntent =
-      await stripeClient.paymentIntents.retrieve(paymentIntentId);
-
-    if (paymentIntent.status !== "succeeded") {
-      // Case A: Payment wasn't successful, cancel it.
-      logger.info("Payment intent is not succeeded, attempting to cancel.", {
-        paymentIntentId,
-      });
-      await stripeClient.paymentIntents.cancel(paymentIntentId);
-    } else {
-      // Case B: Payment succeeded, attempt refund.
-      try {
-        await stripeClient.refunds.create({
-          payment_intent: paymentIntentId,
-          reason: "requested_by_customer",
-        });
-      } catch (e) {
-        // If already refunded, log and continue to DB update
-        if (
-          e instanceof Stripe.errors.StripeInvalidRequestError &&
-          e.code === "charge_already_refunded"
-        ) {
-          logger.info("Charge already refunded", {
-            paymentIntent: paymentIntentId,
+    const idempotencyKey = randomUUID();
+    try {
+      await retryWithBackoff(
+        async () => {
+          await refundOrCancelPaymentIntent({
+            paymentIntentId,
+            stripeApiKey,
+            cancellationReason: "requested_by_customer",
+            idempotencyKey,
+            logger,
           });
-        } else {
-          logger.error(e);
-          throw e;
-        }
+        },
+        {
+          shouldRetry: shouldRetryStripeError,
+          onRetry: logOnRetry("RefundOrCancelPayment", logger),
+        },
+      );
+      logger.info(
+        { orderId, paymentIntentId },
+        "Payment refunded successfully",
+      );
+    } catch (e) {
+      // If already refunded, log and continue to DB update
+      if (
+        e instanceof Stripe.errors.StripeInvalidRequestError &&
+        e.code === "charge_already_refunded"
+      ) {
+        logger.info("Charge already refunded", {
+          paymentIntent: paymentIntentId,
+        });
+      } else {
+        logger.error(e);
+        throw e;
       }
     }
   }
-
   // 3. Mark as REFUNDED in Database
   const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [
     {
@@ -1789,7 +1887,8 @@ export async function refundOrder({
           orderId,
           lineItemId: "ORDER",
         }),
-        UpdateExpression: "SET `#status` = :status, `#refundedAt` = :refundedAt",
+        UpdateExpression:
+          "SET `#status` = :status, `#refundedAt` = :refundedAt",
         ConditionExpression: "#status <> :refundedStatus",
         ExpressionAttributeNames: {
           "#status": "status",

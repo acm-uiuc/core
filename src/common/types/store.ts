@@ -1,4 +1,3 @@
-import { X25519KeyPairOptions } from "node:crypto";
 import * as z from "zod/v4";
 
 // ============ Constants ============

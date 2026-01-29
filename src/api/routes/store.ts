@@ -49,6 +49,8 @@ import {
   modifyProductSchema,
 } from "common/types/store.js";
 import { assertAuthenticated } from "api/authenticated.js";
+import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
 export const STORE_CLIENT_HTTP_CACHE_POLICY = `public, max-age=${STORE_CACHED_DURATION}, stale-while-revalidate=${STORE_CACHED_DURATION}, stale-if-error=${STORE_CACHED_DURATION}`;
 
@@ -434,7 +436,13 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             orderId: z.string().min(1),
           }),
           body: z.object({
-            lineItemIds: z.array(z.string().min(1)).min(1).max(20),
+            lineItemIds: z
+              .array(z.string().min(1))
+              .min(1)
+              .max(20)
+              .refine((items) => new Set(items).size === items.length, {
+                error: "All line item IDs must be unique.",
+              }),
           }),
           response: {
             204: {
@@ -550,6 +558,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               .send({ handled: false, requestId: request.id });
           }
 
+          const isVerifiedIdentity = metadata?.isVerifiedIdentity === "true";
           const orderId = metadata.orderId;
           const userId = metadata.userId;
           const paymentIdentifier = session.id.toString();
@@ -567,22 +576,34 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
           request.log.info(
             { orderId, userId, paymentIdentifier },
-            "Processing store payment success",
+            "Queueing store payment success message",
           );
-
-          await processStorePaymentSuccess({
-            orderId,
-            userId,
-            paymentIdentifier,
-            paymentIntentId,
-            dynamoClient: fastify.dynamoClient,
-            stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
-            logger: request.log,
+          const sqsPayload: SQSPayload<AvailableSQSFunctions.HandleStorePurchase> =
+            {
+              metadata: {
+                reqId: request.id,
+                initiator: event.id,
+              },
+              function: AvailableSQSFunctions.HandleStorePurchase,
+              payload: {
+                orderId,
+                userId,
+                paymentIdentifier,
+                paymentIntentId,
+                isVerifiedIdentity,
+              },
+            };
+          const sqsClient = new SQSClient({ region: genericConfig.AwsRegion });
+          const cmd = new SendMessageCommand({
+            QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+            MessageBody: JSON.stringify(sqsPayload),
+            MessageGroupId: "storePurchase",
           });
-
+          const resp = await sqsClient.send(cmd);
           return reply.status(200).send({
             handled: true,
             requestId: request.id,
+            queueId: resp.MessageId || "",
           });
         }
         default:
