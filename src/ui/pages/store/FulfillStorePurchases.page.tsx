@@ -23,7 +23,6 @@ import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
-import { ValidationError } from "@common/errors";
 
 interface QRDataMerch {
   type: string;
@@ -93,7 +92,7 @@ interface TicketItemsResponse {
   merch: TicketItem[];
 }
 
-interface ScanTicketsPageProps {
+interface FulfillStorePurchasesPageProps {
   getOrganizations?: () => Promise<string[]>;
   getTicketItems?: () => Promise<TicketItemsResponse>;
   getPurchasesByUin?: (email: string) => Promise<PurchasesByEmailResponse>;
@@ -104,7 +103,9 @@ interface ScanTicketsPageProps {
   ) => Promise<APIResponseSchema>;
 }
 
-const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
+const FulfillStorePurchasesInternal: React.FC<
+  FulfillStorePurchasesPageProps
+> = ({
   getOrganizations: getOrganizationsProp,
   getTicketItems: getTicketItemsProp,
   getPurchasesByUin: getPurchasesByUinProp,
@@ -187,7 +188,7 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
     useCallback(
       async (data: any) => {
         const response = await api.post(
-          `/api/v1/tickets/checkIn`,
+          `/api/v1/store/checkIn`,
           recursiveToCamel(data),
         );
         return response.data as APIResponseSchema;
@@ -797,7 +798,10 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
 
   return (
     <AuthGuard
-      resourceDef={{ service: "core", validRoles: [AppRoles.TICKETS_SCANNER] }}
+      resourceDef={{
+        service: "core",
+        validRoles: [AppRoles.STORE_FULFILLMENT, AppRoles.STORE_MANAGER],
+      }}
     >
       <Box p="md">
         <Title order={2}>Scan Tickets</Title>
@@ -1164,6 +1168,8 @@ const ScanTicketsPageInternal: React.FC<ScanTicketsPageProps> = ({
   );
 };
 
-export const ScanTicketsPage: React.FC<ScanTicketsPageProps> = (props) => {
-  return <ScanTicketsPageInternal {...props} />;
+export const FulfillStorePurchasesPage: React.FC<
+  FulfillStorePurchasesPageProps
+> = (props) => {
+  return <FulfillStorePurchasesInternal {...props} />;
 };
