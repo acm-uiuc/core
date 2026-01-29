@@ -553,6 +553,72 @@ resource "aws_dynamodb_table" "store_carts_orders" {
   }
 }
 
+resource "aws_dynamodb_table" "store_carts" {
+  region                      = "us-east-2"
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-store-carts"
+  deletion_protection_enabled = true
+  hash_key                    = "orderId"
+  range_key                   = "lineItemId"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "orderId"
+    type = "S"
+  }
+  attribute {
+    name = "lineItemId"
+    type = "S"
+  }
+  attribute {
+    name = "productId"
+    type = "S"
+  }
+  attribute {
+    name = "itemId"
+    type = "S"
+  }
+
+  attribute {
+    name = "createdAt"
+    type = "N"
+  }
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+  global_secondary_index {
+    name            = "ItemIdIndex"
+    hash_key        = "itemId"
+    range_key       = "createdAt"
+    projection_type = "ALL"
+  }
+  global_secondary_index {
+    name            = "UserIdIndex"
+    hash_key        = "userId"
+    projection_type = "ALL"
+  }
+  global_secondary_index {
+    name            = "ProductIdIndex"
+    hash_key        = "productId"
+    projection_type = "ALL"
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
+}
+
 resource "aws_dynamodb_table" "store_limits" {
   region                      = "us-east-2"
   billing_mode                = "PAY_PER_REQUEST"
