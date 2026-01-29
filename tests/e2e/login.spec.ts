@@ -12,9 +12,7 @@ describe("Login tests", () => {
       page.locator("a").filter({ hasText: "Management Portal DEV ENV" }),
     ).toBeVisible();
     await expect(page.locator("a").filter({ hasText: "Events" })).toBeVisible();
-    await expect(
-      page.locator("a").filter({ hasText: "Ticketing/Merch" }),
-    ).toBeVisible();
+    await expect(page.locator("a").filter({ hasText: "Store" })).toBeVisible();
     await expect(page.locator("a").filter({ hasText: "IAM" })).toBeVisible();
     await expect(
       page.getByRole("link", { name: "ACM Logo Management Portal" }),
