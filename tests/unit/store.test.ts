@@ -712,7 +712,7 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
 
     const transactItems = transactCalls[0].args[0].input.TransactItems;
     expect(transactItems).toBeDefined();
-    expect(transactItems!.length).toBe(3); // 2 line items + 1 audit log
+    expect(transactItems!.length).toBe(4); // 1 conditional check on order + 2 line items + 1 audit log
 
     // Verify first line item update
     const firstUpdate = transactItems?.find(
@@ -732,7 +732,7 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
       "SET #isFulfilled = :isFulfilled",
     );
     expect(firstUpdate?.Update?.ConditionExpression).toBe(
-      "attribute_exists(orderId) AND attribute_exists(lineItemId)",
+      "attribute_exists(orderId) AND attribute_exists(lineItemId) AND (#isFulfilled = :notFulfilled OR attribute_not_exists(#isFulfilled))",
     );
     expect(firstUpdate?.Update?.ExpressionAttributeValues).toEqual(
       expect.objectContaining({
@@ -792,7 +792,7 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
     expect(transactCalls).toHaveLength(1);
 
     const transactItems = transactCalls[0].args[0].input.TransactItems;
-    expect(transactItems!.length).toBe(2); // 1 line item + 1 audit log
+    expect(transactItems!.length).toBe(3); // 1 conditional check + 1 line item + 1 audit log
 
     const updateItem = transactItems?.find((item) => item.Update !== undefined);
     expect(updateItem?.Update?.Key).toEqual({
@@ -803,6 +803,7 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
 
   test("Returns 400 when line items do not exist", async () => {
     const cancellationReasons = [
+      { Code: "None" },
       { Code: "ConditionalCheckFailed" },
       { Code: "None" },
       { Code: "ConditionalCheckFailed" },
@@ -827,7 +828,9 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
 
     expect(response.statusCode).toBe(400);
     const responseJson = response.json();
-    expect(responseJson.message).toContain("Line items do not exist");
+    expect(responseJson.message).toContain(
+      "Line items are not in a fulfillable state: nonexistent-1, nonexistent-2",
+    );
     expect(responseJson.message).toContain("nonexistent-1");
     expect(responseJson.message).toContain("nonexistent-2");
   });
