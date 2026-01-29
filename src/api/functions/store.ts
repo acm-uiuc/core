@@ -1789,7 +1789,8 @@ export async function refundOrder({
           orderId,
           lineItemId: "ORDER",
         }),
-        UpdateExpression: "SET #status = :status, #refundedAt = :refundedAt",
+        UpdateExpression: "SET `#status` = :status, `#refundedAt` = :refundedAt",
+        ConditionExpression: "#status <> :refundedStatus",
         ExpressionAttributeNames: {
           "#status": "status",
           "#refundedAt": "refundedAt",
@@ -1797,6 +1798,7 @@ export async function refundOrder({
         ExpressionAttributeValues: marshall({
           ":status": "REFUNDED",
           ":refundedAt": Math.floor(Date.now() / 1000),
+          ":refundedStatus": "REFUNDED",
         }),
       },
     },
