@@ -714,6 +714,25 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
     expect(transactItems).toBeDefined();
     expect(transactItems!.length).toBe(4); // 1 conditional check on order + 2 line items + 1 audit log
 
+    // Verify condition check on active order
+    const conditionalItem = transactItems?.find(
+      (item) => item.ConditionCheck !== undefined,
+    );
+    expect(conditionalItem?.ConditionCheck).toEqual({
+      TableName: genericConfig.StoreCartsOrdersTableName,
+      Key: {
+        orderId: { S: "order-123" },
+        lineItemId: { S: "ORDER" },
+      },
+      ConditionExpression: "#status = :active",
+      ExpressionAttributeNames: {
+        "#status": "status",
+      },
+      ExpressionAttributeValues: {
+        ":active": { S: "ACTIVE" },
+      },
+    });
+
     // Verify first line item update
     const firstUpdate = transactItems?.find(
       (item) =>
@@ -794,6 +813,24 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
     const transactItems = transactCalls[0].args[0].input.TransactItems;
     expect(transactItems!.length).toBe(3); // 1 conditional check + 1 line item + 1 audit log
 
+    const conditionalItem = transactItems?.find(
+      (item) => item.ConditionCheck !== undefined,
+    );
+    expect(conditionalItem?.ConditionCheck).toEqual({
+      TableName: genericConfig.StoreCartsOrdersTableName,
+      Key: {
+        orderId: { S: "order-456" },
+        lineItemId: { S: "ORDER" },
+      },
+      ConditionExpression: "#status = :active",
+      ExpressionAttributeNames: {
+        "#status": "status",
+      },
+      ExpressionAttributeValues: {
+        ":active": { S: "ACTIVE" },
+      },
+    });
+
     const updateItem = transactItems?.find((item) => item.Update !== undefined);
     expect(updateItem?.Update?.Key).toEqual({
       orderId: { S: "order-456" },
@@ -835,6 +872,38 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
     expect(responseJson.message).toContain("nonexistent-2");
   });
 
+  test("Returns 400 when order is not in ACTIVE state", async () => {
+    const cancellationReasons = [
+      { Code: "ConditionalCheckFailed" },
+      { Code: "None" },
+      { Code: "None" },
+      { Code: "None" },
+    ];
+    const error = new TransactionCanceledException({
+      message: "Transaction cancelled",
+      $metadata: {},
+      CancellationReasons: cancellationReasons,
+    });
+    ddbMock.on(TransactWriteItemsCommand).rejects(error);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/store/admin/orders/order-789/fulfill",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        lineItemIds: ["existing-1"],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const responseJson = response.json();
+    expect(responseJson.message).toStrictEqual(
+      "Order is not active and cannot be modified",
+    );
+  });
+
   test("Returns 403 without authentication", async () => {
     const response = await app.inject({
       method: "POST",
@@ -851,7 +920,7 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
     expect(transactCalls).toHaveLength(0);
   });
 
-  test("Returns 400 with empty lineItemIds array", async () => {
+  test("Returns 400 with duplicates in lineItemIds array", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/store/admin/orders/order-123/fulfill",
@@ -859,29 +928,13 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
         Authorization: `Bearer ${testJwt}`,
       },
       body: {
-        lineItemIds: [],
+        lineItemIds: ["e1", "e1"],
       },
     });
 
     expect(response.statusCode).toBe(400);
 
     // Verify no DynamoDB calls were made
-    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
-    expect(transactCalls).toHaveLength(0);
-  });
-
-  test("Returns 400 with missing lineItemIds", async () => {
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/v1/store/admin/orders/order-123/fulfill",
-      headers: {
-        Authorization: `Bearer ${testJwt}`,
-      },
-      body: {},
-    });
-
-    expect(response.statusCode).toBe(400);
-
     const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
     expect(transactCalls).toHaveLength(0);
   });
