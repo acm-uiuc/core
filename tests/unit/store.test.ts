@@ -214,7 +214,6 @@ describe("GET /products/{productId}", () => {
       limitConfiguration: { limitType: "PER_PRODUCT", maxQuantity: 4 },
     });
     expect(response.headers["cache-control"]).not.toBeDefined();
-    expect(response.headers["cache-control"]).not.toBeDefined();
   });
 
   test("Denies request for closed product", async () => {
