@@ -1827,6 +1827,7 @@ export type RefundOrderInputs = {
   dynamoClient: DynamoDBClient;
   logger: ValidLoggers;
   stripeApiKey: string;
+  releaseInventory: boolean;
 };
 
 export async function refundOrder({
@@ -1835,6 +1836,7 @@ export async function refundOrder({
   dynamoClient,
   logger,
   stripeApiKey,
+  releaseInventory,
 }: RefundOrderInputs) {
   const order = await getOrder({
     orderId,
@@ -1942,13 +1944,93 @@ export async function refundOrder({
       },
     },
   ];
+  if (releaseInventory) {
+    // Aggregate quantities by product for PER_PRODUCT mode
+    const productQuantities = new Map<string, number>();
 
+    // Fetch all product data to determine inventory modes
+    const productIds = [...new Set(order.lineItems.map((li) => li.productId))];
+    const productDataMap = new Map<string, Record<string, unknown>>();
+
+    await Promise.all(
+      productIds.map(async (productId) => {
+        const productData = await dynamoClient.send(
+          new GetItemCommand({
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
+          }),
+        );
+        if (productData.Item) {
+          productDataMap.set(productId, unmarshall(productData.Item));
+        }
+      }),
+    );
+
+    for (const lineItem of order.lineItems) {
+      const product = productDataMap.get(lineItem.productId);
+      const inventoryMode = (product?.inventoryMode as string) || "PER_VARIANT";
+
+      if (inventoryMode === "PER_PRODUCT") {
+        // Aggregate for product-level inventory update
+        const existing = productQuantities.get(lineItem.productId) || 0;
+        productQuantities.set(lineItem.productId, existing + lineItem.quantity);
+
+        // Still decrement per-variant soldCount for reporting
+        transactItems.push({
+          Update: {
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({
+              productId: lineItem.productId,
+              variantId: lineItem.variantId,
+            }),
+            UpdateExpression: "SET soldCount = soldCount - :qty",
+            ExpressionAttributeValues: marshall({
+              ":qty": lineItem.quantity,
+            }),
+          },
+        });
+      } else {
+        // PER_VARIANT: increment inventoryCount and decrement soldCount on the variant
+        transactItems.push({
+          Update: {
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({
+              productId: lineItem.productId,
+              variantId: lineItem.variantId,
+            }),
+            UpdateExpression:
+              "SET inventoryCount = if_not_exists(inventoryCount, :zero) + :qty, soldCount = soldCount - :qty",
+            ExpressionAttributeValues: marshall({
+              ":qty": lineItem.quantity,
+              ":zero": 0,
+            }),
+          },
+        });
+      }
+    }
+
+    // Add aggregated product-level inventory releases
+    for (const [productId, totalQty] of productQuantities) {
+      transactItems.push({
+        Update: {
+          TableName: genericConfig.StoreInventoryTableName,
+          Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
+          UpdateExpression:
+            "SET totalInventoryCount = if_not_exists(totalInventoryCount, :zero) + :qty, totalSoldCount = totalSoldCount - :qty",
+          ExpressionAttributeValues: marshall({
+            ":qty": totalQty,
+            ":zero": 0,
+          }),
+        },
+      });
+    }
+  }
   const productAuditLog = buildAuditLogTransactPut({
     entry: {
       module: Modules.STORE,
       actor,
       target: orderId,
-      message: "Refunded order",
+      message: `Refunded order${releaseInventory ? " and released inventory" : ""}.`,
     },
   });
 

@@ -399,6 +399,9 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           params: z.object({
             orderId: z.string().min(1),
           }),
+          body: z.object({
+            releaseInventory: z.boolean(),
+          }),
           response: {
             204: {
               description: "The order was refunded.",
@@ -420,6 +423,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         logger: request.log,
         actor: request.username,
         stripeApiKey: fastify.secretConfig.stripe_secret_key,
+        ...request.body,
       });
       return reply.status(204).send();
     }),
