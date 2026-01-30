@@ -312,6 +312,12 @@ export function generateSaleFailedEmail(
   failureReason: string,
 ): SendRawEmailCommand {
   const subject = `Your purchase could not be processed`;
+  const safeFailureReason = failureReason
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
   const emailTemplate = `
 <!doctype html>
@@ -378,7 +384,7 @@ export function generateSaleFailedEmail(
     <div class="wrap">
         <h2 style="text-align: center;">${subject}</h2>
         <p>
-            Unfortunately, your recent purchase could not be processed because ${failureReason}. Don't worry — any charge to your card will be automatically refunded.
+            Unfortunately, your recent purchase could not be processed because ${safeFailureReason}. Don't worry — any charge to your card will be automatically refunded.
         </p>
         <p>
           If you wish, you may try again on the <a href="https://acm.illinois.edu/merch-store">store</a>. If you need more help, please email <a href="mailto:officers@acm.illinois.edu">officers@acm.illinois.edu</a>.

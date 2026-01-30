@@ -1104,13 +1104,10 @@ export async function processStorePaymentSuccess(
                 },
                 logger,
               );
-              logger.info(
-                { orderId, userId },
-                "Sent sale failed email to customer",
-              );
+              logger.info({ orderId }, "Sent sale failed email to customer");
             } catch (emailError) {
               logger.error(
-                { emailError, orderId, userId },
+                { emailError, orderId },
                 "Failed to send sale failed email",
               );
               // Don't throw - email failure shouldn't block the cancellation flow
@@ -2018,12 +2015,11 @@ export async function refundOrder({
               variantId: lineItem.variantId,
             }),
             UpdateExpression:
-              "SET soldCount = if_not_exists(soldCount, :zero) - :qty",
+              "SET soldCount = if_not_exists(soldCount, :qty) - :qty",
             ConditionExpression:
               "attribute_not_exists(soldCount) OR soldCount >= :qty",
             ExpressionAttributeValues: marshall({
               ":qty": lineItem.quantity,
-              ":zero": 0,
             }),
           },
         });
@@ -2043,12 +2039,11 @@ export async function refundOrder({
                 variantId: lineItem.variantId,
               }),
               UpdateExpression:
-                "SET inventoryCount = inventoryCount + :qty, soldCount = if_not_exists(soldCount, :zero) - :qty",
+                "SET inventoryCount = inventoryCount + :qty, soldCount = if_not_exists(soldCount, :qty) - :qty",
               ConditionExpression:
                 "attribute_exists(inventoryCount) AND (attribute_not_exists(soldCount) OR soldCount >= :qty)",
               ExpressionAttributeValues: marshall({
                 ":qty": lineItem.quantity,
-                ":zero": 0,
               }),
             },
           });
@@ -2062,12 +2057,11 @@ export async function refundOrder({
                 variantId: lineItem.variantId,
               }),
               UpdateExpression:
-                "SET soldCount = if_not_exists(soldCount, :zero) - :qty",
+                "SET soldCount = if_not_exists(soldCount, :qty) - :qty",
               ConditionExpression:
                 "attribute_not_exists(soldCount) OR soldCount >= :qty",
               ExpressionAttributeValues: marshall({
                 ":qty": lineItem.quantity,
-                ":zero": 0,
               }),
             },
           });
@@ -2105,12 +2099,11 @@ export async function refundOrder({
             TableName: genericConfig.StoreInventoryTableName,
             Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
             UpdateExpression:
-              "SET totalSoldCount = if_not_exists(totalSoldCount, :zero) - :qty",
+              "SET totalSoldCount = if_not_exists(totalSoldCount, :qty) - :qty",
             ConditionExpression:
               "attribute_not_exists(totalSoldCount) OR totalSoldCount >= :qty",
             ExpressionAttributeValues: marshall({
               ":qty": totalQty,
-              ":zero": 0,
             }),
           },
         });

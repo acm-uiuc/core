@@ -554,7 +554,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           });
           if (!resp.Items || resp.Count !== 1) {
             throw new DatabaseFetchError({
-              message: "received no database item.",
+              message: "Received no database item.",
             });
           }
           return reply
