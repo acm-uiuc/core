@@ -117,9 +117,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     {
       schema: withTags(["Store"], {
         summary: "Get details of a specific product.",
-        querystring: z.object({
-          ts,
-        }),
         params: z.object({
           productId: z.string().min(1),
         }),
@@ -136,18 +133,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }),
     },
     async (request, reply) => {
-      const ts = request.query?.ts;
-      if (ts) {
-        try {
-          await fastify.authorize(request, reply, [], false);
-        } catch {
-          throw new UnauthenticatedError({
-            message: "You must be authenticated to specify a staleness bound.",
-          });
-        }
-      } else {
-        reply.header("Cache-Control", STORE_CLIENT_HTTP_CACHE_POLICY);
-      }
       const product = await getProduct({
         productId: request.params.productId,
         dynamoClient: fastify.dynamoClient,
