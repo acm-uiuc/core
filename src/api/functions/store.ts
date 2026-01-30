@@ -2083,12 +2083,11 @@ export async function refundOrder({
             TableName: genericConfig.StoreInventoryTableName,
             Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
             UpdateExpression:
-              "SET totalInventoryCount = totalInventoryCount + :qty, totalSoldCount = if_not_exists(totalSoldCount, :zero) - :qty",
+              "SET totalInventoryCount = totalInventoryCount + :qty, totalSoldCount = if_not_exists(totalSoldCount, :qty) - :qty",
             ConditionExpression:
               "attribute_exists(totalInventoryCount) AND (attribute_not_exists(totalSoldCount) OR totalSoldCount >= :qty)",
             ExpressionAttributeValues: marshall({
               ":qty": totalQty,
-              ":zero": 0,
             }),
           },
         });
