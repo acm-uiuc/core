@@ -28,6 +28,8 @@ import { ManageApiKeysPage } from "./pages/apiKeys/ManageKeys.page";
 import { ManageExternalMembershipPage } from "./pages/membershipLists/MembershipListsPage";
 import { OrgInfoPage } from "./pages/organization/OrgInfo.page";
 import { ViewStoreItemsPage } from "./pages/store/ViewStoreItems.page";
+import { ViewRsvpConfigsPage } from "./pages/rsvps/ViewRsvpConfigs.page";
+import { ManageRsvpConfigFormPage } from "./pages/rsvps/ManageRsvpConfig.page";
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -170,6 +172,14 @@ const authenticatedRouter = createBrowserRouter([
       {
         path: "/events/manage",
         element: <ViewEventsPage />,
+      },
+      {
+        path: "/rsvps/manage",
+        element: <ViewRsvpConfigsPage />
+      },
+      {
+        path: "/rsvps/manage/:eventId",
+        element: <ManageRsvpConfigFormPage />
       },
       {
         path: "/linkry",
