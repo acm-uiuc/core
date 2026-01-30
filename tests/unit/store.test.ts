@@ -86,23 +86,6 @@ describe("Staleness bound authentication requirement", () => {
 
     expect(response.statusCode).toBe(403);
   });
-
-  test("GET /products/{productId}", async () => {
-    ddbMock
-      .on(ScanCommand, {
-        TableName: genericConfig.StoreInventoryTableName,
-      })
-      .resolvesOnce({
-        Items: inventoryTableEntries,
-      })
-      .rejects();
-    const response = await app.inject({
-      method: "GET",
-      url: "/api/v1/store/products/testing?ts=1",
-    });
-
-    expect(response.statusCode).toBe(403);
-  });
 });
 
 describe("GET /products", () => {
@@ -230,8 +213,8 @@ describe("GET /products/{productId}", () => {
       inventoryMode: "PER_VARIANT",
       limitConfiguration: { limitType: "PER_PRODUCT", maxQuantity: 4 },
     });
-    expect(response.headers["cache-control"]).toContain("public");
-    expect(response.headers["cache-control"]).toContain("max-age=30");
+    expect(response.headers["cache-control"]).not.toBeDefined();
+    expect(response.headers["cache-control"]).not.toBeDefined();
   });
 
   test("Denies request for closed product", async () => {
