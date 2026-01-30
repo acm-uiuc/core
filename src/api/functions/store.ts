@@ -59,6 +59,9 @@ import { Modules } from "common/modules.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { sendSaleEmailHandler } from "api/sqs/handlers/sendSaleEmailHandler.js";
+import { SESClient } from "@aws-sdk/client-ses";
+import { generateSaleFailedEmail } from "./ses.js";
+import { sendSaleFailedHandler } from "api/sqs/handlers/sendSaleFailedHandler.js";
 
 // ============ Helper Functions ============
 
@@ -1079,6 +1082,32 @@ export async function processStorePaymentSuccess(
               { orderId, lineItemCount: lineItems.length },
               "Order marked as CANCELLED",
             );
+            try {
+              logger.info(`Sending failure email to customer at ${userId}!`);
+              await sendSaleFailedHandler(
+                {
+                  userId,
+                },
+                {
+                  reqId: requestId,
+                  initiator: eventId,
+                },
+                logger,
+              );
+              logger.info(
+                { orderId, userId },
+                "Sent sale failed email to customer",
+              );
+            } catch (emailError) {
+              logger.error(
+                { emailError, orderId, userId },
+                "Failed to send sale failed email",
+              );
+              // Don't throw - email failure shouldn't block the cancellation flow
+            }
+
+            // Don't throw - order is handled (cancelled)
+            return;
           } catch (e) {
             logger.error(
               { e, orderId },
@@ -1088,9 +1117,6 @@ export async function processStorePaymentSuccess(
               message: "Failed to update order status after cancellation",
             });
           }
-
-          // Don't throw - order is handled (cancelled)
-          return;
         }
       }
 

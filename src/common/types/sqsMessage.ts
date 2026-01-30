@@ -6,6 +6,7 @@ export enum AvailableSQSFunctions {
   EmailMembershipPass = "emailMembershipPass",
   ProvisionNewMember = "provisionNewMember",
   SendSaleEmail = "sendSaleEmail",
+  SendSaleFailedEmail = "sendSaleFailedEmail",
   EmailNotifications = "emailNotifications",
   CreateOrgGithubTeam = "createOrgGithubTeam",
   SyncExecCouncil = "syncExecCouncil",
@@ -92,6 +93,11 @@ export const sqsPayloadSchemas = {
       paymentIdentifier: z.string().min(1),
       paymentIntentId: z.string().min(1).optional(),
       isVerifiedIdentity: z.boolean()
+    })
+  ),
+  [AvailableSQSFunctions.SendSaleFailedEmail]: createSQSSchema(
+    AvailableSQSFunctions.SendSaleFailedEmail, z.object({
+      userId: z.email(),
     })
   )
 } as const;
