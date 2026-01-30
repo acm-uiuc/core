@@ -21,6 +21,7 @@ import {
   createOrgGithubTeamHandler,
   syncExecCouncilHandler,
   processStorePurchaseHandler,
+  sendSaleFailedHandler,
 } from "./handlers/index.js";
 import { ValidationError } from "../../common/errors/index.js";
 import { RunEnvironment } from "../../common/roles.js";
@@ -45,6 +46,7 @@ const handlers: SQSFunctionPayloadTypes = {
   [AvailableSQSFunctions.CreateOrgGithubTeam]: createOrgGithubTeamHandler,
   [AvailableSQSFunctions.SyncExecCouncil]: syncExecCouncilHandler,
   [AvailableSQSFunctions.HandleStorePurchase]: processStorePurchaseHandler,
+  [AvailableSQSFunctions.SendSaleFailedEmail]: sendSaleFailedHandler,
 };
 export const runEnvironment = process.env.RunEnvironment as RunEnvironment;
 export const currentEnvironmentConfig = environmentConfig[runEnvironment];
