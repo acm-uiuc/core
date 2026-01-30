@@ -1961,9 +1961,12 @@ export async function refundOrder({
     // Fetch all product data to determine inventory modes
     const productIds = [...new Set(order.lineItems.map((li) => li.productId))];
     const productDataMap = new Map<string, Record<string, unknown>>();
+    const variantDataMap = new Map<string, Record<string, unknown>>();
 
-    await Promise.all(
-      productIds.map(async (productId) => {
+    // Fetch all products and variants in parallel
+    await Promise.all([
+      // Fetch products
+      ...productIds.map(async (productId) => {
         const productData = await dynamoClient.send(
           new GetItemCommand({
             TableName: genericConfig.StoreInventoryTableName,
@@ -1974,10 +1977,31 @@ export async function refundOrder({
           productDataMap.set(productId, unmarshall(productData.Item));
         }
       }),
-    );
+      // Fetch variants
+      ...order.lineItems.map(async (lineItem) => {
+        const variantData = await dynamoClient.send(
+          new GetItemCommand({
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({
+              productId: lineItem.productId,
+              variantId: lineItem.variantId,
+            }),
+          }),
+        );
+        if (variantData.Item) {
+          variantDataMap.set(
+            `${lineItem.productId}#${lineItem.variantId}`,
+            unmarshall(variantData.Item),
+          );
+        }
+      }),
+    ]);
 
     for (const lineItem of order.lineItems) {
       const product = productDataMap.get(lineItem.productId);
+      const variant = variantDataMap.get(
+        `${lineItem.productId}#${lineItem.variantId}`,
+      );
       const inventoryMode = (product?.inventoryMode as string) || "PER_VARIANT";
 
       if (inventoryMode === "PER_PRODUCT") {
@@ -1985,22 +2009,7 @@ export async function refundOrder({
         const existing = productQuantities.get(lineItem.productId) || 0;
         productQuantities.set(lineItem.productId, existing + lineItem.quantity);
 
-        // Still decrement per-variant soldCount for reporting
-        transactItems.push({
-          Update: {
-            TableName: genericConfig.StoreInventoryTableName,
-            Key: marshall({
-              productId: lineItem.productId,
-              variantId: lineItem.variantId,
-            }),
-            UpdateExpression: "SET soldCount = soldCount - :qty",
-            ExpressionAttributeValues: marshall({
-              ":qty": lineItem.quantity,
-            }),
-          },
-        });
-      } else {
-        // PER_VARIANT: increment inventoryCount and decrement soldCount on the variant
+        // Decrement per-variant soldCount for reporting (only if it exists and is sufficient)
         transactItems.push({
           Update: {
             TableName: genericConfig.StoreInventoryTableName,
@@ -2009,30 +2018,103 @@ export async function refundOrder({
               variantId: lineItem.variantId,
             }),
             UpdateExpression:
-              "SET inventoryCount = if_not_exists(inventoryCount, :zero) + :qty, soldCount = soldCount - :qty",
+              "SET soldCount = if_not_exists(soldCount, :zero) - :qty",
+            ConditionExpression:
+              "attribute_not_exists(soldCount) OR soldCount >= :qty",
             ExpressionAttributeValues: marshall({
               ":qty": lineItem.quantity,
               ":zero": 0,
             }),
           },
         });
+      } else {
+        // PER_VARIANT mode
+        const variantHasLimitedInventory =
+          variant?.inventoryCount !== null &&
+          variant?.inventoryCount !== undefined;
+
+        if (variantHasLimitedInventory) {
+          // Limited inventory: increment inventoryCount and decrement soldCount
+          transactItems.push({
+            Update: {
+              TableName: genericConfig.StoreInventoryTableName,
+              Key: marshall({
+                productId: lineItem.productId,
+                variantId: lineItem.variantId,
+              }),
+              UpdateExpression:
+                "SET inventoryCount = inventoryCount + :qty, soldCount = if_not_exists(soldCount, :zero) - :qty",
+              ConditionExpression:
+                "attribute_exists(inventoryCount) AND (attribute_not_exists(soldCount) OR soldCount >= :qty)",
+              ExpressionAttributeValues: marshall({
+                ":qty": lineItem.quantity,
+                ":zero": 0,
+              }),
+            },
+          });
+        } else {
+          // Unlimited inventory: only decrement soldCount (don't create inventoryCount)
+          transactItems.push({
+            Update: {
+              TableName: genericConfig.StoreInventoryTableName,
+              Key: marshall({
+                productId: lineItem.productId,
+                variantId: lineItem.variantId,
+              }),
+              UpdateExpression:
+                "SET soldCount = if_not_exists(soldCount, :zero) - :qty",
+              ConditionExpression:
+                "attribute_not_exists(soldCount) OR soldCount >= :qty",
+              ExpressionAttributeValues: marshall({
+                ":qty": lineItem.quantity,
+                ":zero": 0,
+              }),
+            },
+          });
+        }
       }
     }
 
     // Add aggregated product-level inventory releases
     for (const [productId, totalQty] of productQuantities) {
-      transactItems.push({
-        Update: {
-          TableName: genericConfig.StoreInventoryTableName,
-          Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
-          UpdateExpression:
-            "SET totalInventoryCount = if_not_exists(totalInventoryCount, :zero) + :qty, totalSoldCount = totalSoldCount - :qty",
-          ExpressionAttributeValues: marshall({
-            ":qty": totalQty,
-            ":zero": 0,
-          }),
-        },
-      });
+      const product = productDataMap.get(productId);
+      const productHasLimitedInventory =
+        product?.totalInventoryCount !== null &&
+        product?.totalInventoryCount !== undefined;
+
+      if (productHasLimitedInventory) {
+        // Limited product inventory: increment totalInventoryCount and decrement totalSoldCount
+        transactItems.push({
+          Update: {
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
+            UpdateExpression:
+              "SET totalInventoryCount = totalInventoryCount + :qty, totalSoldCount = if_not_exists(totalSoldCount, :zero) - :qty",
+            ConditionExpression:
+              "attribute_exists(totalInventoryCount) AND (attribute_not_exists(totalSoldCount) OR totalSoldCount >= :qty)",
+            ExpressionAttributeValues: marshall({
+              ":qty": totalQty,
+              ":zero": 0,
+            }),
+          },
+        });
+      } else {
+        // Unlimited product inventory: only decrement totalSoldCount (don't create totalInventoryCount)
+        transactItems.push({
+          Update: {
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
+            UpdateExpression:
+              "SET totalSoldCount = if_not_exists(totalSoldCount, :zero) - :qty",
+            ConditionExpression:
+              "attribute_not_exists(totalSoldCount) OR totalSoldCount >= :qty",
+            ExpressionAttributeValues: marshall({
+              ":qty": totalQty,
+              ":zero": 0,
+            }),
+          },
+        });
+      }
     }
   }
   const productAuditLog = buildAuditLogTransactPut({
