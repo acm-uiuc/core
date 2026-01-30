@@ -6,7 +6,7 @@ import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
  * Generates a SendRawEmailCommand for SES to send an email with an attached membership pass.
  *
  * @param recipientEmail - The email address of the recipient.
- * * @param recipientEmail - The email address of the sender with a verified identity in SES.
+ * @param senderEmail - The email address of the sender with a verified identity in SES.
  * @param attachmentBuffer - The membership pass in ArrayBufferLike format.
  * @returns The command to send the email via SES.
  */
@@ -304,6 +304,7 @@ ${encodedImage}
  *
  * @param recipientEmail - The email address of the customer whose purchase failed.
  * @param senderEmail - The email address of the sender with a verified identity in SES.
+ * @param failureReason - Why the purchase could not be fulfilled.
  * @returns The command to send the email via SES.
  */
 export function generateSaleFailedEmail(
