@@ -611,7 +611,7 @@ Please contact Officer Board with any questions.
                         notificationRecipients[fastify.runEnvironment]
                           .Treasurer,
                       ],
-                      subject: `Payment Recieved for Invoice ${unmarshalledEntry.invoiceId}`,
+                      subject: `Payment received for Invoice ${unmarshalledEntry.invoiceId}`,
                       content: `
 ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
 

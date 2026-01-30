@@ -57,8 +57,8 @@ import { getNetIdFromEmail } from "common/utils.js";
 import { buildAuditLogTransactPut } from "./auditLog.js";
 import { Modules } from "common/modules.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
-import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { sendSaleEmailHandler } from "api/sqs/handlers/sendSaleEmailHandler.js";
+import { sendSaleFailedHandler } from "api/sqs/handlers/sendSaleFailedHandler.js";
 
 // ============ Helper Functions ============
 
@@ -661,6 +661,12 @@ export async function createStoreCheckout({
     successUrl: successUrl || `${baseUrl}/store/order/${orderId}?success=true`,
     returnUrl: cancelUrl || `${baseUrl}/store/cart?cancelled=true`,
     captureMethod: "manual" as const,
+    customText: {
+      submit: {
+        message:
+          "Once your order is confirmed, you will receive a confirmation email to the provided email address.",
+      },
+    },
   };
 
   let checkoutUrl: string;
@@ -1016,14 +1022,20 @@ export async function processStorePaymentSuccess(
             unmarshall(failedItem.Update.Key).variantId === DEFAULT_VARIANT_ID;
 
           let errorLogMsg: string;
+          let userErrorMsg: string;
           if (isLimitFailure) {
             errorLogMsg = "User limit check failed, cancelling payment";
+            userErrorMsg =
+              "your purchase exceeds the item limit for one or more items in this order";
           } else if (isProductInventoryFailure) {
             errorLogMsg =
               "Product-level inventory check failed (OOS), cancelling payment";
+            userErrorMsg = "the product is out of stock";
           } else {
             errorLogMsg =
               "Variant inventory check failed (OOS), cancelling payment";
+            userErrorMsg =
+              "the variant of the product you purchased is out of stock";
           }
 
           logger.error({ orderId, failedIndex }, errorLogMsg);
@@ -1079,6 +1091,30 @@ export async function processStorePaymentSuccess(
               { orderId, lineItemCount: lineItems.length },
               "Order marked as CANCELLED",
             );
+            try {
+              logger.info(`Sending failure email to customer at ${userId}!`);
+              await sendSaleFailedHandler(
+                {
+                  userId,
+                  failureReason: userErrorMsg,
+                },
+                {
+                  reqId: requestId,
+                  initiator: eventId,
+                },
+                logger,
+              );
+              logger.info({ orderId }, "Sent sale failed email to customer");
+            } catch (emailError) {
+              logger.error(
+                { emailError, orderId },
+                "Failed to send sale failed email",
+              );
+              // Don't throw - email failure shouldn't block the cancellation flow
+            }
+
+            // Don't throw - order is handled (cancelled)
+            return;
           } catch (e) {
             logger.error(
               { e, orderId },
@@ -1088,9 +1124,6 @@ export async function processStorePaymentSuccess(
               message: "Failed to update order status after cancellation",
             });
           }
-
-          // Don't throw - order is handled (cancelled)
-          return;
         }
       }
 
@@ -1801,6 +1834,7 @@ export type RefundOrderInputs = {
   dynamoClient: DynamoDBClient;
   logger: ValidLoggers;
   stripeApiKey: string;
+  releaseInventory: boolean;
 };
 
 export async function refundOrder({
@@ -1809,6 +1843,7 @@ export async function refundOrder({
   dynamoClient,
   logger,
   stripeApiKey,
+  releaseInventory,
 }: RefundOrderInputs) {
   const order = await getOrder({
     orderId,
@@ -1916,13 +1951,170 @@ export async function refundOrder({
       },
     },
   ];
+  if (releaseInventory) {
+    // Aggregate quantities by product for PER_PRODUCT mode
+    const productQuantities = new Map<string, number>();
 
+    // Fetch all product data to determine inventory modes
+    const productIds = [...new Set(order.lineItems.map((li) => li.productId))];
+    const productDataMap = new Map<string, Record<string, unknown>>();
+    const variantDataMap = new Map<string, Record<string, unknown>>();
+
+    // Fetch all products and variants in parallel
+    await Promise.all([
+      // Fetch products
+      ...productIds.map(async (productId) => {
+        const productData = await dynamoClient.send(
+          new GetItemCommand({
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
+          }),
+        );
+        if (productData.Item) {
+          productDataMap.set(productId, unmarshall(productData.Item));
+        }
+      }),
+      // Fetch variants
+      ...order.lineItems.map(async (lineItem) => {
+        const variantData = await dynamoClient.send(
+          new GetItemCommand({
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({
+              productId: lineItem.productId,
+              variantId: lineItem.variantId,
+            }),
+          }),
+        );
+        if (variantData.Item) {
+          variantDataMap.set(
+            `${lineItem.productId}#${lineItem.variantId}`,
+            unmarshall(variantData.Item),
+          );
+        }
+      }),
+    ]);
+
+    for (const lineItem of order.lineItems) {
+      const product = productDataMap.get(lineItem.productId);
+      const variant = variantDataMap.get(
+        `${lineItem.productId}#${lineItem.variantId}`,
+      );
+      const inventoryMode = (product?.inventoryMode as string) || "PER_VARIANT";
+
+      if (inventoryMode === "PER_PRODUCT") {
+        // Aggregate for product-level inventory update
+        const existing = productQuantities.get(lineItem.productId) || 0;
+        productQuantities.set(lineItem.productId, existing + lineItem.quantity);
+
+        // Decrement per-variant soldCount for reporting (only if it exists and is sufficient)
+        transactItems.push({
+          Update: {
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({
+              productId: lineItem.productId,
+              variantId: lineItem.variantId,
+            }),
+            UpdateExpression:
+              "SET soldCount = if_not_exists(soldCount, :qty) - :qty",
+            ConditionExpression:
+              "attribute_not_exists(soldCount) OR soldCount >= :qty",
+            ExpressionAttributeValues: marshall({
+              ":qty": lineItem.quantity,
+            }),
+          },
+        });
+      } else {
+        // PER_VARIANT mode
+        const variantHasLimitedInventory =
+          variant?.inventoryCount !== null &&
+          variant?.inventoryCount !== undefined;
+
+        if (variantHasLimitedInventory) {
+          // Limited inventory: increment inventoryCount and decrement soldCount
+          transactItems.push({
+            Update: {
+              TableName: genericConfig.StoreInventoryTableName,
+              Key: marshall({
+                productId: lineItem.productId,
+                variantId: lineItem.variantId,
+              }),
+              UpdateExpression:
+                "SET inventoryCount = inventoryCount + :qty, soldCount = if_not_exists(soldCount, :qty) - :qty",
+              ConditionExpression:
+                "attribute_exists(inventoryCount) AND (attribute_not_exists(soldCount) OR soldCount >= :qty)",
+              ExpressionAttributeValues: marshall({
+                ":qty": lineItem.quantity,
+              }),
+            },
+          });
+        } else {
+          // Unlimited inventory: only decrement soldCount (don't create inventoryCount)
+          transactItems.push({
+            Update: {
+              TableName: genericConfig.StoreInventoryTableName,
+              Key: marshall({
+                productId: lineItem.productId,
+                variantId: lineItem.variantId,
+              }),
+              UpdateExpression:
+                "SET soldCount = if_not_exists(soldCount, :qty) - :qty",
+              ConditionExpression:
+                "attribute_not_exists(soldCount) OR soldCount >= :qty",
+              ExpressionAttributeValues: marshall({
+                ":qty": lineItem.quantity,
+              }),
+            },
+          });
+        }
+      }
+    }
+
+    // Add aggregated product-level inventory releases
+    for (const [productId, totalQty] of productQuantities) {
+      const product = productDataMap.get(productId);
+      const productHasLimitedInventory =
+        product?.totalInventoryCount !== null &&
+        product?.totalInventoryCount !== undefined;
+
+      if (productHasLimitedInventory) {
+        // Limited product inventory: increment totalInventoryCount and decrement totalSoldCount
+        transactItems.push({
+          Update: {
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
+            UpdateExpression:
+              "SET totalInventoryCount = totalInventoryCount + :qty, totalSoldCount = if_not_exists(totalSoldCount, :qty) - :qty",
+            ConditionExpression:
+              "attribute_exists(totalInventoryCount) AND (attribute_not_exists(totalSoldCount) OR totalSoldCount >= :qty)",
+            ExpressionAttributeValues: marshall({
+              ":qty": totalQty,
+            }),
+          },
+        });
+      } else {
+        // Unlimited product inventory: only decrement totalSoldCount (don't create totalInventoryCount)
+        transactItems.push({
+          Update: {
+            TableName: genericConfig.StoreInventoryTableName,
+            Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
+            UpdateExpression:
+              "SET totalSoldCount = if_not_exists(totalSoldCount, :qty) - :qty",
+            ConditionExpression:
+              "attribute_not_exists(totalSoldCount) OR totalSoldCount >= :qty",
+            ExpressionAttributeValues: marshall({
+              ":qty": totalQty,
+            }),
+          },
+        });
+      }
+    }
+  }
   const productAuditLog = buildAuditLogTransactPut({
     entry: {
       module: Modules.STORE,
       actor,
       target: orderId,
-      message: "Refunded order",
+      message: `Refunded order${releaseInventory ? " and released inventory" : ""}.`,
     },
   });
 

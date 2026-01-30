@@ -9,7 +9,6 @@ import {
   execCouncilGroupId,
   execCouncilTestingGroupId,
   genericConfig,
-  roleArns,
 } from "common/config.js";
 import { getAllVotingLeads } from "api/functions/organizations.js";
 import {
@@ -17,10 +16,7 @@ import {
   listGroupMembers,
   modifyGroup,
 } from "api/functions/entraId.js";
-import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { EntraGroupActions } from "common/types/iam.js";
-import { getRoleCredentials } from "api/functions/sts.js";
-import { SSMClient } from "@aws-sdk/client-ssm";
 import { getAuthorizedClients } from "../utils.js";
 
 export const syncExecCouncilHandler: SQSHandlerFunction<
