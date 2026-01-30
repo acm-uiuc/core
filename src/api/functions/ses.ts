@@ -259,7 +259,7 @@ MIME-Version: 1.0
 Content-Type: text/html; charset="UTF-8"
 From: ACM @ UIUC Store <${senderEmail}>
 To: ${payload.email}
-Subject: Your ACM @ UIUC Purchase
+Subject: Your purchase is confirmed!
 
 ${emailTemplate}`.trim();
   } else {
@@ -276,7 +276,7 @@ MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="${boundary}"
 From: ACM @ UIUC Store <${senderEmail}>
 To: ${payload.email}
-Subject: Your ACM @ UIUC Purchase
+Subject: Your purchase is confirmed!
 
 --${boundary}
 Content-Type: text/html; charset="UTF-8"
@@ -309,6 +309,7 @@ ${encodedImage}
 export function generateSaleFailedEmail(
   recipientEmail: string,
   senderEmail: string,
+  failureReason: string,
 ): SendRawEmailCommand {
   const subject = `Your purchase could not be processed`;
 
@@ -377,7 +378,7 @@ export function generateSaleFailedEmail(
     <div class="wrap">
         <h2 style="text-align: center;">${subject}</h2>
         <p>
-            Unfortunately, your recent purchase could not be processed. Don't worry — any charge to your card will be automatically refunded.
+            Unfortunately, your recent purchase could not be processed because ${failureReason}. Don't worry — any charge to your card will be automatically refunded.
         </p>
         <p>
           If you wish, you may try again on the <a href="https://acm.illinois.edu/merch-store">store</a>. If you need more help, please email <a href="mailto:officers@acm.illinois.edu">officers@acm.illinois.edu</a>.
@@ -398,7 +399,7 @@ MIME-Version: 1.0
 Content-Type: text/html; charset="UTF-8"
 From: ACM @ UIUC Store <${senderEmail}>
 To: ${recipientEmail}
-Subject: Your ACM @ UIUC purchase could not be processed
+Subject: Your purchase could not be processed
 
 ${emailTemplate}`.trim();
 

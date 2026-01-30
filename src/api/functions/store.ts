@@ -57,10 +57,7 @@ import { getNetIdFromEmail } from "common/utils.js";
 import { buildAuditLogTransactPut } from "./auditLog.js";
 import { Modules } from "common/modules.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
-import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { sendSaleEmailHandler } from "api/sqs/handlers/sendSaleEmailHandler.js";
-import { SESClient } from "@aws-sdk/client-ses";
-import { generateSaleFailedEmail } from "./ses.js";
 import { sendSaleFailedHandler } from "api/sqs/handlers/sendSaleFailedHandler.js";
 
 // ============ Helper Functions ============
@@ -1019,14 +1016,20 @@ export async function processStorePaymentSuccess(
             unmarshall(failedItem.Update.Key).variantId === DEFAULT_VARIANT_ID;
 
           let errorLogMsg: string;
+          let userErrorMsg: string;
           if (isLimitFailure) {
             errorLogMsg = "User limit check failed, cancelling payment";
+            userErrorMsg =
+              "your purchase exceeds the item limit for one or more items in this order";
           } else if (isProductInventoryFailure) {
             errorLogMsg =
               "Product-level inventory check failed (OOS), cancelling payment";
+            userErrorMsg = "the product is out of stock";
           } else {
             errorLogMsg =
               "Variant inventory check failed (OOS), cancelling payment";
+            userErrorMsg =
+              "the variant of the product you purchased is out of stock";
           }
 
           logger.error({ orderId, failedIndex }, errorLogMsg);
@@ -1087,6 +1090,7 @@ export async function processStorePaymentSuccess(
               await sendSaleFailedHandler(
                 {
                   userId,
+                  failureReason: userErrorMsg,
                 },
                 {
                   reqId: requestId,

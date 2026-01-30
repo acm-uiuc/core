@@ -9,7 +9,11 @@ export const sendSaleFailedHandler: SQSHandlerFunction<
 > = async (payload, _metadata, logger) => {
   const senderEmail = `sales@${currentEnvironmentConfig.EmailDomain}`;
   logger.info("Constructing email...");
-  const emailCommand = generateSaleFailedEmail(payload.userId, senderEmail);
+  const emailCommand = generateSaleFailedEmail(
+    payload.userId,
+    senderEmail,
+    payload.failureReason,
+  );
   logger.info("Sending email...");
   const sesClient = new SESClient({ region: genericConfig.SesRegion });
   const response = await sesClient.send(emailCommand);

@@ -98,6 +98,7 @@ export const sqsPayloadSchemas = {
   [AvailableSQSFunctions.SendSaleFailedEmail]: createSQSSchema(
     AvailableSQSFunctions.SendSaleFailedEmail, z.object({
       userId: z.email(),
+      failureReason: z.string().min(1)
     })
   )
 } as const;
