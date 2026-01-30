@@ -664,7 +664,7 @@ export async function createStoreCheckout({
     customText: {
       submit: {
         message:
-          "Once your order is confirmed, you will recieve a confirmation email to the provided email address.",
+          "Once your order is confirmed, you will receive a confirmation email to the provided email address.",
       },
     },
   };

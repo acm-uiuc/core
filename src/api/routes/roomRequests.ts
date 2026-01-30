@@ -86,7 +86,7 @@ async function verifyRoomRequestAccess(
   const resp = await fastify.dynamoClient.send(command);
   if (!resp.Items || resp.Count !== 1) {
     throw new DatabaseFetchError({
-      message: "Recieved no database item.",
+      message: "Received no database item.",
     });
   }
 
@@ -554,7 +554,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           });
           if (!resp.Items || resp.Count !== 1) {
             throw new DatabaseFetchError({
-              message: "Recieved no database item.",
+              message: "received no database item.",
             });
           }
           return reply
