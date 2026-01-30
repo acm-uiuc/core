@@ -661,6 +661,12 @@ export async function createStoreCheckout({
     successUrl: successUrl || `${baseUrl}/store/order/${orderId}?success=true`,
     returnUrl: cancelUrl || `${baseUrl}/store/cart?cancelled=true`,
     captureMethod: "manual" as const,
+    customText: {
+      submit: {
+        message:
+          "Once your order is confirmed, you will recieve a confirmation email to the provided email address.",
+      },
+    },
   };
 
   let checkoutUrl: string;

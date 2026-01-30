@@ -24,6 +24,7 @@ export type StripeCheckoutSessionCreateParams = {
   allowPromotionCodes: boolean;
   customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
   captureMethod?: "automatic" | "manual"; // manual = pre-auth only
+  customText?: Stripe.Checkout.SessionCreateParams.CustomText;
 };
 
 export type StripeCheckoutSessionCreateWithCustomerParams = {
@@ -37,6 +38,7 @@ export type StripeCheckoutSessionCreateWithCustomerParams = {
   allowPromotionCodes: boolean;
   customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
   captureMethod?: "automatic" | "manual"; // manual = pre-auth only
+  customText?: Stripe.Checkout.SessionCreateParams.CustomText;
 };
 
 /**
@@ -96,6 +98,7 @@ export const createCheckoutSession = async ({
   customFields,
   metadata,
   captureMethod,
+  customText,
 }: StripeCheckoutSessionCreateParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
@@ -113,6 +116,7 @@ export const createCheckoutSession = async ({
       initiator,
     },
     allow_promotion_codes: allowPromotionCodes,
+    custom_text: customText,
     custom_fields: customFields,
     ...(captureMethod && {
       payment_intent_data: {
@@ -140,6 +144,7 @@ export const createCheckoutSessionWithCustomer = async ({
   customFields,
   metadata,
   captureMethod,
+  customText,
 }: StripeCheckoutSessionCreateWithCustomerParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
@@ -157,6 +162,7 @@ export const createCheckoutSessionWithCustomer = async ({
       initiator,
     },
     allow_promotion_codes: allowPromotionCodes,
+    custom_text: customText,
     custom_fields: customFields,
     ...(captureMethod && {
       payment_intent_data: {
