@@ -58,8 +58,10 @@ export const ViewRsvpConfigsPage: React.FC = () => {
   const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false);
   const [selectedEventForRsvp, setSelectedEventForRsvp] =
     useState<EventGetResponse | null>(null);
-  const [rsvpNotFoundModalOpened, { open: openRsvpNotFoundModal, close: closeRsvpNotFoundModal }] =
-    useDisclosure(false);
+  const [
+    rsvpNotFoundModalOpened,
+    { open: openRsvpNotFoundModal, close: closeRsvpNotFoundModal },
+  ] = useDisclosure(false);
   const navigate = useNavigate();
 
   // Sorted events
@@ -131,18 +133,18 @@ export const ViewRsvpConfigsPage: React.FC = () => {
   const checkRsvpConfig = async (eventId: string): Promise<boolean> => {
     // TODO: Replace this mock function with actual API call
     const response = await api.get(`/api/v1/rsvp/event/${eventId}/config`);
-    if(response.status == 200) {
-        return true;
-    }    
+    if (response.status === 200) {
+      return true;
+    }
     return false;
   };
 
   const handleViewRsvpConfig = async (event: EventGetResponse) => {
     setSelectedEventForRsvp(event);
-    
+
     try {
       const hasConfig = await checkRsvpConfig(event.id);
-      
+
       if (hasConfig) {
         // Navigate to RSVP config page (to be built later)
         navigate(`/rsvps/manage/${event.id}`);
@@ -254,7 +256,10 @@ export const ViewRsvpConfigsPage: React.FC = () => {
           <i>{selectedEventForRsvp?.title}</i>. Would you like to configure one?
         </Text>
         <Group>
-          <Button onClick={handleConfigureRsvp} leftSection={<IconSettings size={14} />}>
+          <Button
+            onClick={handleConfigureRsvp}
+            leftSection={<IconSettings size={14} />}
+          >
             Configure RSVP
           </Button>
           <Button variant="outline" onClick={closeRsvpNotFoundModal}>
