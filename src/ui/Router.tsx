@@ -175,11 +175,11 @@ const authenticatedRouter = createBrowserRouter([
       },
       {
         path: "/rsvps/manage",
-        element: <ViewRsvpConfigsPage />
+        element: <ViewRsvpConfigsPage />,
       },
       {
         path: "/rsvps/manage/:eventId",
-        element: <ManageRsvpConfigFormPage />
+        element: <ManageRsvpConfigFormPage />,
       },
       {
         path: "/linkry",

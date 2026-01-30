@@ -23,7 +23,7 @@ import {
   IconUser,
   IconInfoCircle,
   IconShoppingBag,
-  IconMailBolt
+  IconMailBolt,
 } from "@tabler/icons-react";
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";

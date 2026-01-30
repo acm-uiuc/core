@@ -219,7 +219,12 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
           <Text c="dimmed" ta="center">
             School year data not available yet
           </Text>
-          <Badge color="yellow" variant="light" mt="sm" style={{ display: "block", margin: "0 auto", width: "fit-content" }}>
+          <Badge
+            color="yellow"
+            variant="light"
+            mt="sm"
+            style={{ display: "block", margin: "0 auto", width: "fit-content" }}
+          >
             Coming Soon
           </Badge>
         </Box>
@@ -248,7 +253,12 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
           <Text c="dimmed" ta="center">
             User interests data not available yet
           </Text>
-          <Badge color="yellow" variant="light" mt="sm" style={{ display: "block", margin: "0 auto", width: "fit-content" }}>
+          <Badge
+            color="yellow"
+            variant="light"
+            mt="sm"
+            style={{ display: "block", margin: "0 auto", width: "fit-content" }}
+          >
             Coming Soon
           </Badge>
         </Box>
@@ -268,7 +278,12 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
         <Text size="sm" c="dimmed" ta="center" mt="xs">
           This will show who has checked in vs who has only RSVPed
         </Text>
-        <Badge color="yellow" variant="light" mt="md" style={{ display: "block", margin: "0 auto", width: "fit-content" }}>
+        <Badge
+          color="yellow"
+          variant="light"
+          mt="md"
+          style={{ display: "block", margin: "0 auto", width: "fit-content" }}
+        >
           Coming Soon
         </Badge>
       </Box>
@@ -285,9 +300,15 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
           Custom question responses will be aggregated here
         </Text>
         <Text size="sm" c="dimmed" ta="center" mt="xs">
-          View responses to dietary restrictions, t-shirt sizes, and other custom questions
+          View responses to dietary restrictions, t-shirt sizes, and other
+          custom questions
         </Text>
-        <Badge color="yellow" variant="light" mt="md" style={{ display: "block", margin: "0 auto", width: "fit-content" }}>
+        <Badge
+          color="yellow"
+          variant="light"
+          mt="md"
+          style={{ display: "block", margin: "0 auto", width: "fit-content" }}
+        >
           Coming Soon
         </Badge>
       </Box>

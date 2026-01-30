@@ -67,9 +67,9 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
   getRsvpConfig,
   updateRsvpConfig,
 }) => {
-  const [configData, setConfigData] = useState<RsvpConfigData | null | undefined>(
-    undefined,
-  );
+  const [configData, setConfigData] = useState<
+    RsvpConfigData | null | undefined
+  >(undefined);
   const [loading, setLoading] = useState(false);
   const [noConfigFound, setNoConfigFound] = useState(false);
 
@@ -108,17 +108,17 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
       });
     } catch (e: any) {
       console.error("Error fetching RSVP config:", e);
-      
+
       // Only show "no config found" for actual 404/not found errors
       // If it's a validation error or other issue, log it but don't show the alert
       if (e?.response?.status === 404 || e?.message?.includes("not found")) {
         setConfigData(null);
         setNoConfigFound(true);
-        
+
         // Set default values when no config is found
         const now = Math.floor(Date.now() / 1000);
         const oneWeekLater = now + 7 * 24 * 60 * 60;
-        
+
         form.setValues({
           rsvpOpenAt: now,
           rsvpCloseAt: oneWeekLater,
@@ -131,7 +131,8 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
         setConfigData(null);
         notifications.show({
           title: "Error loading config",
-          message: "There was an error loading the RSVP configuration. Please check the console.",
+          message:
+            "There was an error loading the RSVP configuration. Please check the console.",
           color: "red",
         });
       }
@@ -166,7 +167,10 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
     }
 
     // Validate options for MCQ types
-    if ((newQuestionType === "MCQ" || newQuestionType === "MCQM") && newQuestionOptions.length === 0) {
+    if (
+      (newQuestionType === "MCQ" || newQuestionType === "MCQM") &&
+      newQuestionOptions.length === 0
+    ) {
       notifications.show({
         title: "Invalid Input",
         message: "Multiple choice questions require at least one option.",
@@ -228,13 +232,13 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
       }
 
       await updateRsvpConfig(eventId, values);
-      
+
       notifications.show({
         title: "Success",
         message: "RSVP configuration saved successfully.",
         color: "green",
       });
-      
+
       // Refresh data
       await fetchRsvpConfig();
     } catch (e) {
@@ -272,7 +276,7 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
       render: (question) => {
         let label = "Free Response";
         let color = "blue";
-        
+
         if (question.type === "MCQ") {
           label = "Multiple Choice";
           color = "green";
@@ -280,7 +284,7 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
           label = "Multi-Select";
           color = "violet";
         }
-        
+
         return (
           <Badge color={color} variant="light">
             {label}
@@ -292,10 +296,15 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
       key: "details",
       label: "Details",
       render: (question) => {
-        if ((question.type === "MCQ" || question.type === "MCQM") && question.options) {
+        if (
+          (question.type === "MCQ" || question.type === "MCQM") &&
+          question.options
+        ) {
           return (
             <Box>
-              <Text size="xs" c="dimmed" mb={4}>Options:</Text>
+              <Text size="xs" c="dimmed" mb={4}>
+                Options:
+              </Text>
               <List size="xs" spacing={2}>
                 {question.options.map((opt, idx) => (
                   <List.Item key={idx}>{opt}</List.Item>
@@ -304,7 +313,11 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
             </Box>
           );
         }
-        return <Text size="xs" c="dimmed">Text response</Text>;
+        return (
+          <Text size="xs" c="dimmed">
+            Text response
+          </Text>
+        );
       },
     },
     {
@@ -321,7 +334,9 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
       label: "Actions",
       hideMobileLabel: true,
       render: (question) => {
-        const index = form.values.rsvpQuestions.findIndex((q) => q.id === question.id);
+        const index = form.values.rsvpQuestions.findIndex(
+          (q) => q.id === question.id,
+        );
         return (
           <Button
             color="red"
@@ -357,7 +372,8 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
             No RSVP Configuration Found
           </Text>
           <Text size="sm">
-            This event does not have an RSVP configuration yet. You can create one by filling out the form below.
+            This event does not have an RSVP configuration yet. You can create
+            one by filling out the form below.
           </Text>
         </Alert>
       )}
@@ -384,7 +400,9 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
             }
             onChange={(date) => {
               if (date) {
-                const timestamp = Math.floor(Date.parse(date.toString()) / 1000);
+                const timestamp = Math.floor(
+                  Date.parse(date.toString()) / 1000,
+                );
                 if (isNaN(timestamp)) {
                   notifications.show({
                     title: "Invalid Date",
@@ -412,7 +430,9 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
             }
             onChange={(date) => {
               if (date) {
-                const timestamp = Math.floor(Date.parse(date.toString()) / 1000);
+                const timestamp = Math.floor(
+                  Date.parse(date.toString()) / 1000,
+                );
                 if (isNaN(timestamp)) {
                   notifications.show({
                     title: "Invalid Date",
@@ -422,7 +442,10 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
                   return;
                 }
                 // Validate that close date is after open date
-                if (form.values.rsvpOpenAt && timestamp <= form.values.rsvpOpenAt) {
+                if (
+                  form.values.rsvpOpenAt &&
+                  timestamp <= form.values.rsvpOpenAt
+                ) {
                   notifications.show({
                     title: "Invalid Date",
                     message: "Close date must be after open date.",
@@ -435,7 +458,11 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
             }}
             mb="md"
             required
-            minDate={form.values.rsvpOpenAt ? new Date(form.values.rsvpOpenAt * 1000) : new Date()}
+            minDate={
+              form.values.rsvpOpenAt
+                ? new Date(form.values.rsvpOpenAt * 1000)
+                : new Date()
+            }
           />
         </Paper>
 
@@ -457,7 +484,10 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
               if (typeof value === "number" && value < 0) {
                 return; // Prevent negative values
               }
-              form.setFieldValue("rsvpLimit", typeof value === "number" ? value : null);
+              form.setFieldValue(
+                "rsvpLimit",
+                typeof value === "number" ? value : null,
+              );
             }}
             mb="md"
           />
@@ -467,7 +497,10 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
             description="Allow attendees to check in at the event"
             checked={form.values.rsvpCheckInEnabled}
             onChange={(event) =>
-              form.setFieldValue("rsvpCheckInEnabled", event.currentTarget.checked)
+              form.setFieldValue(
+                "rsvpCheckInEnabled",
+                event.currentTarget.checked,
+              )
             }
             mb="md"
           />
@@ -550,7 +583,7 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
                           variant="subtle"
                           onClick={() => {
                             setNewQuestionOptions((prev) =>
-                              prev.filter((_, i) => i !== idx)
+                              prev.filter((_, i) => i !== idx),
                             );
                           }}
                         >
@@ -568,7 +601,10 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && optionInput.trim()) {
                         e.preventDefault();
-                        setNewQuestionOptions((prev) => [...prev, optionInput.trim()]);
+                        setNewQuestionOptions((prev) => [
+                          ...prev,
+                          optionInput.trim(),
+                        ]);
                         setOptionInput("");
                       }
                     }}
@@ -578,7 +614,10 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
                     size="xs"
                     onClick={() => {
                       if (optionInput.trim()) {
-                        setNewQuestionOptions((prev) => [...prev, optionInput.trim()]);
+                        setNewQuestionOptions((prev) => [
+                          ...prev,
+                          optionInput.trim(),
+                        ]);
                         setOptionInput("");
                       }
                     }}
