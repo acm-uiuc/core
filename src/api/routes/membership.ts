@@ -4,6 +4,8 @@ import {
   MEMBER_CACHE_SECONDS,
   getExternalMemberList,
   patchExternalMemberList,
+  checkPaidMembership,
+  checkMemberOfAnyList,
 } from "api/functions/membership.js";
 import { FastifyPluginAsync } from "fastify";
 import {
@@ -28,6 +30,7 @@ import { AppRoles } from "common/roles.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { verifyUiucAccessToken } from "api/functions/uin.js";
 import { assertAuthenticated } from "api/authenticated.js";
+import { ArrayFromString } from "common/types/generic.js";
 
 const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -51,7 +54,14 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 "An access token for the user in the UIUC Entra ID tenant.",
             }),
           }),
-          summary: "Check self ACM @ UIUC paid membership.",
+          querystring: z.object({
+            lists: ArrayFromString.default(["acmpaid"]).meta({
+              description:
+                "The lists to check membership in (internal or external).",
+              examples: [["acmpaid"], ["acmpaid", "built"]],
+            }),
+          }),
+          summary: "Check self membership in any of specified lists.",
           response: {
             200: {
               description: "List membership status.",
@@ -84,62 +94,20 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
           accessToken,
           logger: request.log,
         });
-        const list = "acmpaid";
-        const cacheKey = `membership:${netId}:${list}`;
-        const result = await getKey<{ isMember: boolean }>({
-          redisClient: fastify.redisClient,
-          key: cacheKey,
+        const { dynamoClient, redisClient } = fastify;
+        const isPaidMember = await checkMemberOfAnyList({
+          netId,
+          lists: request.query.lists,
+          dynamoClient,
+          redisClient,
           logger: request.log,
         });
-        if (result) {
-          return reply.header("X-ACM-Data-Source", "cache").send({
-            givenName,
-            surname,
-            netId,
-            list: list === "acmpaid" ? undefined : list,
-            isPaidMember: result.isMember,
-          });
-        }
-        if (list !== "acmpaid") {
-          const isMember = await checkExternalMembership(
-            netId,
-            list,
-            fastify.dynamoClient,
-          );
-          await setKey({
-            redisClient: fastify.redisClient,
-            key: cacheKey,
-            data: JSON.stringify({ isMember }),
-            expiresIn: MEMBER_CACHE_SECONDS,
-            logger: request.log,
-          });
-          return reply.header("X-ACM-Data-Source", "dynamo").send({
-            givenName,
-            surname,
-            netId,
-            list,
-            isPaidMember: isMember,
-          });
-        }
-        const isDynamoMember = await checkPaidMembershipFromTable(
+        return reply.send({
+          givenName,
+          surname,
           netId,
-          fastify.dynamoClient,
-        );
-        if (isDynamoMember) {
-          await setKey({
-            redisClient: fastify.redisClient,
-            key: cacheKey,
-            data: JSON.stringify({ isMember: true }),
-            expiresIn: MEMBER_CACHE_SECONDS,
-            logger: request.log,
-          });
-          return reply
-            .header("X-ACM-Data-Source", "dynamo")
-            .send({ givenName, surname, netId, isPaidMember: true });
-        }
-        return reply
-          .header("X-ACM-Data-Source", "dynamo")
-          .send({ givenName, surname, netId, isPaidMember: false });
+          isPaidMember,
+        });
       },
     );
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(

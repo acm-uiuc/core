@@ -1,8 +1,9 @@
 import {
   checkPaidMembershipFromTable,
-  checkPaidMembershipFromRedis,
   checkExternalMembership,
   MEMBER_CACHE_SECONDS,
+  checkPaidMembership,
+  getMembershipCacheKey,
 } from "api/functions/membership.js";
 import { FastifyPluginAsync } from "fastify";
 import {
@@ -28,6 +29,7 @@ import { AppRoles } from "common/roles.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { syncFullProfile } from "api/functions/sync.js";
 import { BooleanFromString } from "common/types/generic.js";
+import { getNetIdFromEmail } from "common/utils.js";
 
 const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
   const limitedRoutes: FastifyPluginAsync = async (fastify) => {
@@ -87,13 +89,14 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             `User ${upn} has forcefully bypassed the existing paid member check for purchasing a new membership!`,
           );
         }
+        const { redisClient, dynamoClient } = fastify;
         request.log.debug("Saving user UIN!");
         const saveProfilePromise = syncFullProfile({
           firstName: givenName,
           lastName: surname,
           netId,
-          dynamoClient: fastify.dynamoClient,
-          redisClient: fastify.redisClient,
+          dynamoClient,
+          redisClient,
           stripeApiKey: fastify.secretConfig.stripe_secret_key,
           logger: request.log,
         });
@@ -102,17 +105,12 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           dynamoClient: fastify.dynamoClient,
           netId,
         });
-        let isPaidMember = await checkPaidMembershipFromRedis(
+        const isPaidMember = await checkPaidMembership({
           netId,
-          fastify.redisClient,
-          request.log,
-        );
-        if (isPaidMember === null) {
-          isPaidMember = await checkPaidMembershipFromTable(
-            netId,
-            fastify.dynamoClient,
-          );
-        }
+          redisClient,
+          dynamoClient,
+          logger: request.log,
+        });
         const data = await Promise.allSettled([
           saveProfilePromise,
           saveUinPromise,
@@ -222,7 +220,9 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
         const members = new Set<string>();
         const notMembers = new Set<string>();
 
-        const cacheKeys = netIdsToCheck.map((id) => `membership:${id}:${list}`);
+        const cacheKeys = netIdsToCheck.map((id) =>
+          getMembershipCacheKey(id, list),
+        );
         if (cacheKeys.length > 0) {
           const cachedResults = await fastify.redisClient.mget(cacheKeys);
           const remainingNetIds: string[] = [];
@@ -255,22 +255,18 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
         if (list !== "acmpaid") {
           // can't do batch get on an index.
           const checkPromises = netIdsToCheck.map(async (netId) => {
-            const isMember = await checkExternalMembership(
+            const isMember = await checkExternalMembership({
               netId,
               list,
-              fastify.dynamoClient,
-            );
+              dynamoClient: fastify.dynamoClient,
+              redisClient: fastify.redisClient,
+              logger: request.log,
+            });
             if (isMember) {
               members.add(netId);
             } else {
               notMembers.add(netId);
             }
-            cachePipeline.set(
-              `membership:${netId}:${list}`,
-              JSON.stringify({ isMember }),
-              "EX",
-              MEMBER_CACHE_SECONDS,
-            );
           });
           await Promise.all(checkPromises);
         } else {
@@ -293,8 +289,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             const items = Responses?.[genericConfig.UserInfoTable] ?? [];
             for (const item of items) {
               const { id, isPaidMember } = unmarshall(item);
-              console.log(id, isPaidMember);
-              const netId = id.split("@")[0];
+              const netId = getNetIdFromEmail(id);
               foundInDynamo.add(netId);
               if (isPaidMember === true) {
                 members.add(netId);
@@ -389,7 +384,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
       async (request, reply) => {
         const netId = request.params.netId.toLowerCase();
         const list = request.query.list || "acmpaid";
-        const cacheKey = `membership:${netId}:${list}`;
+        const cacheKey = getMembershipCacheKey(netId, list);
         const result = await getKey<{ isMember: boolean }>({
           redisClient: fastify.redisClient,
           key: cacheKey,
@@ -403,16 +398,11 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
         if (list !== "acmpaid") {
-          const isMember = await checkExternalMembership(
+          const isMember = await checkExternalMembership({
             netId,
             list,
-            fastify.dynamoClient,
-          );
-          await setKey({
+            dynamoClient: fastify.dynamoClient,
             redisClient: fastify.redisClient,
-            key: cacheKey,
-            data: JSON.stringify({ isMember }),
-            expiresIn: MEMBER_CACHE_SECONDS,
             logger: request.log,
           });
           return reply.header("X-ACM-Data-Source", "dynamo").send({
