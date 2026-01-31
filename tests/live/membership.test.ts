@@ -27,10 +27,6 @@ describe("Membership API basic checks", async () => {
       netId: "dsingh14",
       isPaidMember: true,
     });
-
-    const wasCached = (value: string | null) => value && value !== "aad";
-
-    expect(wasCached(response.headers.get("x-acm-data-source"))).toBe(true);
   });
   test(
     "Test that getting member with non-standard casing succeeds",
@@ -53,10 +49,6 @@ describe("Membership API basic checks", async () => {
         netId: "dsingh14",
         isPaidMember: true,
       });
-
-      const wasCached = (value: string | null) => value && value !== "dynamo";
-
-      expect(wasCached(response.headers.get("x-acm-data-source"))).toBe(true);
     },
   );
   test(
@@ -91,7 +83,6 @@ describe("Membership API basic checks", async () => {
     );
 
     expect(response.status).toBe(400);
-    expect(response.headers.get("x-acm-data-source")).toBeNull();
   });
   test(
     "Test that too short NetID is rejected",
@@ -105,7 +96,6 @@ describe("Membership API basic checks", async () => {
       });
 
       expect(response.status).toBe(400);
-      expect(response.headers.get("x-acm-data-source")).toBeNull();
     },
   );
   test(

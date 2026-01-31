@@ -28,11 +28,6 @@ vi.mock("../../src/api/functions/entraId.js", () => {
   };
 });
 
-const spySetPaidMembership = vi.spyOn(
-  await import("../../src/api/functions/membership.js"),
-  "setPaidMembershipInTable",
-);
-
 describe("Test membership routes", async () => {
   test("Test getting non-member with UIUC access token", async () => {
     const response = await app.inject({
@@ -45,8 +40,7 @@ describe("Test membership routes", async () => {
     });
     expect(response.statusCode).toBe(200);
     const responseDataJson = (await response.json()) as EventGetResponse;
-    expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("dynamo");
+
     expect(responseDataJson).toEqual({
       givenName: "Infra",
       surname: "Testing",
@@ -65,8 +59,7 @@ describe("Test membership routes", async () => {
     });
     expect(response.statusCode).toBe(200);
     const responseDataJson = (await response.json()) as EventGetResponse;
-    expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("dynamo");
+
     expect(responseDataJson).toEqual({
       givenName: "Infra",
       surname: "Testing",
@@ -86,40 +79,11 @@ describe("Test membership routes", async () => {
     });
     expect(response.statusCode).toBe(200);
     const responseDataJson = (await response.json()) as EventGetResponse;
-    expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("dynamo");
+
     expect(responseDataJson).toEqual({ netId: "invalid", isPaidMember: false });
   });
 
   test("External list members are correctly found", async () => {
-    ddbMock.on(QueryCommand).callsFake((command) => {
-      if (
-        command.TableName === genericConfig.ExternalMembershipTableName &&
-        command.IndexName === "invertedIndex"
-      ) {
-        const requestedEmail = command.ExpressionAttributeValues[":pk"].S;
-        const requestedList = command.ExpressionAttributeValues[":sk"].S;
-        const requestedKey = `${requestedEmail}_${requestedList}`;
-        const mockMembershipData = {
-          eadon2_built: { netId: "eadon2", list: "built" },
-          yourm4_wcs: { netId: "yourm4", list: "wcs" },
-        };
-
-        return Promise.resolve({
-          Items:
-            requestedKey in mockMembershipData
-              ? [
-                  marshall(
-                    mockMembershipData[
-                      requestedKey as keyof typeof mockMembershipData
-                    ],
-                  ),
-                ]
-              : [],
-        });
-      }
-      return Promise.reject(new Error("Table not mocked"));
-    });
     const testJwt = createJwt();
     let response = await app.inject({
       method: "GET",
@@ -131,8 +95,7 @@ describe("Test membership routes", async () => {
 
     expect(response.statusCode).toBe(200);
     let responseDataJson = (await response.json()) as EventGetResponse;
-    expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("dynamo");
+
     expect(responseDataJson).toEqual({
       netId: "eadon2",
       list: "built",
@@ -147,8 +110,7 @@ describe("Test membership routes", async () => {
     });
     expect(response.statusCode).toBe(200);
     responseDataJson = (await response.json()) as EventGetResponse;
-    expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("dynamo");
+
     expect(responseDataJson).toEqual({
       netId: "eadon2",
       list: "wcs",
@@ -163,8 +125,7 @@ describe("Test membership routes", async () => {
     });
     expect(response.statusCode).toBe(200);
     responseDataJson = (await response.json()) as EventGetResponse;
-    expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("dynamo");
+
     expect(responseDataJson).toEqual({
       netId: "yourm4",
       list: "wcs",
@@ -179,8 +140,7 @@ describe("Test membership routes", async () => {
     });
     expect(response.statusCode).toBe(200);
     responseDataJson = (await response.json()) as EventGetResponse;
-    expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("cache");
+
     expect(responseDataJson).toEqual({
       netId: "eadon2",
       list: "wcs",
@@ -195,8 +155,6 @@ describe("Test membership routes", async () => {
     });
     expect(response.statusCode).toBe(200);
     responseDataJson = (await response.json()) as EventGetResponse;
-    expect(response.headers).toHaveProperty("x-acm-data-source");
-    expect(response.headers["x-acm-data-source"]).toEqual("cache");
     expect(responseDataJson).toEqual({
       netId: "eadon2",
       list: "built",

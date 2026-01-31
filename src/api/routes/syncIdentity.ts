@@ -1,6 +1,6 @@
 import {
   checkPaidMembershipFromTable,
-  checkPaidMembershipFromRedis,
+  checkPaidMembership,
 } from "api/functions/membership.js";
 import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
@@ -114,17 +114,12 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           dynamoClient: fastify.dynamoClient,
           netId,
         });
-        let isPaidMember = await checkPaidMembershipFromRedis(
+        const isPaidMember = await checkPaidMembership({
           netId,
-          fastify.redisClient,
-          request.log,
-        );
-        if (isPaidMember === null) {
-          isPaidMember = await checkPaidMembershipFromTable(
-            netId,
-            fastify.dynamoClient,
-          );
-        }
+          dynamoClient: fastify.dynamoClient,
+          redisClient: fastify.redisClient,
+          logger: request.log,
+        });
         if (isPaidMember) {
           const username = `${netId}@illinois.edu`;
           request.log.info("User is paid member, syncing Entra user!");

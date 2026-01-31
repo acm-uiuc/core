@@ -26,6 +26,10 @@ import { ValidLoggers } from "api/types.js";
 
 export const MEMBER_CACHE_SECONDS = 43200; // 12 hours
 
+export function getMembershipCacheKey(netId: string, list: string) {
+  return `membership:${netId}:${list}`;
+}
+
 export async function patchExternalMemberList({
   listId: oldListId,
   add: oldAdd,
@@ -93,7 +97,7 @@ export async function patchExternalMemberList({
   const removeCacheInvalidation = remove.map((x) =>
     setKey({
       redisClient,
-      key: `membership:${x}:${listId}`,
+      key: getMembershipCacheKey(x, listId),
       data: JSON.stringify({ isMember: false }),
       expiresIn: MEMBER_CACHE_SECONDS,
       logger,
@@ -102,7 +106,7 @@ export async function patchExternalMemberList({
   const addCacheInvalidation = add.map((x) =>
     setKey({
       redisClient,
-      key: `membership:${x}:${listId}`,
+      key: getMembershipCacheKey(x, listId),
       data: JSON.stringify({ isMember: true }),
       expiresIn: MEMBER_CACHE_SECONDS,
       logger,
@@ -169,7 +173,72 @@ export async function getExternalMemberList(
     .sort();
 }
 
-export async function checkExternalMembership(
+export async function checkListMembershipFromRedis(
+  netId: string,
+  list: string,
+  redisClient: Redis.default,
+  logger: FastifyBaseLogger,
+) {
+  const cacheKey = getMembershipCacheKey(netId, list);
+  const result = await getKey<{ isMember: boolean }>({
+    redisClient,
+    key: cacheKey,
+    logger,
+  });
+  if (!result) {
+    return null;
+  }
+  return result.isMember;
+}
+
+interface CheckExternalMembershipInputs {
+  netId: string;
+  list: string;
+  dynamoClient: DynamoDBClient;
+  redisClient: Redis.Redis;
+  logger: ValidLoggers;
+}
+
+export async function checkExternalMembership({
+  netId,
+  list,
+  dynamoClient,
+  redisClient,
+  logger,
+}: CheckExternalMembershipInputs) {
+  const cacheKey = getMembershipCacheKey(netId, list);
+  // First check redis
+  const inCache = await checkListMembershipFromRedis(
+    netId,
+    list,
+    redisClient,
+    logger,
+  );
+  if (inCache === true) {
+    return inCache;
+  }
+  logger.debug({ netId }, "Checking external membership in DynamoDB Table.");
+  const isMemberInTable = await checkExternalMembershipFromTable(
+    netId,
+    list,
+    dynamoClient,
+  );
+  logger.debug({ netId, isMemberInTable }, "Membership check finished.");
+  // Populate cache
+  try {
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify({ isMember: isMemberInTable }),
+      "EX",
+      MEMBER_CACHE_SECONDS,
+    );
+  } catch (error) {
+    logger.error({ err: error, netId }, "Failed to update membership cache");
+  }
+  return isMemberInTable;
+}
+
+export async function checkExternalMembershipFromTable(
   netId: string,
   list: string,
   dynamoClient: DynamoDBClient,
@@ -193,23 +262,6 @@ export async function checkExternalMembership(
     return false;
   }
   return true;
-}
-
-export async function checkPaidMembershipFromRedis(
-  netId: string,
-  redisClient: Redis.default,
-  logger: FastifyBaseLogger,
-) {
-  const cacheKey = `membership:${netId}:acmpaid`;
-  const result = await getKey<{ isMember: boolean }>({
-    redisClient,
-    key: cacheKey,
-    logger,
-  });
-  if (!result) {
-    return null;
-  }
-  return result.isMember;
 }
 
 export async function checkPaidMembershipFromTable(
@@ -236,6 +288,48 @@ export async function checkPaidMembershipFromTable(
     return false;
   }
   return true;
+}
+interface CheckMemberOfAnyListInputs {
+  netId: string;
+  lists: string[];
+  dynamoClient: DynamoDBClient;
+  redisClient: Redis.Redis;
+  logger: ValidLoggers;
+}
+export async function checkMemberOfAnyList({
+  netId,
+  lists,
+  dynamoClient,
+  redisClient,
+  logger,
+}: CheckMemberOfAnyListInputs) {
+  const checks = lists.map((list) => {
+    if (list === "acmpaid") {
+      return checkPaidMembership({
+        netId,
+        dynamoClient,
+        redisClient,
+        logger,
+      });
+    }
+    return checkExternalMembership({
+      netId,
+      list,
+      dynamoClient,
+      redisClient,
+      logger,
+    });
+  });
+  const results = await Promise.allSettled(checks);
+  for (const result of results) {
+    if (result.status === "rejected") {
+      logger.warn({ err: result.reason }, "Membership check failed");
+    }
+  }
+  // Return true if any check succeeded and returned true
+  return results.some(
+    (result) => result.status === "fulfilled" && result.value === true,
+  );
 }
 
 /**
@@ -368,8 +462,9 @@ export async function checkPaidMembership({
   logger: FastifyBaseLogger;
 }): Promise<boolean> {
   // 1. Check Redis cache
-  const isMemberInCache = await checkPaidMembershipFromRedis(
+  const isMemberInCache = await checkListMembershipFromRedis(
     netId,
+    "acmpaid",
     redisClient,
     logger,
   );
@@ -383,7 +478,7 @@ export async function checkPaidMembership({
 
   // 3. If membership is confirmed, update the cache
   if (isMemberInDB) {
-    const cacheKey = `membership:${netId}:acmpaid`;
+    const cacheKey = getMembershipCacheKey(netId, "acmpaid");
     try {
       await redisClient.set(
         cacheKey,
