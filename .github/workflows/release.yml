@@ -1,0 +1,70 @@
+# .github/workflows/release.yml
+name: Auto Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'package.json'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if version changed
+        id: version
+        run: |
+          # Get current version
+          CURRENT_VERSION=$(jq -r '.version' package.json)
+
+          # Get previous version
+          git show HEAD~1:package.json > /tmp/old-package.json 2>/dev/null || echo '{"version":"0.0.0"}' > /tmp/old-package.json
+          PREVIOUS_VERSION=$(jq -r '.version' /tmp/old-package.json)
+
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "previous=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
+
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check if prerelease (contains hyphen: 1.0.0-beta.1, 1.0.0-rc.1, etc.)
+          if [[ "$CURRENT_VERSION" == *-* ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        if: steps.version.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ steps.version.outputs.current }}';
+            const isPrerelease = ${{ steps.version.outputs.prerelease }};
+            const tagName = `v${version}`;
+
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              name: tagName,
+              target_commitish: context.sha,
+              generate_release_notes: true,
+              prerelease: isPrerelease
+            });
+
+            console.log(`Created ${isPrerelease ? 'prerelease' : 'release'}: ${release.data.html_url}`);
