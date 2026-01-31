@@ -499,7 +499,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               TableName: genericConfig.RSVPDynamoTableName,
               Key: marshall({ partitionKey }),
               UpdateExpression:
-                "SET rsvpLimit = :limit, rsvpCheckInEnabled = :checkIn, rsvpQuestions = :questions, rsvpOpenAt = :openAt, rsvpCloseAt = :closeAt, updatedAt = :now, rsvpCount = if_not_exists(rsvpCount, :zero), eventId = :eid",
+                "SET rsvpLimit = :limit, rsvpCheckInEnabled = :checkIn, rsvpOpenAt = :openAt, rsvpCloseAt = :closeAt, updatedAt = :now, rsvpCount = if_not_exists(rsvpCount, :zero), eventId = :eid",
               ExpressionAttributeValues: marshall({
                 ":limit": configData.rsvpLimit ?? null,
                 ":checkIn": configData.rsvpCheckInEnabled,
