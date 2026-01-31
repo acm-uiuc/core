@@ -23,6 +23,12 @@ const ddbMock = mockClient(DynamoDBClient);
 const smMock = mockClient(SecretsManagerClient);
 const ssmMock = mockClient(SSMClient);
 
+const validMembersByList: Record<string, string[]> = {
+  acmpaid: ["jd3", "valid", "oldlead", "newlead", "eadon2"],
+  built: ["eadon2"],
+  wcs: ["yourm4"],
+};
+
 vi.mock(
   import("../../src/api/functions/rateLimit.js"),
   async (importOriginal) => {
@@ -130,23 +136,19 @@ vi.mock(
     return {
       ...mod,
       checkPaidMembershipFromTable: vi.fn(async (netId, _dynamoClient) => {
-        switch (netId) {
-          case "valid":
-            return true;
-          default:
-            return false;
-        }
+        return validMembersByList.acmpaid?.includes(netId) ?? false;
       }),
       checkPaidMembership: vi.fn(async (obj) => {
-        switch (obj.netId) {
-          case "jd3":
-          case "valid":
-          case "oldlead":
-          case "newlead":
-            return true;
-          default:
-            return false;
-        }
+        return validMembersByList.acmpaid?.includes(obj.netId) ?? false;
+      }),
+      checkExternalMembership: vi.fn(async (obj) => {
+        return validMembersByList[obj.list]?.includes(obj.netId) ?? false;
+      }),
+      checkMemberOfAnyList: vi.fn(async (obj) => {
+        return obj.lists.some(
+          (list: string) =>
+            validMembersByList[list]?.includes(obj.netId) ?? false,
+        );
       }),
     };
   },

@@ -22,7 +22,11 @@ import {
   ValidationError,
   InternalServerError,
 } from "common/errors/index.js";
-import { checkExternalMembership, checkPaidMembership } from "./membership.js";
+import {
+  checkExternalMembership,
+  checkMemberOfAnyList,
+  checkPaidMembership,
+} from "./membership.js";
 import {
   createCheckoutSession,
   createCheckoutSessionWithCustomer,
@@ -59,6 +63,7 @@ import { Modules } from "common/modules.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { sendSaleEmailHandler } from "api/sqs/handlers/sendSaleEmailHandler.js";
 import { sendSaleFailedHandler } from "api/sqs/handlers/sendSaleFailedHandler.js";
+import fastify from "fastify";
 
 // ============ Helper Functions ============
 
@@ -82,29 +87,13 @@ export async function checkUserMembership({
     return checkPaidMembership({ netId, dynamoClient, redisClient, logger });
   }
 
-  const checks = memberLists.map((list) => {
-    if (list === "acmpaid") {
-      return checkPaidMembership({
-        netId,
-        dynamoClient,
-        redisClient,
-        logger,
-      });
-    }
-    return checkExternalMembership(netId, list, dynamoClient);
+  return checkMemberOfAnyList({
+    netId,
+    lists: memberLists,
+    dynamoClient,
+    redisClient,
+    logger,
   });
-
-  // Execute all checks concurrently using allSettled
-  const results = await Promise.allSettled(checks);
-  for (const result of results) {
-    if (result.status === "rejected") {
-      logger.warn({ err: result.reason }, "Membership check failed");
-    }
-  }
-  // Return true if any check succeeded and returned true
-  return results.some(
-    (result) => result.status === "fulfilled" && result.value === true,
-  );
 }
 
 // ============ Product/Inventory Functions ============
