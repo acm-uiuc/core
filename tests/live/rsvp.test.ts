@@ -67,21 +67,6 @@ describe(
         rsvpCheckInEnabled: true,
         rsvpOpenAt: Math.floor(Date.now() / 1000) + 10,
         rsvpCloseAt: Math.floor(Date.now() / 1000) + 86400,
-        rsvpQuestions: [
-          {
-            id: "diet",
-            prompt: "Dietary Restrictions",
-            type: "TEXT",
-            required: false,
-          },
-          {
-            id: "tshirt",
-            prompt: "T-Shirt Size",
-            type: "SELECT",
-            options: ["S", "M", "L"],
-            required: true,
-          },
-        ],
       };
 
       const response = await fetch(
@@ -112,7 +97,6 @@ describe(
       const getResponseJson = await getResponse.json();
       expect(getResponseJson.rsvpLimit).toBe(50);
       expect(getResponseJson.rsvpCheckInEnabled).toBe(true);
-      expect(getResponseJson.rsvpQuestions.length).toBe(2);
     });
 
     test("Update RSVP Configuration", { timeout: 30000 }, async () => {
@@ -127,7 +111,6 @@ describe(
         rsvpCheckInEnabled: false,
         rsvpOpenAt: newOpenDate,
         rsvpCloseAt: newCloseDate,
-        rsvpQuestions: [],
       };
 
       const response = await fetch(
@@ -156,7 +139,6 @@ describe(
       const getResponseJson = await getResponse.json();
       expect(getResponseJson.rsvpLimit).toBe(100);
       expect(getResponseJson.rsvpCheckInEnabled).toBe(false);
-      expect(getResponseJson.rsvpQuestions.length).toBe(0);
       expect(getResponseJson.rsvpOpenAt).toBe(newOpenDate);
       expect(getResponseJson.rsvpCloseAt).toBe(newCloseDate);
     });
