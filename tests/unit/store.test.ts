@@ -116,6 +116,27 @@ describe("GET /products", () => {
     expect(responseJson).toEqual({
       products: [
         {
+          productId: "newerProduct",
+          name: "Newer testing product",
+          verifiedIdentityRequired: true,
+          variants: [
+            {
+              variantId: "641751bb-21d1-4f6e-bc92-a2e790f779ea",
+              name: "Only Variant",
+              memberLists: ["acmpaid"],
+              exchangesAllowed: true,
+              inventoryCount: 20,
+              memberPriceCents: 1000,
+              nonmemberPriceCents: 1500,
+            },
+          ],
+          description: "A product used solely for testing.",
+          inventoryMode: "PER_VARIANT",
+          openAt: 1769819696,
+          closeAt: 1895688984,
+          limitConfiguration: { limitType: "PER_PRODUCT", maxQuantity: 4 },
+        },
+        {
           productId: "testing",
           name: "Testing product",
           verifiedIdentityRequired: true,
@@ -123,7 +144,7 @@ describe("GET /products", () => {
             {
               variantId: "73b050da-e6f5-48bd-a389-861ef9c975f1",
               name: "Large",
-              memberLists: [""],
+              memberLists: ["acmpaid"],
               exchangesAllowed: true,
               inventoryCount: 20,
               memberPriceCents: 1000,
@@ -191,7 +212,7 @@ describe("GET /products/{productId}", () => {
         {
           variantId: "73b050da-e6f5-48bd-a389-861ef9c975f1",
           name: "Large",
-          memberLists: [""],
+          memberLists: ["acmpaid"],
           exchangesAllowed: true,
           inventoryCount: 20,
           memberPriceCents: 1000,

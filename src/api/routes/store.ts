@@ -327,7 +327,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
-      console.log(request.body);
       await modifyProduct({
         productId: request.params.productId,
         data: request.body,

@@ -9,7 +9,7 @@ export const testingProductLargeVariant = marshall({
   createdAt: 1769458689,
   exchangesAllowed: true,
   inventoryCount: 20,
-  memberLists: [""],
+  memberLists: ["acmpaid"],
   memberPriceCents: 1000,
   memberPriceId: "price_1StwEfDGHrJxx3mKqzJIRtn6",
   name: "Large",
@@ -49,6 +49,37 @@ export const testingProductDefinition = marshall({
   stripeProductId: "prod_TrfZ3GzBPdSfjY",
   verifiedIdentityRequired: true,
 });
+export const newProductDefinition = marshall({
+  productId: "newerProduct",
+  variantId: "DEFAULT",
+  closeAt: 1895688984,
+  createdAt: 1769458689,
+  description: "A product used solely for testing.",
+  limitConfiguration: {
+    limitType: "PER_PRODUCT",
+    maxQuantity: 4,
+  },
+  inventoryMode: "PER_VARIANT",
+  name: "Newer testing product",
+  openAt: 1769819696,
+  stripeProductId: "prod_TrfZ3GzBPdasdY",
+  verifiedIdentityRequired: true,
+});
+export const newerProductOnlyVariant = marshall({
+  productId: "newerProduct",
+  variantId: "641751bb-21d1-4f6e-bc92-a2e790f779ea",
+  createdAt: 1769458689,
+  exchangesAllowed: true,
+  inventoryCount: 20,
+  memberLists: ["acmpaid"],
+  memberPriceCents: 1000,
+  memberPriceId: "price_1StwEfDGHrJxx3mKseBfRuHI",
+  name: "Only Variant",
+  nonmemberPriceCents: 1500,
+  nonmemberPriceId: "price_1StwEfDGHrJxx3mKxM5XDOvP",
+  soldCount: 0,
+});
+
 export const closedProductDefinition = marshall({
   productId: "closed",
   variantId: "DEFAULT",
@@ -70,7 +101,7 @@ export const closedProductOnlyVariant = marshall({
   createdAt: 1769458689,
   exchangesAllowed: true,
   inventoryCount: 18,
-  memberLists: [""],
+  memberLists: ["acmpaid"],
   memberPriceCents: 2000000,
   memberPriceId: "price_1StwEfDGHrJxx3mKseBfRuHA",
   name: "Only",
@@ -80,6 +111,8 @@ export const closedProductOnlyVariant = marshall({
 });
 
 export const inventoryTableEntries = [
+  newProductDefinition,
+  newerProductOnlyVariant,
   testingProductDefinition,
   testingProductLargeVariant,
   testingProductSmallVariant,

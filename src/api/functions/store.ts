@@ -325,7 +325,9 @@ export async function listProducts({
       })),
     });
   }
-
+  products.sort((a, b) => {
+    return (b.openAt ?? 0) - (a.openAt ?? 0);
+  });
   return products;
 }
 
