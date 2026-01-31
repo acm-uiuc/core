@@ -7,7 +7,6 @@ on:
       - main
     paths:
       - 'package.json'
-
 permissions:
   contents: write
 
@@ -41,12 +40,71 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-          # Check if prerelease (contains hyphen: 1.0.0-beta.1, 1.0.0-rc.1, etc.)
+          # Check if prerelease (contains hyphen)
           if [[ "$CURRENT_VERSION" == *-* ]]; then
             echo "prerelease=true" >> $GITHUB_OUTPUT
           else
             echo "prerelease=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Validate version increment
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          CURRENT="${{ steps.version.outputs.current }}"
+          PREVIOUS="${{ steps.version.outputs.previous }}"
+
+          # Function to compare semver versions
+          version_compare() {
+            # Strip prerelease suffix for base comparison
+            local v1_base="${1%%-*}"
+            local v2_base="${2%%-*}"
+            local v1_pre="${1#*-}"
+            local v2_pre="${2#*-}"
+
+            # If no prerelease, set to empty
+            [[ "$v1_base" == "$1" ]] && v1_pre=""
+            [[ "$v2_base" == "$2" ]] && v2_pre=""
+
+            # Compare major.minor.patch
+            IFS='.' read -ra V1 <<< "$v1_base"
+            IFS='.' read -ra V2 <<< "$v2_base"
+
+            for i in 0 1 2; do
+              local n1="${V1[$i]:-0}"
+              local n2="${V2[$i]:-0}"
+              if (( n1 > n2 )); then
+                echo "greater"
+                return
+              elif (( n1 < n2 )); then
+                echo "lesser"
+                return
+              fi
+            done
+
+            # Base versions equal, compare prerelease
+            # No prerelease > prerelease (1.0.0 > 1.0.0-beta)
+            if [[ -z "$v1_pre" && -n "$v2_pre" ]]; then
+              echo "greater"
+            elif [[ -n "$v1_pre" && -z "$v2_pre" ]]; then
+              echo "lesser"
+            elif [[ "$v1_pre" > "$v2_pre" ]]; then
+              echo "greater"
+            elif [[ "$v1_pre" < "$v2_pre" ]]; then
+              echo "lesser"
+            else
+              echo "equal"
+            fi
+          }
+
+          RESULT=$(version_compare "$CURRENT" "$PREVIOUS")
+
+          if [[ "$RESULT" == "lesser" ]]; then
+            echo "::error::Version downgrade detected: $PREVIOUS → $CURRENT"
+            echo "Version must be incremented, not decremented."
+            exit 1
+          fi
+
+          echo "✓ Version increment valid: $PREVIOUS → $CURRENT"
 
       - name: Create Release
         if: steps.version.outputs.changed == 'true'
