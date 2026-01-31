@@ -10,15 +10,9 @@ import {
   withTurnstile,
 } from "api/components/index.js";
 import { AppRoles } from "common/roles.js";
-import {
-  genericConfig,
-  STALE_IF_ERROR_CACHED_TIME,
-  STORE_CACHED_DURATION,
-} from "common/config.js";
-import { getSecretValue } from "api/plugins/auth.js";
+import { genericConfig, STORE_CACHED_DURATION } from "common/config.js";
 import {
   BaseError,
-  InternalServerError,
   UnauthenticatedError,
   ValidationError,
 } from "common/errors/index.js";
@@ -36,12 +30,10 @@ import {
   fulfillLineItems,
 } from "api/functions/store.js";
 import {
-  listProductsResponseSchema,
   createCheckoutRequestSchema,
   createCheckoutResponseSchema,
   getOrderResponseSchema,
   listOrdersResponseSchema,
-  orderStatusEnum,
   createProductRequestSchema,
   listProductsPublicResponseSchema,
   productWithVariantsPublicCountSchema,
@@ -74,9 +66,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/products",
     {
       schema: withTags(["Store"], {
-        querystring: z.object({
-          ts,
-        }),
         summary: "List all available products in the store.",
         response: {
           200: {
@@ -90,24 +79,14 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         },
       }),
     },
-    async (request, reply) => {
-      const ts = request.query?.ts;
-      if (ts) {
-        try {
-          await fastify.authorize(request, reply, [], false);
-        } catch {
-          throw new UnauthenticatedError({
-            message: "You must be authenticated to specify a staleness bound.",
-          });
-        }
-      } else {
-        reply.header("Cache-Control", STORE_CLIENT_HTTP_CACHE_POLICY);
-      }
+    async (_request, reply) => {
       const products = await listProducts({
         dynamoClient: fastify.dynamoClient,
         includeInactive: false,
       });
-      return reply.send({ products });
+      return reply
+        .header("Cache-Control", STORE_CLIENT_HTTP_CACHE_POLICY)
+        .send({ products });
     },
   );
 

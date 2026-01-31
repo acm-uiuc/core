@@ -201,6 +201,7 @@ export async function getProduct({
       nonmemberPriceCents: v.nonmemberPriceCents,
       additionalEmailText: v.additionalEmailText as string,
     })),
+    variantFriendlyName: defaultVariant.variantFriendlyName ?? "Size",
   };
 }
 
@@ -323,6 +324,8 @@ export async function listProducts({
         memberPriceCents: v.memberPriceCents as number,
         nonmemberPriceCents: v.nonmemberPriceCents as number,
       })),
+      variantFriendlyName:
+        (p.variantFriendlyName as string | undefined) ?? "Size",
     });
   }
   products.sort((a, b) => {

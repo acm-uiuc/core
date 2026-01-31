@@ -61,33 +61,6 @@ vi.mock("../../src/api/functions/uin.js", async () => {
   };
 });
 
-describe("Staleness bound authentication requirement", () => {
-  beforeEach(() => {
-    (app as any).redisClient.flushall();
-    ddbMock.reset();
-    sqsMock.reset();
-    smMock.reset();
-    vi.clearAllMocks();
-  });
-
-  test("GET /products", async () => {
-    ddbMock
-      .on(ScanCommand, {
-        TableName: genericConfig.StoreInventoryTableName,
-      })
-      .resolvesOnce({
-        Items: inventoryTableEntries,
-      })
-      .rejects();
-    const response = await app.inject({
-      method: "GET",
-      url: "/api/v1/store/products?ts=1",
-    });
-
-    expect(response.statusCode).toBe(403);
-  });
-});
-
 describe("GET /products", () => {
   beforeEach(() => {
     (app as any).redisClient.flushall();
@@ -132,6 +105,7 @@ describe("GET /products", () => {
           ],
           description: "A product used solely for testing.",
           inventoryMode: "PER_VARIANT",
+          variantFriendlyName: "Organization",
           openAt: 1769819696,
           closeAt: 1895688984,
           limitConfiguration: { limitType: "PER_PRODUCT", maxQuantity: 4 },
@@ -140,6 +114,7 @@ describe("GET /products", () => {
           productId: "testing",
           name: "Testing product",
           verifiedIdentityRequired: true,
+          variantFriendlyName: "Size",
           variants: [
             {
               variantId: "73b050da-e6f5-48bd-a389-861ef9c975f1",
@@ -233,6 +208,7 @@ describe("GET /products/{productId}", () => {
       closeAt: 1895688984,
       inventoryMode: "PER_VARIANT",
       limitConfiguration: { limitType: "PER_PRODUCT", maxQuantity: 4 },
+      variantFriendlyName: "Size",
     });
     expect(response.headers["cache-control"]).not.toBeDefined();
   });

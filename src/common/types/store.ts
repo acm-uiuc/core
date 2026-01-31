@@ -49,6 +49,11 @@ export const variantSchema = z.object({
 export type Variant = z.infer<typeof variantSchema>;
 
 // ============ Product Schema (DEFAULT variant + metadata) ============
+const variantFriendlyName = z.string().min(1).max(30).optional().meta({
+  description: "A user-friendly name for a product variant.",
+  examples: ["Size", "Partner Organization"]
+});
+
 export const productSchema = z.object({
   productId: z.string().min(1),
   name: z.string().min(1),
@@ -67,6 +72,7 @@ export const productSchema = z.object({
   }),
   totalSoldCount: z.number().int().min(0).default(0).optional(),
   additionalEmailText: z.string().min(1).optional().meta({ description: "This additional text will be included on confirmation emails sent to purchasers." }),
+  variantFriendlyName: variantFriendlyName.default("Size"),
 });
 
 export type Product = z.infer<typeof productSchema>;
@@ -80,8 +86,10 @@ export const modifyProductSchema = productSchema.pick({
   limitConfiguration: true,
   verifiedIdentityRequired: true,
   additionalEmailText: true,
+  variantFriendlyName: true,
 }).partial().extend({
   verifiedIdentityRequired: z.boolean().optional(), // Override to remove the default
+  variantFriendlyName
 }).refine(
   (data) =>
     !data.openAt || !data.closeAt || data.openAt < data.closeAt,
