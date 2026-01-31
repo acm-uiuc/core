@@ -84,7 +84,9 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         dynamoClient: fastify.dynamoClient,
         includeInactive: false,
       });
-      return reply.send({ products });
+      return reply
+        .header("Cache-Control", STORE_CLIENT_HTTP_CACHE_POLICY)
+        .send({ products });
     },
   );
 
