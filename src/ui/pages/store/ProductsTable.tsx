@@ -311,7 +311,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
             <TextInput label="Image URL" {...form.getInputProps("imageUrl")} />
             <TextInput
               label="Variant Friendly Name"
-              description="This is what will a singular of a variant is called. Examples: Size, Partner Organization"
+              description="The label used for a single variant (e.g., Size, Partner Organization)"
               {...form.getInputProps("variantFriendlyName")}
             />
             <UrbanaDateTimePicker
