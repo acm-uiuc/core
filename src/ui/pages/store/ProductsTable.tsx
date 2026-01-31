@@ -103,16 +103,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
 
   const handleEdit = (product: Product) => {
     setEditCandidate(product);
-    form.setInitialValues({
-      name: product.name,
-      description: product.description,
-      imageUrl: product.imageUrl,
-      openAt: product.openAt,
-      closeAt: product.closeAt,
-      verifiedIdentityRequired: product.verifiedIdentityRequired,
-      additionalEmailText: product.additionalEmailText,
-      limitConfiguration: product.limitConfiguration,
-    });
+    form.setInitialValues(product);
     form.reset();
     open();
   };
@@ -318,6 +309,11 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
               {...form.getInputProps("description")}
             />
             <TextInput label="Image URL" {...form.getInputProps("imageUrl")} />
+            <TextInput
+              label="Variant Friendly Name"
+              description="This is what will a singular of a variant is called. Examples: Size, Partner Organization"
+              {...form.getInputProps("variantFriendlyName")}
+            />
             <UrbanaDateTimePicker
               label="Opens At"
               placeholder="Select date and time"
