@@ -27,7 +27,6 @@ import {
   rsvpItemSchema,
   majorSchema,
   rsvpProfileSchema,
-  rsvpSubmissionBodySchema,
 } from "common/types/rsvp.js";
 import * as z from "zod/v4";
 import { verifyUiucAccessToken } from "api/functions/uin.js";
@@ -35,7 +34,6 @@ import { checkPaidMembership } from "api/functions/membership.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { genericConfig } from "common/config.js";
 import { AppRoles } from "common/roles.js";
-import { request } from "node:http";
 
 const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -168,6 +166,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }
         profileItem = unmarshall(response.Item);
       } catch (err) {
+        if (err instanceof NotFoundError) {
+          throw err;
+        }
         throw new DatabaseFetchError({
           message: "Could not retrieve profile.",
         });
@@ -200,7 +201,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }),
     },
     async (request, reply) => {
-      console.log("originally");
       const accessToken = request.headers["x-uiuc-token"];
       const { userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
@@ -219,7 +219,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       } catch (err) {
         throw new DatabaseDeleteError({ message: "Could not delete profile." });
       }
-      console.log("here");
       return reply.status(200).send();
     },
   );

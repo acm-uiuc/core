@@ -167,7 +167,7 @@ describe("RSVP API tests", () => {
       headers: DEFAULT_HEADERS,
     });
 
-    expect(response.statusCode).toBe(500);
+    expect(response.statusCode).toBe(404);
   });
 
   test("DELETE /profile/me - Delete Profile", async () => {
