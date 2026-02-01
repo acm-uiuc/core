@@ -64,21 +64,24 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
   }, []);
 
   const cleanupScanner = async () => {
-    if (!scannerRef.current) return;
+    if (!scannerRef.current) {
+      return;
+    }
 
     try {
       const state = await scannerRef.current.getState();
-      if (state === 2) { // SCANNING state
+      if (state === 2) {
+        // SCANNING state
         await scannerRef.current.stop();
       }
     } catch (e) {
-      console.log("Scanner cleanup - already stopped or invalid state");
+      /* empty */
     }
 
     try {
       scannerRef.current.clear();
     } catch (e) {
-      console.log("Could not clear scanner");
+      /* empty */
     }
 
     scannerRef.current = null;
@@ -86,19 +89,14 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
   const initializeScanner = async () => {
     try {
-      console.log("Initializing scanner...");
-
-      // Verify DOM element exists
       const element = document.getElementById("qr-reader");
       if (!element) {
         throw new Error("QR reader element not found");
       }
 
-      // Create scanner instance
       const html5QrCode = new Html5Qrcode("qr-reader");
       scannerRef.current = html5QrCode;
 
-      // Start camera
       await html5QrCode.start(
         { facingMode: "environment" },
         {
@@ -112,20 +110,29 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
         },
         (errorMessage) => {
           // Suppress scanning errors
-        }
+        },
       );
-
-      console.log("Scanner started successfully!");
     } catch (error: any) {
       console.error("Failed to start scanner:", error);
 
       let message = "Could not access camera.";
 
-      if (error.name === "NotAllowedError" || error.toString().includes("NotAllowedError")) {
-        message = "Camera permission denied. Please allow camera access in your browser settings.";
-      } else if (error.name === "NotReadableError" || error.toString().includes("NotReadableError")) {
-        message = "Camera is already in use. Please close other apps using the camera.";
-      } else if (error.name === "NotFoundError" || error.toString().includes("NotFoundError")) {
+      if (
+        error.name === "NotAllowedError" ||
+        error.toString().includes("NotAllowedError")
+      ) {
+        message =
+          "Camera permission denied. Please allow camera access in your browser settings.";
+      } else if (
+        error.name === "NotReadableError" ||
+        error.toString().includes("NotReadableError")
+      ) {
+        message =
+          "Camera is already in use. Please close other apps using the camera.";
+      } else if (
+        error.name === "NotFoundError" ||
+        error.toString().includes("NotFoundError")
+      ) {
         message = "No camera found on this device.";
       }
 
@@ -142,7 +149,9 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
   };
 
   const handleScan = async (userId: string) => {
-    if (processing || !isMountedRef.current) return;
+    if (processing || !isMountedRef.current) {
+      return;
+    }
 
     setProcessing(true);
 
