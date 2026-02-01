@@ -794,10 +794,10 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const command = new UpdateItemCommand({
         TableName: genericConfig.RSVPDynamoTableName,
         Key: {
-          PK: { S: rsvpPartitionKey },
+          partitionKey: { S: rsvpPartitionKey },
         },
         UpdateExpression: "SET #c = :trueVal",
-        ConditionExpression: "attribute_exists(PK)",
+        ConditionExpression: "attribute_exists(partitionKey)",
         ExpressionAttributeNames: {
           "#c": "checkedIn",
         },

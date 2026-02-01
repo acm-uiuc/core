@@ -37,6 +37,8 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isMountedRef = useRef(true);
+  const lastScanTimeRef = useRef<number>(0);
+  const scanCooldownMs = 3000; // 3 seconds between scans
 
   // Initialize scanner AFTER the qr-reader div exists
   useEffect(() => {
@@ -51,6 +53,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
       cleanupScanner();
       setScanning(false);
       setLastScannedUser(null);
+      lastScanTimeRef.current = 0;
     }
   }, [opened]);
 
@@ -71,7 +74,6 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
     try {
       const state = await scannerRef.current.getState();
       if (state === 2) {
-        // SCANNING state
         await scannerRef.current.stop();
       }
     } catch (e) {
@@ -141,6 +143,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
         message,
         color: "red",
         icon: <IconAlertCircle size={16} />,
+        autoClose: 2000,
       });
 
       setScanning(false);
@@ -153,6 +156,13 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
       return;
     }
 
+    // Check cooldown period
+    const now = Date.now();
+    if (now - lastScanTimeRef.current < scanCooldownMs) {
+      return; // Skip this scan, too soon
+    }
+
+    lastScanTimeRef.current = now;
     setProcessing(true);
 
     try {
@@ -164,6 +174,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
         message: `User ${userId} checked in.`,
         color: "green",
         icon: <IconCheck size={16} />,
+        autoClose: 2000,
       });
 
       setTimeout(() => {
@@ -176,6 +187,8 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
         title: "Check-In Failed",
         message: error?.response?.data?.message || "Failed to check in.",
         color: "red",
+        icon: <IconAlertCircle size={16} />,
+        autoClose: 2000,
       });
 
       if (isMountedRef.current) {
@@ -188,6 +201,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
     await cleanupScanner();
     setScanning(false);
     setProcessing(false);
+    lastScanTimeRef.current = 0;
   };
 
   const handleModalClose = async () => {
