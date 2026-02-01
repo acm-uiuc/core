@@ -12,6 +12,7 @@ import {
   GetItemCommand,
   PutItemCommand,
   DeleteItemCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall, marshall } from "@aws-sdk/util-dynamodb";
 import {
@@ -746,6 +747,74 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         throw new DatabaseInsertError({
           message: "Failed to withdraw RSVP.",
         });
+      }
+    },
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/checkin/event/:eventId/attendee/:userId",
+    {
+      schema: withRoles(
+        [AppRoles.RSVP_MANAGER],
+        withTags(["RSVP"], {
+          summary: "Check in an RSVP for an event.",
+          params: z.object({
+            eventId: z.string().min(1).meta({
+              description: "The previously-created event ID in the events API.",
+            }),
+            userId: z.string().min(1).meta({
+              description: "The user ID of the RSVP to check in.",
+            }),
+          }),
+          response: {
+            200: {
+              description: "Successfully checked in RSVP",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
+              },
+            },
+            400: {
+              description: "RSVP not found",
+              content: {
+                "application/json": {
+                  schema: z.null(),
+                },
+              },
+            },
+          },
+        }),
+      ),
+    },
+    async (request, reply) => {
+      const rsvpPartitionKey = `RSVP#${request.params.eventId}#${request.params.userId}`;
+
+      const command = new UpdateItemCommand({
+        TableName: genericConfig.RSVPDynamoTableName,
+        Key: {
+          PK: { S: rsvpPartitionKey },
+        },
+        UpdateExpression: "SET #c = :trueVal",
+        ConditionExpression: "attribute_exists(PK)",
+        ExpressionAttributeNames: {
+          "#c": "checkedIn",
+        },
+        ExpressionAttributeValues: {
+          ":trueVal": { BOOL: true },
+        },
+      });
+
+      try {
+        await fastify.dynamoClient.send(command);
+        reply.status(200).send();
+      } catch (err: any) {
+        if (err.name === "ConditionalCheckFailedException") {
+          reply.status(400).send();
+        } else {
+          throw new DatabaseInsertError({
+            message: "Could npt check RSVP in",
+          });
+        }
       }
     },
   );

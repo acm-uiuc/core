@@ -6,6 +6,7 @@ import {
   GetItemCommand,
   PutItemCommand,
   DeleteItemCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
@@ -336,13 +337,8 @@ describe("RSVP API tests", () => {
     expect(body.message).toBe("RSVP limit has been reached.");
   });
 
-  // -------------------------------------------------------------------------
-  // Existing Management/Get Tests (Unchanged logic, just ensure mocks work)
-  // -------------------------------------------------------------------------
-
   test("Test getting my own RSVPs", async () => {
     const upn = MOCK_UPN;
-    // FIX: Included ALL fields required by rsvpItemSchema to prevent 500 error
     const mockRsvps = [
       {
         partitionKey: `RSVP#EventA#${upn}`,
@@ -376,7 +372,6 @@ describe("RSVP API tests", () => {
 
   test("Test getting RSVPs for an event", async () => {
     const eventId = "EventA";
-    // FIX: Included ALL fields required by rsvpItemSchema to prevent 500 error
     const mockRsvps = [
       {
         partitionKey: `RSVP#${eventId}#user1@illinois.edu`,
@@ -494,5 +489,42 @@ describe("RSVP API tests", () => {
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body.rsvpLimit).toBe(50);
+  });
+  test("Test Manager checking in a user (Success)", async () => {
+    ddbMock.on(UpdateItemCommand).resolves({});
+
+    const adminJwt = createJwt();
+    const eventId = "Make Your Own Database";
+    const targetUserId = "user1@illinois.edu";
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/rsvp/checkin/event/${encodeURIComponent(eventId)}/attendee/${encodeURIComponent(targetUserId)}`,
+      headers: {
+        Authorization: `Bearer ${adminJwt}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  test("Test Manager checking in a user (RSVP Not Found)", async () => {
+    const error = new Error("ConditionalCheckFailedException");
+    error.name = "ConditionalCheckFailedException";
+    ddbMock.on(UpdateItemCommand).rejects(error);
+
+    const adminJwt = createJwt();
+    const eventId = "Make Your Own Database";
+    const targetUserId = "missing_user@illinois.edu";
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/rsvp/checkin/event/${encodeURIComponent(eventId)}/attendee/${encodeURIComponent(targetUserId)}`,
+      headers: {
+        Authorization: `Bearer ${adminJwt}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
   });
 });
