@@ -10,8 +10,6 @@ import {
   QueryCommand,
   TransactWriteItemsCommand,
   GetItemCommand,
-  PutItemCommand,
-  DeleteItemCommand,
   UpdateItemCommand,
   PutItemCommand,
   DeleteItemCommand,
