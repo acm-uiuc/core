@@ -85,7 +85,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];
-      const { netId, userPrincipalName: upn } = await verifyUiucAccessToken({
+      const { userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
       });
@@ -785,6 +785,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           },
         }),
       ),
+      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
       const rsvpPartitionKey = `RSVP#${request.params.eventId}#${request.params.userId}`;
@@ -812,7 +813,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           reply.status(400).send();
         } else {
           throw new DatabaseInsertError({
-            message: "Could npt check RSVP in",
+            message: "Could not check RSVP in",
           });
         }
       }
@@ -890,7 +891,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }
 
         request.log.error(err, "Failed to delete RSVP as manager");
-        throw new DatabaseInsertError({
+        throw new DatabaseDeleteError({
           message: "Failed to remove RSVP.",
         });
       }
