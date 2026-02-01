@@ -80,8 +80,6 @@ describe(
           body: JSON.stringify(payload),
         },
       );
-      console.log(response);
-
       expect(response.status).toBe(200);
 
       const getResponse = await fetch(
