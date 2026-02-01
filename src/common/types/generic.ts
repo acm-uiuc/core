@@ -48,3 +48,10 @@ export const BooleanFromString = z.preprocess(
   (val) => (typeof val === 'string' || val instanceof String) && val.toLowerCase() === "true",
   z.boolean()
 );
+
+// Turns a comma-seperated list of items into an array
+export const ArrayFromString = z.preprocess(
+  (val) => (typeof val === 'string' ? val.split(',').map((s) => s.trim()).filter(Boolean) : val),
+  z.array(z.string())
+);
+

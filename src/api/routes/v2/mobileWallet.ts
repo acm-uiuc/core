@@ -1,19 +1,13 @@
-import { FastifyBaseLogger, FastifyPluginAsync } from "fastify";
-import {
-  UnauthenticatedError,
-  ValidationError,
-} from "../../../common/errors/index.js";
+import { FastifyPluginAsync } from "fastify";
+import { UnauthenticatedError } from "../../../common/errors/index.js";
 import * as z from "zod/v4";
-import {
-  checkPaidMembershipFromRedis,
-  checkPaidMembershipFromTable,
-} from "../../functions/membership.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { notAuthenticatedError, withTags } from "api/components/index.js";
 import { issueAppleWalletMembershipCard } from "api/functions/mobileWallet.js";
 import { Readable } from "stream";
 import { verifyUiucAccessToken } from "api/functions/uin.js";
+import { checkPaidMembership } from "api/functions/membership.js";
 
 const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {
@@ -59,17 +53,12 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
         surname,
         netId,
       } = verifiedData;
-      let isPaidMember = await checkPaidMembershipFromRedis(
+      const isPaidMember = await checkPaidMembership({
         netId,
-        fastify.redisClient,
-        request.log,
-      );
-      if (isPaidMember === null) {
-        isPaidMember = await checkPaidMembershipFromTable(
-          netId,
-          fastify.dynamoClient,
-        );
-      }
+        dynamoClient: fastify.dynamoClient,
+        redisClient: fastify.redisClient,
+        logger: request.log,
+      });
 
       if (!isPaidMember) {
         throw new UnauthenticatedError({

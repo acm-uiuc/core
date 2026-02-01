@@ -61,10 +61,10 @@ export const rsvpItemSchema = z.object({
   createdAt: z.number().meta({ 
     description: "Unix timestamp of RSVP creation." 
   }),  
-  schoolYear: z.string().optional().meta({ 
+  schoolYear: z.string().meta({ 
     description: "Snapshot of user's year at time of RSVP." 
   }),
-  intendedMajor: z.string().optional().meta({ 
+  intendedMajor: z.string().meta({ 
     description: "Snapshot of user's major at time of RSVP." 
   }),
   dietaryRestrictions:z.array(z.string()).meta({
