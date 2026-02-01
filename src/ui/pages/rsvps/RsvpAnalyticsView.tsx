@@ -81,7 +81,7 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
       const data = await getRsvps(eventId);
       const validatedData = data.map((item) => rsvpSchema.parse(item));
       setRsvps(validatedData);
-      calculateStats(data);
+      calculateStats(validatedData);
     } catch (error) {
       console.error("Error fetching RSVPs:", error);
       notifications.show({
