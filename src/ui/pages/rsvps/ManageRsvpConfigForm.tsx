@@ -85,7 +85,6 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
           rsvpCheckInEnabled: false,
         });
       } else {
-        // For other errors (like validation), still set to null but don't show "no config" message
         setConfigData(null);
         notifications.show({
           title: "Error loading config",
@@ -113,7 +112,6 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
     try {
       const values = form.values;
 
-      // Validate that close time is after open time
       if (values.rsvpCloseAt <= values.rsvpOpenAt) {
         notifications.show({
           title: "Invalid Times",
@@ -132,7 +130,6 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
         color: "green",
       });
 
-      // Refresh data
       await fetchRsvpConfig();
     } catch (e) {
       console.error(e);
@@ -232,7 +229,6 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
                   });
                   return;
                 }
-                // Validate that close date is after open date
                 if (
                   form.values.rsvpOpenAt &&
                   timestamp <= form.values.rsvpOpenAt
@@ -261,19 +257,18 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
           <Title order={4} mb="md">
             RSVP Settings
           </Title>
-
           <NumberInput
             label="RSVP Limit"
             description="Maximum number of attendees (leave empty for unlimited)"
             placeholder="No limit"
-            min={0}
+            min={1}
             max={20000}
             clampBehavior="strict"
             allowNegative={false}
             value={form.values.rsvpLimit ?? undefined}
             onChange={(value) => {
               if (typeof value === "number" && value < 0) {
-                return; // Prevent negative values
+                return;
               }
               form.setFieldValue(
                 "rsvpLimit",

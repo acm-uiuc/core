@@ -35,7 +35,6 @@ import { checkPaidMembership } from "api/functions/membership.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { genericConfig } from "common/config.js";
 import { AppRoles } from "common/roles.js";
-import { request } from "node:http";
 
 const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -651,11 +650,11 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           eventId,
           userId,
           isPaidMember,
-          dietaryRestrictions,
-          intendedMajor,
-          schoolYear,
-          interests,
-          checkedIn,
+          dietaryRestrictions: dietaryRestrictions ?? [],
+          intendedMajor: intendedMajor ?? "Unknown",
+          schoolYear: schoolYear ?? "Unknown",
+          interests: interests ?? [],
+          checkedIn: checkedIn ?? false,
           createdAt,
         }),
       );
@@ -808,15 +807,14 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       try {
         await fastify.dynamoClient.send(command);
-        reply.status(200).send();
+        return reply.status(200).send();
       } catch (err: any) {
         if (err.name === "ConditionalCheckFailedException") {
-          reply.status(400).send();
-        } else {
-          throw new DatabaseInsertError({
-            message: "Could not check RSVP in",
-          });
+          return reply.status(400).send();
         }
+        throw new DatabaseInsertError({
+          message: "Could not check RSVP in",
+        });
       }
     },
   );

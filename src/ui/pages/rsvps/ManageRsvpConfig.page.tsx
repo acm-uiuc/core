@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Container, Title, Button, Group, Accordion } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { IconArrowLeft, IconQrcode } from "@tabler/icons-react";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
@@ -8,29 +9,18 @@ import { AppRoles } from "@common/roles.js";
 import { RsvpConfigForm } from "./ManageRsvpConfigForm";
 import { RsvpAnalyticsView } from "./RsvpAnalyticsView";
 import { CheckInModal } from "./CheckInModal";
+import { rsvpConfigSchema, rsvpItemSchema } from "../../../common/types/rsvp";
 import * as z from "zod/v4";
 
-const rsvpConfigSchema = z.object({
+const rsvpConfigSchemaFrontend = z.object({
   rsvpOpenAt: z.number().min(0).max(9007199254740991),
   rsvpCloseAt: z.number().min(0).max(9007199254740991),
   rsvpLimit: z.number().min(0).max(20000).nullable(),
   rsvpCheckInEnabled: z.boolean().default(false),
 });
 
-const rsvpSchema = z.object({
-  eventId: z.string(),
-  userId: z.string(),
-  isPaidMember: z.boolean(),
-  checkedIn: z.boolean(),
-  createdAt: z.number(),
-  schoolYear: z.string(),
-  intendedMajor: z.string(),
-  dietaryRestrictions: z.array(z.string()),
-  interests: z.array(z.string()),
-});
-
-type RsvpConfigData = z.infer<typeof rsvpConfigSchema>;
-type RsvpData = z.infer<typeof rsvpSchema>;
+type RsvpConfigData = z.infer<typeof rsvpConfigSchemaFrontend>;
+type RsvpData = z.infer<typeof rsvpItemSchema>;
 
 export const ManageRsvpConfigFormPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -40,28 +30,36 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
   const [hasRsvpConfig, setHasRsvpConfig] = useState(false);
   const [checkInEnabled, setCheckInEnabled] = useState(false);
 
+  const checkRsvpConfigExists = useCallback(async () => {
+    try {
+      const response = await api.get(`/api/v1/rsvp/event/${eventId}/config`);
+      const config = rsvpConfigSchemaFrontend.parse(response.data);
+      setHasRsvpConfig(true);
+      setCheckInEnabled(config.rsvpCheckInEnabled);
+    } catch (error: any) {
+      console.error("Error checking RSVP config:", error);
+      if (error?.response?.status === 404) {
+        setHasRsvpConfig(false);
+        setCheckInEnabled(false);
+      } else {
+        notifications.show({
+          title: "Error loading RSVP config",
+          message: "Unable to determine RSVP settings. Please try again.",
+          color: "red",
+        });
+      }
+    }
+  }, [api, eventId]);
+
   useEffect(() => {
     if (eventId) {
       checkRsvpConfigExists();
     }
-  }, [eventId]);
-
-  const checkRsvpConfigExists = async () => {
-    try {
-      const response = await api.get(`/api/v1/rsvp/event/${eventId}/config`);
-      const config = rsvpConfigSchema.parse(response.data);
-      setHasRsvpConfig(true);
-      setCheckInEnabled(config.rsvpCheckInEnabled);
-    } catch (error) {
-      console.error("Error checking RSVP config:", error);
-      setHasRsvpConfig(false);
-      setCheckInEnabled(false);
-    }
-  };
+  }, [eventId, checkRsvpConfigExists]);
 
   const getRsvpConfig = async (eventId: string): Promise<RsvpConfigData> => {
     const response = await api.get(`/api/v1/rsvp/event/${eventId}/config`);
-    return rsvpConfigSchema.parse(response.data);
+    return rsvpConfigSchemaFrontend.parse(response.data);
   };
 
   const updateRsvpConfig = async (
@@ -73,7 +71,7 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
 
   const getRsvps = async (eventId: string): Promise<RsvpData[]> => {
     const response = await api.get(`/api/v1/rsvp/event/${eventId}`);
-    return z.array(rsvpSchema).parse(response.data);
+    return z.array(rsvpItemSchema).parse(response.data);
   };
 
   const checkInAttendee = async (

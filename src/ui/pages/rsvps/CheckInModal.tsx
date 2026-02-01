@@ -38,16 +38,14 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isMountedRef = useRef(true);
   const lastScanTimeRef = useRef<number>(0);
-  const scanCooldownMs = 3000; // 3 seconds between scans
+  const scanCooldownMs = 3000;
 
-  // Initialize scanner AFTER the qr-reader div exists
   useEffect(() => {
     if (scanning && !scannerRef.current) {
       initializeScanner();
     }
   }, [scanning]);
 
-  // Cleanup on modal close
   useEffect(() => {
     if (!opened) {
       cleanupScanner();
@@ -57,7 +55,6 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
     }
   }, [opened]);
 
-  // Cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -156,10 +153,9 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
       return;
     }
 
-    // Check cooldown period
     const now = Date.now();
     if (now - lastScanTimeRef.current < scanCooldownMs) {
-      return; // Skip this scan, too soon
+      return;
     }
 
     lastScanTimeRef.current = now;

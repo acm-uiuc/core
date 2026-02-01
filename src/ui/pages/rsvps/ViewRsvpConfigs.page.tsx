@@ -53,8 +53,8 @@ const getEventsSchema = z.array(getEventSchema);
 export type EventsGetResponse = z.infer<typeof getEventsSchema>;
 
 export const ViewRsvpConfigsPage: React.FC = () => {
-  const [eventList, setEventList] = useState<EventsGetResponse>([]);
   const api = useApi("core");
+  const [eventList, setEventList] = useState<EventsGetResponse>([]);
   const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false);
   const [selectedEventForRsvp, setSelectedEventForRsvp] =
     useState<EventGetResponse | null>(null);
@@ -64,7 +64,6 @@ export const ViewRsvpConfigsPage: React.FC = () => {
   ] = useDisclosure(false);
   const navigate = useNavigate();
 
-  // Sorted events
   const sortedUpcomingEvents = useMemo(() => {
     return eventList
       .filter((event: EventGetResponse) => event.upcoming)
@@ -129,9 +128,7 @@ export const ViewRsvpConfigsPage: React.FC = () => {
     getEvents();
   }, []);
 
-  // Mock function to check for RSVP config - replace with actual logic
   const checkRsvpConfig = async (eventId: string): Promise<boolean> => {
-    // TODO: Replace this mock function with actual API call
     const response = await api.get(`/api/v1/rsvp/event/${eventId}/config`);
     if (response.status === 200) {
       return true;
@@ -146,10 +143,8 @@ export const ViewRsvpConfigsPage: React.FC = () => {
       const hasConfig = await checkRsvpConfig(event.id);
 
       if (hasConfig) {
-        // Navigate to RSVP config page (to be built later)
         navigate(`/rsvps/manage/${event.id}`);
       } else {
-        // Show modal asking if user wants to configure RSVP
         openRsvpNotFoundModal();
       }
     } catch (error) {
@@ -159,16 +154,9 @@ export const ViewRsvpConfigsPage: React.FC = () => {
 
   const handleConfigureRsvp = () => {
     closeRsvpNotFoundModal();
-    // Navigate to RSVP config creation page (to be built later)
-    // navigate(`/events/rsvp-config/create/${selectedEventForRsvp?.id}`);
-    notifications.show({
-      title: "Navigation placeholder",
-      message: "Would navigate to create RSVP config page here",
-      color: "blue",
-    });
+    navigate(`/rsvps/manage/${selectedEventForRsvp?.id}`);
   };
 
-  // Define columns for ResponsiveTable
   const columns: Column<EventGetResponse>[] = [
     {
       key: "title",

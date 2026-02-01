@@ -102,7 +102,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
     const totalPaidMembers = rsvpData.filter((r) => r.isPaidMember).length;
     const totalCheckedIn = rsvpData.filter((r) => r.checkedIn).length;
 
-    // School year breakdown
     const schoolYearBreakdown = rsvpData.reduce(
       (acc, rsvp) => {
         const year = rsvp.schoolYear || "Unknown";
@@ -112,7 +111,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
       {} as Record<string, number>,
     );
 
-    // Interests breakdown
     const interestsBreakdown = rsvpData.reduce(
       (acc, rsvp) => {
         const interests = rsvp.interests || [];
@@ -124,7 +122,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
       {} as Record<string, number>,
     );
 
-    // Major breakdown
     const majorBreakdown = rsvpData.reduce(
       (acc, rsvp) => {
         const major = rsvp.intendedMajor || "Unknown";
@@ -134,7 +131,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
       {} as Record<string, number>,
     );
 
-    // Dietary restrictions breakdown
     const dietaryRestrictionsBreakdown = rsvpData.reduce(
       (acc, rsvp) => {
         const restrictions = rsvp.dietaryRestrictions || [];
