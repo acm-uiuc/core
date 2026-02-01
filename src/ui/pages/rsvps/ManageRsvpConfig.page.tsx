@@ -1,35 +1,32 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Container, Title, Button, Group, Accordion } from "@mantine/core";
-import { IconArrowLeft } from "@tabler/icons-react";
+import { IconArrowLeft, IconQrcode } from "@tabler/icons-react";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles.js";
 import { RsvpConfigForm } from "./ManageRsvpConfigForm";
 import { RsvpAnalyticsView } from "./RsvpAnalyticsView";
+import { CheckInModal } from "./CheckInModal";
 import * as z from "zod/v4";
-
-const rsvpQuestionSchema = z.object({
-  id: z.string().min(1),
-  prompt: z.string().min(1),
-  type: z.string(),
-  required: z.boolean().default(false),
-  options: z.array(z.string()).optional(),
-});
 
 const rsvpConfigSchema = z.object({
   rsvpOpenAt: z.number().min(0).max(9007199254740991),
   rsvpCloseAt: z.number().min(0).max(9007199254740991),
   rsvpLimit: z.number().min(0).max(20000).nullable(),
   rsvpCheckInEnabled: z.boolean().default(false),
-  rsvpQuestions: z.array(rsvpQuestionSchema).default([]),
 });
 
 const rsvpSchema = z.object({
   eventId: z.string(),
   userId: z.string(),
   isPaidMember: z.boolean(),
+  checkedIn: z.boolean(),
   createdAt: z.number(),
+  schoolYear: z.string(),
+  intendedMajor: z.string(),
+  dietaryRestrictions: z.array(z.string()),
+  interests: z.array(z.string()),
 });
 
 type RsvpConfigData = z.infer<typeof rsvpConfigSchema>;
@@ -39,6 +36,28 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const api = useApi("core");
+  const [checkInModalOpened, setCheckInModalOpened] = useState(false);
+  const [hasRsvpConfig, setHasRsvpConfig] = useState(false);
+  const [checkInEnabled, setCheckInEnabled] = useState(false);
+
+  useEffect(() => {
+    if (eventId) {
+      checkRsvpConfigExists();
+    }
+  }, [eventId]);
+
+  const checkRsvpConfigExists = async () => {
+    try {
+      const response = await api.get(`/api/v1/rsvp/event/${eventId}/config`);
+      const config = rsvpConfigSchema.parse(response.data);
+      setHasRsvpConfig(true);
+      setCheckInEnabled(config.rsvpCheckInEnabled);
+    } catch (error) {
+      console.error("Error checking RSVP config:", error);
+      setHasRsvpConfig(false);
+      setCheckInEnabled(false);
+    }
+  };
 
   const getRsvpConfig = async (eventId: string): Promise<RsvpConfigData> => {
     const response = await api.get(`/api/v1/rsvp/event/${eventId}/config`);
@@ -49,12 +68,19 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
     eventId: string,
     data: RsvpConfigData,
   ): Promise<void> => {
-    await api.post(`/api/v1/rsvp/event/${eventId}/config`, data);
+    await api.put(`/api/v1/rsvp/event/${eventId}/config`, data);
   };
 
   const getRsvps = async (eventId: string): Promise<RsvpData[]> => {
     const response = await api.get(`/api/v1/rsvp/event/${eventId}`);
     return z.array(rsvpSchema).parse(response.data);
+  };
+
+  const checkInAttendee = async (
+    eventId: string,
+    userId: string,
+  ): Promise<void> => {
+    await api.post(`/api/v1/rsvp/checkin/event/${eventId}/attendee/${userId}`);
   };
 
   if (!eventId) {
@@ -81,9 +107,25 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
           </Button>
         </Group>
 
-        <Title order={1} mb="md">
-          Manage RSVP Configuration
-        </Title>
+        <Group justify="space-between" align="center" mb="md">
+          <Title order={1}>Manage RSVP Configuration</Title>
+          {hasRsvpConfig && checkInEnabled && (
+            <Button
+              leftSection={<IconQrcode size={16} />}
+              onClick={() => setCheckInModalOpened(true)}
+              color="green"
+            >
+              Check-In Attendees
+            </Button>
+          )}
+        </Group>
+
+        <CheckInModal
+          opened={checkInModalOpened}
+          onClose={() => setCheckInModalOpened(false)}
+          eventId={eventId}
+          checkInAttendee={checkInAttendee}
+        />
 
         <Accordion defaultValue="configuration" variant="separated">
           <Accordion.Item value="configuration">

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  TextInput,
   Button,
   Group,
   Box,
@@ -8,58 +7,32 @@ import {
   Alert,
   Title,
   Text,
-  ActionIcon,
   Stack,
   Paper,
   Badge,
   Switch,
   NumberInput,
-  Select,
-  List,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { DateTimePicker } from "@mantine/dates";
-import {
-  IconPlus,
-  IconTrash,
-  IconDeviceFloppy,
-  IconAlertCircle,
-} from "@tabler/icons-react";
+import { IconDeviceFloppy, IconAlertCircle } from "@tabler/icons-react";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 import * as z from "zod/v4";
-import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
-import dayjs from "dayjs";
-
-const questionTypes = ["TEXT", "MCQ", "MCQM"] as const;
-
-const rsvpQuestionSchema = z.object({
-  id: z.string().min(1),
-  prompt: z.string().min(1),
-  type: z.string(),
-  required: z.boolean().default(false),
-  options: z.array(z.string()).optional(),
-});
 
 const rsvpConfigSchema = z.object({
   rsvpOpenAt: z.number().min(0).max(9007199254740991),
   rsvpCloseAt: z.number().min(0).max(9007199254740991),
   rsvpLimit: z.number().min(0).max(20000).nullable(),
   rsvpCheckInEnabled: z.boolean().default(false),
-  rsvpQuestions: z.array(rsvpQuestionSchema).default([]),
 });
 
 type RsvpConfigData = z.infer<typeof rsvpConfigSchema>;
-type RsvpQuestion = z.infer<typeof rsvpQuestionSchema>;
 
 interface RsvpConfigFormProps {
   eventId: string;
   getRsvpConfig: (eventId: string) => Promise<RsvpConfigData>;
   updateRsvpConfig: (eventId: string, data: RsvpConfigData) => Promise<void>;
-}
-
-interface DisplayQuestion extends RsvpQuestion {
-  isNew: boolean;
 }
 
 export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
@@ -73,14 +46,6 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [noConfigFound, setNoConfigFound] = useState(false);
 
-  // New question form state
-  const [newQuestionId, setNewQuestionId] = useState("");
-  const [newQuestionPrompt, setNewQuestionPrompt] = useState("");
-  const [newQuestionType, setNewQuestionType] = useState<string>("TEXT");
-  const [newQuestionRequired, setNewQuestionRequired] = useState(false);
-  const [newQuestionOptions, setNewQuestionOptions] = useState<string[]>([]);
-  const [optionInput, setOptionInput] = useState("");
-
   const form = useForm({
     validate: zodResolver(rsvpConfigSchema),
     initialValues: {
@@ -88,7 +53,6 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
       rsvpCloseAt: 0,
       rsvpLimit: null,
       rsvpCheckInEnabled: false,
-      rsvpQuestions: [],
     } as RsvpConfigData,
   });
 
@@ -104,18 +68,13 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
         rsvpCloseAt: data.rsvpCloseAt,
         rsvpLimit: data.rsvpLimit,
         rsvpCheckInEnabled: data.rsvpCheckInEnabled,
-        rsvpQuestions: data.rsvpQuestions || [],
       });
     } catch (e: any) {
       console.error("Error fetching RSVP config:", e);
 
-      // Only show "no config found" for actual 404/not found errors
-      // If it's a validation error or other issue, log it but don't show the alert
       if (e?.response?.status === 404 || e?.message?.includes("not found")) {
         setConfigData(null);
         setNoConfigFound(true);
-
-        // Set default values when no config is found
         const now = Math.floor(Date.now() / 1000);
         const oneWeekLater = now + 7 * 24 * 60 * 60;
 
@@ -124,7 +83,6 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
           rsvpCloseAt: oneWeekLater,
           rsvpLimit: null,
           rsvpCheckInEnabled: false,
-          rsvpQuestions: [],
         });
       } else {
         // For other errors (like validation), still set to null but don't show "no config" message
@@ -146,74 +104,9 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
     setLoading(false);
     setNoConfigFound(false);
     form.reset();
-    setNewQuestionId("");
-    setNewQuestionPrompt("");
-    setNewQuestionType("TEXT");
-    setNewQuestionRequired(false);
-    setNewQuestionOptions([]);
-    setOptionInput("");
 
     fetchRsvpConfig();
   }, [eventId]);
-
-  const handleAddQuestion = () => {
-    if (!newQuestionId.trim() || !newQuestionPrompt.trim()) {
-      notifications.show({
-        title: "Invalid Input",
-        message: "Question ID and prompt are required.",
-        color: "orange",
-      });
-      return;
-    }
-
-    // Validate options for MCQ types
-    if (
-      (newQuestionType === "MCQ" || newQuestionType === "MCQM") &&
-      newQuestionOptions.length === 0
-    ) {
-      notifications.show({
-        title: "Invalid Input",
-        message: "Multiple choice questions require at least one option.",
-        color: "orange",
-      });
-      return;
-    }
-
-    // Check for duplicate IDs
-    if (form.values.rsvpQuestions.some((q) => q.id === newQuestionId.trim())) {
-      notifications.show({
-        title: "Duplicate ID",
-        message: "A question with this ID already exists.",
-        color: "orange",
-      });
-      return;
-    }
-
-    const newQuestion: any = {
-      id: newQuestionId.trim(),
-      prompt: newQuestionPrompt.trim(),
-      type: newQuestionType,
-      required: newQuestionRequired,
-    };
-
-    // Add options only for MCQ types
-    if (newQuestionType === "MCQ" || newQuestionType === "MCQM") {
-      newQuestion.options = newQuestionOptions;
-    }
-
-    form.insertListItem("rsvpQuestions", newQuestion);
-
-    setNewQuestionId("");
-    setNewQuestionPrompt("");
-    setNewQuestionType("TEXT");
-    setNewQuestionRequired(false);
-    setNewQuestionOptions([]);
-    setOptionInput("");
-  };
-
-  const removeQuestion = (index: number) => {
-    form.removeListItem("rsvpQuestions", index);
-  };
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -252,108 +145,6 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
       setLoading(false);
     }
   };
-
-  // Define columns for questions table
-  const questionsColumns: Column<RsvpQuestion>[] = [
-    {
-      key: "id",
-      label: "ID",
-      isPrimaryColumn: true,
-      render: (question) => (
-        <Text size="sm" fw={500}>
-          {question.id}
-        </Text>
-      ),
-    },
-    {
-      key: "prompt",
-      label: "Question",
-      render: (question) => question.prompt,
-    },
-    {
-      key: "type",
-      label: "Type",
-      render: (question) => {
-        let label = "Free Response";
-        let color = "blue";
-
-        if (question.type === "MCQ") {
-          label = "Multiple Choice";
-          color = "green";
-        } else if (question.type === "MCQM") {
-          label = "Multi-Select";
-          color = "violet";
-        }
-
-        return (
-          <Badge color={color} variant="light">
-            {label}
-          </Badge>
-        );
-      },
-    },
-    {
-      key: "details",
-      label: "Details",
-      render: (question) => {
-        if (
-          (question.type === "MCQ" || question.type === "MCQM") &&
-          question.options
-        ) {
-          return (
-            <Box>
-              <Text size="xs" c="dimmed" mb={4}>
-                Options:
-              </Text>
-              <List size="xs" spacing={2}>
-                {question.options.map((opt, idx) => (
-                  <List.Item key={idx}>{opt}</List.Item>
-                ))}
-              </List>
-            </Box>
-          );
-        }
-        return (
-          <Text size="xs" c="dimmed">
-            Text response
-          </Text>
-        );
-      },
-    },
-    {
-      key: "required",
-      label: "Required",
-      render: (question) => (
-        <Badge color={question.required ? "blue" : "gray"} variant="light">
-          {question.required ? "Required" : "Optional"}
-        </Badge>
-      ),
-    },
-    {
-      key: "actions",
-      label: "Actions",
-      hideMobileLabel: true,
-      render: (question) => {
-        const index = form.values.rsvpQuestions.findIndex(
-          (q) => q.id === question.id,
-        );
-        return (
-          <Button
-            color="red"
-            variant="light"
-            size="xs"
-            leftSection={<IconTrash size={14} />}
-            onClick={(e) => {
-              e.stopPropagation();
-              removeQuestion(index);
-            }}
-          >
-            Remove
-          </Button>
-        );
-      },
-    },
-  ];
 
   if (configData === undefined) {
     return <LoadingOverlay visible data-testid="rsvp-config-loading" />;
@@ -504,148 +295,6 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
             }
             mb="md"
           />
-        </Paper>
-
-        <Paper withBorder p="md" mb="md">
-          <Group justify="space-between" mb="sm">
-            <div>
-              <Title order={4}>Custom Questions</Title>
-              <Text size="sm" c="dimmed">
-                Add custom questions to ask users during RSVP
-              </Text>
-            </div>
-          </Group>
-
-          {form.values.rsvpQuestions.length > 0 ? (
-            <Box mb="md">
-              <ResponsiveTable
-                data={form.values.rsvpQuestions}
-                columns={questionsColumns}
-                keyExtractor={(question) => question.id}
-                testIdPrefix="question-row"
-                cardColumns={{ base: 1 }}
-              />
-            </Box>
-          ) : (
-            <Text size="sm" c="dimmed" ta="center" py="md">
-              No custom questions added yet.
-            </Text>
-          )}
-
-          <Stack gap="xs" mt="md">
-            <TextInput
-              label="Question ID"
-              description="Unique identifier for this question (e.g., 'dietary', 'tshirt-size')"
-              placeholder="dietary"
-              value={newQuestionId}
-              onChange={(e) => setNewQuestionId(e.currentTarget.value)}
-            />
-
-            <TextInput
-              label="Question Prompt"
-              description="The question to ask the user"
-              placeholder="Do you have any dietary restrictions?"
-              value={newQuestionPrompt}
-              onChange={(e) => setNewQuestionPrompt(e.currentTarget.value)}
-            />
-
-            <Select
-              label="Question Type"
-              description="Choose the type of response"
-              data={[
-                { value: "TEXT", label: "Free Response (Text)" },
-                { value: "MCQ", label: "Multiple Choice (Single)" },
-                { value: "MCQM", label: "Multiple Choice (Multi-Select)" },
-              ]}
-              value={newQuestionType}
-              onChange={(value) => {
-                setNewQuestionType(value || "TEXT");
-                // Clear options if switching away from MCQ types
-                if (value === "TEXT") {
-                  setNewQuestionOptions([]);
-                }
-              }}
-            />
-
-            {(newQuestionType === "MCQ" || newQuestionType === "MCQM") && (
-              <Paper withBorder p="sm" bg="gray.0">
-                <Text size="sm" fw={500} mb="xs">
-                  Options
-                </Text>
-                {newQuestionOptions.length > 0 && (
-                  <Stack gap={4} mb="xs">
-                    {newQuestionOptions.map((option, idx) => (
-                      <Group key={idx} gap="xs">
-                        <Badge variant="light">{option}</Badge>
-                        <ActionIcon
-                          size="xs"
-                          color="red"
-                          variant="subtle"
-                          onClick={() => {
-                            setNewQuestionOptions((prev) =>
-                              prev.filter((_, i) => i !== idx),
-                            );
-                          }}
-                        >
-                          <IconTrash size={12} />
-                        </ActionIcon>
-                      </Group>
-                    ))}
-                  </Stack>
-                )}
-                <Group gap="xs">
-                  <TextInput
-                    placeholder="Add an option"
-                    value={optionInput}
-                    onChange={(e) => setOptionInput(e.currentTarget.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && optionInput.trim()) {
-                        e.preventDefault();
-                        setNewQuestionOptions((prev) => [
-                          ...prev,
-                          optionInput.trim(),
-                        ]);
-                        setOptionInput("");
-                      }
-                    }}
-                    style={{ flex: 1 }}
-                  />
-                  <Button
-                    size="xs"
-                    onClick={() => {
-                      if (optionInput.trim()) {
-                        setNewQuestionOptions((prev) => [
-                          ...prev,
-                          optionInput.trim(),
-                        ]);
-                        setOptionInput("");
-                      }
-                    }}
-                    disabled={!optionInput.trim()}
-                  >
-                    Add
-                  </Button>
-                </Group>
-              </Paper>
-            )}
-
-            <Switch
-              label="Required"
-              description="Make this question required for RSVP"
-              checked={newQuestionRequired}
-              onChange={(e) => setNewQuestionRequired(e.currentTarget.checked)}
-            />
-          </Stack>
-
-          <Button
-            mt="md"
-            leftSection={<IconPlus size={16} />}
-            onClick={handleAddQuestion}
-            disabled={loading}
-            variant="light"
-          >
-            Add Question
-          </Button>
         </Paper>
 
         <Group mt="md">

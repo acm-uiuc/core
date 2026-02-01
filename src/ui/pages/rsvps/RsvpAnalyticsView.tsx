@@ -24,7 +24,12 @@ const rsvpSchema = z.object({
   eventId: z.string(),
   userId: z.string(),
   isPaidMember: z.boolean(),
+  checkedIn: z.boolean(),
   createdAt: z.number(),
+  schoolYear: z.string(),
+  intendedMajor: z.string(),
+  dietaryRestrictions: z.array(z.string()),
+  interests: z.array(z.string()),
 });
 
 type RsvpData = z.infer<typeof rsvpSchema>;
@@ -34,13 +39,13 @@ interface RsvpAnalyticsViewProps {
   getRsvps: (eventId: string) => Promise<RsvpData[]>;
 }
 
-// Analytics view types
 const analyticsViews = [
   { value: "overview", label: "Overview Statistics" },
   { value: "demographics", label: "Demographics (School Year)" },
+  { value: "major", label: "Intended Major" },
   { value: "interests", label: "User Interests" },
+  { value: "dietary", label: "Dietary Restrictions" },
   { value: "checkin", label: "Check-In Status" },
-  { value: "responses", label: "Question Responses" },
 ] as const;
 
 interface AnalyticsStats {
@@ -49,6 +54,8 @@ interface AnalyticsStats {
   totalCheckedIn: number;
   schoolYearBreakdown: Record<string, number>;
   interestsBreakdown: Record<string, number>;
+  majorBreakdown: Record<string, number>;
+  dietaryRestrictionsBreakdown: Record<string, number>;
 }
 
 export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
@@ -64,6 +71,8 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
     totalCheckedIn: 0,
     schoolYearBreakdown: {},
     interestsBreakdown: {},
+    majorBreakdown: {},
+    dietaryRestrictionsBreakdown: {},
   });
 
   useEffect(() => {
@@ -91,29 +100,51 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
   const calculateStats = (rsvpData: RsvpData[]) => {
     const totalRsvps = rsvpData.length;
     const totalPaidMembers = rsvpData.filter((r) => r.isPaidMember).length;
+    const totalCheckedIn = rsvpData.filter((r) => r.checkedIn).length;
 
-    // Mock functions for future features
-    // TODO: Implement when isCheckedIn field is added to RSVP data
-    const totalCheckedIn = 0;
-    // const totalCheckedIn = rsvpData.filter((r) => r.isCheckedIn).length;
+    // School year breakdown
+    const schoolYearBreakdown = rsvpData.reduce(
+      (acc, rsvp) => {
+        const year = rsvp.schoolYear || "Unknown";
+        acc[year] = (acc[year] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
-    // TODO: Implement when user profile includes schoolYear
-    // const schoolYearBreakdown = rsvpData.reduce((acc, rsvp) => {
-    //   const year = rsvp.user?.schoolYear || "Unknown";
-    //   acc[year] = (acc[year] || 0) + 1;
-    //   return acc;
-    // }, {} as Record<string, number>);
-    const schoolYearBreakdown: Record<string, number> = {};
+    // Interests breakdown
+    const interestsBreakdown = rsvpData.reduce(
+      (acc, rsvp) => {
+        const interests = rsvp.interests || [];
+        interests.forEach((interest) => {
+          acc[interest] = (acc[interest] || 0) + 1;
+        });
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
-    // TODO: Implement when user profile includes interests
-    // const interestsBreakdown = rsvpData.reduce((acc, rsvp) => {
-    //   const interests = rsvp.user?.interests || [];
-    //   interests.forEach((interest) => {
-    //     acc[interest] = (acc[interest] || 0) + 1;
-    //   });
-    //   return acc;
-    // }, {} as Record<string, number>);
-    const interestsBreakdown: Record<string, number> = {};
+    // Major breakdown
+    const majorBreakdown = rsvpData.reduce(
+      (acc, rsvp) => {
+        const major = rsvp.intendedMajor || "Unknown";
+        acc[major] = (acc[major] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    // Dietary restrictions breakdown
+    const dietaryRestrictionsBreakdown = rsvpData.reduce(
+      (acc, rsvp) => {
+        const restrictions = rsvp.dietaryRestrictions || [];
+        restrictions.forEach((restriction) => {
+          acc[restriction] = (acc[restriction] || 0) + 1;
+        });
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     setStats({
       totalRsvps,
@@ -121,6 +152,8 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
       totalCheckedIn,
       schoolYearBreakdown,
       interestsBreakdown,
+      majorBreakdown,
+      dietaryRestrictionsBreakdown,
     });
   };
 
@@ -169,9 +202,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
               <Text size="xl" fw={700}>
                 {stats.totalCheckedIn}
               </Text>
-              <Badge size="xs" color="yellow" variant="light" mt={4}>
-                Coming Soon
-              </Badge>
             </div>
           </Group>
         </Paper>
@@ -190,9 +220,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
                   ? `${Math.round((stats.totalCheckedIn / stats.totalRsvps) * 100)}%`
                   : "N/A"}
               </Text>
-              <Badge size="xs" color="yellow" variant="light" mt={4}>
-                Coming Soon
-              </Badge>
             </div>
           </Group>
         </Paper>
@@ -207,26 +234,20 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
       </Title>
       {Object.keys(stats.schoolYearBreakdown).length > 0 ? (
         <Stack gap="md">
-          {Object.entries(stats.schoolYearBreakdown).map(([year, count]) => (
-            <Group key={year} justify="space-between">
-              <Text>{year}</Text>
-              <Badge size="lg">{count}</Badge>
-            </Group>
-          ))}
+          {Object.entries(stats.schoolYearBreakdown)
+            .sort(([, a], [, b]) => b - a)
+            .map(([year, count]) => (
+              <Group key={year} justify="space-between">
+                <Text>{year}</Text>
+                <Badge size="lg">{count}</Badge>
+              </Group>
+            ))}
         </Stack>
       ) : (
         <Box py="xl">
           <Text c="dimmed" ta="center">
-            School year data not available yet
+            No school year data available for this event
           </Text>
-          <Badge
-            color="yellow"
-            variant="light"
-            mt="sm"
-            style={{ display: "block", margin: "0 auto", width: "fit-content" }}
-          >
-            Coming Soon
-          </Badge>
         </Box>
       )}
     </Paper>
@@ -266,54 +287,119 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
     </Paper>
   );
 
-  const renderCheckinStatus = () => (
+  const renderMajor = () => (
     <Paper withBorder p="lg" radius="md">
       <Title order={4} mb="md">
-        Check-In Status
+        Intended Major Breakdown
       </Title>
-      <Box py="xl">
-        <Text c="dimmed" ta="center">
-          Check-in tracking will be available here
-        </Text>
-        <Text size="sm" c="dimmed" ta="center" mt="xs">
-          This will show who has checked in vs who has only RSVPed
-        </Text>
-        <Badge
-          color="yellow"
-          variant="light"
-          mt="md"
-          style={{ display: "block", margin: "0 auto", width: "fit-content" }}
-        >
-          Coming Soon
-        </Badge>
-      </Box>
+      {Object.keys(stats.majorBreakdown).length > 0 ? (
+        <Stack gap="md">
+          {Object.entries(stats.majorBreakdown)
+            .sort(([, a], [, b]) => b - a)
+            .map(([major, count]) => (
+              <Group key={major} justify="space-between">
+                <Text>{major}</Text>
+                <Badge size="lg">{count}</Badge>
+              </Group>
+            ))}
+        </Stack>
+      ) : (
+        <Box py="xl">
+          <Text c="dimmed" ta="center">
+            No major data available for this event
+          </Text>
+        </Box>
+      )}
     </Paper>
   );
 
-  const renderQuestionResponses = () => (
+  const renderDietary = () => (
     <Paper withBorder p="lg" radius="md">
       <Title order={4} mb="md">
-        Question Responses
+        Dietary Restrictions
       </Title>
-      <Box py="xl">
-        <Text c="dimmed" ta="center">
-          Custom question responses will be aggregated here
-        </Text>
-        <Text size="sm" c="dimmed" ta="center" mt="xs">
-          View responses to dietary restrictions, t-shirt sizes, and other
-          custom questions
-        </Text>
-        <Badge
-          color="yellow"
-          variant="light"
-          mt="md"
-          style={{ display: "block", margin: "0 auto", width: "fit-content" }}
-        >
-          Coming Soon
-        </Badge>
-      </Box>
+      {Object.keys(stats.dietaryRestrictionsBreakdown).length > 0 ? (
+        <Stack gap="md">
+          {Object.entries(stats.dietaryRestrictionsBreakdown)
+            .sort(([, a], [, b]) => b - a)
+            .map(([restriction, count]) => (
+              <Group key={restriction} justify="space-between">
+                <Text>{restriction}</Text>
+                <Badge size="lg" color="orange">
+                  {count}
+                </Badge>
+              </Group>
+            ))}
+        </Stack>
+      ) : (
+        <Box py="xl">
+          <Text c="dimmed" ta="center">
+            No dietary restrictions data available for this event
+          </Text>
+        </Box>
+      )}
     </Paper>
   );
+
+  const renderCheckinStatus = () => {
+    const checkedInUsers = rsvps.filter((r) => r.checkedIn);
+    const notCheckedInUsers = rsvps.filter((r) => !r.checkedIn);
+
+    return (
+      <Paper withBorder p="lg" radius="md">
+        <Title order={4} mb="md">
+          Check-In Status
+        </Title>
+        <Grid>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <Paper withBorder p="md" bg="green.0">
+              <Text fw={600} mb="sm" c="green.7">
+                Checked In ({checkedInUsers.length})
+              </Text>
+              {checkedInUsers.length > 0 ? (
+                <Stack gap="xs">
+                  {checkedInUsers.map((rsvp) => (
+                    <Group key={rsvp.userId} gap="xs">
+                      <Badge size="sm" color="green" variant="dot">
+                        {rsvp.userId}
+                      </Badge>
+                    </Group>
+                  ))}
+                </Stack>
+              ) : (
+                <Text size="sm" c="dimmed">
+                  No one has checked in yet
+                </Text>
+              )}
+            </Paper>
+          </Grid.Col>
+
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <Paper withBorder p="md" bg="orange.0">
+              <Text fw={600} mb="sm" c="orange.7">
+                Not Checked In ({notCheckedInUsers.length})
+              </Text>
+              {notCheckedInUsers.length > 0 ? (
+                <Stack gap="xs">
+                  {notCheckedInUsers.map((rsvp) => (
+                    <Group key={rsvp.userId} gap="xs">
+                      <Badge size="sm" color="orange" variant="dot">
+                        {rsvp.userId}
+                      </Badge>
+                    </Group>
+                  ))}
+                </Stack>
+              ) : (
+                <Text size="sm" c="dimmed">
+                  Everyone has checked in!
+                </Text>
+              )}
+            </Paper>
+          </Grid.Col>
+        </Grid>
+      </Paper>
+    );
+  };
 
   const renderSelectedView = () => {
     switch (selectedView) {
@@ -321,12 +407,14 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
         return renderOverview();
       case "demographics":
         return renderDemographics();
+      case "major":
+        return renderMajor();
       case "interests":
         return renderInterests();
+      case "dietary":
+        return renderDietary();
       case "checkin":
         return renderCheckinStatus();
-      case "responses":
-        return renderQuestionResponses();
       default:
         return renderOverview();
     }
