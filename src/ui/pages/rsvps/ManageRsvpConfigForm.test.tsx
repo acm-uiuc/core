@@ -117,7 +117,7 @@ describe("RsvpConfigForm Tests", () => {
   it("allows toggling check-in enabled", async () => {
     getRsvpConfigMock.mockResolvedValue(mockRsvpConfig);
     const user = userEvent.setup();
-    renderComponent();
+    await renderComponent();
 
     await screen.findByLabelText(/RSVP Opens At/i);
 

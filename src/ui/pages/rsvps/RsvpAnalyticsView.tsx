@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Box,
   Title,
@@ -75,27 +75,28 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
     dietaryRestrictionsBreakdown: {},
   });
 
-  useEffect(() => {
-    fetchRsvps();
-  }, [eventId]);
-
-  const fetchRsvps = async () => {
+  const fetchRsvps = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getRsvps(eventId);
-      setRsvps(data);
+      const validatedData = data.map((item) => rsvpSchema.parse(item));
+      setRsvps(validatedData);
       calculateStats(data);
     } catch (error) {
       console.error("Error fetching RSVPs:", error);
       notifications.show({
         title: "Error fetching RSVPs",
-        message: `${error}`,
+        message: error instanceof Error ? error.message : String(error),
         color: "red",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [eventId, getRsvps]);
+
+  useEffect(() => {
+    fetchRsvps();
+  }, [fetchRsvps]);
 
   const calculateStats = (rsvpData: RsvpData[]) => {
     const totalRsvps = rsvpData.length;
@@ -270,14 +271,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
           <Text c="dimmed" ta="center">
             User interests data not available yet
           </Text>
-          <Badge
-            color="yellow"
-            variant="light"
-            mt="sm"
-            style={{ display: "block", margin: "0 auto", width: "fit-content" }}
-          >
-            Coming Soon
-          </Badge>
         </Box>
       )}
     </Paper>

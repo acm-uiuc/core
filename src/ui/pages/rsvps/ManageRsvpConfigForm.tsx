@@ -61,7 +61,8 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
     setNoConfigFound(false);
     try {
       const data = await getRsvpConfig(eventId);
-      setConfigData(data);
+      const validatedData = rsvpConfigSchema.parse(data);
+      setConfigData(validatedData);
 
       form.setValues({
         rsvpOpenAt: data.rsvpOpenAt,
@@ -186,6 +187,7 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
                 ? new Date(form.values.rsvpOpenAt * 1000)
                 : null
             }
+            valueFormat="MM/DD/YYYY HH:mm"
             onChange={(date) => {
               if (date) {
                 const timestamp = Math.floor(
@@ -216,6 +218,7 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
                 ? new Date(form.values.rsvpCloseAt * 1000)
                 : null
             }
+            valueFormat="MM/DD/YYYY HH:mm"
             onChange={(date) => {
               if (date) {
                 const timestamp = Math.floor(
