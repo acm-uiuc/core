@@ -17,7 +17,7 @@ import {
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import supertest from "supertest";
-import { createJwt } from "./auth.test.js";
+import { createJwt } from "./utils.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { randomUUID } from "crypto";
 

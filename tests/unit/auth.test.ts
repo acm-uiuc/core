@@ -1,45 +1,10 @@
-import { expect, test, vi } from "vitest";
+import { expect, test } from "vitest";
 import init from "../../src/api/server.js";
-import {
-  secretObject,
-  jwtPayload,
-  jwtPayloadNoGroups,
-} from "./secret.testdata.js";
-import jwt from "jsonwebtoken";
 import { allAppRoles, AppRoles } from "../../src/common/roles.js";
-import { beforeEach, describe } from "node:test";
+import { beforeEach, describe } from "vitest";
+import { createJwt, createJwtNoGroups } from "./utils.js";
 
 const app = await init();
-const jwt_secret = secretObject["jwt_key"];
-export function createJwt(date?: Date, groups?: string[], email?: string) {
-  let modifiedPayload = {
-    ...jwtPayload,
-    email: email || jwtPayload.email,
-    groups: [...jwtPayload.groups],
-  };
-  if (date) {
-    const nowMs = Math.floor(date.valueOf() / 1000);
-    const laterMs = nowMs + 3600 * 24;
-    modifiedPayload = {
-      ...modifiedPayload,
-      iat: nowMs,
-      nbf: nowMs,
-      exp: laterMs,
-    };
-  }
-
-  if (groups) {
-    modifiedPayload.groups = groups;
-  }
-  return jwt.sign(modifiedPayload, jwt_secret, { algorithm: "HS256" });
-}
-
-export function createJwtNoGroups() {
-  const modifiedPayload = jwtPayloadNoGroups;
-  return jwt.sign(modifiedPayload, jwt_secret, { algorithm: "HS256" });
-}
-
-vi.stubEnv("JwtSigningKey", jwt_secret);
 
 const testJwt = createJwt();
 const testJwtNoGroups = createJwtNoGroups();

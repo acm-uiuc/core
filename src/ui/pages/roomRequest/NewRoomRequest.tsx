@@ -29,6 +29,9 @@ import {
   roomRequestSchema,
   specificRoomSetupRooms,
   getSemesterDateRange,
+  RoomRequestGetResponse,
+  roomRequestCompatShim,
+  roomRequestDataSchema,
 } from "@common/types/roomRequest";
 import { useNavigate } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
@@ -37,14 +40,13 @@ import { ZodError } from "zod/v4";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 import { useAuth } from "@ui/components/AuthContext";
 import { getPrimarySuggestedOrg } from "@ui/util";
-import { IconInfoCircle } from "@tabler/icons-react";
 import {
   UrbanaDateTimePicker,
   formatChicagoTime,
-  utcUnixToChicagoDisplayDate,
 } from "@ui/components/UrbanaDateTimePicker";
-import { isInDefaultTimezone } from "@common/time";
 import { NonUrbanaTimezoneAlert } from "@ui/components/NonUrbanaTimezoneAlert";
+import { getUserRoles } from "@ui/components/AuthGuard";
+import { AppRoles } from "@common/roles";
 
 const getEffectiveMinDate = (
   semester: string | undefined,
@@ -170,7 +172,7 @@ interface NewRoomRequestProps {
   createRoomRequest?: (
     payload: RoomRequestFormValues,
   ) => Promise<RoomRequestPostResponse>;
-  initialValues?: RoomRequestFormValues;
+  initialValues?: RoomRequestGetResponse["data"];
   viewOnly?: boolean;
 }
 
@@ -201,6 +203,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
 }) => {
   const [active, setActive] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [canBypassAuth, setCanBypassAuth] = useState(false);
   const numSteps = 4;
   const navigate = useNavigate();
   const semesterOptions = getSemesters();
@@ -229,7 +232,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   type InterimRoomRequestFormValues = {
     [K in keyof Omit<
       RoomRequestFormValues,
-      "eventStart" | "eventEnd" | "recurrenceEndDate"
+      "eventStart" | "eventEnd" | "recurrenceEndDate" | "requestsSccsRoom"
     >]: RoomRequestFormValues[K] extends any
       ? RoomRequestFormValues[K] | undefined
       : RoomRequestFormValues[K];
@@ -237,7 +240,18 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     eventStart: number | undefined;
     eventEnd: number | undefined;
     recurrenceEndDate: number | undefined;
+    requestsSccsRoom?: boolean | undefined;
   };
+
+  useEffect(() => {
+    const checkBypassRole = async () => {
+      const roles = await getUserRoles("core");
+      if (roles?.includes(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
+        setCanBypassAuth(true);
+      }
+    };
+    checkBypassRole();
+  }, []);
 
   const form = useForm<InterimRoomRequestFormValues>({
     enhanceGetInputProps: () => ({ readOnly: viewOnly }),
@@ -274,6 +288,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
           foodOrDrink: undefined,
           crafting: undefined,
           comments: "",
+          requestsSccsRoom: undefined,
         } as InterimRoomRequestFormValues),
 
     validate: (values) => {
@@ -284,9 +299,11 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         eventEnd: unixToDate(values.eventEnd),
         recurrenceEndDate: unixToDate(values.recurrenceEndDate),
       };
-
+      const schema = viewOnly
+        ? roomRequestDataSchema.extend(roomRequestCompatShim)
+        : roomRequestDataSchema;
       const allErrors: Record<string, React.ReactNode> =
-        zodResolver(roomRequestSchema)(valuesForValidation);
+        zodResolver(schema)(valuesForValidation);
 
       if (viewOnly) {
         return {};
@@ -322,6 +339,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         "estimatedAttendees",
         "seatsNeeded",
         "setupDetails",
+        "requestsSccsRoom",
       ];
 
       const step3Fields = ["foodOrDrink", "crafting", "comments"];
@@ -480,10 +498,19 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             placeholder="Select host organization"
             withAsterisk
             searchable
-            data={Object.entries(Organizations).map((x) => ({
-              value: x[0],
-              label: x[1].name,
-            }))}
+            data={
+              canBypassAuth
+                ? Object.entries(Organizations).map(([key, org]) => ({
+                    value: key,
+                    label: org.name,
+                  }))
+                : orgRoles
+                    .filter((x) => x.role === "LEAD")
+                    .map((x) => ({
+                      value: x.org,
+                      label: Organizations[x.org].name,
+                    }))
+            }
             {...form.getInputProps("host")}
           />
           <TextInput
@@ -786,6 +813,14 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 placeholder="Enter specific room or building preferences"
                 {...form.getInputProps("specificRoom")}
               />
+              {viewOnly && !form.values.requestsSccsRoom ? null : (
+                <YesNoField
+                  label="Are you requesting a room in the Siebel Center for Computer Science?"
+                  description={`You MUST select "Yes" if applicable to ensure SCCS F&S can look at your request.`}
+                  field="requestsSccsRoom"
+                  form={form}
+                />
+              )}
 
               <NumberInput
                 mt="md"

@@ -19,6 +19,20 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
+Object.defineProperty(navigator, "locks", {
+  writable: true,
+  value: {
+    request: vi.fn(async (name, options, callback) => {
+      const cb = typeof options === "function" ? options : callback;
+      return await cb({ name, mode: options?.mode || "exclusive" });
+    }),
+    query: vi.fn(async () => ({
+      held: [],
+      pending: [],
+    })),
+  },
+});
+
 class ResizeObserver {
   observe() {}
   unobserve() {}

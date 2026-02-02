@@ -200,6 +200,7 @@ export const roomRequestDataSchema = roomRequestBaseSchema.extend({
   hostingMinors: z.boolean(),
   locationType: z.enum(["in-person", "virtual", "both"]),
   spaceType: z.optional(z.string().min(1)),
+  requestsSccsRoom: z.boolean().optional(),
   specificRoom: z.optional(z.string().min(1)),
   estimatedAttendees: z.optional(z.number().positive()),
   seatsNeeded: z.optional(z.number().positive()),
@@ -299,6 +300,17 @@ export const roomRequestSchema = roomRequestDataSchema.
     {
       message: "Invalid setup details response.",
       path: ["setupDetails"]
+    }
+  ).
+  refine(
+    (data) => {
+      const isPhysical =
+        data.locationType === "in-person" || data.locationType === "both";
+      return !isPhysical || data.requestsSccsRoom !== undefined;
+    },
+    {
+      message: "Please specify whether you are requesting an SCCS room",
+      path: ["requestsSccsRoom"],
     }
   ).
   superRefine((data, ctx) => {
@@ -402,8 +414,11 @@ export const roomRequestSchema = roomRequestDataSchema.
 
 export type RoomRequestFormValues = z.infer<typeof roomRequestSchema>;
 
+export const roomRequestCompatShim = {
+  requestsSccsRoom: z.boolean().optional()
+}
 export const roomRequestGetResponse = z.object({
-  data: roomRequestSchema,
+  data: roomRequestDataSchema.extend(roomRequestCompatShim),
   updates: z.array(roomRequestStatusUpdate)
 });
 
@@ -418,13 +433,25 @@ export type RoomRequestStatusUpdatePostBody = z.infer<
 
 
 export const roomGetResponse = z.array(
-  roomRequestBaseSchema.extend({
-    requestId: z.string().uuid(),
-    status: z.nativeEnum(RoomRequestStatus)
+  roomRequestDataSchema.extend(roomRequestCompatShim).extend({
+    requestId: z.uuid(),
+    status: z.enum(RoomRequestStatus)
   })
 );
 
 export type RoomRequestGetAllResponse = z.infer<typeof roomGetResponse>;
+
+export const roomRequestListItem = z.object({
+  requestId: z.uuid(),
+  title: z.string(),
+  host: OrgUniqueId,
+  status: z.enum(RoomRequestStatus),
+  semester: illinoisSemesterId,
+  requestsSccsRoom: z.boolean().optional(),
+});
+
+export type RoomRequestListItem = z.infer<typeof roomRequestListItem>;
+export type RoomRequestListResponse = RoomRequestListItem[];
 
 export function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);

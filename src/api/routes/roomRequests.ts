@@ -17,6 +17,7 @@ import {
   DatabaseInsertError,
   InternalServerError,
   NotFoundError,
+  UnauthorizedError,
 } from "common/errors/index.js";
 import {
   GetItemCommand,
@@ -47,6 +48,7 @@ import { createPresignedGet, createPresignedPut } from "api/functions/s3.js";
 import { HeadObjectCommand, NotFound, S3Client } from "@aws-sdk/client-s3";
 import { assertAuthenticated } from "api/authenticated.js";
 import { Organizations } from "@acm-uiuc/js-shared";
+import { getUserOrgRoles } from "api/functions/organizations.js";
 
 async function verifyRoomRequestAccess(
   fastify: FastifyInstance,
@@ -55,7 +57,10 @@ async function verifyRoomRequestAccess(
   semesterId: string,
 ): Promise<QueryCommandOutput> {
   let command: QueryCommand;
-  if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
+  if (
+    request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH) ||
+    request.userRoles?.has(AppRoles.ROOM_REQUEST_VIEW_ALL)
+  ) {
     command = new QueryCommand({
       TableName: genericConfig.RoomRequestsTableName,
       IndexName: "RequestIdIndex",
@@ -270,7 +275,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/:semesterId",
     {
       schema: withRoles(
-        [AppRoles.ROOM_REQUEST_CREATE],
+        [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_VIEW_ALL],
         withTags(["Room Requests"], {
           summary: "Get room requests for a specific semester.",
           params: z.object({
@@ -278,7 +283,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }),
           querystring: z.object(
             getDefaultFilteringQuerystring({
-              defaultSelect: ["requestId", "title"],
+              defaultSelect: ["requestId", "title", "requestsSccsRoom"],
             }),
           ),
         }),
@@ -290,7 +295,10 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { ProjectionExpression, ExpressionAttributeNames } =
         generateProjectionParams({ userFields: request.query.select });
       let command: QueryCommand;
-      if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
+      if (
+        request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH) ||
+        request.userRoles?.has(AppRoles.ROOM_REQUEST_VIEW_ALL)
+      ) {
         command = new QueryCommand({
           TableName: genericConfig.RoomRequestsTableName,
           KeyConditionExpression: "semesterId = :semesterValue",
@@ -383,6 +391,25 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
+      const isSuperuser = request.userRoles?.has(
+        AppRoles.BYPASS_OBJECT_LEVEL_AUTH,
+      );
+      if (!isSuperuser) {
+        const userOrgRoles = await getUserOrgRoles({
+          username: request.username,
+          dynamoClient: fastify.dynamoClient,
+          logger: request.log,
+        });
+        const leadRoles = userOrgRoles
+          .filter((x) => x.role === "LEAD")
+          .map((x) => x.org);
+        if (!leadRoles.includes(request.body.host)) {
+          throw new UnauthorizedError({
+            message:
+              "User is not authorized to create room request for this organization.",
+          });
+        }
+      }
       const requestId = request.id;
       const body = {
         ...request.body,
@@ -494,7 +521,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/:semesterId/:requestId",
     {
       schema: withRoles(
-        [AppRoles.ROOM_REQUEST_CREATE],
+        [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_VIEW_ALL],
         withTags(["Room Requests"], {
           summary: "Get specific room request data.",
           params: z.object({
@@ -581,7 +608,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/:semesterId/:requestId/attachmentDownloadUrl/:createdAt/:status",
     {
       schema: withRoles(
-        [AppRoles.ROOM_REQUEST_CREATE],
+        [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_VIEW_ALL],
         withTags(["Room Requests"], {
           summary:
             "Get attachment download URL for a specific room request update.",

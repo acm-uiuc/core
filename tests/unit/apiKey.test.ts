@@ -1,7 +1,7 @@
 import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/server.js";
-import { createJwt } from "./auth.test.js";
+import { createJwt } from "./utils.js";
 import { secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 import {

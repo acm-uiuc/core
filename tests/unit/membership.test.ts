@@ -13,7 +13,7 @@ import {
 import { genericConfig } from "../../src/common/config.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
-import { createJwt } from "./auth.test.js";
+import { createJwt } from "./utils.js";
 
 const app = await init();
 const ddbMock = mockClient(DynamoDBClient);
