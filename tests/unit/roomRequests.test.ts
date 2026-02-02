@@ -79,6 +79,7 @@ describe("Test Room Request Creation", async () => {
       foodOrDrink: false,
       crafting: false,
       comments: "",
+      requestsSccsRoom: true,
     };
     const response = await supertest(app.server)
       .post("/api/v1/roomRequests")
@@ -114,6 +115,7 @@ describe("Test Room Request Creation", async () => {
       foodOrDrink: false,
       crafting: false,
       comments: "",
+      requestsSccsRoom: true,
     };
     const response = await supertest(app.server)
       .post("/api/v1/roomRequests")
@@ -146,6 +148,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: false,
       });
     expect(response.statusCode).toBe(400);
     expect(response.body.message).toContain(
@@ -177,6 +180,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: true,
       });
     expect(response.statusCode).toBe(400);
     expect(response.body.message).toContain(
@@ -209,6 +213,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: true,
       });
     expect(response.statusCode).toBe(400);
     expect(response.body.message).toContain(
@@ -245,6 +250,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: true,
       });
 
     expect(response.statusCode).toBe(400);
@@ -279,6 +285,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: false,
       });
 
     expect(response.statusCode).toBe(400);
@@ -324,6 +331,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: false,
       });
 
     expect(response.statusCode).toBe(400);
@@ -372,6 +380,7 @@ describe("Test Room Request Creation", async () => {
       offCampusPartners: null,
       nonIllinoisSpeaker: null,
       nonIllinoisAttendees: null,
+      requestsSccsRoom: false,
     };
 
     const response = await supertest(app.server)
@@ -410,6 +419,7 @@ describe("Test Room Request Creation", async () => {
       offCampusPartners: null,
       nonIllinoisSpeaker: null,
       nonIllinoisAttendees: null,
+      requestsSccsRoom: false,
     };
 
     const response = await supertest(app.server)
