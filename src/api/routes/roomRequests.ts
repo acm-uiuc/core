@@ -17,6 +17,7 @@ import {
   DatabaseInsertError,
   InternalServerError,
   NotFoundError,
+  UnauthorizedError,
 } from "common/errors/index.js";
 import {
   GetItemCommand,
@@ -47,6 +48,7 @@ import { createPresignedGet, createPresignedPut } from "api/functions/s3.js";
 import { HeadObjectCommand, NotFound, S3Client } from "@aws-sdk/client-s3";
 import { assertAuthenticated } from "api/authenticated.js";
 import { Organizations } from "@acm-uiuc/js-shared";
+import { getUserOrgRoles } from "api/functions/organizations.js";
 
 async function verifyRoomRequestAccess(
   fastify: FastifyInstance,
@@ -389,6 +391,20 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
+      const userOrgRoles = await getUserOrgRoles({
+        username: request.username,
+        dynamoClient: fastify.dynamoClient,
+        logger: request.log,
+      });
+      const leadRoles = userOrgRoles
+        .filter((x) => x.role === "LEAD")
+        .map((x) => x.org);
+      if (!leadRoles.includes(request.body.host)) {
+        throw new UnauthorizedError({
+          message:
+            "User is not authorized to create room request for this organization.",
+        });
+      }
       const requestId = request.id;
       const body = {
         ...request.body,
