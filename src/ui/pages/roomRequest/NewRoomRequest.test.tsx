@@ -18,7 +18,7 @@ vi.mock("react-router-dom", async () => {
     useNavigate: () => mockNavigate,
   };
 });
-vi.mock("@ui/components/AuthContext", async () => {
+vi.mock("@ui/components/AuthContext", () => {
   return {
     useAuth: vi.fn().mockReturnValue({
       userData: { email: "test@illinois.edu" },

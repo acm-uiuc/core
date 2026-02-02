@@ -200,7 +200,7 @@ export const roomRequestDataSchema = roomRequestBaseSchema.extend({
   hostingMinors: z.boolean(),
   locationType: z.enum(["in-person", "virtual", "both"]),
   spaceType: z.optional(z.string().min(1)),
-  requestsSccsRoom: z.boolean(),
+  requestsSccsRoom: z.boolean().optional(),
   specificRoom: z.optional(z.string().min(1)),
   estimatedAttendees: z.optional(z.number().positive()),
   seatsNeeded: z.optional(z.number().positive()),
@@ -300,6 +300,17 @@ export const roomRequestSchema = roomRequestDataSchema.
     {
       message: "Invalid setup details response.",
       path: ["setupDetails"]
+    }
+  ).
+  refine(
+    (data) => {
+      const isPhysical =
+        data.locationType === "in-person" || data.locationType === "both";
+      return !isPhysical || data.requestsSccsRoom !== undefined;
+    },
+    {
+      message: "Please specify whether you are requesting an SCCS room",
+      path: ["requestsSccsRoom"],
     }
   ).
   superRefine((data, ctx) => {

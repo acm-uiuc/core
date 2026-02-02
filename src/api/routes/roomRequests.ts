@@ -59,7 +59,6 @@ async function verifyRoomRequestAccess(
     request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH) ||
     request.userRoles?.has(AppRoles.ROOM_REQUEST_VIEW_ALL)
   ) {
-  ) {
     command = new QueryCommand({
       TableName: genericConfig.RoomRequestsTableName,
       IndexName: "RequestIdIndex",

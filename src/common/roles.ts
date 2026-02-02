@@ -73,5 +73,5 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.VIEW_USER_INFO]: "User Information Viewer",
   [AppRoles.STORE_MANAGER]: "Store Manager",
   [AppRoles.STORE_FULFILLMENT]: "Store Fulfillment",
-  [AppRoles.ROOM_REQUEST_VIEW_ALL]: "All Room Request Viewer"
+  [AppRoles.ROOM_REQUEST_VIEW_ALL]: "All Room Request Viewer",
 };
