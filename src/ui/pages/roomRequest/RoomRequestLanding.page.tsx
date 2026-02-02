@@ -9,7 +9,7 @@ import {
   getPreviousSemesters,
   getSemesters,
   RoomRequestFormValues,
-  RoomRequestGetAllResponse,
+  RoomRequestListResponse,
   RoomRequestPostResponse,
   type RoomRequestStatus,
 } from "@common/types/roomRequest";
@@ -29,7 +29,8 @@ export const ManageRoomRequestsPage: React.FC = () => {
   const setSemester = (newSemester: string | null) => {
     if (newSemester && newSemester !== semester) {
       setSemesterState(newSemester);
-      setSearchParams({ semester: newSemester });
+      const currentParams = Object.fromEntries(searchParams.entries());
+      setSearchParams({ ...currentParams, semester: newSemester });
     }
   };
 
@@ -42,16 +43,17 @@ export const ManageRoomRequestsPage: React.FC = () => {
 
   const getRoomRequests = async (
     semester: string,
-  ): Promise<RoomRequestGetAllResponse> => {
+  ): Promise<RoomRequestListResponse> => {
     const response = await api.get<
       {
         requestId: string;
         title: string;
         host: OrganizationId;
         status: RoomRequestStatus;
+        requestsSccsRoom: boolean | undefined;
       }[]
     >(
-      `/api/v1/roomRequests/${semester}?select=requestId&select=title&select=host&select=status`,
+      `/api/v1/roomRequests/${semester}?select=requestId&select=title&select=host&select=status&select=requestsSccsRoom`,
     );
     return response.data.map((x) => ({ ...x, semester }));
   };
@@ -69,7 +71,8 @@ export const ManageRoomRequestsPage: React.FC = () => {
       const defaultSemester = nextSemesters[0].value;
       if (defaultSemester !== semester) {
         setSemesterState(defaultSemester);
-        setSearchParams({ semester: defaultSemester });
+        const currentParams = Object.fromEntries(searchParams.entries());
+        setSearchParams({ ...currentParams, semester: defaultSemester });
       }
     }
   }, [searchParams, semester, semesterOptions, nextSemesters, setSearchParams]);

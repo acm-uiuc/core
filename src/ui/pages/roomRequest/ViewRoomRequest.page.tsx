@@ -37,6 +37,8 @@ import {
   roomRequestDataSchema,
   validMimeTypes,
   maxAttachmentSizeBytes,
+  RoomRequestFormValues,
+  roomRequestGetResponse,
 } from "@common/types/roomRequest";
 import { useParams } from "react-router-dom";
 import { getStatusColor, getStatusIcon } from "./roomRequestUtils";
@@ -142,11 +144,8 @@ export const ViewRoomRequest: React.FC = () => {
       `/api/v1/roomRequests/${semesterId}/${requestId}`,
     );
     try {
-      const parsed = {
-        data: await roomRequestSchema.parseAsync(response.data.data),
-        updates: response.data.updates,
-      };
-      setData(parsed);
+      const real = await roomRequestGetResponse.parseAsync(response.data);
+      setData(real);
     } catch (e) {
       notifications.show({
         title: "Failed to validate room reservation",

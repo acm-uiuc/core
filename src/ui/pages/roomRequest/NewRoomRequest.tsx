@@ -29,6 +29,9 @@ import {
   roomRequestSchema,
   specificRoomSetupRooms,
   getSemesterDateRange,
+  RoomRequestGetResponse,
+  roomRequestCompatShim,
+  roomRequestDataSchema,
 } from "@common/types/roomRequest";
 import { useNavigate } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
@@ -170,7 +173,7 @@ interface NewRoomRequestProps {
   createRoomRequest?: (
     payload: RoomRequestFormValues,
   ) => Promise<RoomRequestPostResponse>;
-  initialValues?: RoomRequestFormValues;
+  initialValues?: RoomRequestGetResponse["data"];
   viewOnly?: boolean;
 }
 
@@ -229,7 +232,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   type InterimRoomRequestFormValues = {
     [K in keyof Omit<
       RoomRequestFormValues,
-      "eventStart" | "eventEnd" | "recurrenceEndDate"
+      "eventStart" | "eventEnd" | "recurrenceEndDate" | "requestsSccsRoom"
     >]: RoomRequestFormValues[K] extends any
       ? RoomRequestFormValues[K] | undefined
       : RoomRequestFormValues[K];
@@ -237,6 +240,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     eventStart: number | undefined;
     eventEnd: number | undefined;
     recurrenceEndDate: number | undefined;
+    requestsSccsRoom?: boolean | undefined;
   };
 
   const form = useForm<InterimRoomRequestFormValues>({
@@ -274,6 +278,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
           foodOrDrink: undefined,
           crafting: undefined,
           comments: "",
+          requestsSccsRoom: undefined,
         } as InterimRoomRequestFormValues),
 
     validate: (values) => {
@@ -284,9 +289,11 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         eventEnd: unixToDate(values.eventEnd),
         recurrenceEndDate: unixToDate(values.recurrenceEndDate),
       };
-
+      const schema = viewOnly
+        ? roomRequestDataSchema.extend(roomRequestCompatShim)
+        : roomRequestDataSchema;
       const allErrors: Record<string, React.ReactNode> =
-        zodResolver(roomRequestSchema)(valuesForValidation);
+        zodResolver(schema)(valuesForValidation);
 
       if (viewOnly) {
         return {};
@@ -322,6 +329,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         "estimatedAttendees",
         "seatsNeeded",
         "setupDetails",
+        "requestsSccsRoom",
       ];
 
       const step3Fields = ["foodOrDrink", "crafting", "comments"];
@@ -480,10 +488,12 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             placeholder="Select host organization"
             withAsterisk
             searchable
-            data={Object.entries(Organizations).map((x) => ({
-              value: x[0],
-              label: x[1].name,
-            }))}
+            data={orgRoles
+              .filter((x) => x.role === "LEAD")
+              .map((x) => ({
+                value: x.org,
+                label: Organizations[x.org].name,
+              }))}
             {...form.getInputProps("host")}
           />
           <TextInput
@@ -786,6 +796,14 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
                 placeholder="Enter specific room or building preferences"
                 {...form.getInputProps("specificRoom")}
               />
+              {viewOnly && !form.values.requestsSccsRoom ? null : (
+                <YesNoField
+                  label="Are you requesting a room in the Siebel Center for Computer Science?"
+                  description={`You MUST select "Yes" if applicable to ensure SCCS F&S can look at your request.`}
+                  field="requestsSccsRoom"
+                  form={form}
+                />
+              )}
 
               <NumberInput
                 mt="md"
