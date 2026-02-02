@@ -56,10 +56,9 @@ async function verifyRoomRequestAccess(
 ): Promise<QueryCommandOutput> {
   let command: QueryCommand;
   if (
-    request.userRoles?.has(
-      AppRoles.BYPASS_OBJECT_LEVEL_AUTH ||
-        request.userRoles.has(AppRoles.ROOM_REQUEST_VIEW_ALL),
-    )
+    request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH) ||
+    request.userRoles?.has(AppRoles.ROOM_REQUEST_VIEW_ALL)
+  ) {
   ) {
     command = new QueryCommand({
       TableName: genericConfig.RoomRequestsTableName,
