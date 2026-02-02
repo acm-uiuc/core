@@ -1,29 +1,39 @@
 import React, { useEffect, useState } from "react";
 import {
-  RoomRequestGetAllResponse,
+  RoomRequestListResponse,
   formatStatus,
 } from "@common/types/roomRequest";
 import { Badge, Loader, Table } from "@mantine/core";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getStatusColor } from "./roomRequestUtils";
 import { Organizations } from "@acm-uiuc/js-shared";
 
 interface ExistingRoomRequestsProps {
-  getRoomRequests: (semester: string) => Promise<RoomRequestGetAllResponse>;
+  getRoomRequests: (semester: string) => Promise<RoomRequestListResponse>;
   semester: string;
 }
 const ExistingRoomRequests: React.FC<ExistingRoomRequestsProps> = ({
   getRoomRequests,
   semester,
 }) => {
-  const [data, setData] = useState<RoomRequestGetAllResponse | null>(null);
+  const [data, setData] = useState<RoomRequestListResponse | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const onlySccs = searchParams.get("onlySccs") === "true";
+
   useEffect(() => {
     const inner = async () => {
       setData(await getRoomRequests(semester));
     };
     inner();
   }, [semester]);
+
+  const filteredData = data
+    ? onlySccs
+      ? data.filter((item) => item.requestsSccsRoom)
+      : data
+    : null;
+
   return (
     <>
       <Table>
@@ -35,9 +45,9 @@ const ExistingRoomRequests: React.FC<ExistingRoomRequestsProps> = ({
           </Table.Tr>
         </Table.Thead>
         {!data && <Loader size={32} />}
-        {data && (
+        {filteredData && (
           <Table.Tbody>
-            {data.map((item) => {
+            {filteredData.map((item) => {
               return (
                 <Table.Tr key={item.requestId}>
                   <Table.Td

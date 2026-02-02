@@ -9,7 +9,7 @@ import {
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import supertest from "supertest";
-import { createJwt } from "./auth.test.js";
+import { createJwt } from "./utils.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { environmentConfig, genericConfig } from "../../src/common/config.js";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
@@ -20,6 +20,10 @@ import { RoomRequestStatus } from "../../src/common/types/roomRequest.js";
 vi.mock("../../src/api/functions/s3.js", () => ({
   createPresignedPut: vi.fn(),
   createPresignedGet: vi.fn(),
+}));
+
+vi.mock("../../src/api/functions/organizations.js", () => ({
+  getUserOrgRoles: vi.fn().mockResolvedValue([{ org: "C01", role: "LEAD" }]),
 }));
 
 const ddbMock = mockClient(DynamoDBClient);
@@ -79,6 +83,7 @@ describe("Test Room Request Creation", async () => {
       foodOrDrink: false,
       crafting: false,
       comments: "",
+      requestsSccsRoom: true,
     };
     const response = await supertest(app.server)
       .post("/api/v1/roomRequests")
@@ -114,6 +119,7 @@ describe("Test Room Request Creation", async () => {
       foodOrDrink: false,
       crafting: false,
       comments: "",
+      requestsSccsRoom: true,
     };
     const response = await supertest(app.server)
       .post("/api/v1/roomRequests")
@@ -146,6 +152,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: false,
       });
     expect(response.statusCode).toBe(400);
     expect(response.body.message).toContain(
@@ -177,6 +184,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: true,
       });
     expect(response.statusCode).toBe(400);
     expect(response.body.message).toContain(
@@ -209,6 +217,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: true,
       });
     expect(response.statusCode).toBe(400);
     expect(response.body.message).toContain(
@@ -245,6 +254,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: true,
       });
 
     expect(response.statusCode).toBe(400);
@@ -279,6 +289,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: false,
       });
 
     expect(response.statusCode).toBe(400);
@@ -324,6 +335,7 @@ describe("Test Room Request Creation", async () => {
         offCampusPartners: null,
         nonIllinoisSpeaker: null,
         nonIllinoisAttendees: null,
+        requestsSccsRoom: false,
       });
 
     expect(response.statusCode).toBe(400);
@@ -372,6 +384,7 @@ describe("Test Room Request Creation", async () => {
       offCampusPartners: null,
       nonIllinoisSpeaker: null,
       nonIllinoisAttendees: null,
+      requestsSccsRoom: false,
     };
 
     const response = await supertest(app.server)
@@ -410,6 +423,7 @@ describe("Test Room Request Creation", async () => {
       offCampusPartners: null,
       nonIllinoisSpeaker: null,
       nonIllinoisAttendees: null,
+      requestsSccsRoom: false,
     };
 
     const response = await supertest(app.server)
@@ -433,6 +447,7 @@ describe("Test Room Request Creation", async () => {
   });
   afterAll(async () => {
     await app.close();
+    vi.resetAllMocks();
   });
   beforeEach(() => {
     (app as any).redisClient.flushall();

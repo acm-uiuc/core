@@ -6,7 +6,6 @@ import NewRoomRequest from "./NewRoomRequest";
 import { MantineProvider } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import userEvent from "@testing-library/user-event";
-import { RoomRequestStatus } from "@common/types/roomRequest";
 
 // Mock the navigate function
 const mockNavigate = vi.fn();
@@ -17,6 +16,14 @@ vi.mock("react-router-dom", async () => {
   return {
     ...actual,
     useNavigate: () => mockNavigate,
+  };
+});
+vi.mock("@ui/components/AuthContext", () => {
+  return {
+    useAuth: vi.fn().mockReturnValue({
+      userData: { email: "test@illinois.edu" },
+      orgRoles: [{ org: "C01", role: "LEAD" }],
+    }),
   };
 });
 

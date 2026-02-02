@@ -17,6 +17,7 @@ export enum BaseRoles {
   LINKS_ADMIN = "admin:links",
   STRIPE_LINK_CREATOR = "create:stripeLink",
   BYPASS_OBJECT_LEVEL_AUTH = "bypass:ola",
+  ROOM_REQUEST_VIEW_ALL = "viewAll:roomRequest",
   ROOM_REQUEST_CREATE = "create:roomRequest",
   ROOM_REQUEST_UPDATE = "update:roomRequest",
   AUDIT_LOG_VIEWER = "view:auditLog",
@@ -72,4 +73,5 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.VIEW_USER_INFO]: "User Information Viewer",
   [AppRoles.STORE_MANAGER]: "Store Manager",
   [AppRoles.STORE_FULFILLMENT]: "Store Fulfillment",
+  [AppRoles.ROOM_REQUEST_VIEW_ALL]: "All Room Request Viewer",
 };

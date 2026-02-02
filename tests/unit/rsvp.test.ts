@@ -11,7 +11,7 @@ import {
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/server.js";
-import { createJwt } from "./auth.test.js";
+import { createJwt } from "./utils.js";
 import { secretObject } from "./secret.testdata.js";
 import { Redis } from "../../src/api/types.js";
 import { FastifyBaseLogger } from "fastify";

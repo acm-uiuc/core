@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from "vitest";
 import init from "../../src/api/server.js";
-import { createJwt } from "./auth.test.js";
+import { createJwt } from "./utils.js";
 import supertest from "supertest";
 import { mockClient } from "aws-sdk-client-mock";
 import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";

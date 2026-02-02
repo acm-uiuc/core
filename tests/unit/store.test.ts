@@ -12,7 +12,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { SQSClient } from "@aws-sdk/client-sqs";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import { createJwt } from "./auth.test.js";
+import { createJwt } from "./utils.js";
 import { genericConfig } from "../../src/common/config.js";
 import {
   closedProductDefinition,

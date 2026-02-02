@@ -9,7 +9,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/server.js";
-import { createJwt } from "./auth.test.js";
+import { createJwt } from "./utils.js";
 import { secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
