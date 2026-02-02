@@ -12,7 +12,7 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
-import { createJwt } from "./auth.test.js";
+import { createJwt } from "./utils.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
 import { randomUUID } from "node:crypto";

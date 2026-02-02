@@ -5,7 +5,7 @@ import { mockClient } from "aws-sdk-client-mock";
 import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
-import { createJwt } from "./auth.test.js";
+import { createJwt } from "./utils.js";
 import { genericConfig } from "../../src/common/config.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { Modules } from "../../src/common/modules.js";

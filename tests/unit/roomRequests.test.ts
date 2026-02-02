@@ -9,7 +9,7 @@ import {
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import supertest from "supertest";
-import { createJwt } from "./auth.test.js";
+import { createJwt } from "./utils.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { environmentConfig, genericConfig } from "../../src/common/config.js";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
@@ -20,6 +20,10 @@ import { RoomRequestStatus } from "../../src/common/types/roomRequest.js";
 vi.mock("../../src/api/functions/s3.js", () => ({
   createPresignedPut: vi.fn(),
   createPresignedGet: vi.fn(),
+}));
+
+vi.mock("../../src/api/functions/organizations.js", () => ({
+  getUserOrgRoles: vi.fn().mockResolvedValue([{ org: "C01", role: "LEAD" }]),
 }));
 
 const ddbMock = mockClient(DynamoDBClient);
@@ -443,6 +447,7 @@ describe("Test Room Request Creation", async () => {
   });
   afterAll(async () => {
     await app.close();
+    vi.resetAllMocks();
   });
   beforeEach(() => {
     (app as any).redisClient.flushall();
