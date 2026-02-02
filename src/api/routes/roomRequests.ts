@@ -391,19 +391,24 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
-      const userOrgRoles = await getUserOrgRoles({
-        username: request.username,
-        dynamoClient: fastify.dynamoClient,
-        logger: request.log,
-      });
-      const leadRoles = userOrgRoles
-        .filter((x) => x.role === "LEAD")
-        .map((x) => x.org);
-      if (!leadRoles.includes(request.body.host)) {
-        throw new UnauthorizedError({
-          message:
-            "User is not authorized to create room request for this organization.",
+      const isSuperuser = request.userRoles?.has(
+        AppRoles.BYPASS_OBJECT_LEVEL_AUTH,
+      );
+      if (!isSuperuser) {
+        const userOrgRoles = await getUserOrgRoles({
+          username: request.username,
+          dynamoClient: fastify.dynamoClient,
+          logger: request.log,
         });
+        const leadRoles = userOrgRoles
+          .filter((x) => x.role === "LEAD")
+          .map((x) => x.org);
+        if (!leadRoles.includes(request.body.host)) {
+          throw new UnauthorizedError({
+            message:
+              "User is not authorized to create room request for this organization.",
+          });
+        }
       }
       const requestId = request.id;
       const body = {

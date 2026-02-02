@@ -40,14 +40,13 @@ import { ZodError } from "zod/v4";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 import { useAuth } from "@ui/components/AuthContext";
 import { getPrimarySuggestedOrg } from "@ui/util";
-import { IconInfoCircle } from "@tabler/icons-react";
 import {
   UrbanaDateTimePicker,
   formatChicagoTime,
-  utcUnixToChicagoDisplayDate,
 } from "@ui/components/UrbanaDateTimePicker";
-import { isInDefaultTimezone } from "@common/time";
 import { NonUrbanaTimezoneAlert } from "@ui/components/NonUrbanaTimezoneAlert";
+import { getUserRoles } from "@ui/components/AuthGuard";
+import { AppRoles } from "@common/roles";
 
 const getEffectiveMinDate = (
   semester: string | undefined,
@@ -204,6 +203,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
 }) => {
   const [active, setActive] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [canBypassAuth, setCanBypassAuth] = useState(false);
   const numSteps = 4;
   const navigate = useNavigate();
   const semesterOptions = getSemesters();
@@ -242,6 +242,16 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     recurrenceEndDate: number | undefined;
     requestsSccsRoom?: boolean | undefined;
   };
+
+  useEffect(() => {
+    const checkBypassRole = async () => {
+      const roles = await getUserRoles("core");
+      if (roles?.includes(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
+        setCanBypassAuth(true);
+      }
+    };
+    checkBypassRole();
+  }, []);
 
   const form = useForm<InterimRoomRequestFormValues>({
     enhanceGetInputProps: () => ({ readOnly: viewOnly }),
@@ -488,12 +498,19 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             placeholder="Select host organization"
             withAsterisk
             searchable
-            data={orgRoles
-              .filter((x) => x.role === "LEAD")
-              .map((x) => ({
-                value: x.org,
-                label: Organizations[x.org].name,
-              }))}
+            data={
+              canBypassAuth
+                ? Object.entries(Organizations).map(([key, org]) => ({
+                    value: key,
+                    label: org.name,
+                  }))
+                : orgRoles
+                    .filter((x) => x.role === "LEAD")
+                    .map((x) => ({
+                      value: x.org,
+                      label: Organizations[x.org].name,
+                    }))
+            }
             {...form.getInputProps("host")}
           />
           <TextInput
