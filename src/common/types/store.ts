@@ -1,4 +1,5 @@
 import * as z from "zod/v4";
+import { illinoisEmail, illinoisNetId, illinoisUin } from "./generic";
 
 // ============ Constants ============
 export const DEFAULT_VARIANT_ID = "DEFAULT";
@@ -251,3 +252,18 @@ export const createProductRequestSchema = productSchema
   })
 
 export type CreateProductRequest = z.infer<typeof createProductRequestSchema>;
+
+export const fetchUserOrdersRequest = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("UIN"),
+    data: illinoisUin,
+  }),
+  z.object({
+    type: z.literal("ILLINOIS_EMAIL"),
+    data: illinoisEmail,
+  }),
+  z.object({
+    type: z.literal("NETID"),
+    data: illinoisNetId,
+  }),
+]);

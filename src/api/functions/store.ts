@@ -2234,3 +2234,154 @@ export async function fulfillLineItems({
     throw error;
   }
 }
+
+export async function listUserOrders({
+  dynamoClient,
+  userId,
+  logger,
+}: {
+  dynamoClient: DynamoDBClient;
+  userId: string;
+  logger: ValidLoggers;
+}) {
+  const queryParams: QueryCommandInput = {
+    TableName: genericConfig.StoreCartsOrdersTableName,
+    KeyConditionExpression: "userId = :userId",
+    IndexName: "UserIdIndex",
+    ExpressionAttributeValues: marshall({
+      ":userId": userId,
+    }),
+  };
+
+  const lineItems: Record<string, unknown>[] = [];
+  let lastEvaluatedKey: Record<string, AttributeValue> | undefined;
+  do {
+    const response = await dynamoClient.send(
+      new QueryCommand({
+        ...queryParams,
+        ExclusiveStartKey: lastEvaluatedKey,
+      }),
+    );
+    if (response.Items) {
+      lineItems.push(...response.Items.map((i) => unmarshall(i)));
+    }
+    lastEvaluatedKey = response.LastEvaluatedKey;
+  } while (lastEvaluatedKey);
+
+  if (lineItems.length === 0) {
+    return [];
+  }
+
+  // Get unique order IDs to fetch order metadata
+  const uniqueOrderIds = [
+    ...new Set(lineItems.map((li) => li.orderId as string)),
+  ];
+
+  // BatchGetItem has a limit of 100 items per request, so we need to chunk
+  const chunkSize = 100;
+  const chunks: string[][] = [];
+
+  for (let i = 0; i < uniqueOrderIds.length; i += chunkSize) {
+    chunks.push(uniqueOrderIds.slice(i, i + chunkSize));
+  }
+
+  class UnprocessedKeysError extends Error {
+    constructor() {
+      super("BatchGetItem returned unprocessed keys");
+      this.name = "UnprocessedKeysError";
+    }
+  }
+
+  // Process all chunks in parallel
+  const batchResults = await Promise.all(
+    chunks.map(async (chunk) => {
+      const results: {
+        orderId: string;
+        userId: string;
+        status: Order["status"];
+      }[] = [];
+      let keysToFetch = chunk.map((orderId) =>
+        marshall({ orderId, lineItemId: "ORDER" }),
+      );
+
+      await retryWithBackoff(
+        async () => {
+          const batchGetResponse = await dynamoClient.send(
+            new BatchGetItemCommand({
+              RequestItems: {
+                [genericConfig.StoreCartsOrdersTableName]: {
+                  Keys: keysToFetch,
+                  ProjectionExpression: "orderId, userId, #status",
+                  ExpressionAttributeNames: { "#status": "status" },
+                },
+              },
+            }),
+          );
+
+          const orderItems =
+            batchGetResponse.Responses?.[
+              genericConfig.StoreCartsOrdersTableName
+            ] || [];
+
+          for (const item of orderItems) {
+            const unmarshalled = unmarshall(item);
+            results.push({
+              orderId: unmarshalled.orderId as string,
+              userId: unmarshalled.userId as string,
+              status: unmarshalled.status as Order["status"],
+            });
+          }
+
+          const unprocessedKeys =
+            batchGetResponse.UnprocessedKeys?.[
+              genericConfig.StoreCartsOrdersTableName
+            ]?.Keys;
+
+          if (unprocessedKeys && unprocessedKeys.length > 0) {
+            keysToFetch = unprocessedKeys;
+            throw new UnprocessedKeysError();
+          }
+        },
+        {
+          maxRetries: 3,
+          shouldRetry: (error) => error instanceof UnprocessedKeysError,
+          onRetry: logOnRetry("BatchGetOrderMetadata", logger),
+        },
+      );
+
+      return results;
+    }),
+  );
+
+  // Flatten results and build the map
+  const orderMetadataMap = new Map<
+    string,
+    { userId: string; status: Order["status"] }
+  >();
+
+  for (const results of batchResults) {
+    for (const result of results) {
+      orderMetadataMap.set(result.orderId, {
+        userId: result.userId,
+        status: result.status,
+      });
+    }
+  }
+
+  return lineItems.map((i) => {
+    const orderMeta = orderMetadataMap.get(i.orderId as string);
+    return {
+      orderId: i.orderId as string,
+      lineItemId: i.lineItemId as string,
+      createdAt: i.createdAt as number,
+      expiresAt: i.expiresAt as number,
+      priceId: i.priceId as string,
+      productId: i.productId as string,
+      quantity: i.quantity as number,
+      variantId: i.variantId as string,
+      isFulfilled: (i.isFulfilled as boolean) ?? false,
+      userId: orderMeta?.userId as string,
+      status: orderMeta?.status as Order["status"],
+    };
+  });
+}

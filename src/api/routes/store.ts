@@ -11,12 +11,8 @@ import {
 } from "api/components/index.js";
 import { AppRoles } from "common/roles.js";
 import { genericConfig, STORE_CACHED_DURATION } from "common/config.js";
-import {
-  BaseError,
-  UnauthenticatedError,
-  ValidationError,
-} from "common/errors/index.js";
-import { verifyUiucAccessToken } from "api/functions/uin.js";
+import { BaseError, ValidationError } from "common/errors/index.js";
+import { getUserIdByUin, verifyUiucAccessToken } from "api/functions/uin.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
   listProducts,
@@ -28,6 +24,7 @@ import {
   modifyProduct,
   refundOrder,
   fulfillLineItems,
+  listUserOrders,
 } from "api/functions/store.js";
 import {
   createCheckoutRequestSchema,
@@ -39,6 +36,7 @@ import {
   productWithVariantsPublicCountSchema,
   modifyProductSchema,
   listProductsAdminResponseSchema,
+  fetchUserOrdersRequest,
 } from "common/types/store.js";
 import { assertAuthenticated } from "api/authenticated.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
@@ -345,6 +343,55 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const items = await listProductLineItems({
         dynamoClient: fastify.dynamoClient,
         productId: request.params.productId,
+        logger: request.log,
+      });
+      return reply.send({ items });
+    }),
+  );
+
+  // Get a given user's orders based on UIN or IllinoisEmail
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/orders/fetchByUserIdentifier",
+    {
+      schema: withRoles(
+        [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
+        withTags(["Store"], {
+          summary: "Fetch a given user's orders.",
+          body: fetchUserOrdersRequest,
+          response: {
+            200: {
+              description: "List of line items.",
+              content: {
+                "application/json": {
+                  schema: listOrdersResponseSchema,
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    assertAuthenticated(async (request, reply) => {
+      let userId: string;
+      switch (request.body.type) {
+        case "UIN":
+          const resp = await getUserIdByUin({
+            dynamoClient: fastify.dynamoClient,
+            uin: request.body.data,
+          });
+          userId = resp.id;
+          break;
+        case "ILLINOIS_EMAIL":
+          userId = request.body.data;
+          break;
+        case "NETID":
+          userId = `${request.body.data}@illinois.edu`;
+          break;
+      }
+      const items = await listUserOrders({
+        dynamoClient: fastify.dynamoClient,
+        userId,
         logger: request.log,
       });
       return reply.send({ items });

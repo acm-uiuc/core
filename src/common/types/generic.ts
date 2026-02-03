@@ -12,17 +12,31 @@ export const illinoisSemesterId = z
     example: "fa24",
   });
 
+const netIdPattern = /^[a-z]{2}[a-z0-9-]{1,6}$/i;
+
 export const illinoisNetId = z
   .string()
   .min(3, { message: "NetID must be at least 3 characters." })
   .max(8, { message: "NetID cannot be more than 8 characters." })
-  .regex(/^[a-z]{2}[a-z0-9-]{1,6}$/i, {
+  .regex(netIdPattern, {
     message: "NetID is malformed.",
   })
   .meta({
     description: "Valid Illinois NetID. See https://answers.uillinois.edu/illinois/page.php?id=78766 for more information.",
     example: "rjjones",
     id: "IllinoisNetId",
+  });
+
+export const illinoisEmail = z
+  .string()
+  .email({ message: "Must be a valid email address." })
+  .regex(new RegExp(`${netIdPattern.source}@illinois\\.edu$`, "i"), {
+    message: "Must be a valid Illinois email (NetID@illinois.edu).",
+  })
+  .meta({
+    description: "Valid Illinois email address (NetID@illinois.edu). See https://answers.uillinois.edu/illinois/page.php?id=78766 for more information.",
+    example: "rjjones@illinois.edu",
+    id: "IllinoisEmail",
   });
 
 export const illinoisUin = z
@@ -54,4 +68,3 @@ export const ArrayFromString = z.preprocess(
   (val) => (typeof val === 'string' ? val.split(',').map((s) => s.trim()).filter(Boolean) : val),
   z.array(z.string())
 );
-
