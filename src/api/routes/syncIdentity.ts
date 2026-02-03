@@ -1,17 +1,9 @@
-import {
-  checkPaidMembershipFromTable,
-  checkPaidMembership,
-} from "api/functions/membership.js";
 import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import { notAuthenticatedError, withTags } from "api/components/index.js";
-import {
-  getUserUin,
-  saveUserUin,
-  verifyUiucAccessToken,
-} from "api/functions/uin.js";
+import { saveUserUin, verifyUiucAccessToken } from "api/functions/uin.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { genericConfig, roleArns } from "common/config.js";
@@ -24,7 +16,7 @@ import {
 import { syncFullProfile } from "api/functions/sync.js";
 import { getUserIdentity, UserIdentity } from "api/functions/identity.js";
 import { SSMClient } from "@aws-sdk/client-ssm";
-import { ValidationError } from "zod-validation-error";
+import { ValidationError } from "common/errors/index.js";
 
 const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
