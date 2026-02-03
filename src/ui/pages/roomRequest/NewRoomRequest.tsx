@@ -204,11 +204,36 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   const [active, setActive] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [canBypassAuth, setCanBypassAuth] = useState(false);
+  const [hostOptions, setHostOptions] = useState<
+    { value: string; label: string }[] | undefined
+  >(undefined);
+  const [userPrimaryOrg, setUserPrimaryOrg] = useState<string | null>(null);
   const numSteps = 4;
   const navigate = useNavigate();
   const semesterOptions = getSemesters();
   const { orgRoles } = useAuth();
-  const userPrimaryOrg = getPrimarySuggestedOrg(orgRoles);
+
+  useEffect(() => {
+    const hostOptions = canBypassAuth
+      ? Object.entries(Organizations).map(([key, org]) => ({
+          value: key,
+          label: org.name,
+        }))
+      : orgRoles
+          .filter((x) => x.role === "LEAD")
+          .map((x) => ({
+            value: x.org,
+            label: Organizations[x.org].name,
+          }));
+    if (hostOptions.length > 0) {
+      setHostOptions(hostOptions);
+      const primOrg = getPrimarySuggestedOrg(orgRoles);
+      setUserPrimaryOrg(primOrg);
+      if (primOrg) {
+        form.setFieldValue("host", primOrg);
+      }
+    }
+  }, [orgRoles]);
 
   // Initialize with tomorrow's date at the start of the hour
   let startingDate = new Date();
@@ -494,23 +519,12 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             {...form.getInputProps("semester")}
           />
           <Select
+            key={`host-select-${hostOptions?.length}`}
             label="Event Host"
             placeholder="Select host organization"
             withAsterisk
             searchable
-            data={
-              canBypassAuth
-                ? Object.entries(Organizations).map(([key, org]) => ({
-                    value: key,
-                    label: org.name,
-                  }))
-                : orgRoles
-                    .filter((x) => x.role === "LEAD")
-                    .map((x) => ({
-                      value: x.org,
-                      label: Organizations[x.org].name,
-                    }))
-            }
+            data={hostOptions}
             {...form.getInputProps("host")}
           />
           <TextInput
