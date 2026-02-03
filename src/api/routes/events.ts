@@ -256,7 +256,6 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               content: {
                 "application/json": {
                   schema: z.array(getEventSchema),
-                  description: "Event data matching specified filter.",
                 },
               },
             },

@@ -33,8 +33,9 @@ build: src/
 	docker run --platform linux/arm64/v8 --rm -v "$(shell pwd)/dist/lambda":/var/task -v "$(shell pwd)/dist_ui":/var/dist_ui -e RunEnvironment -e VITE_BUILD_HASH public.ecr.aws/sam/build-nodejs24.x:latest \
 	sh -c "npm i -g yarn && $(yarn_env) yarn $(yarn_install_params) && \
 			node /var/task/createSwagger.mjs && \
-			rm /var/task/createSwagger.mjs && \
-			rm /var/task/createSwagger.mjs.map && \
+			rm /var/task/createSwagger* && \
+			node /var/task/generateClients.mjs && \
+			rm /var/task/generateClients* && \
 			rm /var/task/package-*.json && \
 			rm /var/task/package.json && \
 			rm /var/task/yarn.lock && \

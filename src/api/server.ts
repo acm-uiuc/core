@@ -147,11 +147,10 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
             contact: {
               name: "ACM @ UIUC Infrastructure Team",
               email: "infra@acm.illinois.edu",
-              url: "infra.acm.illinois.edu",
+              url: "https://github.com/acm-uiuc/core/issues",
             },
             license: {
               name: "BSD 3-Clause",
-              identifier: "BSD-3-Clause",
               url: "https://github.com/acm-uiuc/core/blob/main/LICENSE",
             },
             termsOfService: "https://core.acm.illinois.edu/tos",

@@ -33,7 +33,11 @@ const commonParams = {
 esbuild
   .build({
     ...commonParams,
-    entryPoints: ["api/lambda.js", "api/createSwagger.js"],
+    entryPoints: [
+      "api/lambda.js",
+      "api/createSwagger.js",
+      "api/generateClients.ts",
+    ],
     outdir: "../../dist/lambda/",
     external: [...commonParams.external, "sqs/*"],
   })
