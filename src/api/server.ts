@@ -78,18 +78,16 @@ async function init(
   initClients: boolean = true,
   forceSwagger: boolean = false,
 ) {
-  let isSwaggerServer = false;
-  const transport = prettyPrint
-    ? {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          translateTime: "SYS:standard",
-          ignore: "pid,hostname",
-          singleLine: false,
-        },
-      }
-    : undefined;
+  const prettyPrintTransport = {
+    target: "pino-pretty",
+    options: {
+      colorize: true,
+      translateTime: "SYS:standard",
+      ignore: "pid,hostname",
+      singleLine: false,
+    },
+  };
+  const transport = prettyPrint ? prettyPrintTransport : undefined;
   const app: FastifyInstance = fastify({
     logger: {
       level: process.env.LOG_LEVEL || "info",
@@ -159,6 +157,14 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
             termsOfService: "https://core.acm.illinois.edu/tos",
           },
           servers: [
+            ...(app.runEnvironment === "dev" && !isRunningInLambda
+              ? [
+                  {
+                    url: "http://localhost:8080",
+                    description: "Local development server",
+                  },
+                ]
+              : []),
             {
               url: app.environmentConfig.UserFacingUrl,
               description: "Main API server",
@@ -244,7 +250,6 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
           reply.send(app.swagger({ yaml: true }));
         },
       );
-      isSwaggerServer = true;
     } catch (e) {
       app.log.error(e);
       app.log.warn("Fastify Swagger not created!");
