@@ -198,7 +198,9 @@ export async function resolveEmailToOid(
   };
 
   if (!data.value || data.value.length === 0) {
-    throw new Error(`No user found with email: ${safeEmail}`);
+    throw new ValidationError({
+      message: `No user found with email: ${safeEmail}`,
+    });
   }
 
   return data.value[0].id;
