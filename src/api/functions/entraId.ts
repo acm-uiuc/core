@@ -168,6 +168,7 @@ export async function addToTenant(token: string, email: string) {
  * @param token - Entra ID token authorized to perform this action.
  * @param email - The email address to resolve.
  * @throws {Error} If the resolution fails.
+ * @throws {ValidationError} If the user is not found with the given email.
  * @returns {Promise<string>} The OID of the user.
  */
 export async function resolveEmailToOid(
@@ -198,7 +199,9 @@ export async function resolveEmailToOid(
   };
 
   if (!data.value || data.value.length === 0) {
-    throw new Error(`No user found with email: ${safeEmail}`);
+    throw new ValidationError({
+      message: `No user found with email: ${safeEmail}`,
+    });
   }
 
   return data.value[0].id;

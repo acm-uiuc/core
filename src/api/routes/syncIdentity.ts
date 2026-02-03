@@ -1,17 +1,9 @@
-import {
-  checkPaidMembershipFromTable,
-  checkPaidMembership,
-} from "api/functions/membership.js";
 import { FastifyPluginAsync } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import { notAuthenticatedError, withTags } from "api/components/index.js";
-import {
-  getUserUin,
-  saveUserUin,
-  verifyUiucAccessToken,
-} from "api/functions/uin.js";
+import { saveUserUin, verifyUiucAccessToken } from "api/functions/uin.js";
 import { getRoleCredentials } from "api/functions/sts.js";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { genericConfig, roleArns } from "common/config.js";
@@ -24,6 +16,7 @@ import {
 import { syncFullProfile } from "api/functions/sync.js";
 import { getUserIdentity, UserIdentity } from "api/functions/identity.js";
 import { SSMClient } from "@aws-sdk/client-ssm";
+import { ValidationError } from "common/errors/index.js";
 
 const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
   const getAuthorizedClients = async () => {
@@ -114,26 +107,32 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           dynamoClient: fastify.dynamoClient,
           netId,
         });
-        const isPaidMember = await checkPaidMembership({
-          netId,
-          dynamoClient: fastify.dynamoClient,
-          redisClient: fastify.redisClient,
+        let oid: string | null;
+        const entraIdToken = await getEntraIdToken({
+          clients: await getAuthorizedClients(),
+          clientId: fastify.environmentConfig.AadValidClientId,
           logger: request.log,
         });
-        if (isPaidMember) {
-          const username = `${netId}@illinois.edu`;
-          request.log.info("User is paid member, syncing Entra user!");
-          const entraIdToken = await getEntraIdToken({
-            clients: await getAuthorizedClients(),
-            clientId: fastify.environmentConfig.AadValidClientId,
-            logger: request.log,
-          });
-          const oid = await resolveEmailToOid(entraIdToken, username);
+        const username = `${netId}@illinois.edu`;
+        try {
+          oid = await resolveEmailToOid(entraIdToken, username);
+        } catch (e) {
+          oid = null;
+          if (e instanceof ValidationError) {
+            request.log.info("User is not a member of Entra ID tenant.");
+          } else {
+            request.log.warn(e, "Error when resolving email to OID");
+            throw e;
+          }
+        }
+        if (oid) {
+          request.log.info("User is Entra member, syncing Entra user!");
           await patchUserProfile(entraIdToken, username, oid, {
             displayName: `${givenName} ${surname}`,
             givenName,
             surname,
             mail: username,
+            userPrincipalName: `${netId}@acm.illinois.edu`,
           });
         }
         return reply.status(201).send();
