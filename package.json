@@ -1,6 +1,6 @@
 {
   "name": "infra-core",
-  "version": "4.1.8",
+  "version": "4.1.9",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -86,7 +86,8 @@
     "typescript-eslint": "^8.54.0",
     "vite-tsconfig-paths": "^6.0.5",
     "vitest": "^4.0.18",
-    "yarn-upgrade-all": "^0.7.5"
+    "yarn-upgrade-all": "^0.7.5",
+    "@openapitools/openapi-generator-cli": "^2.28.0"
   },
   "resolutions": {
     "pdfjs-dist": "^4.8.69",

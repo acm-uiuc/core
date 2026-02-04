@@ -192,7 +192,7 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
                 description: "The member list was modified.",
                 content: {
                   "application/json": {
-                    schema: z.null(),
+                    schema: z.undefined(),
                   },
                 },
               },
