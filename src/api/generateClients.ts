@@ -108,7 +108,8 @@ function generate(language: string, options: GeneratorConfig): void {
     -i ${config.specFile} \
     -g ${language} \
     -o ${outputPath} \
-    --additional-properties=${propsString}`);
+    --additional-properties=${propsString} \
+    --global-property apiDocs=false,modelDocs=false`);
   if (options.postHook) {
     console.log(`Running post hook for ${language} client in ${outputPath}\n`);
     options.postHook();
