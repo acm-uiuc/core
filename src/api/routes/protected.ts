@@ -39,7 +39,7 @@ const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
                       )
                       .meta({
                         description:
-                          "A list of roles that the user has in various ACM sub-organzations.",
+                          "A list of roles that the user has in various ACM sub-organizations.",
                       }),
                   }),
                 },

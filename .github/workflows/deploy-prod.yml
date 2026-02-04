@@ -218,6 +218,8 @@ jobs:
       contents: read
     needs:
       - build
+      - test-unit
+      - test-e2e
     steps:
       - uses: actions/checkout@v4
       - name: Set up Node
