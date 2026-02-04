@@ -543,7 +543,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
                 "Event created. The 'Location' header specifies the URL of the created event.",
               content: {
                 "application/json": {
-                  schema: z.null(),
+                  schema: z.undefined(),
                 },
               },
             },
@@ -682,7 +682,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               description: "The event has been deleted.",
               content: {
                 "application/json": {
-                  schema: z.null(),
+                  schema: z.undefined(),
                 },
               },
             },

@@ -56,7 +56,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "RSVP created successfully.",
               content: {
                 "application/json": {
-                  schema: z.null(),
+                  schema: z.undefined(),
                 },
               },
             },
@@ -248,7 +248,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "Configuration updated successfully.",
               content: {
                 "application/json": {
-                  schema: z.null(),
+                  schema: z.undefined(),
                 },
               },
             },
@@ -451,7 +451,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "RSVP withdrawn successfully.",
               content: {
                 "application/json": {
-                  schema: z.null(),
+                  schema: z.undefined(),
                 },
               },
             },
@@ -532,7 +532,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "RSVP deleted successfully.",
               content: {
                 "application/json": {
-                  schema: z.null(),
+                  schema: z.undefined(),
                 },
               },
             },

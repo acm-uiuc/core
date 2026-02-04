@@ -560,7 +560,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 description: "The short link was modified.",
                 content: {
                   "application/json": {
-                    schema: z.null(),
+                    schema: z.undefined(),
                   },
                 },
               },
@@ -730,7 +730,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 description: "The short links was deleted.",
                 content: {
                   "application/json": {
-                    schema: z.null(),
+                    schema: z.undefined(),
                   },
                 },
               },

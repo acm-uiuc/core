@@ -4,6 +4,7 @@ import path from "path";
 
 interface GeneratorConfig {
   additionalProperties: Record<string, string | boolean>;
+  postHook?: CallableFunction;
 }
 
 interface Config {
@@ -18,7 +19,7 @@ interface PackageJson {
 }
 
 function loadPackageJson(): PackageJson {
-  const packageJsonPath = path.join(process.cwd(), "../../package.json");
+  const packageJsonPath = path.join(process.cwd(), "package.json");
 
   if (!fs.existsSync(packageJsonPath)) {
     return {};
@@ -32,8 +33,8 @@ const packageJson = loadPackageJson();
 
 const config: Config = {
   specFile: process.env.OPENAPI_SPEC || "/var/dist_ui/docs/openapi.json",
-  outputDir: process.env.OUTPUT_DIR || "../../dist/clients",
-  version: packageJson.version || "1.0.0",
+  outputDir: process.env.OUTPUT_DIR || "dist/clients",
+  version: process.env.VITE_BUILD_HASH || packageJson.version || "1.0.0",
 };
 
 const generators: Record<string, GeneratorConfig> = {
@@ -45,11 +46,9 @@ const generators: Record<string, GeneratorConfig> = {
       typescriptThreePlus: true,
       importFileExtension: ".js",
       licenseName: "BSD-3-Clause",
-      gitUserId: "acm-uiuc",
-      gitRepoId: "core",
-      gitHost: "github.com",
       withoutRuntimeChecks: true, // API itself will error if the response does not conform
     },
+    postHook: patchPackageJson,
   },
   // python: {
   //   additionalProperties: {
@@ -59,6 +58,40 @@ const generators: Record<string, GeneratorConfig> = {
   //   },
   // },
 };
+
+function patchPackageJson(): void {
+  const baseDir = path.join(config.outputDir, "typescript-fetch");
+  const pkgPath = path.join(baseDir, "package.json");
+  if (!fs.existsSync(pkgPath)) {
+    return;
+  }
+
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+  pkg.repository = {
+    type: "git",
+    url: "https://github.com/acm-uiuc/core.git",
+  };
+  pkg.author = "ACM @ UIUC Infrastructure Team <infra@acm.illinois.edu>";
+  pkg.description = "OpenAPI client for the ACM @ UIUC Core API";
+  pkg.homepage = "https://core.acm.illinois.edu/docs";
+  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+  console.log(`✓ Patched ${pkgPath}`);
+
+  // Add docs/ to .npmignore
+  const npmignorePath = path.join(baseDir, ".npmignore");
+  const ignoreEntries = ["docs/", "src/"];
+  for (const entry of ignoreEntries) {
+    if (fs.existsSync(npmignorePath)) {
+      const content = fs.readFileSync(npmignorePath, "utf-8");
+      if (!content.includes(entry)) {
+        fs.appendFileSync(npmignorePath, `\n${entry}\n`);
+      }
+    } else {
+      fs.writeFileSync(npmignorePath, `${entry}\n`);
+    }
+    console.log(`✓ Added ${entry} to ${npmignorePath}`);
+  }
+}
 
 function run(cmd: string): void {
   console.log(`Running: ${cmd}`);
@@ -76,7 +109,10 @@ function generate(language: string, options: GeneratorConfig): void {
     -g ${language} \
     -o ${outputPath} \
     --additional-properties=${propsString}`);
-
+  if (options.postHook) {
+    console.log(`Running post hook for ${language} client in ${outputPath}\n`);
+    options.postHook();
+  }
   console.log(`✓ Generated ${language} client in ${outputPath}\n`);
 }
 

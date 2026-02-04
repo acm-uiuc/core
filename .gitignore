@@ -146,3 +146,4 @@ dist_devel/
 src/api/package.lambda.json
 tfplan
 .DS_Store
+openapitools.json

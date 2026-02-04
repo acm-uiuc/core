@@ -296,7 +296,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "The product has been modified.",
               content: {
                 "application/json": {
-                  schema: z.null(),
+                  schema: z.undefined(),
                 },
               },
             },
@@ -370,7 +370,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "The order was refunded.",
               content: {
                 "application/json": {
-                  schema: z.null(),
+                  schema: z.undefined(),
                 },
               },
             },
@@ -417,7 +417,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "The order's specified line items were fulfilled.",
               content: {
                 "application/json": {
-                  schema: z.null(),
+                  schema: z.undefined(),
                 },
               },
             },

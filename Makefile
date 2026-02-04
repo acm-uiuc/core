@@ -34,7 +34,6 @@ build: src/
 	sh -c "npm i -g yarn && $(yarn_env) yarn $(yarn_install_params) && \
 			node /var/task/createSwagger.mjs && \
 			rm /var/task/createSwagger* && \
-			node /var/task/generateClients.mjs && \
 			rm /var/task/generateClients* && \
 			rm /var/task/package-*.json && \
 			rm /var/task/package.json && \
@@ -55,6 +54,10 @@ build: src/
 				mkdir -p layer/nodejs && \
 				rm -rf layer/nodejs/* && \
 				mv node_modules/ layer/nodejs"
+	make generate_clients
+
+generate_clients:
+	OPENAPI_SPEC=$(shell pwd)/dist_ui/docs/openapi.json node dist/api/generateClients.js
 
 local:
 	mkdir -p dist_devel/

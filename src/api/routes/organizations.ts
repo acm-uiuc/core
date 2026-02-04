@@ -236,7 +236,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
               description: "The information was saved.",
               content: {
                 "application/json": {
-                  schema: z.null(),
+                  schema: z.undefined(),
                 },
               },
             },
@@ -322,7 +322,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
           response: {
             201: {
               description: "The information was saved.",
-              content: { "application/json": { schema: z.null() } },
+              content: { "application/json": { schema: z.undefined() } },
             },
           },
         }),
