@@ -15,6 +15,7 @@ export default defineConfig({
         "src/api/lambda.ts",
         "src/api/sqs/handlers/templates/*.ts",
         "src/ui/**/*.ts",
+        "src/api/generateClients.ts",
       ],
       thresholds: {
         statements: 50,
