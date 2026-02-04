@@ -208,3 +208,33 @@ jobs:
           VITE_RUN_ENVIRONMENT: prod
       - name: Call the health check script
         run: make prod_health_check
+
+  publish-node-client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    name: Publish TypeScript client
+    permissions:
+      id-token: write
+      contents: read
+    needs:
+      - build
+      - test-unit
+      - test-e2e
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'adopt'
+          java-version: '25'
+      - name: Download Build files
+        uses: actions/download-artifact@v7
+        with:
+          name: build-prod
+      - name: Update NPM to the latest version
+        run: npm install -g npm@latest
+      - name: Publish TypeScript client
+        run: cd dist/clients/typescript-fetch && npm publish --provenance --access public

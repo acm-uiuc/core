@@ -3,6 +3,9 @@ import rateLimiter from "api/plugins/rateLimiter.js";
 import { withRoles, withTags } from "api/components/index.js";
 import { getUserOrgRoles } from "api/functions/organizations.js";
 import { UnauthenticatedError } from "common/errors/index.js";
+import z from "zod";
+import { AppRoles, orgRoles } from "common/roles.js";
+import { OrgUniqueId } from "common/types/generic.js";
 
 const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -17,6 +20,32 @@ const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
         [],
         withTags(["Generic"], {
           summary: "Get a user's username and roles.",
+          response: {
+            200: {
+              description: "The user's information was retrieved.",
+              content: {
+                "application/json": {
+                  schema: z.object({
+                    username: z.string().min(1),
+                    roles: z.array(z.enum(AppRoles)).meta({
+                      description: "A list of application roles the user has.",
+                    }),
+                    orgRoles: z
+                      .array(
+                        z.object({
+                          org: OrgUniqueId,
+                          role: z.enum(orgRoles),
+                        }),
+                      )
+                      .meta({
+                        description:
+                          "A list of roles that the user has in various ACM sub-organizations.",
+                      }),
+                  }),
+                },
+              },
+            },
+          },
         }),
       ),
     },
