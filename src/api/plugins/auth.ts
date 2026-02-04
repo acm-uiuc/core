@@ -29,6 +29,8 @@ import { getKey, setKey } from "api/functions/redisCache.js";
 import { Redis } from "api/types.js";
 import { AUTH_CACHE_PREFIX } from "common/constants.js";
 
+const { JsonWebTokenError } = jwt;
+
 export function intersection<T>(setA: Set<T>, setB: Set<T>): Set<T> {
   const _intersection = new Set<T>();
   for (const elem of setB) {
@@ -402,15 +404,22 @@ const authPlugin: FastifyPluginAsync = async (fastify, _options) => {
             message: "Token has expired.",
           });
         }
+        if (err instanceof JsonWebTokenError) {
+          request.log.error(err, "JSON Web token error");
+          throw new UnauthenticatedError({
+            message: "Invalid token.",
+          });
+        }
         if (err instanceof Error) {
           request.log.error(`Failed to get user roles: ${err.toString()}`);
           throw err;
         }
+        request.log.error(err, "Unknown auth error");
         throw new UnauthenticatedError({
           message: "Invalid token.",
         });
       }
-      request.log.info(`authenticated request from ${request.username} `);
+      request.log = request.log.child({ user: request.username });
       request.log.debug(
         `Start to authorization decision took ${new Date().getTime() - startTime} ms.`,
       );

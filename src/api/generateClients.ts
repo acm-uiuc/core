@@ -46,7 +46,6 @@ const generators: Record<string, GeneratorConfig> = {
       typescriptThreePlus: true,
       importFileExtension: ".js",
       licenseName: "BSD-3-Clause",
-      withoutRuntimeChecks: true, // API itself will error if the response does not conform
     },
     postHook: patchPackageJson,
   },
