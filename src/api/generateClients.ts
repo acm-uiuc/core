@@ -78,7 +78,7 @@ function patchPackageJson(): void {
 
   // Add docs/ to .npmignore
   const npmignorePath = path.join(baseDir, ".npmignore");
-  const ignoreEntries = ["docs/", "src/"];
+  const ignoreEntries = ["docs/", "src/", "tsconfig.json", "tsconfig.esm.json"];
   for (const entry of ignoreEntries) {
     if (fs.existsSync(npmignorePath)) {
       const content = fs.readFileSync(npmignorePath, "utf-8");
