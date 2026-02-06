@@ -214,26 +214,27 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   const { orgRoles } = useAuth();
 
   useEffect(() => {
-    const hostOptions = canBypassAuth
-      ? Object.entries(Organizations).map(([key, org]) => ({
-          value: key,
-          label: org.name,
-        }))
-      : orgRoles
-          .filter((x) => x.role === "LEAD")
-          .map((x) => ({
-            value: x.org,
-            label: Organizations[x.org].name,
-          }));
-    if (hostOptions.length > 0) {
-      setHostOptions(hostOptions);
+    const hostOptions =
+      canBypassAuth || viewOnly
+        ? Object.entries(Organizations).map(([key, org]) => ({
+            value: key,
+            label: org.name,
+          }))
+        : orgRoles
+            .filter((x) => x.role === "LEAD")
+            .map((x) => ({
+              value: x.org,
+              label: Organizations[x.org].name,
+            }));
+    setHostOptions(hostOptions);
+    if (!viewOnly) {
       const primOrg = getPrimarySuggestedOrg(orgRoles);
       setUserPrimaryOrg(primOrg);
       if (primOrg) {
         form.setFieldValue("host", primOrg);
       }
     }
-  }, [orgRoles]);
+  }, [orgRoles, canBypassAuth, viewOnly]);
 
   // Initialize with tomorrow's date at the start of the hour
   let startingDate = new Date();
