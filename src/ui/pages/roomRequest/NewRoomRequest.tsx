@@ -226,15 +226,15 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
               value: x.org,
               label: Organizations[x.org].name,
             }));
-    if (hostOptions.length > 0 && !viewOnly) {
-      setHostOptions(hostOptions);
+    setHostOptions(hostOptions);
+    if (!viewOnly) {
       const primOrg = getPrimarySuggestedOrg(orgRoles);
       setUserPrimaryOrg(primOrg);
       if (primOrg) {
         form.setFieldValue("host", primOrg);
       }
     }
-  }, [orgRoles, canBypassAuth]);
+  }, [orgRoles, canBypassAuth, viewOnly]);
 
   // Initialize with tomorrow's date at the start of the hour
   let startingDate = new Date();

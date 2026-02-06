@@ -72,14 +72,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     throw new Error("no check route found!");
   }
 
-  const fullCheckRoute = `${config.baseEndpoint}${checkRoute}`;
-
   /**
    * Helper to manually get a token without relying on the external API hook/context
    * Uses the Core API's proper scope and resource to ensure correct token audience
    */
   const acquireTokenInternal = useCallback(
-    async (account: AccountInfo) => {
+    async (account: AccountInfo, forceRefresh: boolean = false) => {
       try {
         const coreConfig = getRunEnvironmentConfig().ServiceConfiguration.core;
         const scope = coreConfig.loginScope;
@@ -93,7 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const response = await instance.acquireTokenSilent({
           account,
           scopes: [scope],
-          forceRefresh: false,
+          forceRefresh,
         });
         return response.accessToken;
       } catch (error) {
@@ -112,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Accepts an explicit account to handle race conditions during login redirects.
    */
   const fetchOrgRoles = useCallback(
-    async (explicitAccount?: AccountInfo) => {
+    async (explicitAccount?: AccountInfo, isRetry: boolean = false) => {
       try {
         // 1. Check cache first
         const cachedData = await getCachedResponse("core", checkRoute);
@@ -137,6 +135,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         // 4. Fetch fresh data manually
+        const fullCheckRoute = `${config.baseEndpoint}${checkRoute}`;
         const response = await fetch(fullCheckRoute, {
           method: "GET",
           headers: {
@@ -154,9 +153,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             clearAuthCache();
 
             // Try to refresh the token once
-            if (!explicitAccount) {
-              // Prevent infinite loops - only retry if this wasn't already a retry
-              const freshToken = await acquireTokenInternal(account);
+            if (!isRetry) {
+              const freshToken = await acquireTokenInternal(account, true);
               if (freshToken) {
                 // Try again with fresh token
                 const retryResponse = await fetch(fullCheckRoute, {
@@ -176,6 +174,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   }
                   return [];
                 }
+                console.error(
+                  `Retry fetch failed with status: ${retryResponse.status}`,
+                  await retryResponse
+                    .text()
+                    .catch(() => "Could not read response body"),
+                );
               }
             }
           }
@@ -195,12 +199,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return [];
       } catch (error) {
         console.error("Failed to fetch org roles:", error);
-        // Don't silently fail - keep existing roles if available
-        // Only return empty if we truly have no data
-        return [];
+        return orgRoles;
       }
     },
-    [checkRoute, instance, accounts, acquireTokenInternal],
+    [checkRoute, instance, accounts, acquireTokenInternal, orgRoles],
   );
 
   // Refresh org roles on demand
