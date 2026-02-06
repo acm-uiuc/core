@@ -13,6 +13,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 
 import {
@@ -64,6 +65,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [isAuthInitialized, setIsAuthInitialized] = useState<boolean>(false); // NEW
   const [orgRoles, setOrgRoles] = useState<OrgRoleDefinition[]>([]);
+  const orgRolesRef = useRef(orgRoles);
+  orgRolesRef.current = orgRoles;
 
   const config = getRunEnvironmentConfig().ServiceConfiguration.core;
   const checkRoute = config.authCheckRoute;
@@ -199,10 +202,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return [];
       } catch (error) {
         console.error("Failed to fetch org roles:", error);
-        return orgRoles;
+        return orgRolesRef.current;
       }
     },
-    [checkRoute, instance, accounts, acquireTokenInternal, orgRoles],
+    [checkRoute, instance, accounts, acquireTokenInternal],
   );
 
   // Refresh org roles on demand
