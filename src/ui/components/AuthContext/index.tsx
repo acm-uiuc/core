@@ -20,6 +20,7 @@ import {
   CACHE_KEY_PREFIX,
   setCachedResponse,
   getCachedResponse,
+  clearAuthCache,
 } from "../AuthGuard/index.js";
 
 import FullScreenLoader from "./LoadingScreen.js";
@@ -55,9 +56,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export const clearAuthCache = () => {
-  sessionStorage.clear();
-};
+export { clearAuthCache };
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { instance, inProgress, accounts } = useMsal();
