@@ -65,22 +65,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthInitialized, setIsAuthInitialized] = useState<boolean>(false); // NEW
   const [orgRoles, setOrgRoles] = useState<OrgRoleDefinition[]>([]);
 
-  const checkRoute =
-    getRunEnvironmentConfig().ServiceConfiguration.core.authCheckRoute;
+  const config = getRunEnvironmentConfig().ServiceConfiguration.core;
+  const checkRoute = config.authCheckRoute;
 
   if (!checkRoute) {
     throw new Error("no check route found!");
   }
 
+  const fullCheckRoute = `${config.baseEndpoint}${checkRoute}`;
+
   /**
    * Helper to manually get a token without relying on the external API hook/context
+   * Uses the Core API's proper scope and resource to ensure correct token audience
    */
   const acquireTokenInternal = useCallback(
     async (account: AccountInfo) => {
       try {
+        const coreConfig = getRunEnvironmentConfig().ServiceConfiguration.core;
+        const scope = coreConfig.loginScope;
+        const apiId = coreConfig.apiId;
+
+        if (!scope || !apiId) {
+          console.error("Core API scope or apiId not configured");
+          return null;
+        }
+
         const response = await instance.acquireTokenSilent({
           account,
-          scopes: [".default"],
+          scopes: [scope],
+          forceRefresh: false,
         });
         return response.accessToken;
       } catch (error) {
@@ -124,7 +137,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         // 4. Fetch fresh data manually
-        const response = await fetch(checkRoute, {
+        const response = await fetch(fullCheckRoute, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -133,6 +146,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
 
         if (!response.ok) {
+          // Handle authentication errors - token likely expired or invalid
+          if (response.status === 401 || response.status === 403) {
+            console.warn(
+              `Auth token rejected (status: ${response.status}). Clearing cache.`,
+            );
+            clearAuthCache();
+
+            // Try to refresh the token once
+            if (!explicitAccount) {
+              // Prevent infinite loops - only retry if this wasn't already a retry
+              const freshToken = await acquireTokenInternal(account);
+              if (freshToken) {
+                // Try again with fresh token
+                const retryResponse = await fetch(fullCheckRoute, {
+                  method: "GET",
+                  headers: {
+                    Authorization: `Bearer ${freshToken}`,
+                    "Content-Type": "application/json",
+                  },
+                });
+
+                if (retryResponse.ok) {
+                  const data = await retryResponse.json();
+                  await setCachedResponse("core", checkRoute, data);
+                  if (data?.orgRoles) {
+                    setOrgRoles(data.orgRoles || []);
+                    return data.orgRoles;
+                  }
+                  return [];
+                }
+              }
+            }
+          }
           throw new Error(`Auth check failed with status: ${response.status}`);
         }
 
@@ -149,6 +195,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return [];
       } catch (error) {
         console.error("Failed to fetch org roles:", error);
+        // Don't silently fail - keep existing roles if available
+        // Only return empty if we truly have no data
         return [];
       }
     },
