@@ -144,6 +144,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             },
             initiator: "purchase-membership",
             allowPromotionCodes: true,
+            statementDescriptorSuffix: "MBRSHIP",
           }),
         );
       },
