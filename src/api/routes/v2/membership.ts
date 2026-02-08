@@ -128,7 +128,7 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
         }
         return reply.status(200).send(
           await createCheckoutSessionWithCustomer({
-            successUrl: "https://acm.illinois.edu/paid",
+            successUrl: "https://acm.illinois.edu/membership/paid",
             returnUrl: "https://acm.illinois.edu/membership",
             customerId: userData.stripeCustomerId,
             stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
