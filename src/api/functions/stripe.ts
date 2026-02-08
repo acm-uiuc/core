@@ -11,6 +11,7 @@ export type StripeLinkCreateParams = {
   contactEmail: string;
   createdBy: string;
   stripeApiKey: string;
+  statementDescriptorSuffix: string;
 };
 
 export type StripeCheckoutSessionCreateParams = {
@@ -25,6 +26,7 @@ export type StripeCheckoutSessionCreateParams = {
   customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
   captureMethod?: "automatic" | "manual"; // manual = pre-auth only
   customText?: Stripe.Checkout.SessionCreateParams.CustomText;
+  statementDescriptorSuffix: string;
 };
 
 export type StripeCheckoutSessionCreateWithCustomerParams = {
@@ -39,6 +41,7 @@ export type StripeCheckoutSessionCreateWithCustomerParams = {
   customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
   captureMethod?: "automatic" | "manual"; // manual = pre-auth only
   customText?: Stripe.Checkout.SessionCreateParams.CustomText;
+  statementDescriptorSuffix: string;
 };
 
 /**
@@ -53,6 +56,7 @@ export const createStripeLink = async ({
   contactEmail,
   createdBy,
   stripeApiKey,
+  statementDescriptorSuffix,
 }: StripeLinkCreateParams): Promise<{
   linkId: string;
   priceId: string;
@@ -78,6 +82,9 @@ export const createStripeLink = async ({
       },
     ],
     payment_method_types: ["card", "us_bank_account"],
+    payment_intent_data: {
+      statement_descriptor_suffix: statementDescriptorSuffix,
+    },
   });
   return {
     url: paymentLink.url,
@@ -99,6 +106,7 @@ export const createCheckoutSession = async ({
   metadata,
   captureMethod,
   customText,
+  statementDescriptorSuffix,
 }: StripeCheckoutSessionCreateParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
@@ -118,11 +126,10 @@ export const createCheckoutSession = async ({
     allow_promotion_codes: allowPromotionCodes,
     custom_text: customText,
     custom_fields: customFields,
-    ...(captureMethod && {
-      payment_intent_data: {
-        capture_method: captureMethod,
-      },
-    }),
+    payment_intent_data: {
+      ...(captureMethod && { capture_method: captureMethod }),
+      statement_descriptor_suffix: statementDescriptorSuffix,
+    },
   };
   const session = await stripe.checkout.sessions.create(payload);
   if (!session.url) {
@@ -145,7 +152,13 @@ export const createCheckoutSessionWithCustomer = async ({
   metadata,
   captureMethod,
   customText,
+  statementDescriptorSuffix,
 }: StripeCheckoutSessionCreateWithCustomerParams): Promise<string> => {
+  if (statementDescriptorSuffix.length > 7) {
+    throw new Error(
+      "Statement descriptor suffix should be no more than 7 characters.",
+    );
+  }
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
     success_url: successUrl || "",
@@ -164,11 +177,10 @@ export const createCheckoutSessionWithCustomer = async ({
     allow_promotion_codes: allowPromotionCodes,
     custom_text: customText,
     custom_fields: customFields,
-    ...(captureMethod && {
-      payment_intent_data: {
-        capture_method: captureMethod,
-      },
-    }),
+    payment_intent_data: {
+      ...(captureMethod && { capture_method: captureMethod }),
+      statement_descriptor_suffix: statementDescriptorSuffix,
+    },
   };
   const session = await stripe.checkout.sessions.create(payload);
   if (!session.url) {

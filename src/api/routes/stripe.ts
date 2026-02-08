@@ -123,6 +123,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ...request.body,
         createdBy: request.username,
         stripeApiKey: secretApiConfig.stripe_secret_key as string,
+        statementDescriptorSuffix: "INVOICE",
       };
       const { url, linkId, priceId, productId } =
         await createStripeLink(payload);
