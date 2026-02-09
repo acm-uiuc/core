@@ -31,7 +31,10 @@ import {
 } from "common/errors/index.js";
 import { Modules } from "common/modules.js";
 import { AppRoles } from "common/roles.js";
-import { invoiceLinkPostRequestSchema } from "common/types/stripe.js";
+import {
+  invoiceLinkGetResponseSchema,
+  invoiceLinkPostRequestSchema,
+} from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import stripe, { Stripe } from "stripe";
@@ -60,6 +63,16 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         [AppRoles.STRIPE_LINK_CREATOR],
         withTags(["Stripe"], {
           summary: "Get available Stripe payment links.",
+          response: {
+            201: {
+              description: "Links retrieved successfully.",
+              content: {
+                "application/json": {
+                  schema: invoiceLinkGetResponseSchema,
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,

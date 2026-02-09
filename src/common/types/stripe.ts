@@ -24,12 +24,12 @@ export type PostInvoiceLinkResponse = z.infer<
 export const invoiceLinkGetResponseSchema = z.array(
   z.object({
     id: z.string().min(1),
-    userId: z.string().email(),
-    link: z.string().url(),
+    userId: z.email(),
+    link: z.url(),
     active: z.boolean(),
     invoiceId: z.string().min(1),
     invoiceAmountUsd: z.number().min(50),
-    createdAt: z.union([z.string().datetime(), z.null()])
+    createdAt: z.union([z.iso.datetime(), z.null()])
   })
 );
 
