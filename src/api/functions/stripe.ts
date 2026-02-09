@@ -6,16 +6,22 @@ import { capitalizeFirstLetter } from "common/types/roomRequest.js";
 import Stripe from "stripe";
 
 export type SupportedPaymentMethods =
-  | Stripe.PaymentMethodCreateParams["type"]
+  | NonNullable<Stripe.PaymentMethodCreateParams["type"]>
   | "card_present";
+
 export const instantSettlementMethods = [
   "card",
   "crypto",
   "link",
-] as Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+] satisfies Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
 export const delayedSettlementMethods = [
   "us_bank_account",
-] as Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+] satisfies Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+
+export const allPaymentMethods = [
+  ...instantSettlementMethods,
+  ...delayedSettlementMethods,
+];
 
 export type StripeLinkCreateParams = {
   invoiceId: string;
@@ -85,10 +91,14 @@ export const createStripeLink = async ({
         quantity: 1,
       },
     ],
-    payment_method_types: [
-      ...instantSettlementMethods,
-      ...(delayedSettlementAllowed ? delayedSettlementMethods : []),
-    ] as Stripe.PaymentLinkCreateParams["payment_method_types"],
+    payment_method_types: (delayedSettlementAllowed
+      ? allPaymentMethods
+      : instantSettlementMethods
+    ).filter(
+      (x) => x !== "crypto",
+    ) as Stripe.PaymentLinkCreateParams["payment_method_types"],
+    // Payment links don't support crypto
+
     payment_intent_data: {
       statement_descriptor_suffix: statementDescriptorSuffix,
     },
