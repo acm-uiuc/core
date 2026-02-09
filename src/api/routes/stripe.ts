@@ -34,6 +34,7 @@ import { AppRoles } from "common/roles.js";
 import {
   invoiceLinkGetResponseSchema,
   invoiceLinkPostRequestSchema,
+  invoiceLinkPostResponseSchema,
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
@@ -135,14 +136,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "Link created successfully.",
               content: {
                 "application/json": {
-                  schema: z.object({
-                    id: z.string().min(1).meta({
-                      description: "The Payment Link's ID in the Stripe API",
-                    }),
-                    link: z.url().meta({
-                      description: "The Payment Link URL",
-                    }),
-                  }),
+                  schema: invoiceLinkPostResponseSchema,
                 },
               },
             },
