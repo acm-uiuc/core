@@ -63,7 +63,7 @@
     "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.33.0",
+    "@eslint/js": "^10.0.1",
     "@types/aws-lambda": "^8.10.160",
     "@types/ioredis-mock": "^8.2.5",
     "@types/qrcode": "^1.5.5",
