@@ -28,7 +28,7 @@ import { BatchGetItemCommand } from "@aws-sdk/client-dynamodb";
 import { AppRoles } from "common/roles.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { syncFullProfile } from "api/functions/sync.js";
-import { BooleanFromString } from "common/types/generic.js";
+import { BooleanFromString, maxLength } from "common/types/generic.js";
 import { getNetIdFromEmail } from "common/utils.js";
 
 const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
@@ -144,7 +144,8 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
             },
             initiator: "purchase-membership",
             allowPromotionCodes: true,
-            statementDescriptorSuffix: "MBRSHIP",
+            statementDescriptorSuffix: maxLength("MBRSHIP", 7),
+            delayedSettlementAllowed: false,
           }),
         );
       },
