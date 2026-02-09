@@ -16,6 +16,7 @@ import { ManageEventPage } from "./pages/events/ManageEvent.page";
 import { ViewEventsPage } from "./pages/events/ViewEvents.page";
 import { LinkShortener } from "./pages/linkry/LinkShortener.page";
 import { ManageLinkPage } from "./pages/linkry/ManageLink.page";
+import { ManageOrgLinkPage } from "./pages/linkry/ManageOrgLink.page";
 import { FulfillStorePurchasesPage } from "./pages/store/FulfillStorePurchases.page";
 import { ManageIamPage } from "./pages/iam/ManageIam.page";
 import { ViewProfilePage } from "./pages/profile/ViewProfile.page";
@@ -182,6 +183,14 @@ const authenticatedRouter = createBrowserRouter([
       {
         path: "/linkry/edit/:slug",
         element: <ManageLinkPage />,
+      },
+      {
+        path: "/linkry/org/add",
+        element: <ManageOrgLinkPage />,
+      },
+      {
+        path: "/linkry/org/edit/:slug",
+        element: <ManageOrgLinkPage />,
       },
       {
         path: "/store",

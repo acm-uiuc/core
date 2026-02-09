@@ -14,9 +14,8 @@ import {
   TransactWriteItemsCommand,
   TransactWriteItem,
   TransactionCanceledException,
-  PutItemCommand,
-  PutItemCommandInput,
   ConditionalCheckFailedException,
+  TransactWriteItemsCommandInput,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -64,7 +63,6 @@ type OrgRecord = {
   access: string;
   updatedAt: string;
   createdAt: string;
-  lastModifiedBy: string;
   isOrgOwned?: boolean;
 };
 
@@ -617,25 +615,44 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             access: `OWNER#${request.params.orgId}`, // org records are owned by the org
             updatedAt: newUpdatedAt,
             createdAt: newCreatedAt,
-            lastModifiedBy: request.username,
             isOrgOwned: true,
           };
 
           // Add the OWNER record with a condition check to ensure it hasn't been modified
-          const ownerPutParams: PutItemCommandInput = {
-            TableName: genericConfig.LinkryDynamoTableName,
-            Item: marshall(ownerRecord, { removeUndefinedValues: true }),
-            ...(mode === "modify"
-              ? {
-                  ConditionExpression: "updatedAt = :updatedAt",
-                  ExpressionAttributeValues: marshall({
-                    ":updatedAt": currentUpdatedAt,
-                  }),
-                }
-              : {}),
+
+          const ownerPutParams = {
+            Put: {
+              TableName: genericConfig.LinkryDynamoTableName,
+              Item: marshall(ownerRecord, { removeUndefinedValues: true }),
+              ...(mode === "modify"
+                ? {
+                    ConditionExpression: "updatedAt = :updatedAt",
+                    ExpressionAttributeValues: marshall({
+                      ":updatedAt": currentUpdatedAt,
+                    }),
+                  }
+                : {}),
+            },
           };
 
-          await fastify.dynamoClient.send(new PutItemCommand(ownerPutParams));
+          const auditLogItem = buildAuditLogTransactPut({
+            entry: {
+              module: Modules.LINKRY,
+              actor: request.username,
+              target: `${Organizations[request.params.orgId].name}/${request.body.slug}`,
+              requestId: request.id,
+              message: `Created redirect to ${redirect}`,
+            },
+          });
+          const transaction: TransactWriteItemsCommandInput["TransactItems"] = [
+            ownerPutParams,
+          ];
+          if (auditLogItem) {
+            transaction?.push(auditLogItem);
+          }
+          await fastify.dynamoClient.send(
+            new TransactWriteItemsCommand({ TransactItems: transaction }),
+          );
         } catch (e) {
           fastify.log.error(e);
           if (e instanceof ConditionalCheckFailedException) {
@@ -653,15 +670,6 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             message: "Failed to save data to DynamoDB.",
           });
         }
-        await createAuditLogEntry({
-          dynamoClient: fastify.dynamoClient,
-          entry: {
-            module: Modules.LINKRY,
-            actor: request.username,
-            target: `${Organizations[request.params.orgId].name}/${request.body.slug}`,
-            message: `Created redirect to "${request.body.redirect}"`,
-          },
-        });
         const newResourceUrl = `${request.url}/slug/${request.body.slug}`;
         return reply.status(201).headers({ location: newResourceUrl }).send();
       }),
