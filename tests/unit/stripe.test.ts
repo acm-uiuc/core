@@ -272,7 +272,7 @@ describe("Test Stripe link creation", async () => {
       .delete("/api/v1/stripe/paymentLinks/plink_abc123")
       .set("authorization", `Bearer ${testJwt}`)
       .send();
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode).toBe(204);
     expect(ddbMock.calls().length).toEqual(2);
   });
   test("DELETE fails on not user-owned links", async () => {
