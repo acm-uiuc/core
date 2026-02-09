@@ -55,3 +55,31 @@ export const ArrayFromString = z.preprocess(
   z.array(z.string())
 );
 
+type CheckLength<S extends string, N extends number, Acc extends readonly any[] = []> =
+  Acc['length'] extends N
+  ? S extends '' ? true : false
+  : S extends `${infer _}${infer Rest}`
+  ? CheckLength<Rest, N, [...Acc, any]>
+  : true;
+
+declare const __maxLength: unique symbol;
+
+/**
+ * This type enforces the passing of a string which is:
+ * 1. Known at compile-time
+ * 2. Has a max length of N
+ * The type requested should be MaxLengthString<N>, and all parameters will be called with maxLength("CONST", N);
+ */
+export type MaxLengthString<N extends number> = string & { readonly [__maxLength]: N };
+
+type ValidateMaxLength<S extends string, N extends number> =
+  string extends S
+  ? never
+  : CheckLength<S, N> extends true
+  ? S
+  : never;
+
+export const maxLength = <const S extends string, N extends number>(
+  s: ValidateMaxLength<S, N>,
+  _n: N
+): MaxLengthString<N> => s as unknown as MaxLengthString<N>;

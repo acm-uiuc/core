@@ -1,8 +1,21 @@
 import { ValidLoggers } from "api/types.js";
 import { isProd } from "api/utils.js";
-import { InternalServerError, ValidationError } from "common/errors/index.js";
+import { InternalServerError } from "common/errors/index.js";
+import { MaxLengthString } from "common/types/generic.js";
 import { capitalizeFirstLetter } from "common/types/roomRequest.js";
 import Stripe from "stripe";
+
+export type SupportedPaymentMethods =
+  | Stripe.PaymentMethodCreateParams["type"]
+  | "card_present";
+export const instantSettlementMethods = [
+  "card",
+  "crypto",
+  "link",
+] as Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+export const delayedSettlementMethods = [
+  "us_bank_account",
+] as Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
 
 export type StripeLinkCreateParams = {
   invoiceId: string;
@@ -11,7 +24,8 @@ export type StripeLinkCreateParams = {
   contactEmail: string;
   createdBy: string;
   stripeApiKey: string;
-  statementDescriptorSuffix: string;
+  statementDescriptorSuffix: MaxLengthString<7>;
+  delayedSettlementAllowed: boolean;
 };
 
 export type StripeCheckoutSessionCreateParams = {
@@ -26,23 +40,12 @@ export type StripeCheckoutSessionCreateParams = {
   customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
   captureMethod?: "automatic" | "manual"; // manual = pre-auth only
   customText?: Stripe.Checkout.SessionCreateParams.CustomText;
-  statementDescriptorSuffix: string;
+  statementDescriptorSuffix: MaxLengthString<7>;
+  delayedSettlementAllowed: boolean;
 };
 
-export type StripeCheckoutSessionCreateWithCustomerParams = {
-  successUrl?: string;
-  returnUrl?: string;
-  customerId: string;
-  stripeApiKey: string;
-  items: { price: string; quantity: number }[];
-  initiator: string;
-  metadata?: Stripe.Checkout.SessionCreateParams["metadata"];
-  allowPromotionCodes: boolean;
-  customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
-  captureMethod?: "automatic" | "manual"; // manual = pre-auth only
-  customText?: Stripe.Checkout.SessionCreateParams.CustomText;
-  statementDescriptorSuffix: string;
-};
+export type StripeCheckoutSessionCreateWithCustomerParams =
+  StripeCheckoutSessionCreateParams & { customerId: string };
 
 /**
  * Create a Stripe payment link for an invoice. Note that invoiceAmountUsd MUST IN CENTS!!
@@ -57,6 +60,7 @@ export const createStripeLink = async ({
   createdBy,
   stripeApiKey,
   statementDescriptorSuffix,
+  delayedSettlementAllowed,
 }: StripeLinkCreateParams): Promise<{
   linkId: string;
   priceId: string;
@@ -81,7 +85,10 @@ export const createStripeLink = async ({
         quantity: 1,
       },
     ],
-    payment_method_types: ["card", "us_bank_account"],
+    payment_method_types: [
+      ...instantSettlementMethods,
+      ...(delayedSettlementAllowed ? delayedSettlementMethods : []),
+    ] as Stripe.PaymentLinkCreateParams["payment_method_types"],
     payment_intent_data: {
       statement_descriptor_suffix: statementDescriptorSuffix,
     },
@@ -112,7 +119,7 @@ export const createCheckoutSession = async ({
   const payload: Stripe.Checkout.SessionCreateParams = {
     success_url: successUrl || "",
     cancel_url: returnUrl || "",
-    payment_method_types: ["card"],
+    payment_method_types: instantSettlementMethods,
     line_items: items.map((item) => ({
       price: item.price,
       quantity: item.quantity,
@@ -154,16 +161,11 @@ export const createCheckoutSessionWithCustomer = async ({
   customText,
   statementDescriptorSuffix,
 }: StripeCheckoutSessionCreateWithCustomerParams): Promise<string> => {
-  if (statementDescriptorSuffix.length > 7) {
-    throw new Error(
-      "Statement descriptor suffix should be no more than 7 characters.",
-    );
-  }
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
     success_url: successUrl || "",
     cancel_url: returnUrl || "",
-    payment_method_types: ["card"],
+    payment_method_types: instantSettlementMethods,
     line_items: items.map((item) => ({
       price: item.price,
       quantity: item.quantity,
@@ -268,7 +270,9 @@ export const supportedStripePaymentMethods = [
   "us_bank_account",
   "card",
   "card_present",
-] as const;
+  "crypto",
+] as const satisfies readonly SupportedPaymentMethods[];
+
 export type SupportedStripePaymentMethod =
   (typeof supportedStripePaymentMethods)[number];
 export const paymentMethodTypeToFriendlyName: Record<
@@ -278,6 +282,7 @@ export const paymentMethodTypeToFriendlyName: Record<
   us_bank_account: "ACH Direct Debit",
   card: "Credit/Debit Card",
   card_present: "Credit/Debit Card (Card Present)",
+  crypto: "Cryptocurrency",
 };
 
 export const cardBrandMap: Record<string, string> = {

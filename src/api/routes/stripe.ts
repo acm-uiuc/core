@@ -42,6 +42,7 @@ import * as z from "zod/v4";
 import { getAllUserEmails } from "common/utils.js";
 import { STRIPE_LINK_RETENTION_DAYS } from "common/constants.js";
 import { assertAuthenticated } from "api/authenticated.js";
+import { maxLength } from "common/types/generic.js";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -123,7 +124,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ...request.body,
         createdBy: request.username,
         stripeApiKey: secretApiConfig.stripe_secret_key as string,
-        statementDescriptorSuffix: "INVOICE",
+        statementDescriptorSuffix: maxLength("STORE", 7),
+        delayedSettlementAllowed: true,
       };
       const { url, linkId, priceId, productId } =
         await createStripeLink(payload);
