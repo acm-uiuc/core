@@ -102,7 +102,7 @@ describe("Stripe link lifecycle test", { sequential: true }, async () => {
           },
         },
       );
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(204);
     },
   );
 });

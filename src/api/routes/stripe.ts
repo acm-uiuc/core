@@ -217,7 +217,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             }),
           }),
           response: {
-            201: {
+            204: {
               description: "Payment link deleted successfully.",
               content: {
                 "application/json": {
@@ -321,7 +321,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         linkId,
       });
       await fastify.dynamoClient.send(dynamoCommand);
-      return reply.status(201).send();
+      return reply.status(204).send();
     }),
   );
   fastify.post(
