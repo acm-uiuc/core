@@ -42,6 +42,7 @@ import {
 } from "common/utils.js";
 import {
   ROOM_RESERVATION_RETENTION_DAYS,
+  ROOM_RESERVATION_RETENTION_DAYS_QA,
   UPLOAD_GRACE_PERIOD_MS,
 } from "common/constants.js";
 import { createPresignedGet, createPresignedPut } from "api/functions/s3.js";
@@ -198,7 +199,10 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             createdBy: request.username,
             expiresAt:
               Math.floor(Date.now() / 1000) +
-              86400 * ROOM_RESERVATION_RETENTION_DAYS,
+              86400 *
+                (fastify.runEnvironment === "prod"
+                  ? ROOM_RESERVATION_RETENTION_DAYS
+                  : ROOM_RESERVATION_RETENTION_DAYS_QA),
             attachmentS3key,
           },
           { removeUndefinedValues: true },
@@ -424,7 +428,10 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         semesterId: request.body.semester,
         expiresAt:
           Math.floor(Date.now() / 1000) +
-          86400 * ROOM_RESERVATION_RETENTION_DAYS,
+          86400 *
+            (fastify.runEnvironment === "prod"
+              ? ROOM_RESERVATION_RETENTION_DAYS
+              : ROOM_RESERVATION_RETENTION_DAYS_QA),
       };
       const logStatement = buildAuditLogTransactPut({
         entry: {
@@ -456,7 +463,10 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   status: RoomRequestStatus.CREATED,
                   expiresAt:
                     Math.floor(Date.now() / 1000) +
-                    86400 * ROOM_RESERVATION_RETENTION_DAYS,
+                    86400 *
+                      (fastify.runEnvironment === "prod"
+                        ? ROOM_RESERVATION_RETENTION_DAYS
+                        : ROOM_RESERVATION_RETENTION_DAYS_QA),
                   notes: "This request was created by the user.",
                 }),
               },

@@ -40,7 +40,10 @@ import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import * as z from "zod/v4";
 import { getAllUserEmails } from "common/utils.js";
-import { STRIPE_LINK_RETENTION_DAYS } from "common/constants.js";
+import {
+  STRIPE_LINK_RETENTION_DAYS,
+  STRIPE_LINK_RETENTION_DAYS_QA,
+} from "common/constants.js";
 import { assertAuthenticated } from "api/authenticated.js";
 import { maxLength } from "common/types/generic.js";
 
@@ -114,6 +117,23 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Stripe"], {
           summary: "Create a Stripe payment link.",
           body: invoiceLinkPostRequestSchema,
+          response: {
+            201: {
+              description: "Link created successfully.",
+              content: {
+                "application/json": {
+                  schema: z.object({
+                    id: z.string().min(1).meta({
+                      description: "The Payment Link's ID in the Stripe API",
+                    }),
+                    link: z.url().meta({
+                      description: "The Payment Link URL",
+                    }),
+                  }),
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -196,6 +216,16 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               example: "plink_abc123",
             }),
           }),
+          response: {
+            201: {
+              description: "Payment link deleted successfully.",
+              content: {
+                "application/json": {
+                  schema: z.undefined(),
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -243,9 +273,13 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Deactivated Stripe payment link",
         },
       });
-      // expire deleted links at 90 days
+      // expire deleted links
       const expiresAt =
-        Math.floor(Date.now() / 1000) + 86400 * STRIPE_LINK_RETENTION_DAYS;
+        Math.floor(Date.now() / 1000) +
+        86400 *
+          (fastify.runEnvironment === "prod"
+            ? STRIPE_LINK_RETENTION_DAYS
+            : STRIPE_LINK_RETENTION_DAYS_QA);
       const dynamoCommand = new TransactWriteItemsCommand({
         TransactItems: [
           ...(logStatement ? [logStatement] : []),
