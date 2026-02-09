@@ -59,6 +59,7 @@ import { Modules } from "common/modules.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { sendSaleEmailHandler } from "api/sqs/handlers/sendSaleEmailHandler.js";
 import { sendSaleFailedHandler } from "api/sqs/handlers/sendSaleFailedHandler.js";
+import { maxLength } from "common/types/generic.js";
 
 // ============ Helper Functions ============
 
@@ -668,7 +669,8 @@ export async function createStoreCheckout({
     checkoutUrl = await createCheckoutSessionWithCustomer({
       ...checkoutParams,
       customerId: stripeCustomerId,
-      statementDescriptorSuffix: "STORE",
+      statementDescriptorSuffix: maxLength("STORE", 7),
+      delayedSettlementAllowed: false,
     });
   } else {
     // Use email-based checkout (for unverified or no existing customer)
@@ -676,7 +678,8 @@ export async function createStoreCheckout({
     checkoutUrl = await createCheckoutSession({
       ...checkoutParams,
       customerEmail: userId,
-      statementDescriptorSuffix: "STORE",
+      statementDescriptorSuffix: maxLength("STORE", 7),
+      delayedSettlementAllowed: false,
     });
   }
 

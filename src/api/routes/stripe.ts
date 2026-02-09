@@ -31,7 +31,11 @@ import {
 } from "common/errors/index.js";
 import { Modules } from "common/modules.js";
 import { AppRoles } from "common/roles.js";
-import { invoiceLinkPostRequestSchema } from "common/types/stripe.js";
+import {
+  invoiceLinkGetResponseSchema,
+  invoiceLinkPostRequestSchema,
+  invoiceLinkPostResponseSchema,
+} from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import stripe, { Stripe } from "stripe";
@@ -40,8 +44,12 @@ import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import * as z from "zod/v4";
 import { getAllUserEmails } from "common/utils.js";
-import { STRIPE_LINK_RETENTION_DAYS } from "common/constants.js";
+import {
+  STRIPE_LINK_RETENTION_DAYS,
+  STRIPE_LINK_RETENTION_DAYS_QA,
+} from "common/constants.js";
 import { assertAuthenticated } from "api/authenticated.js";
+import { maxLength } from "common/types/generic.js";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -56,6 +64,16 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         [AppRoles.STRIPE_LINK_CREATOR],
         withTags(["Stripe"], {
           summary: "Get available Stripe payment links.",
+          response: {
+            201: {
+              description: "Links retrieved successfully.",
+              content: {
+                "application/json": {
+                  schema: invoiceLinkGetResponseSchema,
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -113,6 +131,16 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Stripe"], {
           summary: "Create a Stripe payment link.",
           body: invoiceLinkPostRequestSchema,
+          response: {
+            201: {
+              description: "Link created successfully.",
+              content: {
+                "application/json": {
+                  schema: invoiceLinkPostResponseSchema,
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -123,7 +151,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ...request.body,
         createdBy: request.username,
         stripeApiKey: secretApiConfig.stripe_secret_key as string,
-        statementDescriptorSuffix: "INVOICE",
+        statementDescriptorSuffix: maxLength("INVOICE", 7),
+        delayedSettlementAllowed: true,
       };
       const { url, linkId, priceId, productId } =
         await createStripeLink(payload);
@@ -194,6 +223,16 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               example: "plink_abc123",
             }),
           }),
+          response: {
+            204: {
+              description: "Payment link deleted successfully.",
+              content: {
+                "application/json": {
+                  schema: z.undefined(),
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
@@ -241,9 +280,13 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Deactivated Stripe payment link",
         },
       });
-      // expire deleted links at 90 days
+      // expire deleted links
       const expiresAt =
-        Math.floor(Date.now() / 1000) + 86400 * STRIPE_LINK_RETENTION_DAYS;
+        Math.floor(Date.now() / 1000) +
+        86400 *
+          (fastify.runEnvironment === "prod"
+            ? STRIPE_LINK_RETENTION_DAYS
+            : STRIPE_LINK_RETENTION_DAYS_QA);
       const dynamoCommand = new TransactWriteItemsCommand({
         TransactItems: [
           ...(logStatement ? [logStatement] : []),
@@ -285,7 +328,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         linkId,
       });
       await fastify.dynamoClient.send(dynamoCommand);
-      return reply.status(201).send();
+      return reply.status(204).send();
     }),
   );
   fastify.post(
