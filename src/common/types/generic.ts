@@ -81,5 +81,10 @@ type ValidateMaxLength<S extends string, N extends number> =
 
 export const maxLength = <const S extends string, N extends number>(
   s: ValidateMaxLength<S, N>,
-  _n: N
-): MaxLengthString<N> => s as unknown as MaxLengthString<N>;
+  n: N
+): MaxLengthString<N> => {
+  if (s.length > n) {
+    throw new Error(`String "${s}" exceeds max length of ${n}`);
+  }
+  return s as unknown as MaxLengthString<N>;
+};

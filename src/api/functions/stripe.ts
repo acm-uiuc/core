@@ -281,6 +281,7 @@ export const supportedStripePaymentMethods = [
   "card",
   "card_present",
   "crypto",
+  "link",
 ] as const satisfies readonly SupportedPaymentMethods[];
 
 export type SupportedStripePaymentMethod =
@@ -293,6 +294,7 @@ export const paymentMethodTypeToFriendlyName: Record<
   card: "Credit/Debit Card",
   card_present: "Credit/Debit Card (Card Present)",
   crypto: "Cryptocurrency",
+  link: "Link",
 };
 
 export const cardBrandMap: Record<string, string> = {

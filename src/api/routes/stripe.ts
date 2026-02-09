@@ -124,7 +124,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ...request.body,
         createdBy: request.username,
         stripeApiKey: secretApiConfig.stripe_secret_key as string,
-        statementDescriptorSuffix: maxLength("STORE", 7),
+        statementDescriptorSuffix: maxLength("INVOICE", 7),
         delayedSettlementAllowed: true,
       };
       const { url, linkId, priceId, productId } =
