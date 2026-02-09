@@ -68,10 +68,10 @@ describe("Stripe link lifecycle test", { sequential: true }, async () => {
     });
     const body = await response.json();
     expect(response.status).toBe(201);
-    expect(body["link"]).toBeDefined();
-    expect(body["id"]).toBeDefined();
-    paymentLinkUrl = body["link"];
-    paymentLinkId = body["id"];
+    expect(body.link).toBeDefined();
+    expect(body.id).toBeDefined();
+    paymentLinkUrl = body.link;
+    paymentLinkId = body.id;
   });
   test(
     "Test that accessing a created link succeeds",
