@@ -158,7 +158,13 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
         }
         const unknownIds = AllOrganizationIdList.filter(
           (x) => !successIds.includes(x),
-        ).map((x) => ({ id: x, ...Organizations[x] }));
+        ).map((x) => ({
+          id: x,
+          ...Organizations[x],
+          email:
+            Organizations[x].contactEmailOverride ??
+            `${Organizations[x].shortcode}-adm@acm.illinois.edu`,
+        }));
         return reply.send([...successOnly, ...unknownIds]);
       } catch (e) {
         if (e instanceof BaseError) {

@@ -12,6 +12,11 @@
   resolved "https://registry.yarnpkg.com/@acm-uiuc/js-shared/-/js-shared-3.5.0.tgz#0de39552bb4ef40d75f2df1f96e2fa95560c5baa"
   integrity sha512-SlwSUpMYixPyFeQu3riMcxgnGk7JKLd9Th7uAp3N8WrFN2T/CfReECZWtQPJwFmDX/EXAFpwLbbURJ7UdxmS0Q==
 
+"@acm-uiuc/js-shared@^3.6.0":
+  version "3.6.0"
+  resolved "https://registry.yarnpkg.com/@acm-uiuc/js-shared/-/js-shared-3.6.0.tgz#97d876b93450fe8e9050499fdc1f58ea4ff35e23"
+  integrity sha512-AUGrHHB5nwZv5Qdutvg3sgmD14onrtkDrvENHh1lQcN/oi/tn9lPvsuLhTs0l1NP+taakzzDOOnFDhrGE3WEyA==
+
 "@adobe/css-tools@^4.4.0":
   version "4.4.4"
   resolved "https://registry.yarnpkg.com/@adobe/css-tools/-/css-tools-4.4.4.tgz#2856c55443d3d461693f32d2b96fb6ea92e1ffa9"
