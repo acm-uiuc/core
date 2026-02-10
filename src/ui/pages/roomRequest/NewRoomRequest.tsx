@@ -485,7 +485,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             adminRoles={[AppRoles.BYPASS_OBJECT_LEVEL_AUTH]}
             showAllOrgs={viewOnly}
             value={form.values.host ?? null}
-            onChange={(org) => form.setFieldValue("host", org)}
+            onChange={(org) =>
+              form.setFieldValue("host", org !== null ? org : undefined)
+            }
             onOrgsLoaded={(orgs) => {
               if (!viewOnly && orgs.length > 0) {
                 const primOrg = getPrimarySuggestedOrg(orgRoles);
