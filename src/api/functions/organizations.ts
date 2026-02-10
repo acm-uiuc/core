@@ -54,8 +54,11 @@ export async function getOrgInfo({
   const orgMetadata = await fetchOrgMetadata(id, dynamoClient, logger);
   const leads = await fetchOrgLeads(id, dynamoClient, logger);
   const constOrgData = Organizations[id];
+  const email =
+    Organizations[id].contactEmailOverride ??
+    `${Organizations[id].shortcode}-adm@acm.illinois.edu`;
 
-  return { id, ...orgMetadata, leads, ...constOrgData };
+  return { id, ...orgMetadata, leads, ...constOrgData, email };
 }
 
 async function fetchOrgMetadata(
