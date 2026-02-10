@@ -31,8 +31,8 @@ for (const item of entries) {
 
 // These are org-specific maps back to their own managed links with defined prefixes.
 // For example, rsvp.acm.gg/visa will map to corporate.acm.gg/rsvp_visa (since C05 is corporate)
-type HostAliasDefinition = { host: OrganizationId; prefix: string };
-const HOST_ALIASES: Record<string, HostAliasDefinition> = {
+type SubdomainAliasDefinition = { host: OrganizationId; prefix: string };
+const SUBDOMAIN_ALIASES: Record<string, SubdomainAliasDefinition> = {
   rsvp: { host: "C05", prefix: "rsvp_" },
 };
 
@@ -55,8 +55,8 @@ function getSlugToQuery(path: string, host: string): string {
     const short = hostParts[0];
 
     // Resolve Host Aliases (see above)
-    if (HOST_ALIASES[short]) {
-      const { host: orgId, prefix } = HOST_ALIASES[short];
+    if (SUBDOMAIN_ALIASES[short]) {
+      const { host: orgId, prefix } = SUBDOMAIN_ALIASES[short];
       return `${orgId}#${prefix}${path}`;
     }
 
