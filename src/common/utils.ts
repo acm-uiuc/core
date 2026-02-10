@@ -120,11 +120,13 @@ export function decodeInvoiceToken(token: string): {
     throw new ValidationError({ message: "Invalid invoice token encoding." });
   }
 
-  const [orgId, emailDomain, invoiceId] = decoded.split("#");
+  const parts = decoded.split("#");
+  const orgId = parts[0];
+  const emailDomain = parts[1];
+  const invoiceId = parts.slice(2).join("#"); // keep remainder
 
   if (!orgId || !emailDomain || !invoiceId) {
     throw new ValidationError({ message: "Malformed invoice token." });
   }
-
   return { orgId, emailDomain, invoiceId };
 }
