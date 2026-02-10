@@ -91,7 +91,8 @@ export const handler = async (
   const slugToQuery = getSlugToQuery(path, host);
   console.log(`Host: ${host}, Path: ${path}, Querying Slug: ${slugToQuery}`);
 
-  if (!path) {
+  if (!path && !slugToQuery.includes("#")) {
+    // subdomains can have root
     return {
       status: "301",
       statusDescription: "Moved Permanently",

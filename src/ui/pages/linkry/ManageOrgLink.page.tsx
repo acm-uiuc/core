@@ -29,7 +29,7 @@ const orgLinkBodySchema = z
   .object({
     slug: z
       .string()
-      .min(1, "Enter or generate an alias")
+      .min(0, "Enter or generate an alias")
       .regex(
         slugRegex,
         "Invalid input: Only alphanumeric characters, '-', '_', '/', and '.' are allowed",

@@ -16,6 +16,11 @@ export const linkrySlug = z.string().min(1).max(LINKRY_MAX_SLUG_LENGTH).meta({
   description: "Linkry shortened URL path.",
   example: "shortened_url",
 });
+export const linkryOrgSlug = z.string().min(0).max(LINKRY_MAX_SLUG_LENGTH).meta({
+  description: "Linkry shortened URL path.",
+  example: "shortened_url",
+});
+
 export const linkryAccessList = z.array(z.string().min(1)).meta({
   description: "List of groups to which access has been delegated.",
   example: [
@@ -35,7 +40,11 @@ export const createRequest = z.object({
   }),
 });
 
-export const createOrgLinkRequest = createRequest.omit({ access: true });
+export const createOrgLinkRequest = createRequest.omit({ access: true, slug: true }).extend({
+  slug: linkryOrgSlug.refine((url) => !url.includes("#"), {
+    message: "Slug must not contain a hashtag",
+  })
+});
 
 export const linkRecord = z.object({
   access: linkryAccessList,
@@ -51,7 +60,7 @@ export const linkRecord = z.object({
 });
 
 export const orgLinkRecord = z.object({
-  slug: linkrySlug,
+  slug: linkryOrgSlug,
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   redirect: z.url(),
