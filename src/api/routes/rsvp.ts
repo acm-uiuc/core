@@ -19,11 +19,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "common/errors/index.js";
-import {
-  rsvpConfigSchema,
-  rsvpItemSchema,
-  rsvpConfigResponseSchema,
-} from "common/types/rsvp.js";
+import { rsvpConfigSchema, rsvpItemSchema } from "common/types/rsvp.js";
 import * as z from "zod/v4";
 import { verifyUiucAccessToken } from "api/functions/uin.js";
 import { checkPaidMembership } from "api/functions/membership.js";
@@ -60,7 +56,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "RSVP created successfully.",
               content: {
                 "application/json": {
-                  schema: z.object({}),
+                  schema: z.undefined(),
                 },
               },
             },
@@ -252,7 +248,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "Configuration updated successfully.",
               content: {
                 "application/json": {
-                  schema: z.object({}),
+                  schema: z.undefined(),
                 },
               },
             },
@@ -284,10 +280,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               ExpressionAttributeValues: marshall({
                 ":limit": configData.rsvpLimit ?? null,
                 ":checkIn": configData.rsvpCheckInEnabled,
-                ":questions": configData.rsvpQuestions.map((q) => ({
-                  ...q,
-                  required: q.required ?? false,
-                })),
+                ":questions": configData.rsvpQuestions,
                 ":openAt": configData.rsvpOpenAt,
                 ":closeAt": configData.rsvpCloseAt,
                 ":now": Math.floor(Date.now() / 1000),
@@ -335,7 +328,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "RSVP configuration for the event.",
               content: {
                 "application/json": {
-                  schema: z.any(),
+                  schema: rsvpConfigSchema,
                 },
               },
             },
@@ -458,7 +451,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "RSVP withdrawn successfully.",
               content: {
                 "application/json": {
-                  schema: z.object({}),
+                  schema: z.undefined(),
                 },
               },
             },
@@ -539,7 +532,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "RSVP deleted successfully.",
               content: {
                 "application/json": {
-                  schema: z.object({}),
+                  schema: z.undefined(),
                 },
               },
             },

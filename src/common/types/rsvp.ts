@@ -1,6 +1,5 @@
 import * as z from "zod/v4";
 
-
 export const rsvpSubmissionBodySchema = z.object({
   responses: z
     .record(z.string(), z.union([z.string(), z.boolean()]))
@@ -17,7 +16,7 @@ const rsvpQuestionBase = z.object({
     description: "Unique ID for storing the answer (e.g., 'dietary')",
   }),
   prompt: z.string().min(1).meta({ description: "The actual question text" }),
-  required: z.boolean(),
+  required: z.boolean().default(false),
 });
 
 export const rsvpQuestionSchema = z.discriminatedUnion("type", [
@@ -31,14 +30,6 @@ export const rsvpQuestionSchema = z.discriminatedUnion("type", [
       .meta({ description: "Available options for SELECT type" }),
   }),
 ]);
-
-export const rsvpConfigResponseSchema = z.object({
-  rsvpLimit: z.number().int().min(0).max(20000).nullable(),
-  rsvpCheckInEnabled: z.boolean(),
-  rsvpQuestions: z.array(rsvpQuestionSchema),
-  rsvpCloseAt: z.number().int().min(0),
-  rsvpOpenAt: z.number().int().min(0),
-});
 
 export const rsvpConfigSchema = z
   .object({
