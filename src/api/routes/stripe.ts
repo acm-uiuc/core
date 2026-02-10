@@ -192,7 +192,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       return reply.status(201).send({
         id: request.body.invoiceId,
-        link: `${fastify.environmentConfig.UserFacingUrl}/api/v1/stripe/pay/${token}`, // http:127.0.1.1:8080 for local
+        link: `${fastify.environmentConfig.PaymentBaseUrl}/${token}`, // http:127.0.1.1:8080 for local
       });
     },
   );
@@ -264,6 +264,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
       statementDescriptorSuffix: maxLength("INVOICE", 7),
       delayedSettlementAllowed: true,
+      allowAchPush: true,
     });
 
     return reply.redirect(checkoutUrl, 302);
