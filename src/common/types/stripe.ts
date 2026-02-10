@@ -1,5 +1,5 @@
 import * as z from "zod/v4";
-
+import { OrgUniqueId } from "./generic.js"
 
 const id = z.string().min(1).meta({
   description: "The Payment Link's ID in the Stripe API",
@@ -82,7 +82,7 @@ export const createInvoicePostRequestSchema = z.object({
   invoiceAmountUsd,   
   contactName: z.string().min(1), 
   contactEmail: z.email(),        
-  acmOrg: z.string().min(1),
+  acmOrg: OrgUniqueId,
 });
 
 export type PostCreateInvoiceRequest = z.infer<

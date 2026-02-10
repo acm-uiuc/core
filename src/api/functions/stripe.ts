@@ -13,6 +13,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { Organizations, type OrganizationId } from "@acm-uiuc/js-shared";
 
 export type SupportedPaymentMethods =
   | NonNullable<Stripe.PaymentMethodCreateParams["type"]>
@@ -62,7 +63,7 @@ export type StripeCheckoutSessionCreateParams = {
 export type StripeCheckoutSessionCreateWithCustomerParams =
   StripeCheckoutSessionCreateParams & {
     customerId: string;
-    allowAchPush: boolean;
+    allowAchPush?: boolean;
   };
 
 /**
@@ -406,7 +407,7 @@ export const createStripeCustomer = async ({
 };
 
 export type checkCustomerParams = {
-  acmOrg: string;
+  acmOrg: OrganizationId;
   emailDomain: string;
   redisClient: Redis;
   dynamoClient: DynamoDBClient;
@@ -465,7 +466,7 @@ export const checkOrCreateCustomer = async ({
     if (customerResponse.Count === 0) {
       const customer = await createStripeCustomer({
         email: normalizedEmail,
-        name: customerName,
+        name: `${Organizations[acmOrg].name} - ${normalizedDomain}`,
         stripeApiKey,
       });
 
@@ -583,7 +584,7 @@ export const checkOrCreateCustomer = async ({
 };
 
 export type InvoiceAddParams = {
-  acmOrg: string;
+  acmOrg: OrganizationId;
   emailDomain: string;
   invoiceId: string;
   invoiceAmountUsd: number;
