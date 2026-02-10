@@ -9,7 +9,12 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import * as z from "zod/v4";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
@@ -65,12 +70,13 @@ export const ManageOrgLinkPage: React.FC = () => {
   const [isEdited, setIsEdited] = useState<boolean>(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const api = useApi("core");
   const [searchParams] = useSearchParams();
   const { slug } = useParams();
 
   const orgId = searchParams.get("org") as OrganizationId | null;
-  const isEditing = slug !== undefined;
+  const isEditing = location.pathname.startsWith("/linkry/org/edit");
 
   const orgName =
     orgId && Organizations[orgId] ? Organizations[orgId].name : orgId;
@@ -98,7 +104,7 @@ export const ManageOrgLinkPage: React.FC = () => {
           `/api/v1/linkry/orgs/${encodeURIComponent(orgId)}/redir`,
         );
         const links: OrgLinkRecord[] = response.data;
-        const fullSlug = `${orgId}#${slug}`;
+        const fullSlug = `${orgId}#${slug ?? ""}`;
         const match = links.find((l) => l.slug === fullSlug);
         if (!match) {
           notifications.show({
