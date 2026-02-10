@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { Organizations } from "@acm-uiuc/js-shared";
+import { OrganizationId, Organizations } from "@acm-uiuc/js-shared";
 import {
   DynamoDBClient,
   QueryCommand,
@@ -29,6 +29,13 @@ for (const item of entries) {
   shortToOrgCodeMapper[item[1].shortcode] = item[0];
 }
 
+// These are org-specific maps back to their own managed links with defined prefixes.
+// For example, rsvp.acm.gg/visa will map to corporate.acm.gg/rsvp_visa (since C05 is corporate)
+type SubdomainAliasDefinition = { host: OrganizationId; prefix: string };
+const SUBDOMAIN_ALIASES: Record<string, SubdomainAliasDefinition> = {
+  rsvp: { host: "C05", prefix: "rsvp_" },
+};
+
 function getSlugToQuery(path: string, host: string): string {
   let cleanedHost = host.toLowerCase();
 
@@ -43,11 +50,19 @@ function getSlugToQuery(path: string, host: string): string {
   }
 
   const hostParts = cleanedHost.split(".");
+
   if (hostParts.length === 1 && host !== "acm") {
     const short = hostParts[0];
+
+    // Resolve Host Aliases (see above)
+    if (SUBDOMAIN_ALIASES[short]) {
+      const { host: orgId, prefix } = SUBDOMAIN_ALIASES[short];
+      return `${orgId}#${prefix}${path}`;
+    }
+
+    // Check for Standard Org Codes
     if (shortToOrgCodeMapper[short]) {
       return `${shortToOrgCodeMapper[short]}#${path}`.replace("A01#", "");
-      // A01 is ACM, so there's no prefix.
     }
   }
 
@@ -91,7 +106,8 @@ export const handler = async (
   const slugToQuery = getSlugToQuery(path, host);
   console.log(`Host: ${host}, Path: ${path}, Querying Slug: ${slugToQuery}`);
 
-  if (!path) {
+  if (!path && !slugToQuery.includes("#")) {
+    // subdomains can have root
     return {
       status: "301",
       statusDescription: "Moved Permanently",
