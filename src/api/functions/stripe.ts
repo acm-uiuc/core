@@ -585,7 +585,6 @@ export const checkOrCreateCustomer = async ({
 
 export type InvoiceAddParams = {
   acmOrg: OrganizationId;
-  emailDomain: string;
   invoiceId: string;
   invoiceAmountUsd: number;
   redisClient: Redis;
@@ -601,7 +600,6 @@ export const addInvoice = async ({
   acmOrg,
   invoiceId,
   invoiceAmountUsd,
-  emailDomain,
   redisClient,
   dynamoClient,
   stripeApiKey,

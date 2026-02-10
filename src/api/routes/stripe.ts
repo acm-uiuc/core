@@ -61,6 +61,7 @@ import {
 } from "common/constants.js";
 import { assertAuthenticated } from "api/authenticated.js";
 import { maxLength } from "common/types/generic.js";
+import { authorizeByOrgRoleOrSchema } from "api/functions/authorization.js";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -135,12 +136,12 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
-    "/createInvoice",
+    "/paymentLinks",
     {
       schema: withRoles(
         [AppRoles.STRIPE_LINK_CREATOR],
         withTags(["Stripe"], {
-          summary: "Create an invoice (no Stripe side effects).",
+          summary: "Create a Stripe payment link.",
           body: createInvoicePostRequestSchema,
           response: {
             201: {
@@ -162,14 +163,15 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           },
         }),
       ),
-      onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
+      await authorizeByOrgRoleOrSchema(fastify, request, reply, {
+        validRoles: [{ org: request.body.acmOrg, role: "LEAD" }],
+      });
       const emailDomain = request.body.contactEmail.split("@").at(-1)!;
 
       const result = await addInvoice({
         ...request.body,
-        emailDomain,
         redisClient: fastify.redisClient,
         dynamoClient: fastify.dynamoClient,
         stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
@@ -244,7 +246,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     const stripe = new Stripe(fastify.secretConfig.stripe_secret_key as string);
 
     const price = await stripe.prices.create({
-      unit_amount: amountUsd * 100,
+      unit_amount: amountUsd,
       currency: "usd",
       product_data: {
         name: `Invoice ${invoiceId}`,

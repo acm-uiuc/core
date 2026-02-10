@@ -22,7 +22,11 @@ import {
   PostInvoiceLinkRequest,
   PostInvoiceLinkResponse,
 } from "@common/types/stripe";
-import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import { ManageableOrgsSelector } from "@ui/components/ManageableOrgsSelector";
+import { getPrimarySuggestedOrg } from "@ui/util";
+import { useAuth } from "@ui/components/AuthContext";
+import { OrganizationId } from "@acm-uiuc/js-shared";
+import { AppRoles } from "@common/roles";
 
 interface StripeCreateLinkPanelProps {
   createLink: (
@@ -36,6 +40,10 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
   const [modalOpened, setModalOpened] = useState(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [returnedLink, setReturnedLink] = useState<string | null>(null);
+  const [userPrimaryOrg, setUserPrimaryOrg] = useState<OrganizationId | null>(
+    null,
+  );
+  const { orgRoles } = useAuth();
 
   const form = useForm({
     initialValues: {
@@ -44,6 +52,7 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
       contactName: "",
       contactEmail: "",
       achPaymentsEnabled: false,
+      acmOrg: userPrimaryOrg,
     },
     validate: {
       invoiceId: (value) =>
@@ -86,6 +95,24 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
         Create a Payment Link
       </Title>
       <form onSubmit={form.onSubmit(handleSubmit)}>
+        <ManageableOrgsSelector
+          adminRoles={[AppRoles.STRIPE_LINK_ADMIN]}
+          showAllOrgs={false}
+          value={form.values.acmOrg ?? null}
+          onChange={(org) => form.setFieldValue("acmOrg", org)}
+          onOrgsLoaded={(orgs) => {
+            if (orgs.length > 0) {
+              const primOrg = getPrimarySuggestedOrg(orgRoles);
+              if (primOrg) {
+                setUserPrimaryOrg(primOrg);
+                form.setFieldValue("host", primOrg);
+              }
+            }
+          }}
+          label="Invoice Recipient Org"
+          placeholder="Select recipient organization"
+          withAsterisk
+        />
         <TextInput
           label="Invoice ID"
           placeholder="ACM100"
