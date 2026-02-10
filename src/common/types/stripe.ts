@@ -48,3 +48,47 @@ export const invoiceLinkGetResponseSchema = z.array(
 
 export type GetInvoiceLinksResponse = z.infer<
   typeof invoiceLinkGetResponseSchema>;
+
+export const createInvoicePostResponseSchema = z.object({
+  id: z.string().min(1),
+  link: z.url(),
+});
+
+export const createInvoiceConflictResponseSchema = z.object({
+  needsConfirmation: z.literal(true),
+  customerId: z.string().min(1),
+  current: z.object({
+    name: z.string().nullable().optional(),
+    email: z.string().nullable().optional(),
+  }),
+  incoming: z.object({
+    name: z.string().min(1),
+    email: z.string().email(),
+  }),
+  message: z.string().min(1),
+});
+
+export const createInvoicePostResponseSchemaUnion = z.union([
+  createInvoicePostResponseSchema,     // success: 201
+  createInvoiceConflictResponseSchema, // info mismatch: 409
+]);
+
+export type PostCreateInvoiceResponseUnion = z.infer<
+  typeof createInvoicePostResponseSchemaUnion
+>;
+
+export const createInvoicePostRequestSchema = z.object({
+  invoiceId,          // reuse your meta’d primitive from file 2
+  invoiceAmountUsd,   // reuse your meta’d primitive from file 2
+  contactName: z.string().min(1), // or swap to your meta version if you want
+  contactEmail: z.email(),        // or swap to your meta version if you want
+  acmOrg: z.string().min(1),
+});
+
+export type PostCreateInvoiceRequest = z.infer<
+  typeof createInvoicePostRequestSchema
+>;
+
+export type PostCreateInvoiceResponse = z.infer<
+  typeof createInvoicePostResponseSchema
+>;

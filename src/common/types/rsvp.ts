@@ -1,10 +1,48 @@
 import * as z from "zod/v4";
-import { ALL_MAJORS } from "@acm-uiuc/js-shared";
 
+
+export const rsvpSubmissionBodySchema = z.object({
+  responses: z
+    .record(z.string(), z.union([z.string(), z.boolean()]))
+    .optional()
+    .meta({
+      description:
+        "Map of Question IDs to answers (Text or Boolean). Required if the event has configured questions.",
+      example: { diet: "Vegetarian", tshirt: "M" },
+    }),
+});
+
+const rsvpQuestionBase = z.object({
+  id: z.string().min(1).meta({
+    description: "Unique ID for storing the answer (e.g., 'dietary')",
+  }),
+  prompt: z.string().min(1).meta({ description: "The actual question text" }),
+  required: z.boolean(),
+});
+
+export const rsvpQuestionSchema = z.discriminatedUnion("type", [
+  rsvpQuestionBase.extend({ type: z.literal("TEXT") }),
+  rsvpQuestionBase.extend({ type: z.literal("BOOLEAN") }),
+  rsvpQuestionBase.extend({
+    type: z.literal("SELECT"),
+    options: z
+      .array(z.string())
+      .min(1)
+      .meta({ description: "Available options for SELECT type" }),
+  }),
+]);
+
+export const rsvpConfigResponseSchema = z.object({
+  rsvpLimit: z.number().int().min(0).max(20000).nullable(),
+  rsvpCheckInEnabled: z.boolean(),
+  rsvpQuestions: z.array(rsvpQuestionSchema),
+  rsvpCloseAt: z.number().int().min(0),
+  rsvpOpenAt: z.number().int().min(0),
+});
 
 export const rsvpConfigSchema = z
   .object({
-    rsvpLimit: z.number().int().min(1).max(20000).nullable().meta({
+    rsvpLimit: z.number().int().min(0).max(20000).nullable().meta({
       description:
         "The maximum number of attendees allowed. Set to null for unlimited.",
       example: 50,
@@ -14,6 +52,28 @@ export const rsvpConfigSchema = z
         "Whether check-in for attendance is enabled for this event. Defaults to false",
       example: true,
     }),
+    rsvpQuestions: z
+      .array(rsvpQuestionSchema)
+      .default([])
+      .meta({
+        description:
+          "List of custom questions to ask users during RSVP. Defaults to an empty array.",
+        example: [
+          {
+            id: "diet",
+            prompt: "Dietary Restrictions?",
+            type: "TEXT",
+            required: false,
+          },
+          {
+            id: "tshirt",
+            prompt: "T-Shirt Size",
+            type: "SELECT",
+            options: ["S", "M", "L", "XL"],
+            required: true,
+          },
+        ],
+      }),
     rsvpCloseAt: z.number().int().min(0).meta({
       description:
         "Epoch timestamp (sec) representing the RSVP deadline. Users cannot RSVP after this time.",
@@ -42,59 +102,42 @@ export const rsvpConfigSchema = z
       path: ["rsvpOpenAt"],
     },
   )
+  .refine(
+    (data) => {
+      const ids = data.rsvpQuestions?.map((q) => q.id) ?? [];
+      return ids.length === new Set(ids).size;
+    },
+    {
+      message: "Question IDs must be unique within the event",
+      path: ["rsvpQuestions"],
+    },
+  )
   .meta({
     id: "RsvpConfig",
     description: "Configuration payload for updating event RSVP settings.",
   });
 
-export const rsvpItemSchema = z.object({
-  eventId: z.string().meta({ description: "The ID of the event." }),
-  userId: z.string().meta({ description: "The user's email." }),
-  isPaidMember: z.boolean().meta({ description: "Membership status at time of RSVP." }),
-  checkedIn: z.boolean().default(false).meta({ description: "Attendance status. False on creation." }),
-  createdAt: z.number().meta({ description: "Unix timestamp of RSVP creation." }),
-  gradYear: z.number().meta({ description: "Snapshot of user's graduation year at time of RSVP." }),
-  gradMonth: z.string().meta({ description: "Snapshot of user's graduation month at time of RSVP." }),
-  expectedDegree: z.string().meta({ description: "Snapshot of user's expected degree at time of RSVP." }),
-  intendedMajor: z.string().meta({ description: "Snapshot of user's major at time of RSVP." }),
-  dietaryRestrictions: z.array(z.string()).meta({ description: "User's dietary restrictions." }),
-  interests: z.array(z.string()).meta({ description: "Snapshot of user's interests." }),
-}).meta({ description: "The final RSVP record." });
-
-export const majorSchema = z.enum(ALL_MAJORS).meta({ description: "The student's primary major at UIUC" });
-
-const ACCEPTED_MONTHS = ["May", "August", "December"] as const;
-const ACCEPTED_DEGREES = ["Bachelor's", "Master's", "PhD", "Other"] as const;
-const CURRENT_YEAR = new Date().getFullYear();
-
-export const rsvpProfileSchema = z.object({
-  gradYear: z.number()
-    .int()
-    .min(CURRENT_YEAR - 10)
-    .max(CURRENT_YEAR + 10)
-    .meta({
-      description: "The year the student will graduate",
-      example: 2027,
+export const rsvpItemSchema = z
+  .object({
+    eventId: z.string().meta({
+      description: "The unique identifier for the event.",
+      example: "evt_sp25_intro_to_databases",
     }),
-  gradMonth: z.enum(ACCEPTED_MONTHS).meta({
-    description: "The month the student will graduate",
-    example: "May"
-  }),
-  expectedDegree: z.enum(ACCEPTED_DEGREES).meta({
-    description: "The major the student is pursuing",
-    example: "Bachelor's"
-  }),
-  intendedMajor: majorSchema.meta({
-    description: "The student's primary major at UIUC",
-    example: "Computer Science",
-  }),
-  interests: z.array(z.string()).default([]).meta({
-    description: "List of attendee's interests.",
-    example: ["AI", "Web Development"],
-  }),
-  dietaryRestrictions: z.array(z.string()).default([]).meta({
-    description: "User's dietary restrictions."
-  }),
-}).meta({
-  description: "Represents a user's RSVP profile information.",
-});
+    userId: z.string().meta({
+      description: "The User Principal Name (UPN) of the attendee.",
+      example: "rjjones@illinois.edu",
+    }),
+    isPaidMember: z.boolean().meta({
+      description:
+        "Indicates if the user held a paid membership at the time of RSVP.",
+      example: true,
+    }),
+    createdAt: z.number().int().meta({
+      description: "Epoch timestamp (sec) when the RSVP was created.",
+      example: 1705512000,
+    }),
+  })
+  .meta({
+    description: "Represents a single confirmed RSVP record in the database.",
+    id: "RsvpItem",
+  });
