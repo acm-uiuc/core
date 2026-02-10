@@ -60,7 +60,10 @@ export type StripeCheckoutSessionCreateParams = {
 };
 
 export type StripeCheckoutSessionCreateWithCustomerParams =
-  StripeCheckoutSessionCreateParams & { customerId: string };
+  StripeCheckoutSessionCreateParams & {
+    customerId: string;
+    allowAchPush: boolean;
+  };
 
 /**
  * Create a Stripe payment link for an invoice. Note that invoiceAmountUsd MUST IN CENTS!!
@@ -180,13 +183,16 @@ export const createCheckoutSessionWithCustomer = async ({
   customText,
   statementDescriptorSuffix,
   delayedSettlementAllowed,
+  allowAchPush,
 }: StripeCheckoutSessionCreateWithCustomerParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
     success_url: successUrl || "",
     cancel_url: returnUrl || "",
     payment_method_types: (delayedSettlementAllowed
-      ? allPaymentMethods
+      ? allowAchPush
+        ? [...allPaymentMethods, "customer_balance"]
+        : allPaymentMethods
       : instantSettlementMethods
     ).filter(
       (x) => x !== "crypto",
@@ -207,6 +213,14 @@ export const createCheckoutSessionWithCustomer = async ({
     payment_intent_data: {
       ...(captureMethod && { capture_method: captureMethod }),
       statement_descriptor_suffix: statementDescriptorSuffix,
+    },
+    payment_method_options: {
+      ...(allowAchPush && {
+        customer_balance: {
+          funding_type: "bank_transfer",
+          bank_transfer: { type: "us_bank_transfer" },
+        },
+      }),
     },
   };
   const session = await stripe.checkout.sessions.create(payload);
