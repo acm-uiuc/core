@@ -100,11 +100,12 @@ export const LinkShortener: React.FC = () => {
   useEffect(() => {
     if (
       hasLinksAccess === false &&
+      hasOrgAccess &&
       (activeTab === "owned" || activeTab === "delegated")
     ) {
       setActiveTab("org");
     }
-  }, [hasLinksAccess]);
+  }, [hasLinksAccess, hasOrgAccess]);
 
   // Sync selectedOrg with URL param
   useEffect(() => {
