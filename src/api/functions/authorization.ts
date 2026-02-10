@@ -5,6 +5,8 @@ import {
   BaseError,
   DatabaseFetchError,
   InternalServerError,
+  UnauthenticatedError,
+  UnauthorizedError,
 } from "../../common/errors/index.js";
 import {
   allAppRoles,
@@ -142,10 +144,9 @@ export async function authorizeByOrgRoleOrSchema(
   reply: FastifyReply,
   config: AuthConfig,
 ) {
-  let originalError = new InternalServerError({
+  let originalError = new UnauthorizedError({
     message: "You do not have permission to perform this action.",
   });
-
   try {
     await fastify.authorizeFromSchema(request, reply);
     return;

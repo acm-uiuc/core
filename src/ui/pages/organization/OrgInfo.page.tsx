@@ -1,20 +1,12 @@
 import { useState, useEffect } from "react";
-import { Title, Stack, Container, Select } from "@mantine/core";
-import {
-  AuthGuard,
-  getUserRoles,
-  getCoreOrgRoles,
-} from "@ui/components/AuthGuard";
+import { Title, Stack, Container } from "@mantine/core";
+import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle } from "@tabler/icons-react";
-import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
-import {
-  AllOrganizationIdList,
-  OrganizationId,
-  Organizations,
-} from "@acm-uiuc/js-shared";
+import { OrganizationId, Organizations } from "@acm-uiuc/js-shared";
+import { ManageableOrgsSelector } from "@ui/components/ManageableOrgsSelector";
 import { ManageOrganizationForm } from "./ManageOrganizationForm";
 import {
   LeadEntry,
@@ -115,22 +107,6 @@ export const OrgInfoPage = () => {
       throw error;
     }
   };
-  useEffect(() => {
-    (async () => {
-      const appRoles = await getUserRoles("core");
-      const orgRoles = await getCoreOrgRoles();
-      if (appRoles === null || orgRoles === null) {
-        return;
-      }
-      if (appRoles.includes(AppRoles.ALL_ORG_MANAGER)) {
-        setManagableOrgs([...AllOrganizationIdList]);
-        return;
-      }
-      setManagableOrgs(
-        orgRoles.filter((x) => x.role === "LEAD").map((x) => x.org),
-      );
-    })();
-  }, []);
 
   // Update URL when selected org changes
   const handleOrgChange = (org: OrganizationId | null) => {
@@ -157,11 +133,7 @@ export const OrgInfoPage = () => {
     }
   }, [manageableOrgs, orgFromUrl]);
 
-  if (!manageableOrgs) {
-    return <FullScreenLoader />;
-  }
-
-  if (manageableOrgs.length === 0) {
+  if (manageableOrgs !== null && manageableOrgs.length === 0) {
     // Need to show access denied.
     return (
       <AuthGuard
@@ -189,18 +161,14 @@ export const OrgInfoPage = () => {
         <Stack gap="lg">
           <div>
             <Title order={2}>Manage Organization Info</Title>
-            <Select
+            <ManageableOrgsSelector
+              value={selectedOrg}
+              onChange={handleOrgChange}
+              onOrgsLoaded={(orgs) => setManagableOrgs(orgs)}
               label="Select an organization"
               description="Only organizations you have permission to manage are shown."
               placeholder="Select organization"
-              data={manageableOrgs.map((x) => ({
-                value: x,
-                label: Organizations[x].name,
-              }))}
-              value={selectedOrg}
-              onChange={(i) => handleOrgChange(i as OrganizationId)}
               mt="md"
-              searchable
               maw={400}
             />
           </div>

@@ -14,6 +14,12 @@ export const ts = z.coerce.number().min(0).optional().meta({
   id: "AcmStalenessBoundTimestamp",
 });
 
+export const UnixTimestampSeconds = z.number().int().min(0).meta({
+  description: "Unix epoch timestamps (in seconds)",
+  id: "UnixTimestampSeconds",
+  example: 1705512000,
+});
+
 export const groupId = z.string().min(1).meta({
   description: "Entra ID Group ID",
   example: "d8cbb7c9-2f6d-4b7e-8ba6-b54f8892003b",
@@ -235,8 +241,8 @@ export function withRoles<T extends FastifyZodOpenApiSchema>(
     security.push({ apiKeyHeader: [] });
   }
   const responses = {
-    401: notAuthorizedError,
-    403: notAuthenticatedError,
+    401: notAuthenticatedError,
+    403: notAuthorizedError,
     ...schema.response,
   };
   return {

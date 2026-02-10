@@ -644,7 +644,7 @@ describe("PATCH /admin/products/:productId", () => {
     );
   });
 
-  test("Returns 403 without authentication", async () => {
+  test("Returns 401 without authentication", async () => {
     const response = await app.inject({
       method: "PATCH",
       url: "/api/v1/store/admin/products/testing",
@@ -653,7 +653,7 @@ describe("PATCH /admin/products/:productId", () => {
       },
     });
 
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(401);
 
     // Verify no DynamoDB calls were made
     const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
@@ -883,7 +883,7 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
     );
   });
 
-  test("Returns 403 without authentication", async () => {
+  test("Returns 401 without authentication", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/store/admin/orders/order-123/fulfill",
@@ -892,7 +892,7 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
       },
     });
 
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(401);
 
     // Verify no DynamoDB calls were made
     const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);

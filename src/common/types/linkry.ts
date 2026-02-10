@@ -52,7 +52,6 @@ export const linkRecord = z.object({
 
 export const orgLinkRecord = z.object({
   slug: linkrySlug,
-  lastModifiedBy: z.string().min(1),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   redirect: z.url(),

@@ -100,7 +100,8 @@ describe("ManageOrganizationForm Tests", () => {
       expect(notificationsMock).toHaveBeenCalledWith(
         expect.objectContaining({
           color: "red",
-          message: "Failed to load organization data",
+          title: "An error occurred while fetching organization data",
+          message: "Error 99: Failed to fetch",
         }),
       );
     });

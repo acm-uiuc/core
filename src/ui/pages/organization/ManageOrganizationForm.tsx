@@ -43,6 +43,7 @@ import * as z from "zod/v4";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
 import { OrganizationId, Organizations } from "@acm-uiuc/js-shared";
+import { generateErrorMessage } from "@ui/util/api";
 
 type OrganizationData = z.infer<typeof setOrganizationMetaBody>;
 
@@ -117,12 +118,8 @@ export const ManageOrganizationForm: React.FC<ManageOrganizationFormProps> = ({
         links: data.links || [],
       });
     } catch (e) {
-      console.error(e);
       setOrgData(null);
-      notifications.show({
-        color: "red",
-        message: "Failed to load organization data",
-      });
+      await generateErrorMessage(e, "fetching organization data");
     } finally {
       setLoading(false);
     }

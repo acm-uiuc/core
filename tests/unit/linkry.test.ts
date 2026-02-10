@@ -194,7 +194,7 @@ test("Unhappy path: Edit linkry redirect not authorized", async () => {
     .set("Authorization", `Bearer ${userJwt}`)
     .send(payload);
 
-  expect(response.statusCode).toBe(401);
+  expect(response.statusCode).toBe(403);
   expect(response.body.name).toEqual("UnauthorizedError");
 });
 
@@ -405,7 +405,7 @@ test("Unhappy path: Delete linkry Invalid Access", async () => {
     .delete("/api/v1/linkry/redir/WLQDmu")
     .set("Authorization", `Bearer ${userJwt}`);
 
-  expect(response.statusCode).toBe(401);
+  expect(response.statusCode).toBe(403);
   expect(response.body.name).toEqual("UnauthorizedError");
 });
 
@@ -542,7 +542,7 @@ test("Unhappy path: Get Delegated Link by Slug Incorrect Access", async () => {
       Authorization: `Bearer ${userJwt}`,
     },
   });
-  expect(response.statusCode).toBe(401);
+  expect(response.statusCode).toBe(403);
   let body = JSON.parse(response.body);
   expect(body.name).toEqual("UnauthorizedError");
 });

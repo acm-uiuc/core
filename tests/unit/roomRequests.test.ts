@@ -49,7 +49,7 @@ describe("Test Room Request Creation", async () => {
         contactName: "John Doe",
         contactEmail: "john@example.com",
       });
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(401);
   });
   test("Validation failure: Missing required fields", async () => {
     await app.ready();
@@ -461,7 +461,7 @@ describe("Test Room Request Creation", async () => {
       .post(makeUrl())
       .send(statusBody);
 
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(401);
   });
 
   test("Fails if request status with CREATED not found", async () => {

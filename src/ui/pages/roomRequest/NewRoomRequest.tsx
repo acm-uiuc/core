@@ -19,7 +19,6 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { DateInput } from "@mantine/dates";
-import { Organizations } from "@acm-uiuc/js-shared";
 import {
   eventThemeOptions,
   spaceTypeOptions,
@@ -45,8 +44,8 @@ import {
   formatChicagoTime,
 } from "@ui/components/UrbanaDateTimePicker";
 import { NonUrbanaTimezoneAlert } from "@ui/components/NonUrbanaTimezoneAlert";
-import { getUserRoles } from "@ui/components/AuthGuard";
 import { AppRoles } from "@common/roles";
+import { ManageableOrgsSelector } from "@ui/components/ManageableOrgsSelector";
 
 const getEffectiveMinDate = (
   semester: string | undefined,
@@ -203,38 +202,11 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
 }) => {
   const [active, setActive] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [canBypassAuth, setCanBypassAuth] = useState(false);
-  const [hostOptions, setHostOptions] = useState<
-    { value: string; label: string }[] | undefined
-  >(undefined);
   const [userPrimaryOrg, setUserPrimaryOrg] = useState<string | null>(null);
   const numSteps = 4;
   const navigate = useNavigate();
   const semesterOptions = getSemesters();
   const { orgRoles } = useAuth();
-
-  useEffect(() => {
-    const hostOptions =
-      canBypassAuth || viewOnly
-        ? Object.entries(Organizations).map(([key, org]) => ({
-            value: key,
-            label: org.name,
-          }))
-        : orgRoles
-            .filter((x) => x.role === "LEAD")
-            .map((x) => ({
-              value: x.org,
-              label: Organizations[x.org].name,
-            }));
-    setHostOptions(hostOptions);
-    if (!viewOnly) {
-      const primOrg = getPrimarySuggestedOrg(orgRoles);
-      setUserPrimaryOrg(primOrg);
-      if (primOrg) {
-        form.setFieldValue("host", primOrg);
-      }
-    }
-  }, [orgRoles, canBypassAuth, viewOnly]);
 
   // Initialize with tomorrow's date at the start of the hour
   let startingDate = new Date();
@@ -268,16 +240,6 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     recurrenceEndDate: number | undefined;
     requestsSccsRoom?: boolean | undefined;
   };
-
-  useEffect(() => {
-    const checkBypassRole = async () => {
-      const roles = await getUserRoles("core");
-      if (roles?.includes(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
-        setCanBypassAuth(true);
-      }
-    };
-    checkBypassRole();
-  }, []);
 
   const form = useForm<InterimRoomRequestFormValues>({
     enhanceGetInputProps: () => ({ readOnly: viewOnly }),
@@ -519,14 +481,26 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             data={semesterOptions}
             {...form.getInputProps("semester")}
           />
-          <Select
-            key={`host-select-${hostOptions?.length}`}
+          <ManageableOrgsSelector
+            adminRoles={[AppRoles.ROOM_REQUEST_ADMIN]}
+            showAllOrgs={viewOnly}
+            value={form.values.host ?? null}
+            onChange={(org) =>
+              form.setFieldValue("host", org !== null ? org : undefined)
+            }
+            onOrgsLoaded={(orgs) => {
+              if (!viewOnly && orgs.length > 0) {
+                const primOrg = getPrimarySuggestedOrg(orgRoles);
+                if (primOrg) {
+                  setUserPrimaryOrg(primOrg);
+                  form.setFieldValue("host", primOrg);
+                }
+              }
+            }}
             label="Event Host"
             placeholder="Select host organization"
             withAsterisk
-            searchable
-            data={hostOptions}
-            {...form.getInputProps("host")}
+            readOnly={viewOnly}
           />
           <TextInput
             label="Event Title"

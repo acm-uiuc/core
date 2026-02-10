@@ -196,7 +196,7 @@ smMock.on(GetSecretValueCommand).callsFake((command) => {
 });
 
 const ssmParameters: Record<string, string> = {
-  "/infra-core-api/jwt_key": "6059bfd2-9179-403f-bf31-affdaa4720c3",
+  "/infra-core-api/jwt_key": "6059bfd2-9179-401f-bf31-affdaa4720c3",
   "/infra-core-api/github_app_id": "9179",
   "/infra-core-api/github_installation_id": "123",
   "/infra-core-api/github_private_key": "123",
