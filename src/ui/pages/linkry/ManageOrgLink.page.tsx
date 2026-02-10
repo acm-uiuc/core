@@ -204,8 +204,7 @@ export const ManageOrgLinkPage: React.FC = () => {
           <form onSubmit={form.onSubmit(handleSubmit)}>
             <TextInput
               label="Short URL"
-              description="Enter the alias which will redirect to your original site."
-              withAsterisk
+              description="Enter the alias which will redirect to your original site. If empty, this will update your base redirect."
               leftSectionWidth="230px"
               rightSectionWidth="150px"
               leftSection={
