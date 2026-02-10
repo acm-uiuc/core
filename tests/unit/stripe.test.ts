@@ -64,7 +64,7 @@ describe("Test Stripe link creation", async () => {
         contactName: "John Doe",
         contactEmail: "john@example.com",
       });
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(401);
   });
   test("Validation failure: Missing required fields", async () => {
     await app.ready();
@@ -161,7 +161,7 @@ describe("Test Stripe link creation", async () => {
     const response = await supertest(app.server).get(
       "/api/v1/stripe/paymentLinks",
     );
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(401);
   });
   test("GET database errors are handled correctly", async () => {
     ddbMock.on(ScanCommand).rejects({});
@@ -299,7 +299,7 @@ describe("Test Stripe link creation", async () => {
       .delete("/api/v1/stripe/paymentLinks/plink_abc123")
       .set("authorization", `Bearer ${testJwt}`)
       .send();
-    expect(response.statusCode).toBe(401);
+    expect(response.statusCode).toBe(403);
     expect(ddbMock.calls().length).toEqual(1);
   });
   afterAll(async () => {

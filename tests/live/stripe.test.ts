@@ -15,7 +15,7 @@ describe("Stripe live API authentication", async () => {
         `${baseEndpoint}/api/v1/stripe/paymentLinks`,
         { method: "GET" },
       );
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(401);
     },
   );
   test(
@@ -26,7 +26,7 @@ describe("Stripe live API authentication", async () => {
         `${baseEndpoint}/api/v1/stripe/paymentLinks`,
         { method: "POST" },
       );
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(401);
     },
   );
   test(

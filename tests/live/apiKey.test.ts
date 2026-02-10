@@ -8,10 +8,10 @@ describe("API Key tests", async () => {
     const response = await fetch(`${baseEndpoint}/api/v1/apiKey/org`, {
       method: "GET",
     });
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(401);
     const responsePost = await fetch(`${baseEndpoint}/api/v1/apiKey/org`, {
       method: "POST",
     });
-    expect(responsePost.status).toBe(403);
+    expect(responsePost.status).toBe(401);
   });
 });

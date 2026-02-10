@@ -14,7 +14,7 @@ describe("Role checking live API tests", async () => {
       const response = await fetch(`${baseEndpoint}/api/v1/protected`, {
         method: "GET",
       });
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(401);
     },
   );
   test("Test that getting metadata succeeds", { timeout: 10000 }, async () => {

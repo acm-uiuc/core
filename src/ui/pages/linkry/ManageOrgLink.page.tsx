@@ -5,32 +5,27 @@ import {
   Button,
   Loader,
   Container,
-  MultiSelect,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import * as z from "zod/v4";
 import { AuthGuard } from "@ui/components/AuthGuard";
-import { generateErrorMessage, useApi } from "@ui/util/api";
+import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
 import { IconDeviceFloppy } from "@tabler/icons-react";
-import { LinkryGroupUUIDToGroupNameMap } from "@common/config";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
-import { LINKRY_MAX_SLUG_LENGTH } from "@common/types/linkry";
+import { LINKRY_MAX_SLUG_LENGTH, OrgLinkRecord } from "@common/types/linkry";
 import { getRunEnvironmentConfig } from "@ui/config";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
-
-export function capitalizeFirstLetter(string: string) {
-  return string.charAt(0).toUpperCase() + string.slice(1);
-}
+import { Organizations, OrganizationId } from "@acm-uiuc/js-shared";
 
 const baseUrl = getRunEnvironmentConfig().LinkryPublicUrl;
 const slugRegex = new RegExp("^(https?://)?[a-zA-Z0-9-._/]*$");
 const urlRegex = new RegExp("^https?://[a-zA-Z0-9-._/?=&+:]*$");
 
-const baseBodySchema = z
+const orgLinkBodySchema = z
   .object({
     slug: z
       .string()
@@ -39,8 +34,10 @@ const baseBodySchema = z
         slugRegex,
         "Invalid input: Only alphanumeric characters, '-', '_', '/', and '.' are allowed",
       )
+      .refine((url) => !url.includes("#"), {
+        message: "Slug must not contain a hashtag",
+      })
       .optional(),
-    access: z.array(z.string()).optional(),
     redirect: z
       .string()
       .min(1)
@@ -49,9 +46,6 @@ const baseBodySchema = z
         "Invalid URL. Use format: https:// or https://www.example.com",
       )
       .optional(),
-    createdAt: z.number().optional(),
-    updatedAt: z.number().optional(),
-    counter: z.number().optional(),
   })
   .superRefine((data, ctx) => {
     if ((data.slug?.length || 0) > LINKRY_MAX_SLUG_LENGTH) {
@@ -59,98 +53,117 @@ const baseBodySchema = z
         code: z.ZodIssueCode.custom,
         path: ["slug"],
         message: "Shortened URL cannot be that long",
-      }); //Throw custom error through context using superrefine
+      });
     }
   });
 
-const requestBodySchema = baseBodySchema;
+type OrgLinkPostRequest = z.infer<typeof orgLinkBodySchema>;
 
-type LinkPostRequest = z.infer<typeof requestBodySchema>;
-
-export function getFilteredUserGroups(groups: string[]) {
-  return groups.filter((groupId) =>
-    [...LinkryGroupUUIDToGroupNameMap.keys()].includes(groupId),
-  );
-}
-
-export const ManageLinkPage: React.FC = () => {
+export const ManageOrgLinkPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
   const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  const [isEdited, setIsEdited] = useState<boolean>(false); // Track if the form is edited
+  const [isEdited, setIsEdited] = useState<boolean>(false);
 
   const navigate = useNavigate();
   const api = useApi("core");
-
+  const [searchParams] = useSearchParams();
   const { slug } = useParams();
 
+  const orgId = searchParams.get("org") as OrganizationId | null;
   const isEditing = slug !== undefined;
 
+  const orgName =
+    orgId && Organizations[orgId] ? Organizations[orgId].name : orgId;
+  const orgShortcode =
+    orgId && Organizations[orgId] ? Organizations[orgId].shortcode : null;
+
   useEffect(() => {
+    if (!orgId) {
+      notifications.show({
+        message: "No organization specified.",
+        color: "red",
+      });
+      navigate("/linkry");
+      return;
+    }
+
     if (!isEditing) {
       return;
     }
-    // Fetch event data and populate form
-    const startForm = async () => {
+
+    const loadLink = async () => {
       try {
         setIsLoading(true);
-        const response = await api.get(`/api/v1/linkry/redir/${slug}`);
-        const linkData = response.data;
-        const formValues = {
-          slug: linkData.slug,
-          access: linkData.access,
-          redirect: linkData.redirect,
-        };
-        form.setValues(formValues);
+        const response = await api.get(
+          `/api/v1/linkry/orgs/${encodeURIComponent(orgId)}/redir`,
+        );
+        const links: OrgLinkRecord[] = response.data;
+        const fullSlug = `${orgId}#${slug}`;
+        const match = links.find((l) => l.slug === fullSlug);
+        if (!match) {
+          notifications.show({
+            message: "Link not found.",
+            color: "red",
+          });
+          navigate(`/linkry?org=${encodeURIComponent(orgId)}`);
+          return;
+        }
+        form.setValues({
+          slug: match.slug.replace(`${orgId}#`, ""),
+          redirect: match.redirect,
+        });
         setIsLoading(false);
       } catch (error) {
-        await generateErrorMessage(error, "fetching the link details");
-        navigate("/linkry");
+        console.error("Error fetching org link data:", error);
+        notifications.show({
+          message: "Failed to fetch link data, please try again.",
+        });
+        navigate(`/linkry?org=${encodeURIComponent(orgId)}`);
       }
     };
-    // decode JWT to get user groups
-    startForm();
+    loadLink();
   }, []);
 
-  const form = useForm<LinkPostRequest>({
-    validate: zodResolver(requestBodySchema),
+  const form = useForm<OrgLinkPostRequest>({
+    validate: zodResolver(orgLinkBodySchema),
     initialValues: {
       slug: "",
-      access: [],
       redirect: "",
     },
   });
 
-  const handleSubmit = async (values: LinkPostRequest) => {
-    /*if (!values.access || values.redirect || !values.slug){
-      notifications.show({
-        message: "Please fill in all entries",
-      });
-    }  */ //Potential warning for fields that are not filled...
-    let response;
+  const handleSubmit = async (values: OrgLinkPostRequest) => {
+    if (!orgId) {
+      return;
+    }
     try {
       setIsSubmitting(true);
-      const realValues = {
-        ...values,
-        isEdited,
-      };
-
-      response = await api.post("/api/v1/linkry/redir", realValues);
-      notifications.show({
-        message: isEditing ? "Link updated!" : "Link created!",
+      await api.post(`/api/v1/linkry/orgs/${encodeURIComponent(orgId)}/redir`, {
+        slug: values.slug,
+        redirect: values.redirect,
       });
-      navigate(
-        new URLSearchParams(window.location.search).get("previousPage") ||
-          "/linkry",
-      );
-    } catch (error: unknown) {
+      notifications.show({
+        message: isEditing ? "Org link updated!" : "Org link created!",
+      });
+      navigate(`/linkry?org=${encodeURIComponent(orgId)}`);
+    } catch (error: any) {
       setIsSubmitting(false);
-      const operationName = isEditing
-        ? "editing the link"
-        : "creating the link";
-      await generateErrorMessage(error, operationName);
+      console.error("Error creating/editing org link:", error);
+      notifications.show({
+        color: "red",
+        title: isEditing
+          ? "Failed to edit org link"
+          : "Failed to create org link",
+        message:
+          error.response && error.response.data
+            ? error.response.data.message
+            : undefined,
+      });
     }
+  };
+
+  const handleFormClose = () => {
+    navigate(`/linkry?org=${encodeURIComponent(orgId || "")}`);
   };
 
   const generateRandomSlug = () => {
@@ -169,7 +182,7 @@ export const ManageLinkPage: React.FC = () => {
   };
 
   const handleFormChange = () => {
-    setIsEdited(true); // Set the flag to true when any field is changed
+    setIsEdited(true);
   };
 
   if (isLoading) {
@@ -178,10 +191,15 @@ export const ManageLinkPage: React.FC = () => {
 
   return (
     <AuthGuard
-      resourceDef={{ service: "core", validRoles: [AppRoles.LINKS_MANAGER] }}
+      resourceDef={{
+        service: "core",
+        validRoles: [AppRoles.AT_LEAST_ONE_ORG_MANAGER, AppRoles.LINKS_ADMIN],
+      }}
     >
       <Container>
-        <Title order={2}>{isEditing ? "Edit" : "Add"} Link</Title>
+        <Title order={2}>
+          {isEditing ? "Edit" : "Add"} Link for {orgName}
+        </Title>
         <Box>
           <form onSubmit={form.onSubmit(handleSubmit)}>
             <TextInput
@@ -192,7 +210,7 @@ export const ManageLinkPage: React.FC = () => {
               rightSectionWidth="150px"
               leftSection={
                 <Button variant="outline" mr="auto" size="auto">
-                  {baseUrl}
+                  {orgShortcode}.{baseUrl}
                 </Button>
               }
               rightSection={
@@ -212,7 +230,7 @@ export const ManageLinkPage: React.FC = () => {
               disabled={isEditing}
               onChange={(e) => {
                 form.getInputProps("slug").onChange(e);
-                handleFormChange(); // Mark as edited
+                handleFormChange();
               }}
             />
             <TextInput
@@ -223,24 +241,8 @@ export const ManageLinkPage: React.FC = () => {
               {...form.getInputProps("redirect")}
               onChange={(e) => {
                 form.getInputProps("redirect").onChange(e);
-                handleFormChange(); // Mark as edited
-              }}
-            />
-            <MultiSelect
-              label="Access Delegation"
-              description="Select groups which are permitted to manage this link."
-              data={
-                [...LinkryGroupUUIDToGroupNameMap.keys()].map((x) => ({
-                  value: x,
-                  label: LinkryGroupUUIDToGroupNameMap.get(x) || x,
-                })) ?? []
-              }
-              value={form.values.access}
-              onChange={(value) => {
-                form.setFieldValue("access", value);
                 handleFormChange();
               }}
-              mt="xl"
             />
             <Button
               disabled={!isEdited}

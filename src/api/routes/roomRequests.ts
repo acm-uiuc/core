@@ -59,7 +59,7 @@ async function verifyRoomRequestAccess(
 ): Promise<QueryCommandOutput> {
   let command: QueryCommand;
   if (
-    request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH) ||
+    request.userRoles?.has(AppRoles.ROOM_REQUEST_ADMIN) ||
     request.userRoles?.has(AppRoles.ROOM_REQUEST_VIEW_ALL)
   ) {
     command = new QueryCommand({
@@ -300,7 +300,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         generateProjectionParams({ userFields: request.query.select });
       let command: QueryCommand;
       if (
-        request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH) ||
+        request.userRoles?.has(AppRoles.ROOM_REQUEST_ADMIN) ||
         request.userRoles?.has(AppRoles.ROOM_REQUEST_VIEW_ALL)
       ) {
         command = new QueryCommand({
@@ -395,9 +395,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
-      const isSuperuser = request.userRoles?.has(
-        AppRoles.BYPASS_OBJECT_LEVEL_AUTH,
-      );
+      const isSuperuser = request.userRoles?.has(AppRoles.ROOM_REQUEST_ADMIN);
       if (!isSuperuser) {
         const userOrgRoles = await getUserOrgRoles({
           username: request.username,

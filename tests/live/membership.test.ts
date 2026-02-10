@@ -10,7 +10,7 @@ describe("Membership API basic checks", async () => {
       method: "GET",
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(401);
   });
   test("Test that getting member succeeds", { timeout: 10000 }, async () => {
     const response = await fetch(`${baseEndpoint}/api/v2/membership/dsingh14`, {

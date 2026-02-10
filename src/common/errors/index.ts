@@ -66,7 +66,7 @@ export class UnauthorizedError extends BaseError<"UnauthorizedError"> {
       name: "UnauthorizedError",
       id: 101,
       message: message || "User does not have the privileges for this task.",
-      httpStatusCode: 401,
+      httpStatusCode: 403,
     });
   }
 }
@@ -77,7 +77,7 @@ export class UnauthenticatedError extends BaseError<"UnauthenticatedError"> {
       name: "UnauthenticatedError",
       id: 102,
       message,
-      httpStatusCode: 403,
+      httpStatusCode: 401,
     });
   }
 }

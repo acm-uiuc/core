@@ -37,10 +37,15 @@ export const illinoisUin = z
     id: "IllinoisUin",
   });
 
+export const NonAcmOrgUniqueId = z.enum(AllOrganizationIdList.filter(x => x !== "A01")).meta({
+  description: "The unique org ID for a given ACM sub-organization, excluding ACM itself. See https://github.com/acm-uiuc/js-shared/blob/main/src/orgs.ts#L15",
+  examples: ["S01", "C01"],
+  id: "NonAcmOrgUniqueId"
+});
 
 export const OrgUniqueId = z.enum(AllOrganizationIdList).meta({
   description: "The unique org ID for a given ACM sub-organization. See https://github.com/acm-uiuc/js-shared/blob/main/src/orgs.ts#L15",
-  examples: ["A01", "C01"],
+  examples: ["A01", "S01", "C01"],
   id: "OrgUniqueId"
 });
 

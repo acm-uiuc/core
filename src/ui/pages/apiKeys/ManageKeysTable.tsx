@@ -39,6 +39,7 @@ import { BlurredTextDisplay } from "../../components/BlurredTextDisplay";
 import * as z from "zod/v4";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
+import { generateErrorMessage } from "@ui/util/api";
 
 const HumanFriendlyDate = ({ date }: { date: number }) => {
   return (
@@ -81,12 +82,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
       const data = await getApiKeys();
       setApiKeys(data);
     } catch (e) {
-      notifications.show({
-        title: "Error loading API keys",
-        message: "Unable to fetch API keys. Try again later.",
-        color: "red",
-        icon: <IconAlertCircle size={16} />,
-      });
+      await generateErrorMessage(e, "loading API keys");
     } finally {
       setIsLoading(false);
     }
@@ -103,12 +99,10 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
       setSelected([]);
       fetchKeys();
     } catch (e) {
-      notifications.show({
-        title: "Delete failed",
-        message: "Something went wrong while deleting the API keys.",
-        color: "red",
-        icon: <IconAlertCircle size={16} />,
-      });
+      await generateErrorMessage(
+        e,
+        `deleting the API ${ids.length === 1 ? "key" : "keys"}`,
+      );
     } finally {
       setDeleteModalOpen(false);
     }
@@ -135,11 +129,7 @@ export const OrgApiKeyTable: React.FC<OrgApiKeyTableProps> = ({
       setCreateModalOpen(false);
       await fetchKeys();
     } catch (e) {
-      notifications.show({
-        title: "Unable to create API key.",
-        message: "Please try again or contact support.",
-        color: "red",
-      });
+      await generateErrorMessage(e, "creating the API key");
     }
   };
 

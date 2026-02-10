@@ -80,7 +80,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     assertAuthenticated(async (request, reply) => {
       let dynamoCommand;
-      if (request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)) {
+      if (request.userRoles?.has(AppRoles.STRIPE_LINK_ADMIN)) {
         dynamoCommand = new ScanCommand({
           TableName: genericConfig.StripeLinksDynamoTableName,
         });
@@ -266,7 +266,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       };
       if (
         unmarshalledEntry.userId !== request.username &&
-        !request.userRoles?.has(AppRoles.BYPASS_OBJECT_LEVEL_AUTH)
+        !request.userRoles?.has(AppRoles.STRIPE_LINK_ADMIN)
       ) {
         throw new UnauthorizedError({
           message: "Not authorized to deactivate this payment link.",

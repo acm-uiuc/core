@@ -19,7 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { capitalizeFirstLetter } from "./ManageEvent.page.js";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";
-import { useApi } from "@ui/util/api";
+import { generateErrorMessage, useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles.js";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 import * as z from "zod/v4";
@@ -114,12 +114,7 @@ export const ViewEventsPage: React.FC = () => {
 
         setEventList(enrichedResponse);
       } catch (error) {
-        console.error("Error fetching events:", error);
-        notifications.show({
-          title: "Error fetching events",
-          message: `${error}`,
-          color: "red",
-        });
+        await generateErrorMessage(error, "fetching events");
       }
     };
 
@@ -138,12 +133,7 @@ export const ViewEventsPage: React.FC = () => {
       });
       close();
     } catch (error) {
-      console.error(error);
-      notifications.show({
-        title: "Error deleting event",
-        message: `${error}`,
-        color: "red",
-      });
+      await generateErrorMessage(error, "deleting the event");
     }
   };
 

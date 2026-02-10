@@ -102,10 +102,11 @@ export const getUserIdentifier = (request: FastifyRequest): string | null => {
     if (!authHeader) {
       return request.ip;
     }
-    const [method, token] = authHeader.split(" ");
+    const [_, token] = authHeader.split(" ");
     const decoded = jwt.decode(token);
     if (!decoded || typeof decoded === "string") {
-      throw new InternalServerError({ message: "Could not decode JWT." });
+      request.log.error("Could not decode JWT.");
+      throw new UnauthenticatedError({ message: "Invalid token." });
     }
     return (decoded as AadToken).sub || null;
   } catch (e) {
