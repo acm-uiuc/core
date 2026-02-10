@@ -39,6 +39,10 @@ export default defineConfig([
           alwaysTryTypes: true,
           project: ["src/api/tsconfig.json", "src/ui/tsconfig.json"],
         },
+        node: {
+          paths: ["src/api", "src/ui"],
+          extensions: [".js", ".ts", ".jsx", ".tsx"],
+        },
       },
     },
 
