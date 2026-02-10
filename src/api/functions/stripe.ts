@@ -1,6 +1,6 @@
 import { ValidLoggers, Redis } from "api/types.js";
 import { isProd } from "api/utils.js";
-import { InternalServerError } from "common/errors/index.js";
+import { InternalServerError, ValidationError } from "common/errors/index.js";
 import { MaxLengthString } from "common/types/generic.js";
 import { capitalizeFirstLetter } from "common/types/roomRequest.js";
 import Stripe from "stripe";
@@ -12,7 +12,7 @@ import {
   DynamoDBClient,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "common/config.js";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
 export type SupportedPaymentMethods =
   | NonNullable<Stripe.PaymentMethodCreateParams["type"]>
@@ -179,12 +179,18 @@ export const createCheckoutSessionWithCustomer = async ({
   captureMethod,
   customText,
   statementDescriptorSuffix,
+  delayedSettlementAllowed,
 }: StripeCheckoutSessionCreateWithCustomerParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
     success_url: successUrl || "",
     cancel_url: returnUrl || "",
-    payment_method_types: instantSettlementMethods,
+    payment_method_types: (delayedSettlementAllowed
+      ? allPaymentMethods
+      : instantSettlementMethods
+    ).filter(
+      (x) => x !== "crypto",
+    ) as Stripe.Checkout.SessionCreateParams.PaymentMethodType[],
     line_items: items.map((item) => ({
       price: item.price,
       quantity: item.quantity,
@@ -490,8 +496,10 @@ export const checkOrCreateCustomer = async ({
       return { customerId: customer };
     }
 
-    const existingCustomerId = (customerResponse.Items![0] as any)
-      .stripeCustomerId.S as string;
+    const existing = unmarshall(customerResponse.Items![0] as any) as {
+      stripeCustomerId: string;
+    };
+    const existingCustomerId = existing.stripeCustomerId;
     const stripeClient = new Stripe(stripeApiKey);
 
     const stripeCustomer =
@@ -529,11 +537,17 @@ export const checkOrCreateCustomer = async ({
 
     try {
       await dynamoClient.send(ensureEmailMap);
-    } catch (e) {
-      if (
-        !(e instanceof Error) ||
-        !e.name.includes("ConditionalCheckFailedException")
-      ) {
+    } catch (e: any) {
+      const isTxnCanceled = e?.name === "TransactionCanceledException";
+      const hasCondFail =
+        Array.isArray(e?.CancellationReasons) &&
+        e.CancellationReasons.some(
+          (r: any) => r?.Code === "ConditionalCheckFailed",
+        );
+
+      if (isTxnCanceled && hasCondFail) {
+        //handle laters
+      } else {
         console.warn(
           `Failed to create EMAIL# mapping for ${normalizedEmail}:`,
           e,
@@ -626,18 +640,130 @@ export const addInvoice = async ({
             primaryKey: { S: pk },
             sortKey: { S: "CUSTOMER" },
           },
-          UpdateExpression: "SET totalAmount = totalAmount + :inc",
+          UpdateExpression:
+            "SET totalAmount = if_not_exists(totalAmount, :zero) + :inc",
           ExpressionAttributeValues: {
             ":inc": { N: invoiceAmountUsd.toString() },
+            ":zero": { N: "0" },
           },
         },
       },
     ],
   });
 
-  await dynamoClient.send(dynamoCommand);
+  try {
+    await dynamoClient.send(dynamoCommand);
+  } catch (e: any) {
+    const isTxnCanceled = e?.name === "TransactionCanceledException";
+    const hasCondFail =
+      Array.isArray(e?.CancellationReasons) &&
+      e.CancellationReasons.some(
+        (r: any) => r?.Code === "ConditionalCheckFailed",
+      );
+
+    if (isTxnCanceled && hasCondFail) {
+      throw new ValidationError({ message: "Invoice already exists." });
+    }
+    throw e; // or wrap in DatabaseInsertError
+  }
   return { customerId: result.customerId };
 };
+
+export const recordInvoicePayment = async ({
+  dynamoClient,
+  pk, // `${orgId}#${emailDomain}`
+  invoiceId,
+  eventId, // Stripe event.id for idempotency
+  checkoutSessionId,
+  paymentIntentId,
+  amountCents,
+  currency,
+  billingEmail,
+  decrementOwed, // only true when payment actually settled
+}: {
+  dynamoClient: DynamoDBClient;
+  pk: string;
+  invoiceId: string;
+  eventId: string;
+  checkoutSessionId: string;
+  paymentIntentId?: string | null;
+  amountCents: number;
+  currency: string;
+  billingEmail: string;
+  decrementOwed: boolean;
+}) => {
+  const amountUsd = amountCents / 100;
+
+  const transactItems: any[] = [
+    {
+      Put: {
+        TableName: genericConfig.StripePaymentsDynamoTableName,
+        Item: marshall(
+          {
+            primaryKey: pk,
+            sortKey: `PAY#${invoiceId}#${eventId}`,
+            invoiceId,
+            checkoutSessionId,
+            paymentIntentId: paymentIntentId ?? null,
+            amountCents,
+            amountUsd,
+            currency,
+            billingEmail,
+            createdAt: new Date().toISOString(),
+          },
+          { removeUndefinedValues: true },
+        ),
+        ConditionExpression:
+          "attribute_not_exists(primaryKey) AND attribute_not_exists(sortKey)",
+      },
+    },
+  ];
+
+  if (decrementOwed) {
+    transactItems.push(
+      {
+        Update: {
+          TableName: genericConfig.StripePaymentsDynamoTableName,
+          Key: {
+            primaryKey: { S: pk },
+            sortKey: { S: "CUSTOMER" },
+          },
+          UpdateExpression:
+            "SET totalAmount = if_not_exists(totalAmount, :zero) - :dec",
+          ConditionExpression:
+            "attribute_exists(primaryKey) AND attribute_exists(sortKey) AND totalAmount >= :dec",
+          ExpressionAttributeValues: {
+            ":dec": { N: amountUsd.toString() },
+            ":zero": { N: "0" },
+          },
+        },
+      },
+      {
+        Update: {
+          TableName: genericConfig.StripePaymentsDynamoTableName,
+          Key: {
+            primaryKey: { S: pk },
+            sortKey: { S: `CHARGE#${invoiceId}` },
+          },
+          UpdateExpression:
+            "SET paidAmount = if_not_exists(paidAmount, :zero) + :dec, lastPaidAt = :now",
+          ExpressionAttributeValues: {
+            ":dec": { N: amountUsd.toString() },
+            ":zero": { N: "0" },
+            ":now": { S: new Date().toISOString() },
+          },
+        },
+      },
+    );
+  }
+
+  await dynamoClient.send(
+    new TransactWriteItemsCommand({
+      TransactItems: transactItems,
+    }),
+  );
+};
+
 /**
  * Capture a pre-authorized payment intent
  */

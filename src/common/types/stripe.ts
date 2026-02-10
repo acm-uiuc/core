@@ -8,7 +8,7 @@ const link = z.url().meta({
   description: "The Payment Link URL",
 })
 const invoiceId = z.string().min(1).meta({ description: "Invoice identifier. Should be prefixed with an organization identifier to allow for easy processing." });
-const invoiceAmountUsd = z.number().min(50).meta({ description: "Billed amount, in cents." });
+const invoiceAmountUsd = z.number().min(50).meta({ description: "Billed amount, in dollars." });
 
 export const invoiceLinkPostResponseSchema = z.object({
   id,
@@ -63,7 +63,7 @@ export const createInvoiceConflictResponseSchema = z.object({
   }),
   incoming: z.object({
     name: z.string().min(1),
-    email: z.string().email(),
+    email: z.email(),
   }),
   message: z.string().min(1),
 });
@@ -78,10 +78,10 @@ export type PostCreateInvoiceResponseUnion = z.infer<
 >;
 
 export const createInvoicePostRequestSchema = z.object({
-  invoiceId,          // reuse your meta’d primitive from file 2
-  invoiceAmountUsd,   // reuse your meta’d primitive from file 2
-  contactName: z.string().min(1), // or swap to your meta version if you want
-  contactEmail: z.email(),        // or swap to your meta version if you want
+  invoiceId,          
+  invoiceAmountUsd,   
+  contactName: z.string().min(1), 
+  contactEmail: z.email(),        
   acmOrg: z.string().min(1),
 });
 

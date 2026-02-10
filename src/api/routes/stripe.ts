@@ -19,6 +19,7 @@ import {
   InvoiceAddParams,
   SupportedStripePaymentMethod,
   supportedStripePaymentMethods,
+  recordInvoicePayment,
 } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
 import { genericConfig, notificationRecipients } from "common/config.js";
@@ -185,14 +186,14 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
 
       const token = encodeInvoiceToken({
-        orgId: request.body.acmOrg, // OrgUniqueID object → id
+        orgId: request.body.acmOrg,
         emailDomain,
         invoiceId: request.body.invoiceId,
       });
 
       return reply.status(201).send({
         id: request.body.invoiceId,
-        link: `${fastify.environmentConfig.UserFacingUrl}/api/v1/stripe/pay/${token}`,
+        link: `${fastify.environmentConfig.UserFacingUrl}/api/v1/stripe/pay/${token}`, // http:127.0.1.1:8080 for local
       });
     },
   );
@@ -409,6 +410,23 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           fastify.secretsManagerClient,
           genericConfig.ConfigSecretName,
         )) || {};
+      const sessionToInvoiceMeta = (session: Stripe.Checkout.Session) => {
+        const invoiceId = session.metadata?.invoice_id;
+        const acmOrg = session.metadata?.acm_org;
+
+        const email =
+          session.customer_details?.email ?? session.customer_email ?? null;
+
+        if (!invoiceId || !acmOrg) {
+          return null;
+        }
+        if (!email || !email.includes("@")) {
+          return null;
+        }
+
+        const domain = email.split("@").at(-1)!.toLowerCase();
+        return { invoiceId, acmOrg, email, domain };
+      };
       try {
         const sig = request.headers["stripe-signature"];
         if (!sig || typeof sig !== "string") {
@@ -550,6 +568,40 @@ Please ask the payee to try again, perhaps with a different payment method, or c
             .send({ handled: false, requestId: request.id });
         case "checkout.session.async_payment_succeeded":
         case "checkout.session.completed":
+          const session = event.data.object as Stripe.Checkout.Session;
+
+          const meta = sessionToInvoiceMeta(session);
+          if (meta) {
+            const pk = `${meta.acmOrg}#${meta.domain}`;
+
+            const amountCents = session.amount_total ?? 0;
+            const currency = session.currency ?? "usd";
+            const checkoutSessionId = session.id;
+            const paymentIntentId = session.payment_intent?.toString() ?? null;
+
+            // decrement owed only when actually settled/paid:
+            const decrementOwed =
+              session.payment_status === "paid" ||
+              event.type === "checkout.session.async_payment_succeeded";
+
+            await recordInvoicePayment({
+              dynamoClient: fastify.dynamoClient,
+              pk,
+              invoiceId: meta.invoiceId,
+              eventId: event.id,
+              checkoutSessionId,
+              paymentIntentId,
+              amountCents,
+              currency,
+              billingEmail: meta.email,
+              decrementOwed,
+            });
+
+            return reply
+              .status(200)
+              .send({ handled: true, requestId: request.id });
+          }
+
           if (event.data.object.payment_link) {
             const eventId = event.id;
             const paymentAmount = event.data.object.amount_total;
