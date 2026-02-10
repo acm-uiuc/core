@@ -42,7 +42,7 @@ test("Sad path: Not authenticated", async () => {
     paidEventId: "sp24_semiformal",
   });
 
-  expect(response.statusCode).toBe(403);
+  expect(response.statusCode).toBe(401);
 });
 
 test("Sad path: Authenticated but not authorized", async () => {
@@ -61,7 +61,7 @@ test("Sad path: Authenticated but not authorized", async () => {
       title: "Fall Semiformal",
       paidEventId: "sp24_semiformal",
     });
-  expect(response.statusCode).toBe(401);
+  expect(response.statusCode).toBe(403);
 });
 test("Sad path: Prevent empty body request", async () => {
   await app.ready();

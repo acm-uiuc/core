@@ -482,7 +482,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             {...form.getInputProps("semester")}
           />
           <ManageableOrgsSelector
-            adminRoles={[AppRoles.BYPASS_OBJECT_LEVEL_AUTH]}
+            adminRoles={[AppRoles.ROOM_REQUEST_ADMIN]}
             showAllOrgs={viewOnly}
             value={form.values.host ?? null}
             onChange={(org) =>

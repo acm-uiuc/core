@@ -25,7 +25,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import * as z from "zod/v4";
 import { AuthGuard } from "@ui/components/AuthGuard";
-import { useApi } from "@ui/util/api";
+import { generateErrorMessage, useApi } from "@ui/util/api";
 import {
   Organizations,
   AllOrganizationNameList as orgList,
@@ -590,13 +590,7 @@ export const ManageEventPage: React.FC = () => {
         form.setValues(formValues);
         setIsLoading(false);
       } catch (error) {
-        console.error("Error fetching event data:", error);
-        notifications.show({
-          title: "Failed to fetch event data",
-          message: "Please try again or contact support.",
-          color: "red",
-          icon: <IconAlertCircle size={16} />,
-        });
+        await generateErrorMessage(error, "fetching event data");
       }
     };
     getEvent();

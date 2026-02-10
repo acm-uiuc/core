@@ -184,7 +184,7 @@ describe("API Key Route Tests", () => {
         });
 
       // Assertions
-      expect(response.statusCode).toBe(403);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -262,7 +262,7 @@ describe("API Key Route Tests", () => {
       );
 
       // Assertions
-      expect(response.statusCode).toBe(403);
+      expect(response.statusCode).toBe(401);
     });
   });
 
@@ -352,7 +352,7 @@ describe("API Key Route Tests", () => {
       const response = await supertest(app.server).get("/api/v1/apiKey/org");
 
       // Assertions
-      expect(response.statusCode).toBe(403);
+      expect(response.statusCode).toBe(401);
     });
   });
 });

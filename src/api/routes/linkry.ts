@@ -47,7 +47,7 @@ import { withRoles, withTags } from "api/components/index.js";
 import { Organizations } from "@acm-uiuc/js-shared";
 import { authorizeByOrgRoleOrSchema } from "api/functions/authorization.js";
 import { assertAuthenticated } from "api/authenticated.js";
-import { OrgUniqueId } from "common/types/generic.js";
+import { NonAcmOrgUniqueId, OrgUniqueId } from "common/types/generic.js";
 
 type OwnerRecord = {
   slug: string;
@@ -550,7 +550,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           withTags(["Linkry"], {
             body: createOrgLinkRequest,
             params: z.object({
-              orgId: OrgUniqueId,
+              orgId: NonAcmOrgUniqueId,
             }),
             summary: "Create a short link for a specific org",
             response: {
@@ -681,7 +681,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           [AppRoles.AT_LEAST_ONE_ORG_MANAGER, AppRoles.LINKS_ADMIN],
           withTags(["Linkry"], {
             params: z.object({
-              orgId: OrgUniqueId,
+              orgId: NonAcmOrgUniqueId,
             }),
             summary: "Retrieve short link for a specific org",
             response: {
@@ -729,7 +729,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
           [AppRoles.AT_LEAST_ONE_ORG_MANAGER, AppRoles.LINKS_ADMIN],
           withTags(["Linkry"], {
             params: z.object({
-              orgId: OrgUniqueId,
+              orgId: NonAcmOrgUniqueId,
               slug: linkrySlug,
             }),
             summary: "Delete a short link for a specific org",

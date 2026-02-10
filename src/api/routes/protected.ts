@@ -6,6 +6,7 @@ import { UnauthenticatedError } from "common/errors/index.js";
 import z from "zod";
 import { AppRoles, orgRoles } from "common/roles.js";
 import { OrgUniqueId } from "common/types/generic.js";
+import { Organizations } from "@acm-uiuc/js-shared";
 
 const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -64,8 +65,12 @@ const protectedRoute: FastifyPluginAsync = async (fastify, _options) => {
 
       reply.send({
         username: request.username,
-        roles: Array.from(roles),
-        orgRoles,
+        roles: Array.from(roles).filter((x) =>
+          Object.values(AppRoles).includes(x),
+        ),
+        orgRoles: orgRoles.filter((x) =>
+          Object.keys(Organizations).includes(x.org),
+        ),
       });
     },
   );

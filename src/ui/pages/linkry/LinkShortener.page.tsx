@@ -20,7 +20,7 @@ import * as z from "zod/v4";
 
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { ManageableOrgsSelector } from "@ui/components/ManageableOrgsSelector";
-import { useApi } from "@ui/util/api";
+import { generateErrorMessage, useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles.js";
 import { linkRecord, OrgLinkRecord } from "@common/types/linkry.js";
 import { getRunEnvironmentConfig } from "@ui/config.js";
@@ -56,7 +56,9 @@ export const LinkShortener: React.FC = () => {
     useState<OrgLinkRecord | null>(null);
   const [orgDeleteOpened, { open: openOrgDelete, close: closeOrgDelete }] =
     useDisclosure(false);
-  const [activeTab, setActiveTab] = useState<string | null>("owned");
+  const [activeTab, setActiveTab] = useState<string | null>(
+    orgFromUrl ? "org" : "owned",
+  );
 
   useEffect(() => {
     const getEvents = async () => {
@@ -103,12 +105,7 @@ export const LinkShortener: React.FC = () => {
         );
         setOrgLinks(response.data);
       } catch (error) {
-        console.error("Error fetching org links:", error);
-        notifications.show({
-          title: "Error loading org links",
-          message: `${error}`,
-          color: "red",
-        });
+        await generateErrorMessage(error, "loading org links");
         setOrgLinks([]);
       } finally {
         setIsLoadingOrgLinks(false);
@@ -148,12 +145,7 @@ export const LinkShortener: React.FC = () => {
       });
       close();
     } catch (error) {
-      console.error(error);
-      notifications.show({
-        title: "Error deleting link",
-        message: `${error}`,
-        color: "red",
-      });
+      await generateErrorMessage(error, "deleting the link");
     }
   };
 
@@ -178,12 +170,7 @@ export const LinkShortener: React.FC = () => {
       });
       closeOrgDelete();
     } catch (error) {
-      console.error(error);
-      notifications.show({
-        title: "Error deleting org link",
-        message: `${error}`,
-        color: "red",
-      });
+      await generateErrorMessage(error, "deleting the org link");
     }
   };
 
@@ -522,7 +509,7 @@ export const LinkShortener: React.FC = () => {
           <Tabs.Panel value="org" pt="md">
             <Stack gap="md">
               <ManageableOrgsSelector
-                adminRoles={[AppRoles.ALL_ORG_MANAGER, AppRoles.LINKS_ADMIN]}
+                adminRoles={[AppRoles.LINKS_ADMIN]}
                 value={selectedOrg}
                 onChange={handleOrgChange}
                 onOrgsLoaded={(orgs) => {
@@ -532,6 +519,7 @@ export const LinkShortener: React.FC = () => {
                 label="Select an organization"
                 description="Only organizations you have permission to manage are shown."
                 placeholder="Select organization"
+                hideAcmOrg
                 maw={400}
               />
 

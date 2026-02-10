@@ -23,6 +23,7 @@ import { notifications } from "@mantine/notifications";
 import { GroupMemberGetResponse, EntraActionResponse } from "@common/types/iam";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
+import { generateErrorMessage } from "@ui/util/api";
 
 interface GroupMemberManagementProps {
   fetchMembers: () => Promise<GroupMemberGetResponse>;
@@ -139,12 +140,7 @@ const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
         });
       }
     } catch (error) {
-      notifications.show({
-        title: "Error",
-        message: "Failed to save changes.",
-        color: "red",
-        icon: <IconAlertCircle size={16} />,
-      });
+      await generateErrorMessage(error, "");
     } finally {
       setIsLoading(false);
       setConfirmationModal(false);

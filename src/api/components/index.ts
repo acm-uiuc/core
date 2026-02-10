@@ -241,8 +241,8 @@ export function withRoles<T extends FastifyZodOpenApiSchema>(
     security.push({ apiKeyHeader: [] });
   }
   const responses = {
-    401: notAuthorizedError,
-    403: notAuthenticatedError,
+    401: notAuthenticatedError,
+    403: notAuthorizedError,
     ...schema.response,
   };
   return {

@@ -21,7 +21,7 @@ describe("Audit Log tests", async () => {
     const response = await supertest(app.server)
       .get("/api/v1/logs/events")
       .send();
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(401);
   });
   test("Sad path: Authenticated but not authorized", async () => {
     await app.ready();
@@ -30,7 +30,7 @@ describe("Audit Log tests", async () => {
       .get("/api/v1/logs/events?start=0&end=1")
       .set("Authorization", `Bearer ${testJwt}`)
       .send();
-    expect(response.statusCode).toBe(401);
+    expect(response.statusCode).toBe(403);
   });
   test("Sad path: No start and end provided", async () => {
     await app.ready();

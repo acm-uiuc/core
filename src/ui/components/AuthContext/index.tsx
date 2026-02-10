@@ -41,6 +41,7 @@ interface AuthContextDataWrapper {
   getApiToken: CallableFunction;
   setLoginStatus: CallableFunction;
   refreshOrgRoles: () => Promise<void>;
+  signOutOfApp: () => Promise<void>;
 }
 
 export type AuthContextData = {
@@ -108,9 +109,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 
   /**
-   * Fetch and update org roles.
-   * Accepts an explicit account to handle race conditions during login redirects.
+   * Clear local application state and attempt MSAL logout without blocking.
    */
+  const signOutOfApp = useCallback(async () => {
+    clearAuthCache();
+    const account = instance.getActiveAccount() || accounts[0];
+    if (account) {
+      const token = await acquireTokenInternal(account).catch(() => null);
+      fetch(`${config.baseEndpoint}/api/v1/clearSession`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).catch(() => {});
+    }
+    setOrgRoles([]);
+    setUserData(null);
+    setIsLoggedIn(false);
+  }, [instance, accounts, acquireTokenInternal, config.baseEndpoint]);
+
   const fetchOrgRoles = useCallback(
     async (explicitAccount?: AccountInfo, isRetry: boolean = false) => {
       try {
@@ -185,7 +200,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               }
             }
           }
-          throw new Error(`Auth check failed with status: ${response.status}`);
+          // Any non-ok response that wasn't recovered — sign out of the app
+          console.warn(
+            `Auth check failed (status: ${response.status}). Signing out of app.`,
+          );
+          signOutOfApp();
+          return [];
         }
 
         const data = await response.json();
@@ -201,10 +221,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return [];
       } catch (error) {
         console.error("Failed to fetch org roles:", error);
-        return orgRolesRef.current;
+        signOutOfApp();
+        return [];
       }
     },
-    [checkRoute, instance, accounts, acquireTokenInternal],
+    [checkRoute, instance, accounts, acquireTokenInternal, signOutOfApp],
   );
 
   // Refresh org roles on demand
@@ -420,6 +441,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         logoutCallback,
         getApiToken,
         refreshOrgRoles,
+        signOutOfApp,
       }}
     >
       {isLoading ? (

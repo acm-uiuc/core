@@ -20,6 +20,8 @@ interface ManageableOrgsSelectorProps extends Omit<
   onChange: (org: OrganizationId | null) => void;
   /** Called once the manageable orgs list has been determined */
   onOrgsLoaded?: (orgs: OrganizationId[]) => void;
+  /** Whether or not the overall ACM org should be hidden as an option */
+  hideAcmOrg?: boolean;
 }
 
 export const ManageableOrgsSelector: React.FC<ManageableOrgsSelectorProps> = ({
@@ -28,11 +30,18 @@ export const ManageableOrgsSelector: React.FC<ManageableOrgsSelectorProps> = ({
   value,
   onChange,
   onOrgsLoaded,
+  hideAcmOrg,
   ...selectProps
 }) => {
-  const [manageableOrgs, setManageableOrgs] = useState<OrganizationId[] | null>(
-    null,
-  );
+  const [manageableOrgs, setManageableOrgsInt] = useState<
+    OrganizationId[] | null
+  >(null);
+
+  const setManageableOrgs = (data: OrganizationId[] | null) => {
+    const realOrgs =
+      hideAcmOrg && data ? data.filter((x) => x !== "A01") : data;
+    setManageableOrgsInt(realOrgs);
+  };
 
   useEffect(() => {
     if (showAllOrgs) {

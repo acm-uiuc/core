@@ -13,7 +13,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import * as z from "zod/v4";
 import { AuthGuard } from "@ui/components/AuthGuard";
-import { useApi } from "@ui/util/api";
+import { generateErrorMessage, useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
 import { IconDeviceFloppy } from "@tabler/icons-react";
 import { LinkryGroupUUIDToGroupNameMap } from "@common/config";
@@ -105,10 +105,7 @@ export const ManageLinkPage: React.FC = () => {
         form.setValues(formValues);
         setIsLoading(false);
       } catch (error) {
-        console.error("Error fetching event data:", error);
-        notifications.show({
-          message: "Failed to fetch event data, please try again.",
-        });
+        await generateErrorMessage(error, "fetching the link details");
         navigate("/linkry");
       }
     };
@@ -147,25 +144,13 @@ export const ManageLinkPage: React.FC = () => {
         new URLSearchParams(window.location.search).get("previousPage") ||
           "/linkry",
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       setIsSubmitting(false);
-      console.error("Error creating/editing link:", error);
-      notifications.show({
-        color: "red",
-        title: isEditing ? "Failed to edit link" : "Failed to create link",
-        message:
-          error.response && error.response.data
-            ? error.response.data.message
-            : undefined,
-      });
+      const operationName = isEditing
+        ? "editing the link"
+        : "creating the link";
+      await generateErrorMessage(error, operationName);
     }
-  };
-
-  const handleFormClose = () => {
-    navigate(
-      new URLSearchParams(window.location.search).get("previousPage") ||
-        "/linkry",
-    );
   };
 
   const generateRandomSlug = () => {

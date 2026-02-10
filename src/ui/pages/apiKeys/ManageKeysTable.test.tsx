@@ -158,8 +158,9 @@ describe("OrgApiKeyTable Tests", () => {
     await waitFor(() => {
       expect(notificationsMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "Error loading API keys",
+          title: "An error occurred while loading API keys",
           color: "red",
+          message: "Error 99: Failed to load",
         }),
       );
     });

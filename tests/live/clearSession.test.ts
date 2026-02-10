@@ -38,6 +38,6 @@ describe("Session clearing tests", { timeout: 30000 }, async () => {
         Authorization: `Bearer ${token}`,
       },
     });
-    expect(responseFail.status).toBe(403);
+    expect(responseFail.status).toBe(401);
   });
 });

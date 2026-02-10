@@ -48,7 +48,7 @@ vi.mock("../../src/api/functions/entraId.js", () => {
 
 const acmMeta = {
   primaryKey: "DEFINE#A01",
-  leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
+  leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40337",
   links: [
     {
       type: "DISCORD",
@@ -124,7 +124,7 @@ describe("Organization info tests - Extended Coverage", () => {
     test("Returns nonVotingMember true when lead is non-voting", async () => {
       const orgMetaWithLeads = {
         primaryKey: "DEFINE#A01",
-        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
+        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40337",
         website: "https://www.acm.illinois.edu",
       };
 
@@ -172,7 +172,7 @@ describe("Organization info tests - Extended Coverage", () => {
     test("Returns nonVotingMember false when lead is voting member", async () => {
       const orgMetaWithLeads = {
         primaryKey: "DEFINE#A01",
-        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
+        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40337",
         website: "https://www.acm.illinois.edu",
       };
 
@@ -220,7 +220,7 @@ describe("Organization info tests - Extended Coverage", () => {
     test("Returns nonVotingMember false by default when not specified in data", async () => {
       const orgMetaWithLeads = {
         primaryKey: "DEFINE#A01",
-        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
+        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40337",
         website: "https://www.acm.illinois.edu",
       };
 
@@ -268,7 +268,7 @@ describe("Organization info tests - Extended Coverage", () => {
     test("Returns multiple leads with mixed voting statuses", async () => {
       const orgMetaWithLeads = {
         primaryKey: "DEFINE#A01",
-        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40137",
+        leadsEntraGroupId: "a3c37a24-1e21-4338-813f-15478eb40337",
         website: "https://www.acm.illinois.edu",
       };
 
@@ -483,7 +483,7 @@ describe("Organization info tests - Extended Coverage", () => {
         },
       });
 
-      expect(response.statusCode).toBe(401);
+      expect(response.statusCode).toBe(403);
     });
 
     test("Handles database errors gracefully", async () => {
