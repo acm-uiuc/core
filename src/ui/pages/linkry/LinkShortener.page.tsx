@@ -18,7 +18,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import * as z from "zod/v4";
 
-import { AuthGuard } from "@ui/components/AuthGuard";
+import { AuthGuard, getUserRoles } from "@ui/components/AuthGuard";
 import { ManageableOrgsSelector } from "@ui/components/ManageableOrgsSelector";
 import { generateErrorMessage, useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles.js";
@@ -56,11 +56,30 @@ export const LinkShortener: React.FC = () => {
     useState<OrgLinkRecord | null>(null);
   const [orgDeleteOpened, { open: openOrgDelete, close: closeOrgDelete }] =
     useDisclosure(false);
+  const [hasLinksAccess, setHasLinksAccess] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>(
     orgFromUrl ? "org" : "owned",
   );
 
+  // Check if user has links management roles
   useEffect(() => {
+    const checkLinksAccess = async () => {
+      const roles = await getUserRoles("core");
+      if (roles) {
+        const access =
+          roles.includes(AppRoles.LINKS_MANAGER) ||
+          roles.includes(AppRoles.LINKS_ADMIN);
+        setHasLinksAccess(access);
+      }
+    };
+    checkLinksAccess();
+  }, []);
+
+  // Fetch personal links only if user has links access
+  useEffect(() => {
+    if (!hasLinksAccess) {
+      return;
+    }
     const getEvents = async () => {
       setIsLoading(true);
       let response;
@@ -75,7 +94,17 @@ export const LinkShortener: React.FC = () => {
       setDelegatedLinks(delegatedLinks);
     };
     getEvents();
-  }, []);
+  }, [hasLinksAccess]);
+
+  // Correct active tab if user doesn't have links access
+  useEffect(() => {
+    if (
+      hasLinksAccess === false &&
+      (activeTab === "owned" || activeTab === "delegated")
+    ) {
+      setActiveTab("org");
+    }
+  }, [hasLinksAccess]);
 
   // Sync selectedOrg with URL param
   useEffect(() => {
@@ -432,28 +461,28 @@ export const LinkShortener: React.FC = () => {
 
       <Stack gap="md">
         <Group justify="space-between" wrap="wrap">
-          <Title order={2}>User Links</Title>
-          {activeTab === "org" ? (
-            selectedOrg && (
-              <Button
-                leftSection={<IconPlus size={14} />}
-                onClick={() =>
-                  navigate(
-                    `/linkry/org/add?org=${encodeURIComponent(selectedOrg)}`,
-                  )
-                }
-              >
-                Add New Org Link
-              </Button>
-            )
-          ) : (
-            <Button
-              leftSection={<IconPlus size={14} />}
-              onClick={() => navigate("/linkry/add")}
-            >
-              Add New Link
-            </Button>
-          )}
+          <Title order={2}>Link Shortener</Title>
+          {activeTab === "org"
+            ? selectedOrg && (
+                <Button
+                  leftSection={<IconPlus size={14} />}
+                  onClick={() =>
+                    navigate(
+                      `/linkry/org/add?org=${encodeURIComponent(selectedOrg)}`,
+                    )
+                  }
+                >
+                  Add New Org Link
+                </Button>
+              )
+            : hasLinksAccess && (
+                <Button
+                  leftSection={<IconPlus size={14} />}
+                  onClick={() => navigate("/linkry/add")}
+                >
+                  Add New Link
+                </Button>
+              )}
         </Group>
 
         <Tabs
@@ -467,8 +496,12 @@ export const LinkShortener: React.FC = () => {
           }}
         >
           <Tabs.List>
-            <Tabs.Tab value="owned">My Links</Tabs.Tab>
-            <Tabs.Tab value="delegated">Delegated Links</Tabs.Tab>
+            {hasLinksAccess && (
+              <>
+                <Tabs.Tab value="owned">My Links</Tabs.Tab>
+                <Tabs.Tab value="delegated">Delegated Links</Tabs.Tab>
+              </>
+            )}
             {hasOrgAccess && (
               <Tabs.Tab value="org">Organization Links</Tabs.Tab>
             )}
