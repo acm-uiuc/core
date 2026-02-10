@@ -648,7 +648,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             ownerPutParams,
           ];
           if (auditLogItem) {
-            transaction?.push(auditLogItem);
+            transaction.push(auditLogItem);
           }
           await fastify.dynamoClient.send(
             new TransactWriteItemsCommand({ TransactItems: transaction }),
