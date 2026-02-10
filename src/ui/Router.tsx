@@ -199,7 +199,7 @@ const authenticatedRouter = createBrowserRouter([
         element: <ManageOrgLinkPage />,
       },
       {
-        path: "/linkry/org/edit/:slug",
+        path: "/linkry/org/edit/:slug?",
         element: <ManageOrgLinkPage />,
       },
       {

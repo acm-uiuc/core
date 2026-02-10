@@ -683,7 +683,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             params: z.object({
               orgId: NonAcmOrgUniqueId,
             }),
-            summary: "Retrieve short link for a specific org",
+            summary: "Retrieve short links for a specific org",
             response: {
               200: {
                 description: "The short links were retrieved.",
@@ -723,14 +723,14 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }),
     );
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
-      "/orgs/:orgId/redir/:slug",
+      "/orgs/:orgId/redir/:slug?",
       {
         schema: withRoles(
           [AppRoles.AT_LEAST_ONE_ORG_MANAGER, AppRoles.LINKS_ADMIN],
           withTags(["Linkry"], {
             params: z.object({
               orgId: NonAcmOrgUniqueId,
-              slug: linkrySlug,
+              slug: linkrySlug.default(""),
             }),
             summary: "Delete a short link for a specific org",
             response: {
