@@ -584,18 +584,30 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               session.payment_status === "paid" ||
               event.type === "checkout.session.async_payment_succeeded";
 
-            await recordInvoicePayment({
-              dynamoClient: fastify.dynamoClient,
-              pk,
-              invoiceId: meta.invoiceId,
-              eventId: event.id,
-              checkoutSessionId,
-              paymentIntentId,
-              amountCents,
-              currency,
-              billingEmail: meta.email,
-              decrementOwed,
-            });
+            try {
+              await recordInvoicePayment({
+                dynamoClient: fastify.dynamoClient,
+                pk,
+                invoiceId: meta.invoiceId,
+                eventId: event.id,
+                checkoutSessionId,
+                paymentIntentId,
+                amountCents,
+                currency,
+                billingEmail: meta.email,
+                decrementOwed,
+              });
+            } catch (e: any) {
+              if (e?.name === "TransactionCanceledException") {
+                request.log.info(
+                  `Duplicate webhook event ${event.id}, acknowledging.`,
+                );
+                return reply
+                  .status(200)
+                  .send({ handled: true, requestId: request.id });
+              }
+              throw e;
+            }
 
             return reply
               .status(200)
