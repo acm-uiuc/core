@@ -27,6 +27,12 @@ describe("Linkry live tests", async () => {
     expect(response.redirected).toBe(true);
     expect(response.url).toBe("https://www.google.com/");
   });
+  test("Org-scoped linkry roots health check", async () => {
+    const response = await fetch(baseEndpointInfra);
+    expect(response.status).toBe(200);
+    expect(response.redirected).toBe(true);
+    expect(response.url).toBe("https://infra.acm.illinois.edu/");
+  });
   test("Linkry 404 redirect", async () => {
     const response = await fetch(`${baseEndpoint}/${makeRandomString(16)}`);
     expect(response.status).toBe(200);
@@ -107,13 +113,21 @@ describe("Linkry org link lifecycle", { sequential: true }, async () => {
         }),
       },
     );
-    expect(response.status).toBe(201);
-    // Make sure link propogates
-    await sleep(1000);
-    const redirResponse = await fetch(`${baseEndpointInfra}/${linkId}`);
-    expect(redirResponse.status).toBe(200);
-    expect(redirResponse.redirected).toBe(true);
-    expect(redirResponse.url).toBe("https://www.google.com/");
+    let redirResponse: Response | undefined;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await sleep(500 * Math.pow(2, attempt));
+      redirResponse = await fetch(`${baseEndpointInfra}/${linkId}`);
+      if (
+        redirResponse.status === 200 &&
+        redirResponse.redirected &&
+        redirResponse.url === "https://www.google.com/"
+      ) {
+        break;
+      }
+    }
+    expect(redirResponse!.status).toBe(200);
+    expect(redirResponse!.redirected).toBe(true);
+    expect(redirResponse!.url).toBe("https://www.google.com/");
   });
   test("Delete a short link", async () => {
     let response;

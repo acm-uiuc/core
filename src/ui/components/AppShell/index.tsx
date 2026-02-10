@@ -84,7 +84,11 @@ export const navItems = [
     name: "Link Shortener",
     icon: IconLink,
     description: null,
-    validRoles: [AppRoles.LINKS_MANAGER, AppRoles.LINKS_ADMIN],
+    validRoles: [
+      AppRoles.LINKS_MANAGER,
+      AppRoles.LINKS_ADMIN,
+      AppRoles.AT_LEAST_ONE_ORG_MANAGER,
+    ],
   },
   {
     link: "/logs",
