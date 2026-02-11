@@ -142,7 +142,10 @@ export const createCheckoutSession = async ({
   const payload: Stripe.Checkout.SessionCreateParams = {
     success_url: successUrl || "",
     cancel_url: returnUrl || "",
-    payment_method_types: instantSettlementMethods,
+    payment_method_types:
+      captureMethod === "manual"
+        ? instantSettlementMethods.filter((x) => x !== "crypto")
+        : instantSettlementMethods,
     line_items: items.map((item) => ({
       price: item.price,
       quantity: item.quantity,
@@ -196,7 +199,7 @@ export const createCheckoutSessionWithCustomer = async ({
         : allPaymentMethods
       : instantSettlementMethods
     ).filter(
-      (x) => x !== "crypto",
+      (x) => captureMethod === "manual" ? x !== "crypto" : true,
     ) as Stripe.Checkout.SessionCreateParams.PaymentMethodType[],
     line_items: items.map((item) => ({
       price: item.price,
