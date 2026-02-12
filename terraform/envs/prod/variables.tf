@@ -39,6 +39,11 @@ variable "CorePublicDomain" {
   default = "core.acm.illinois.edu"
 }
 
+variable "CoreAssetsPublicDomain" {
+  type    = string
+  default = "core-assets.acm.illinois.edu"
+}
+
 variable "LinkryPublicDomain" {
   type    = string
   default = "go.acm.illinois.edu"

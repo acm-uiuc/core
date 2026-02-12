@@ -128,6 +128,8 @@ module "assets" {
   source                   = "../../modules/assets"
   ProjectId                = var.ProjectId
   BucketAllowedCorsOrigins = ["https://${var.CorePublicDomain}"]
+  CoreAssetsPublicDomain   = var.CoreAssetsPublicDomain
+  CoreCertificateArn       = var.CoreCertificateArn
 }
 
 resource "aws_lambda_event_source_mapping" "queue_consumer" {
