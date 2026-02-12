@@ -311,6 +311,8 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         data: request.body,
         actor: request.username,
         dynamoClient: fastify.dynamoClient,
+        stripeApiKey: fastify.secretConfig.stripe_secret_key,
+        logger: request.log,
       });
       reply.status(204).send();
     }),
