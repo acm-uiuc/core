@@ -35,8 +35,7 @@ const environmentConfig: EnvironmentConfigType = {
         friendlyName: "Core Management Service (NonProd)",
         baseEndpoint: "http://localhost:8080",
         authCheckRoute: "/api/v1/protected",
-        loginScope:
-          "api://39c28870-94e4-47ee-b4fb-affe0bf96c9f/ACM.Events.Login",
+        loginScope: "api://39c28870-94e4-47ee-b4fb-affe0bf96c9f/ACM.Core.Login",
         apiId: "api://39c28870-94e4-47ee-b4fb-affe0bf96c9f",
       },
       tickets: {
@@ -63,8 +62,7 @@ const environmentConfig: EnvironmentConfigType = {
         friendlyName: "Core Management Service (NonProd)",
         baseEndpoint: "https://core.aws.qa.acmuiuc.org",
         authCheckRoute: "/api/v1/protected",
-        loginScope:
-          "api://39c28870-94e4-47ee-b4fb-affe0bf96c9f/ACM.Events.Login",
+        loginScope: "api://39c28870-94e4-47ee-b4fb-affe0bf96c9f/ACM.Core.Login",
         apiId: "api://39c28870-94e4-47ee-b4fb-affe0bf96c9f",
       },
       tickets: {
@@ -91,8 +89,7 @@ const environmentConfig: EnvironmentConfigType = {
         friendlyName: "Core Management Service",
         baseEndpoint: "https://core.acm.illinois.edu",
         authCheckRoute: "/api/v1/protected",
-        loginScope:
-          "api://5e08cf0f-53bb-4e09-9df2-e9bdc3467296/ACM.Events.Login",
+        loginScope: "api://5e08cf0f-53bb-4e09-9df2-e9bdc3467296/ACM.Core.Login",
         apiId: "api://5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
       },
       tickets: {
