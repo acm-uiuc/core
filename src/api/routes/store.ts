@@ -272,7 +272,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       let transformedBody;
       fastify.s3Client =
         fastify.s3Client || new S3Client({ region: genericConfig.AwsRegion });
-      const itemKey = `/public/images/store/${request.body.productId}`;
+      const itemKey = `/public/store/images/${request.body.productId}`;
       let presignedUrl: string | undefined = undefined;
 
       if (request.body.requestingImageUpload) {
