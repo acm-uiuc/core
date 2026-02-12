@@ -31,14 +31,15 @@ export const ViewStoreItemsPage: React.FC = () => {
   const modifyProductMetadata = async (
     productId: string,
     data: ModifyProductRequest,
-  ) => {
-    const response = await api.patch<null>(
-      `/api/v1/store/admin/products/${productId}`,
-      data,
-    );
+  ): Promise<{ imageUploadPresignedUrl?: string } | void> => {
+    const response = await api.patch<{
+      success: boolean;
+      imageUploadPresignedUrl?: string;
+    } | null>(`/api/v1/store/admin/products/${productId}`, data);
     if (response.status > 299) {
       throw new Error("Failed to modify product metadata");
     }
+    return response.data ?? undefined;
   };
   return (
     <AuthGuard

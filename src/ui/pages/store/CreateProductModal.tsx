@@ -22,7 +22,12 @@ import * as z from "zod/v4";
 import { zod4Resolver as zodResolver } from "mantine-form-zod-resolver";
 import { UrbanaDateTimePicker } from "@ui/components/UrbanaDateTimePicker";
 import { NonUrbanaTimezoneAlert } from "@ui/components/NonUrbanaTimezoneAlert";
+import {
+  ImageUpload,
+  type ImageUploadResult,
+} from "@ui/components/ImageUpload";
 import { useApi } from "@ui/util/api";
+import { uploadToS3PresignedUrl } from "@ui/util/s3";
 import type { CreateProductRequest } from "@common/types/store";
 
 const createVariantFormSchema = z.object({
@@ -43,11 +48,6 @@ const createProductFormSchema = z
     productId: z.string().min(1, "Product ID is required"),
     name: z.string().min(1, "Name is required"),
     description: z.string().optional(),
-    imageUrl: z
-      .string()
-      .url("Must be a valid URL")
-      .optional()
-      .or(z.literal("")),
     openAt: z.number().int().gte(0).optional(),
     closeAt: z.number().int().min(0).optional(),
     verifiedIdentityRequired: z.boolean(),
@@ -106,6 +106,8 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
   const api = useApi("core");
   const [saving, setSaving] = useState(false);
   const [purchaseLimitEnabled, setPurchaseLimitEnabled] = useState(false);
+  const [imageUploadResult, setImageUploadResult] =
+    useState<ImageUploadResult | null>(null);
   const nowEpoch = Math.round(new Date().getTime() / 1000);
 
   const form = useForm<CreateProductFormValues>({
@@ -115,7 +117,6 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       productId: "",
       name: "",
       description: "",
-      imageUrl: "",
       openAt: nowEpoch,
       closeAt: nowEpoch + 604800, // closes in a week,
       verifiedIdentityRequired: true,
@@ -153,7 +154,6 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       productId: values.productId,
       name: values.name,
       description: values.description || undefined,
-      imageUrl: values.imageUrl || undefined,
       openAt: values.openAt,
       closeAt: values.closeAt,
       verifiedIdentityRequired: values.verifiedIdentityRequired,
@@ -168,11 +168,36 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
         : undefined,
       additionalEmailText: values.additionalEmailText || undefined,
       variants,
+      ...(imageUploadResult && {
+        requestingImageUpload: {
+          mimeType: imageUploadResult.mimeType,
+          contentMd5Hash: imageUploadResult.contentMd5Hash,
+          fileSize: imageUploadResult.fileSize,
+          width: imageUploadResult.width,
+          height: imageUploadResult.height,
+        },
+      }),
     };
 
     setSaving(true);
     try {
-      await api.post("/api/v1/store/admin/products", requestBody);
+      const response = await api.post<{
+        success: boolean;
+        productId: string;
+        imageUploadPresignedUrl?: string;
+      }>("/api/v1/store/admin/products", requestBody);
+
+      if (imageUploadResult && response.data.imageUploadPresignedUrl) {
+        const file = new File([imageUploadResult.blob], "product-image.jpg", {
+          type: imageUploadResult.mimeType,
+        });
+        await uploadToS3PresignedUrl(
+          response.data.imageUploadPresignedUrl,
+          file,
+          imageUploadResult.mimeType,
+        );
+      }
+
       notifications.show({
         title: "Product created",
         message: "The product was successfully created.",
@@ -180,6 +205,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       });
       form.reset();
       setPurchaseLimitEnabled(false);
+      setImageUploadResult(null);
       onProductCreated();
       onClose();
     } catch (e: any) {
@@ -201,6 +227,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     if (!saving) {
       form.reset();
       setPurchaseLimitEnabled(false);
+      setImageUploadResult(null);
       onClose();
     }
   };
@@ -237,7 +264,11 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
             minRows={2}
             {...form.getInputProps("description")}
           />
-          <TextInput label="Image URL" {...form.getInputProps("imageUrl")} />
+          <ImageUpload
+            onChange={setImageUploadResult}
+            label="Product Image"
+            disabled={saving}
+          />
 
           {/* Section 2: Sales Window */}
           <Divider label="Sales Window" />

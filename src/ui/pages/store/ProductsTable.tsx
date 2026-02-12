@@ -29,6 +29,11 @@ import {
   UrbanaDateTimePicker,
 } from "@ui/components/UrbanaDateTimePicker";
 import { NonUrbanaTimezoneAlert } from "@ui/components/NonUrbanaTimezoneAlert";
+import {
+  ImageUpload,
+  type ImageUploadResult,
+} from "@ui/components/ImageUpload";
+import { uploadToS3PresignedUrl } from "@ui/util/s3";
 import { AppRoles } from "@common/roles";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { VariantsModal } from "./VariantsModal";
@@ -38,7 +43,7 @@ interface ProductsTableProps {
   modifyProductMetadata: (
     productId: string,
     data: ModifyProductRequest,
-  ) => Promise<void>;
+  ) => Promise<{ imageUploadPresignedUrl?: string } | void>;
 }
 
 type Product = AdminListProductsResponse["products"][number];
@@ -65,6 +70,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   >(undefined);
   const [editCandidate, setEditCandidate] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
+  const [imageUploadResult, setImageUploadResult] =
+    useState<ImageUploadResult | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
 
   // Variants modal state
@@ -129,13 +136,38 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
       ),
     ) as ModifyProductRequest;
 
+    if (imageUploadResult) {
+      dirtyFields.requestingImageUpload = {
+        mimeType: imageUploadResult.mimeType,
+        contentMd5Hash: imageUploadResult.contentMd5Hash,
+        fileSize: imageUploadResult.fileSize,
+        width: imageUploadResult.width,
+        height: imageUploadResult.height,
+      };
+    }
+
     if (Object.keys(dirtyFields).length === 0) {
       return;
     }
 
     setSaving(true);
     try {
-      await modifyProductMetadata(editCandidate.productId, dirtyFields);
+      const result = await modifyProductMetadata(
+        editCandidate.productId,
+        dirtyFields,
+      );
+
+      if (imageUploadResult && result && result.imageUploadPresignedUrl) {
+        const file = new File([imageUploadResult.blob], "product-image.jpg", {
+          type: imageUploadResult.mimeType,
+        });
+        await uploadToS3PresignedUrl(
+          result.imageUploadPresignedUrl,
+          file,
+          imageUploadResult.mimeType,
+        );
+      }
+
       notifications.show({
         title: "Product updated",
         message: "The product was successfully updated.",
@@ -157,6 +189,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
 
   const handleCloseModal = () => {
     setEditCandidate(null);
+    setImageUploadResult(null);
     form.reset();
     close();
   };
@@ -308,7 +341,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
               autosize
               {...form.getInputProps("description")}
             />
-            <TextInput label="Image URL" {...form.getInputProps("imageUrl")} />
+            <ImageUpload
+              existingImageUrl={editCandidate?.imageUrl}
+              onChange={setImageUploadResult}
+              disabled={saving}
+              label="Product Image"
+            />
             <TextInput
               label="Variant Friendly Name"
               description="The label used for a single variant (e.g., Size, Partner Organization)"

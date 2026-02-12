@@ -39,10 +39,14 @@ import {
   productWithVariantsPublicCountSchema,
   modifyProductSchema,
   listProductsAdminResponseSchema,
+  CreateProductDataInputs,
+  ModifyProductRequest,
 } from "common/types/store.js";
 import { assertAuthenticated } from "api/authenticated.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { createPresignedPut } from "api/functions/s3.js";
+import { S3Client } from "@aws-sdk/client-s3";
 
 export const STORE_CLIENT_HTTP_CACHE_POLICY = `public, max-age=${STORE_CACHED_DURATION}, stale-while-revalidate=${STORE_CACHED_DURATION}, stale-if-error=${STORE_CACHED_DURATION}`;
 
@@ -254,6 +258,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   schema: z.object({
                     success: z.boolean(),
                     productId: z.string(),
+                    imageUploadPresignedUrl: z.optional(z.url()),
                   }),
                 },
               },
@@ -264,8 +269,31 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
+      let transformedBody;
+      fastify.s3Client =
+        fastify.s3Client || new S3Client({ region: genericConfig.AwsRegion });
+      const itemKey = `/public/images/store/${request.body.productId}`;
+      let presignedUrl: string | undefined = undefined;
+
+      if (request.body.requestingImageUpload) {
+        const { requestingImageUpload: _, ...rest } = request.body;
+        transformedBody = {
+          ...rest,
+          imageUrl: `${fastify.environmentConfig.AssetsBucketPublicUrl}${itemKey}`,
+        };
+        presignedUrl = await createPresignedPut({
+          s3client: fastify.s3Client,
+          bucketName: fastify.environmentConfig.AssetsBucketId,
+          key: itemKey,
+          length: request.body.requestingImageUpload.fileSize,
+          mimeType: request.body.requestingImageUpload.mimeType,
+          md5hash: request.body.requestingImageUpload.contentMd5Hash,
+        });
+      } else {
+        transformedBody = request.body;
+      }
       await createProduct({
-        productData: request.body,
+        productData: transformedBody,
         dynamoClient: fastify.dynamoClient,
         logger: request.log,
         stripeApiKey: fastify.secretConfig.stripe_secret_key,
@@ -275,6 +303,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       return reply.status(201).send({
         success: true,
         productId: request.body.productId,
+        ...(presignedUrl && { imageUploadPresignedUrl: presignedUrl }),
       });
     }),
   );
@@ -292,6 +321,18 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }),
           body: modifyProductSchema,
           response: {
+            200: {
+              description:
+                "The product has been modified (with presigned URL for image upload).",
+              content: {
+                "application/json": {
+                  schema: z.object({
+                    success: z.boolean(),
+                    imageUploadPresignedUrl: z.optional(z.url()),
+                  }),
+                },
+              },
+            },
             204: {
               description: "The product has been modified.",
               content: {
@@ -306,14 +347,42 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
+      fastify.s3Client =
+        fastify.s3Client || new S3Client({ region: genericConfig.AwsRegion });
+      const itemKey = `/public/store/images/${request.params.productId}`;
+      let presignedUrl: string | undefined;
+      let modifyData: Record<string, unknown> = { ...request.body };
+
+      if (request.body.requestingImageUpload) {
+        const { requestingImageUpload: _, ...rest } = modifyData;
+        modifyData = {
+          ...rest,
+          imageUrl: `${fastify.environmentConfig.AssetsBucketPublicUrl}${itemKey}`,
+        };
+        presignedUrl = await createPresignedPut({
+          s3client: fastify.s3Client,
+          bucketName: fastify.environmentConfig.AssetsBucketId,
+          key: itemKey,
+          length: request.body.requestingImageUpload.fileSize,
+          mimeType: request.body.requestingImageUpload.mimeType,
+          md5hash: request.body.requestingImageUpload.contentMd5Hash,
+        });
+      }
+
       await modifyProduct({
         productId: request.params.productId,
-        data: request.body,
+        data: modifyData as ModifyProductRequest,
         actor: request.username,
         dynamoClient: fastify.dynamoClient,
         stripeApiKey: fastify.secretConfig.stripe_secret_key,
         logger: request.log,
       });
+
+      if (presignedUrl) {
+        return reply
+          .status(200)
+          .send({ success: true, imageUploadPresignedUrl: presignedUrl });
+      }
       reply.status(204).send();
     }),
   );

@@ -31,7 +31,6 @@ export const variantSchema = z.object({
   variantId: z.string().min(1),
   name: z.string().min(1),
   description: z.string().optional(),
-  imageUrl: z.string().url().optional(),
   memberLists: z.array(z.string()).default(["acmpaid"]), // Lists user must be in for member pricing
   memberPriceId: z.string().min(1), // Stripe price ID for members
   nonmemberPriceId: z.string().min(1), // Stripe price ID for non-members
@@ -54,11 +53,22 @@ const variantFriendlyName = z.string().min(1).max(30).optional().meta({
   examples: ["Size", "Partner Organization"]
 });
 
+const requestingImageUpload = z.optional(z.object({
+  mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+  contentMd5Hash: z.string().min(1),
+  fileSize: z.number().min(1).max(5e6),
+  width: z.number().int().min(100).max(4096),
+  height: z.number().int().min(100).max(4096),
+}).refine(
+  (data) => data.width === data.height,
+  { message: "Image must be square (width must equal height)" }
+)).meta({ description: "If specified, will return an S3 presigned URL to upload the product image." })
+
 export const productSchema = z.object({
   productId: z.string().min(1),
   name: z.string().min(1),
   description: z.string().optional(),
-  imageUrl: z.url().optional(),
+  imageUrl: z.string().optional(),
   openAt: z.number().int().gte(0).optional(), // Unix timestamp when sales open
   closeAt: z.number().int().min(0).optional(), // Unix timestamp when sales close
   stripeProductId: z.string().optional(), // Stripe product ID
@@ -80,7 +90,6 @@ export type Product = z.infer<typeof productSchema>;
 export const modifyProductSchema = productSchema.pick({
   name: true,
   description: true,
-  imageUrl: true,
   openAt: true,
   closeAt: true,
   limitConfiguration: true,
@@ -89,7 +98,8 @@ export const modifyProductSchema = productSchema.pick({
   variantFriendlyName: true,
 }).partial().extend({
   verifiedIdentityRequired: z.boolean().optional(), // Override to remove the default
-  variantFriendlyName
+  variantFriendlyName,
+  requestingImageUpload
 }).refine(
   (data) =>
     !data.openAt || !data.closeAt || data.openAt < data.closeAt,
@@ -245,9 +255,21 @@ export const createProductRequestSchema = productSchema
   .omit({
     stripeProductId: true, // We will generate this
     totalSoldCount: true,
+    imageUrl: true
+  })
+  .extend({
+    variants: z.array(createVariantRequestSchema).min(1),
+    requestingImageUpload
+  })
+
+export const createProductFunctionSchema = productSchema
+  .omit({
+    stripeProductId: true, // We will generate this
+    totalSoldCount: true,
   })
   .extend({
     variants: z.array(createVariantRequestSchema).min(1),
   })
 
 export type CreateProductRequest = z.infer<typeof createProductRequestSchema>;
+export type CreateProductDataInputs = z.infer<typeof createProductFunctionSchema>;

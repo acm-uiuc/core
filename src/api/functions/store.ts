@@ -47,7 +47,7 @@ import {
   type Variant,
   type SellabilityResult,
   type LimitConfiguration,
-  type CreateProductRequest,
+  type CreateProductDataInputs,
   DEFAULT_VARIANT_ID,
   LimitType,
   ModifyProductRequest,
@@ -1510,7 +1510,7 @@ export async function listProductLineItems({
 }
 
 export type CreateProductInputs = {
-  productData: CreateProductRequest;
+  productData: CreateProductDataInputs;
   dynamoClient: DynamoDBClient;
   stripeApiKey: string;
   logger: ValidLoggers;
