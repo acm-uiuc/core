@@ -1828,8 +1828,7 @@ export async function modifyProduct({
         stripeUpdate.name = data.name;
       }
       if (data.description !== undefined) {
-        // Stripe doesn't accept empty string for description; use empty string to clear
-        stripeUpdate.description = data.description || "";
+        stripeUpdate.description = data.description;
       }
 
       try {

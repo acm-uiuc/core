@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Container, Title, Text, Button } from "@mantine/core";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { AppRoles } from "@common/roles";
@@ -9,12 +9,19 @@ import {
 import { useApi } from "@ui/util/api";
 import { ProductsTable } from "./ProductsTable";
 import { useNavigate } from "react-router-dom";
-import { IconAlertCircle, IconPlus } from "@tabler/icons-react";
-import { notifications } from "@mantine/notifications";
+import { IconPlus } from "@tabler/icons-react";
+import { useDisclosure } from "@mantine/hooks";
+import { CreateProductModal } from "./CreateProductModal";
 
 export const ViewStoreItemsPage: React.FC = () => {
   const api = useApi("core");
   const navigate = useNavigate();
+  const [
+    createModalOpened,
+    { open: openCreateModal, close: closeCreateModal },
+  ] = useDisclosure(false);
+  const [productTableKey, setProductTableKey] = useState(0);
+
   const getProducts = async () => {
     const response = await api.get<AdminListProductsResponse>(
       "/api/v1/store/admin/products",
@@ -62,21 +69,19 @@ export const ViewStoreItemsPage: React.FC = () => {
           >
             <Button
               leftSection={<IconPlus size={14} />}
-              onClick={() => {
-                // navigate("/events/add");
-                notifications.show({
-                  title: "Coming soon",
-                  message: "Feature coming soon!",
-                  color: "yellow",
-                  icon: <IconAlertCircle size={16} />,
-                });
-              }}
+              onClick={openCreateModal}
             >
               Create Product
             </Button>
           </div>
         </AuthGuard>
+        <CreateProductModal
+          opened={createModalOpened}
+          onClose={closeCreateModal}
+          onProductCreated={() => setProductTableKey((k) => k + 1)}
+        />
         <ProductsTable
+          key={productTableKey}
           getProducts={getProducts}
           modifyProductMetadata={modifyProductMetadata}
         />
