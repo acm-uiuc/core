@@ -227,6 +227,7 @@ data "aws_iam_policy_document" "cloudfront_read" {
 resource "aws_s3_bucket_policy" "cloudfront_read" {
   for_each = module.buckets.buckets_info
   bucket   = each.value.id
+  region   = each.key
   policy   = data.aws_iam_policy_document.cloudfront_read[each.key].json
 }
 
