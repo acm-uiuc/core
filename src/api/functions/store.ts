@@ -1547,7 +1547,7 @@ export async function createProduct({
   try {
     stripeProduct = await stripeClient.products.create({
       name: productMeta.name,
-      description: productMeta.description,
+      ...(productMeta.description && { description: productMeta.description }),
       metadata: {
         productId: productMeta.productId,
         source: "acm-store-api",
