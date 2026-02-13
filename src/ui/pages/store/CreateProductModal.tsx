@@ -195,6 +195,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
           response.data.imageUploadPresignedUrl,
           file,
           imageUploadResult.mimeType,
+          imageUploadResult.contentMd5Hash,
         );
       }
 
@@ -398,10 +399,6 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
                   autosize
                   minRows={1}
                   {...form.getInputProps(`variants.${index}.description`)}
-                />
-                <TextInput
-                  label="Image URL"
-                  {...form.getInputProps(`variants.${index}.imageUrl`)}
                 />
                 <Group grow>
                   <NumberInput

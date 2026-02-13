@@ -25,17 +25,24 @@ type State = "IDLE" | "CROPPING" | "READY";
 
 const ACCEPTED_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const OUTPUT_MIME_TYPE = "image/jpeg" as const;
-const OUTPUT_QUALITY = 0.92;
+const OUTPUT_MIME_TYPE = "image/webp" as const;
+const MAX_OUTPUT_DIMENSION = 1200;
 
 function getCroppedCanvas(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const image = new window.Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
+      const scale = Math.min(
+        1,
+        MAX_OUTPUT_DIMENSION / Math.max(pixelCrop.width, pixelCrop.height),
+      );
+      const outputWidth = Math.round(pixelCrop.width * scale);
+      const outputHeight = Math.round(pixelCrop.height * scale);
+
       const canvas = document.createElement("canvas");
-      canvas.width = pixelCrop.width;
-      canvas.height = pixelCrop.height;
+      canvas.width = outputWidth;
+      canvas.height = outputHeight;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         reject(new Error("Could not get canvas context"));
@@ -49,20 +56,16 @@ function getCroppedCanvas(imageSrc: string, pixelCrop: Area): Promise<Blob> {
         pixelCrop.height,
         0,
         0,
-        pixelCrop.width,
-        pixelCrop.height,
+        outputWidth,
+        outputHeight,
       );
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error("Canvas toBlob failed"));
-            return;
-          }
-          resolve(blob);
-        },
-        OUTPUT_MIME_TYPE,
-        OUTPUT_QUALITY,
-      );
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error("Canvas toBlob failed"));
+          return;
+        }
+        resolve(blob);
+      }, OUTPUT_MIME_TYPE);
     };
     image.onerror = () => reject(new Error("Failed to load image"));
     image.src = imageSrc;
@@ -140,13 +143,18 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       previewUrlRef.current = newPreviewUrl;
       setPreviewUrl(newPreviewUrl);
 
+      const scale = Math.min(
+        1,
+        MAX_OUTPUT_DIMENSION /
+          Math.max(croppedAreaPixels.width, croppedAreaPixels.height),
+      );
       onChange({
         blob,
         mimeType: OUTPUT_MIME_TYPE,
         fileSize: blob.size,
         contentMd5Hash,
-        width: croppedAreaPixels.width,
-        height: croppedAreaPixels.height,
+        width: Math.round(croppedAreaPixels.width * scale),
+        height: Math.round(croppedAreaPixels.height * scale),
       });
 
       setState("READY");

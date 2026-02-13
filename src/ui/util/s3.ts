@@ -9,9 +9,11 @@ export async function uploadToS3PresignedUrl(
   uploadUrl: string,
   file: File,
   contentType: string,
+  contentMd5?: string,
 ): Promise<void> {
   const headers: HeadersInit = {
     "Content-Type": contentType,
+    ...(contentMd5 && { "Content-MD5": contentMd5 }),
   };
 
   const response = await fetch(uploadUrl, {

@@ -149,7 +149,6 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
     if (Object.keys(dirtyFields).length === 0) {
       return;
     }
-
     setSaving(true);
     try {
       const result = await modifyProductMetadata(
@@ -165,6 +164,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
           result.imageUploadPresignedUrl,
           file,
           imageUploadResult.mimeType,
+          imageUploadResult.contentMd5Hash,
         );
       }
 
@@ -388,7 +388,11 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
               <Button variant="outline" onClick={handleCloseModal}>
                 Cancel
               </Button>
-              <Button type="submit" loading={saving} disabled={!form.isDirty()}>
+              <Button
+                type="submit"
+                loading={saving}
+                disabled={!form.isDirty() && !imageUploadResult}
+              >
                 Save Changes
               </Button>
             </Group>

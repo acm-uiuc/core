@@ -39,7 +39,6 @@ import {
   productWithVariantsPublicCountSchema,
   modifyProductSchema,
   listProductsAdminResponseSchema,
-  CreateProductDataInputs,
   ModifyProductRequest,
 } from "common/types/store.js";
 import { assertAuthenticated } from "api/authenticated.js";
@@ -47,6 +46,7 @@ import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { createPresignedPut } from "api/functions/s3.js";
 import { S3Client } from "@aws-sdk/client-s3";
+import mime from "mime-types";
 
 export const STORE_CLIENT_HTTP_CACHE_POLICY = `public, max-age=${STORE_CACHED_DURATION}, stale-while-revalidate=${STORE_CACHED_DURATION}, stale-if-error=${STORE_CACHED_DURATION}`;
 
@@ -272,14 +272,17 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       let transformedBody;
       fastify.s3Client =
         fastify.s3Client || new S3Client({ region: genericConfig.AwsRegion });
-      const itemKey = `/public/store/images/${request.body.productId}`;
       let presignedUrl: string | undefined = undefined;
 
       if (request.body.requestingImageUpload) {
         const { requestingImageUpload: _, ...rest } = request.body;
+        const fileExtension = mime.extension(
+          request.body.requestingImageUpload.mimeType,
+        );
+        const itemKey = `public/store/images/${request.body.productId}.${fileExtension}`;
         transformedBody = {
           ...rest,
-          imageUrl: `${fastify.environmentConfig.AssetsBucketPublicUrl}${itemKey}`,
+          imageUrl: `https://${fastify.environmentConfig.AssetsBucketPublicUrl}/${itemKey}`,
         };
         presignedUrl = await createPresignedPut({
           s3client: fastify.s3Client,
@@ -349,15 +352,18 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     assertAuthenticated(async (request, reply) => {
       fastify.s3Client =
         fastify.s3Client || new S3Client({ region: genericConfig.AwsRegion });
-      const itemKey = `/public/store/images/${request.params.productId}`;
       let presignedUrl: string | undefined;
       let modifyData: Record<string, unknown> = { ...request.body };
 
       if (request.body.requestingImageUpload) {
         const { requestingImageUpload: _, ...rest } = modifyData;
+        const fileExtension = mime.extension(
+          request.body.requestingImageUpload.mimeType,
+        );
+        const itemKey = `public/store/images/${request.params.productId}.${fileExtension}`;
         modifyData = {
           ...rest,
-          imageUrl: `${fastify.environmentConfig.AssetsBucketPublicUrl}${itemKey}`,
+          imageUrl: `https://${fastify.environmentConfig.AssetsBucketPublicUrl}/${itemKey}`,
         };
         presignedUrl = await createPresignedPut({
           s3client: fastify.s3Client,
