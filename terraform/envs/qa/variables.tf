@@ -14,6 +14,11 @@ variable "CoreCertificateArn" {
 }
 
 
+variable "CoreAssetsPublicDomain" {
+  type    = string
+  default = "core-assets.aws.qa.acmuiuc.org"
+}
+
 variable "LinkryCertificateArn" {
   type    = string
   default = "arn:aws:acm:us-east-1:427040638965:certificate/1aecf0c6-a204-440f-ad0b-fc9157ad93a9"

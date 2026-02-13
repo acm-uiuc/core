@@ -29,7 +29,6 @@ variable "LinkryPublicDomains" {
   description = "Linky Public Hosts"
 }
 
-
 variable "CoreCertificateArn" {
   type        = string
   description = "Core ACM ARN"
