@@ -46,7 +46,6 @@ import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { createPresignedPut } from "api/functions/s3.js";
 import { S3Client } from "@aws-sdk/client-s3";
-import mime from "mime-types";
 
 export const STORE_CLIENT_HTTP_CACHE_POLICY = `public, max-age=${STORE_CACHED_DURATION}, stale-while-revalidate=${STORE_CACHED_DURATION}, stale-if-error=${STORE_CACHED_DURATION}`;
 
@@ -276,9 +275,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       if (request.body.requestingImageUpload) {
         const { requestingImageUpload: _, ...rest } = request.body;
-        const fileExtension = mime.extension(
-          request.body.requestingImageUpload.mimeType,
-        );
+        const fileExtension = ".webp";
         const itemKey = `public/store/images/${request.body.productId}.${fileExtension}`;
         transformedBody = {
           ...rest,
@@ -357,9 +354,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       if (request.body.requestingImageUpload) {
         const { requestingImageUpload: _, ...rest } = modifyData;
-        const fileExtension = mime.extension(
-          request.body.requestingImageUpload.mimeType,
-        );
+        const fileExtension = ".webp";
         const itemKey = `public/store/images/${request.params.productId}.${fileExtension}`;
         modifyData = {
           ...rest,
