@@ -74,9 +74,13 @@ export const VariantsModal: React.FC<VariantsModalProps> = ({
       isPrimaryColumn: true,
       render: (variant) => (
         <Group gap="sm">
-          {variant.imageUrl && (
+          {(variant as VariantWithoutProductId & { imageUrl?: string })
+            .imageUrl && (
             <Image
-              src={variant.imageUrl}
+              src={
+                (variant as VariantWithoutProductId & { imageUrl?: string })
+                  .imageUrl
+              }
               alt={variant.name}
               w={36}
               h={36}
