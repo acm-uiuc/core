@@ -54,7 +54,7 @@ const variantFriendlyName = z.string().min(1).max(30).optional().meta({
 });
 
 const requestingImageUpload = z.optional(z.object({
-  mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+  mimeType: z.enum(['image/webp']),
   contentMd5Hash: z.string().min(1),
   fileSize: z.number().min(1).max(5e6),
   width: z.number().int().min(100).max(4096),
