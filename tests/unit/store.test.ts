@@ -44,6 +44,18 @@ const {
   mockVerifyUiucAccessToken: vi.fn(),
 }));
 
+vi.mock("stripe", () => {
+  return {
+    default: vi.fn(function () {
+      return {
+        products: {
+          update: vi.fn(() => Promise.resolve({})),
+        },
+      };
+    }),
+  };
+});
+
 vi.mock("../../src/api/functions/stripe.js", async (importOriginal) => {
   const mod = await importOriginal();
   return {
@@ -441,6 +453,14 @@ describe("PATCH /admin/products/:productId", () => {
   });
 
   test("Modifies product metadata successfully", async () => {
+    ddbMock
+      .on(GetItemCommand, {
+        TableName: genericConfig.StoreInventoryTableName,
+      })
+      .resolvesOnce({
+        Item: testingProductDefinition,
+      })
+      .rejects();
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
     const response = await app.inject({
@@ -516,6 +536,14 @@ describe("PATCH /admin/products/:productId", () => {
   });
 
   test("Modifies single field successfully", async () => {
+    ddbMock
+      .on(GetItemCommand, {
+        TableName: genericConfig.StoreInventoryTableName,
+      })
+      .resolvesOnce({
+        Item: testingProductDefinition,
+      })
+      .rejects();
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
     const response = await app.inject({

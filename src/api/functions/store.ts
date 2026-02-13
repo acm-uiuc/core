@@ -47,7 +47,7 @@ import {
   type Variant,
   type SellabilityResult,
   type LimitConfiguration,
-  type CreateProductRequest,
+  type CreateProductDataInputs,
   DEFAULT_VARIANT_ID,
   LimitType,
   ModifyProductRequest,
@@ -1510,7 +1510,7 @@ export async function listProductLineItems({
 }
 
 export type CreateProductInputs = {
-  productData: CreateProductRequest;
+  productData: CreateProductDataInputs;
   dynamoClient: DynamoDBClient;
   stripeApiKey: string;
   logger: ValidLoggers;
@@ -1547,7 +1547,7 @@ export async function createProduct({
   try {
     stripeProduct = await stripeClient.products.create({
       name: productMeta.name,
-      description: productMeta.description,
+      ...(productMeta.description && { description: productMeta.description }),
       metadata: {
         productId: productMeta.productId,
         source: "acm-store-api",
@@ -1762,11 +1762,15 @@ export async function modifyProduct({
   data,
   actor,
   dynamoClient,
+  stripeApiKey,
+  logger,
 }: {
   productId: string;
   data: ModifyProductRequest;
   actor: string;
   dynamoClient: DynamoDBClient;
+  stripeApiKey: string;
+  logger: ValidLoggers;
 }) {
   const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [];
 
@@ -1799,6 +1803,51 @@ export async function modifyProduct({
         ExpressionAttributeValues: expressionAttributeValues,
       },
     });
+  }
+
+  // If name or description changed, update Stripe product as well
+  if (data.name !== undefined || data.description !== undefined) {
+    // Fetch the stripeProductId from the product record
+    const productData = await dynamoClient.send(
+      new GetItemCommand({
+        TableName: genericConfig.StoreInventoryTableName,
+        Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
+        ProjectionExpression: "stripeProductId",
+      }),
+    );
+
+    const stripeProductId = productData.Item
+      ? (unmarshall(productData.Item).stripeProductId as string | undefined)
+      : undefined;
+
+    if (stripeProductId) {
+      const stripeClient = new Stripe(stripeApiKey);
+      const stripeUpdate: Stripe.ProductUpdateParams = {};
+
+      if (data.name !== undefined) {
+        stripeUpdate.name = data.name;
+      }
+      if (data.description !== undefined) {
+        stripeUpdate.description = data.description;
+      }
+
+      try {
+        await stripeClient.products.update(stripeProductId, stripeUpdate);
+      } catch (err) {
+        logger.error(
+          { err, stripeProductId, productId },
+          "Failed to update Stripe product",
+        );
+        throw new InternalServerError({
+          message: "Failed to update product in Stripe.",
+        });
+      }
+    } else {
+      logger.warn(
+        { productId },
+        "No stripeProductId found, skipping Stripe update",
+      );
+    }
   }
 
   const variantAuditLog = buildAuditLogTransactPut({

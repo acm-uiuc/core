@@ -131,6 +131,8 @@ module "assets" {
   source                   = "../../modules/assets"
   ProjectId                = var.ProjectId
   BucketAllowedCorsOrigins = ["https://${var.CorePublicDomain}", "http://localhost:5173"]
+  CoreAssetsPublicDomain   = var.CoreAssetsPublicDomain
+  CoreCertificateArn       = var.CoreCertificateArn
 }
 
 // Multi-Region Failover: US-West-2

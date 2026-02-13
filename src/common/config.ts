@@ -36,6 +36,7 @@ export type ConfigType = {
   GithubIdpSyncEnabled: boolean;
   GithubOrgId: number;
   AssetsBucketId: string;
+  AssetsBucketPublicUrl: string;
   ListmonkBaseUrl: string;
   ListmonkUsername: string;
   PaidMemberListmonkLists: number[];
@@ -160,6 +161,7 @@ const environmentConfig: EnvironmentConfigType = {
     OrgAdminGithubParentTeam: 14420860,
     GithubIdpSyncEnabled: false,
     AssetsBucketId: `427040638965-infra-core-api-assets-${genericConfig.AwsRegion}`,
+    AssetsBucketPublicUrl: 'core-assets.aws.qa.acmuiuc.org',
     ListmonkBaseUrl: "https://listmonk.acm.illinois.edu",
     ListmonkUsername: "coreapiqa",
     PaidMemberListmonkLists: [16],
@@ -204,6 +206,7 @@ const environmentConfig: EnvironmentConfigType = {
     OrgAdminGithubParentTeam: 12025214,
     GithubIdpSyncEnabled: true,
     AssetsBucketId: `298118738376-infra-core-api-assets-${genericConfig.AwsRegion}`,
+    AssetsBucketPublicUrl: 'core-assets.acm.illinois.edu',
     ListmonkBaseUrl: "https://listmonk.acm.illinois.edu",
     ListmonkUsername: "coreapiprod",
     PaidMemberListmonkLists: [4, 17],
