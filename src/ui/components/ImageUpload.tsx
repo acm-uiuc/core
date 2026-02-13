@@ -7,7 +7,7 @@ import Cropper, { type Area } from "react-easy-crop";
 
 export interface ImageUploadResult {
   blob: Blob;
-  mimeType: "image/png" | "image/jpeg" | "image/webp";
+  mimeType: "image/webp";
   fileSize: number;
   contentMd5Hash: string;
   width: number;
