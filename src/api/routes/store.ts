@@ -16,7 +16,7 @@ import {
   UnauthenticatedError,
   ValidationError,
 } from "common/errors/index.js";
-import { verifyUiucAccessToken } from "api/functions/uin.js";
+import { getUserIdByUin, verifyUiucAccessToken } from "api/functions/uin.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
   listProducts,
@@ -28,6 +28,7 @@ import {
   modifyProduct,
   refundOrder,
   fulfillLineItems,
+  listOrdersByUser,
 } from "api/functions/store.js";
 import {
   createCheckoutRequestSchema,
@@ -40,12 +41,14 @@ import {
   modifyProductSchema,
   listProductsAdminResponseSchema,
   ModifyProductRequest,
+  orderStatusEnum,
 } from "common/types/store.js";
 import { assertAuthenticated } from "api/authenticated.js";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { createPresignedPut } from "api/functions/s3.js";
 import { S3Client } from "@aws-sdk/client-s3";
+import { illinoisUin } from "common/types/generic.js";
 
 export const STORE_CLIENT_HTTP_CACHE_POLICY = `public, max-age=${STORE_CACHED_DURATION}, stale-while-revalidate=${STORE_CACHED_DURATION}, stale-if-error=${STORE_CACHED_DURATION}`;
 
@@ -199,7 +202,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/admin/products",
     {
       schema: withRoles(
-        [AppRoles.STORE_MANAGER],
+        [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
         withTags(["Store"], {
           summary: "List all products (including inactive) for management.",
           response: {
@@ -507,6 +510,66 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         lineItemIds: request.body.lineItemIds,
       });
       return reply.status(204).send();
+    }),
+  );
+
+  // Fetch a user's orders - this route is POST because we don't want to put UINs in logs everywhere
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/admin/orders/fetchUserOrders",
+    {
+      schema: withRoles(
+        [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
+        withTags(["Store"], {
+          summary: "Fetch a user's orders.",
+          querystring: z.object({
+            productId: z.string().min(1).optional().meta({
+              description:
+                "If specified, will only return results for this product ID.",
+            }),
+            orderStatus: orderStatusEnum.optional().meta({
+              description:
+                "If specified, will only return results where the order is in this state.",
+            }),
+          }),
+          body: z.discriminatedUnion("type", [
+            z.object({ type: z.literal("UIN"), uin: illinoisUin }),
+          ]), // we may add more in the future
+          response: {
+            200: {
+              description: "The user's orders were retrieved.",
+              content: {
+                "application/json": {
+                  schema: z.array(getOrderResponseSchema),
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    assertAuthenticated(async (request, reply) => {
+      const { productId, orderStatus } = request.query;
+      const { dynamoClient } = fastify;
+      let userId: string | undefined = undefined;
+      switch (request.body.type) {
+        case "UIN":
+          userId = (
+            await getUserIdByUin({ dynamoClient, uin: request.body.uin })
+          ).id;
+          break;
+        default:
+          throw new Error(
+            `User was able to get to identity type ${request.body.type} which was never handled.`,
+          );
+      }
+      const userOrders = await listOrdersByUser({
+        userId,
+        productId,
+        dynamoClient,
+        orderStatus,
+      });
+      return reply.status(200).send(userOrders);
     }),
   );
 
