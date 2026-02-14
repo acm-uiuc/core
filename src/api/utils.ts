@@ -5,6 +5,11 @@ import {
   GetParameterCommand,
   GetParametersCommand,
 } from "@aws-sdk/client-ssm";
+import {
+  type AttributeValue,
+  BatchGetItemCommand,
+  DynamoDBClient,
+} from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "common/config.js";
 
 export const sleep = (ms: number) =>
@@ -199,5 +204,95 @@ export const getSsmParameters = async ({
     });
   }
 };
+
+/**
+ * Runs DynamoDB BatchGetItem in chunks of 100 keys, handling unprocessed keys
+ * (returned when results exceed 16MB) with retries and exponential backoff.
+ *
+ * @param keys - All keys to fetch
+ * @param tableName - DynamoDB table name
+ * @param dynamoClient - DynamoDB client
+ * @param logger - Logger for retry logging
+ * @param processItem - Transform each raw DynamoDB item into your desired type
+ * @param requestOptions - Optional extra KeysAndAttributes fields (e.g. ProjectionExpression, ExpressionAttributeNames)
+ */
+export async function batchGetItemChunked<TResult>({
+  keys,
+  tableName,
+  dynamoClient,
+  logger,
+  processItem,
+  requestOptions,
+}: {
+  keys: Record<string, AttributeValue>[];
+  tableName: string;
+  dynamoClient: DynamoDBClient;
+  logger: ValidLoggers;
+  processItem: (item: Record<string, AttributeValue>) => TResult;
+  requestOptions?: Omit<
+    NonNullable<
+      NonNullable<
+        ConstructorParameters<typeof BatchGetItemCommand>[0]
+      >["RequestItems"]
+    >[string],
+    "Keys"
+  >;
+}): Promise<TResult[]> {
+  const BATCH_GET_LIMIT = 100;
+  const chunks: Record<string, AttributeValue>[][] = [];
+  for (let i = 0; i < keys.length; i += BATCH_GET_LIMIT) {
+    chunks.push(keys.slice(i, i + BATCH_GET_LIMIT));
+  }
+
+  class UnprocessedKeysError extends Error {
+    constructor() {
+      super("BatchGetItem returned unprocessed keys");
+      this.name = "UnprocessedKeysError";
+    }
+  }
+
+  const chunkResults = await Promise.all(
+    chunks.map(async (chunk) => {
+      const results: TResult[] = [];
+      let keysToFetch = chunk;
+
+      await retryWithBackoff(
+        async () => {
+          const response = await dynamoClient.send(
+            new BatchGetItemCommand({
+              RequestItems: {
+                [tableName]: {
+                  ...requestOptions,
+                  Keys: keysToFetch,
+                },
+              },
+            }),
+          );
+
+          const items = response.Responses?.[tableName] || [];
+          for (const item of items) {
+            results.push(processItem(item));
+          }
+
+          const unprocessedKeys = response.UnprocessedKeys?.[tableName]?.Keys;
+
+          if (unprocessedKeys && unprocessedKeys.length > 0) {
+            keysToFetch = unprocessedKeys;
+            throw new UnprocessedKeysError();
+          }
+        },
+        {
+          maxRetries: 5,
+          shouldRetry: (error) => error instanceof UnprocessedKeysError,
+          onRetry: logOnRetry("BatchGetItem", logger),
+        },
+      );
+
+      return results;
+    }),
+  );
+
+  return chunkResults.flat();
+}
 
 export const isProd = process.env.RunEnvironment === "prod";

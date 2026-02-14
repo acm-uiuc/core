@@ -9,7 +9,7 @@ import {
 import { useApi } from "@ui/util/api";
 import { ProductsTable } from "./ProductsTable";
 import { useNavigate } from "react-router-dom";
-import { IconPlus } from "@tabler/icons-react";
+import { IconBasketCheck, IconPlus } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
 import { CreateProductModal } from "./CreateProductModal";
 
@@ -54,19 +54,20 @@ export const ViewStoreItemsPage: React.FC = () => {
         <Text size="sm" c="dimmed">
           View and manage store items
         </Text>
-        <AuthGuard
-          resourceDef={{
-            service: "core",
-            validRoles: [AppRoles.STORE_MANAGER],
+
+        <div
+          style={{
+            display: "flex",
+            columnGap: "1vw",
+            verticalAlign: "middle",
           }}
-          isAppShell={false}
         >
-          <div
-            style={{
-              display: "flex",
-              columnGap: "1vw",
-              verticalAlign: "middle",
+          <AuthGuard
+            resourceDef={{
+              service: "core",
+              validRoles: [AppRoles.STORE_MANAGER],
             }}
+            isAppShell={false}
           >
             <Button
               leftSection={<IconPlus size={14} />}
@@ -74,8 +75,23 @@ export const ViewStoreItemsPage: React.FC = () => {
             >
               Create Product
             </Button>
-          </div>
-        </AuthGuard>
+          </AuthGuard>
+          <AuthGuard
+            resourceDef={{
+              service: "core",
+              validRoles: [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
+            }}
+            isAppShell={false}
+          >
+            <Button
+              leftSection={<IconBasketCheck size={14} />}
+              onClick={() => navigate("/store/fulfill")}
+              variant="light"
+            >
+              Fulfill Purchases
+            </Button>
+          </AuthGuard>
+        </div>
         <CreateProductModal
           opened={createModalOpened}
           onClose={closeCreateModal}
