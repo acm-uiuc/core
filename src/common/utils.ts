@@ -83,3 +83,50 @@ export function getNetIdFromEmail(email: string): string {
   const [netId] = normalizedEmail.split("@");
   return netId.toLowerCase();
 }
+
+
+/**
+ * Encodes an invoice payment token in the format:
+ * Base64URL(orgId#emailDomain#invoiceId)
+ */
+export function encodeInvoiceToken({
+  orgId,
+  emailDomain,
+  invoiceId,
+}: {
+  orgId: string;
+  emailDomain: string;
+  invoiceId: string;
+}): string {
+  return Buffer.from(
+    `${orgId}#${emailDomain}#${invoiceId}`,
+    "utf8",
+  ).toString("base64url");
+}
+
+/**
+ * Decodes and validates an invoice payment token.
+ */
+export function decodeInvoiceToken(token: string): {
+  orgId: string;
+  emailDomain: string;
+  invoiceId: string;
+} {
+  let decoded: string;
+
+  try {
+    decoded = Buffer.from(token, "base64url").toString("utf8");
+  } catch {
+    throw new ValidationError({ message: "Invalid invoice token encoding." });
+  }
+
+  const parts = decoded.split("#");
+  const orgId = parts[0];
+  const emailDomain = parts[1];
+  const invoiceId = parts.slice(2).join("#"); // keep remainder
+
+  if (!orgId || !emailDomain || !invoiceId) {
+    throw new ValidationError({ message: "Malformed invoice token." });
+  }
+  return { orgId, emailDomain, invoiceId };
+}

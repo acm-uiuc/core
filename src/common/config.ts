@@ -18,6 +18,7 @@ export type ConfigType = {
   AadValidClientId: string;
   EntraServicePrincipalId: string;
   LinkryBaseUrl: string;
+  PaymentBaseUrl: string;
   PasskitIdentifier: string;
   PasskitSerialNumber: string;
   EmailDomain: string;
@@ -143,6 +144,7 @@ const environmentConfig: EnvironmentConfigType = {
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
+    PaymentBaseUrl: "https://invoice.aws.qa.acmuiuc.org",
     PasskitIdentifier: "pass.org.acmuiuc.qa.membership",
     PasskitSerialNumber: "0",
     EmailDomain: "aws.qa.acmuiuc.org",
@@ -187,6 +189,7 @@ const environmentConfig: EnvironmentConfigType = {
     ],
     AadValidClientId: "5e08cf0f-53bb-4e09-9df2-e9bdc3467296",
     LinkryBaseUrl: "https://acm.gg/",
+    PaymentBaseUrl: "https://invoice.acm.illinois.edu",
     PasskitIdentifier: "pass.edu.illinois.acm.membership",
     PasskitSerialNumber: "0",
     EmailDomain: "acm.illinois.edu",
