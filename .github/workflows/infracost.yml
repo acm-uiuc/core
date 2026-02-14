@@ -2,9 +2,7 @@ name: Generate Infra cost report
 on:
   pull_request:
     types: [opened, synchronize, closed]
-  push:
-    branches:
-      - main
+
 
 env:
   SSH_AUTH_SOCK: /tmp/ssh_agent.sock
