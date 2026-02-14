@@ -206,10 +206,10 @@ const authenticatedRouter = createBrowserRouter([
         path: "/store",
         element: <ViewStoreItemsPage />,
       },
-      // {
-      //   path: "/store/fulfill",
-      //   element: <FulfillStorePurchasesPage />,
-      // },
+      {
+        path: "/store/fulfill",
+        element: <FulfillStorePurchasesPage />,
+      },
       {
         path: "/iam",
         element: <ManageIamPage />,

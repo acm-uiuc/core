@@ -24,44 +24,20 @@ import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles";
 
-interface QRDataMerch {
-  type: string;
-  stripe_pi: string;
-  email: string;
-}
-
-interface QRDataTicket {
-  type: string;
-  ticket_id: string;
-}
-
 export interface PurchaseData {
   email: string;
   productId: string;
   quantity: number;
-  size?: string;
-}
-
-export enum ProductType {
-  Merch = "merch",
-  Ticket = "ticket",
+  variantId?: string;
 }
 
 export interface APIResponseSchema {
   valid: boolean;
-  type: ProductType;
-  ticketId: string;
+  itemId: string;
   purchaserData: PurchaseData;
   refunded: boolean;
   fulfilled: boolean;
 }
-
-export interface PurchasesByEmailResponse {
-  merch: APIResponseSchema[];
-  tickets: APIResponseSchema[];
-}
-
-type QRData = QRDataMerch | QRDataTicket;
 
 export const recursiveToCamel = (item: unknown): unknown => {
   if (Array.isArray(item)) {
@@ -81,36 +57,13 @@ export const recursiveToCamel = (item: unknown): unknown => {
   );
 };
 
-interface TicketItem {
-  itemId: string;
-  itemName: string;
-  itemSalesActive: string | false;
-}
-
-interface TicketItemsResponse {
-  tickets: TicketItem[];
-  merch: TicketItem[];
-}
-
 interface FulfillStorePurchasesPageProps {
   getOrganizations?: () => Promise<string[]>;
-  getTicketItems?: () => Promise<TicketItemsResponse>;
-  getPurchasesByUin?: (email: string) => Promise<PurchasesByEmailResponse>;
-  checkInTicket?: (
-    data:
-      | QRData
-      | { type: string; ticketId?: string; email?: string; stripePi?: string },
-  ) => Promise<APIResponseSchema>;
 }
 
 const FulfillStorePurchasesInternal: React.FC<
   FulfillStorePurchasesPageProps
-> = ({
-  getOrganizations: getOrganizationsProp,
-  getTicketItems: getTicketItemsProp,
-  getPurchasesByUin: getPurchasesByUinProp,
-  checkInTicket: checkInTicketProp,
-}) => {
+> = ({ getOrganizations: getOrganizationsProp }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [orgList, setOrgList] = useState<string[] | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -124,19 +77,22 @@ const FulfillStorePurchasesInternal: React.FC<
   >([]);
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
   const [manualInput, setManualInput] = useState<string>("");
-  const [showTicketSelection, setShowTicketSelection] = useState(false);
-  const [availableTickets, setAvailableTickets] = useState<APIResponseSchema[]>(
+  const [showItemSelection, setShowItemSelection] = useState(false);
+  const [availableItems, setAvailableItems] = useState<APIResponseSchema[]>([]);
+  const [unclaimableItems, setUnclaimableItems] = useState<APIResponseSchema[]>(
     [],
   );
-  const [unclaimableTicketsForSelection, setUnclaimableTicketsForSelection] =
-    useState<APIResponseSchema[]>([]);
-  const [selectedTicketsToClaim, setSelectedTicketsToClaim] = useState(
+  const [selectedItemsToFulfill, setSelectedItemsToFulfill] = useState(
     new Set<string>(),
   );
   const [bulkScanResults, setBulkScanResults] = useState<APIResponseSchema[]>(
     [],
   );
-  const [ticketItems, setTicketItems] = useState<Array<{
+  // Maps itemId → { orderId, lineItemId } for order-based fulfillment
+  const [pendingFulfillments, setPendingFulfillments] = useState<
+    Map<string, { orderId: string; lineItemId: string }>
+  >(new Map());
+  const [productItems, setProductItems] = useState<Array<{
     group: string;
     items: Array<{ value: string; label: string }>;
   }> | null>(null);
@@ -144,6 +100,14 @@ const FulfillStorePurchasesInternal: React.FC<
     searchParams.get("itemId") || null,
   );
   const [productNameMap, setProductNameMap] = useState<Map<string, string>>(
+    new Map(),
+  );
+  // Maps productId → variantFriendlyName (e.g. "Size", "Color")
+  const [variantFriendlyNameMap, setVariantFriendlyNameMap] = useState<
+    Map<string, string>
+  >(new Map());
+  // Maps productId#variantId → variant display name (e.g. "Large", "Red")
+  const [variantNameMap, setVariantNameMap] = useState<Map<string, string>>(
     new Map(),
   );
 
@@ -163,41 +127,16 @@ const FulfillStorePurchasesInternal: React.FC<
       return response.data;
     }, [api]);
 
-  const getTicketItems =
-    getTicketItemsProp ||
-    useCallback(async () => {
-      const response = await api.get("/api/v1/tickets");
-      return response.data;
-    }, [api]);
-
-  const getPurchasesByUin =
-    getPurchasesByUinProp ||
-    useCallback(
-      async (uin: string, productId: string) => {
-        const response = await api.post<PurchasesByEmailResponse>(
-          `/api/v1/tickets/getPurchasesByUser`,
-          { uin, productId },
-        );
-        return response.data;
-      },
-      [api],
-    );
-
-  const checkInTicket =
-    checkInTicketProp ||
-    useCallback(
-      async (data: any) => {
-        const response = await api.post(
-          `/api/v1/store/checkIn`,
-          recursiveToCamel(data),
-        );
-        return response.data as APIResponseSchema;
-      },
-      [api],
-    );
-
   const getFriendlyName = (productId: string): string => {
     return productNameMap.get(productId) || productId;
+  };
+
+  const getVariantLabel = (productId: string): string => {
+    return variantFriendlyNameMap.get(productId) || "Variant";
+  };
+
+  const getVariantName = (productId: string, variantId: string): string => {
+    return variantNameMap.get(`${productId}#${variantId}`) || variantId;
   };
 
   const getVideoDevices = async () => {
@@ -240,76 +179,58 @@ const FulfillStorePurchasesInternal: React.FC<
       }
 
       try {
-        const response = await getTicketItems();
-        const activeTickets: Array<{ value: string; label: string }> = [];
-        const inactiveTickets: Array<{ value: string; label: string }> = [];
-        const activeMerch: Array<{ value: string; label: string }> = [];
-        const inactiveMerch: Array<{ value: string; label: string }> = [];
+        const response = await api.get("/api/v1/store/admin/products");
+        const products = response.data.products as Array<{
+          productId: string;
+          name: string;
+          isOpen?: boolean;
+          variantFriendlyName?: string;
+          variants: Array<{ variantId: string; name: string }>;
+        }>;
 
         const newProductMap = new Map<string, string>();
-        const now = new Date();
+        const newVariantFriendlyNameMap = new Map<string, string>();
+        const newVariantNameMap = new Map<string, string>();
+        const openProducts: Array<{ value: string; label: string }> = [];
+        const closedProducts: Array<{ value: string; label: string }> = [];
 
-        if (response.tickets) {
-          response.tickets.forEach((ticket: TicketItem) => {
-            newProductMap.set(ticket.itemId, ticket.itemName);
-            const isActive =
-              ticket.itemSalesActive !== false &&
-              (typeof ticket.itemSalesActive === "string"
-                ? new Date(ticket.itemSalesActive) <= now
-                : false);
-            const item = {
-              value: ticket.itemId,
-              label: ticket.itemName,
-            };
-            if (isActive) {
-              activeTickets.push(item);
-            } else {
-              inactiveTickets.push(item);
-            }
-          });
-        }
-
-        if (response.merch) {
-          response.merch.forEach((merch: TicketItem) => {
-            newProductMap.set(merch.itemId, merch.itemName);
-            const isActive =
-              merch.itemSalesActive !== false &&
-              (typeof merch.itemSalesActive === "string"
-                ? new Date(merch.itemSalesActive) <= now
-                : false);
-            const item = {
-              value: merch.itemId,
-              label: merch.itemName,
-            };
-            if (isActive) {
-              activeMerch.push(item);
-            } else {
-              inactiveMerch.push(item);
-            }
-          });
+        for (const product of products) {
+          newProductMap.set(product.productId, product.name);
+          newVariantFriendlyNameMap.set(
+            product.productId,
+            product.variantFriendlyName || "Size",
+          );
+          for (const variant of product.variants) {
+            newVariantNameMap.set(
+              `${product.productId}#${variant.variantId}`,
+              variant.name,
+            );
+          }
+          const item = { value: product.productId, label: product.name };
+          if (product.isOpen !== false) {
+            openProducts.push(item);
+          } else {
+            closedProducts.push(item);
+          }
         }
 
         setProductNameMap(newProductMap);
+        setVariantFriendlyNameMap(newVariantFriendlyNameMap);
+        setVariantNameMap(newVariantNameMap);
 
         const groups: Array<{
           group: string;
           items: Array<{ value: string; label: string }>;
         }> = [];
 
-        if (activeMerch.length > 0) {
-          groups.push({ group: "Active Merch", items: activeMerch });
+        if (openProducts.length > 0) {
+          groups.push({ group: "Open", items: openProducts });
         }
-        if (activeTickets.length > 0) {
-          groups.push({ group: "Active Events", items: activeTickets });
-        }
-        if (inactiveMerch.length > 0) {
-          groups.push({ group: "Inactive Merch", items: inactiveMerch });
-        }
-        if (inactiveTickets.length > 0) {
-          groups.push({ group: "Inactive Events", items: inactiveTickets });
+        if (closedProducts.length > 0) {
+          groups.push({ group: "Closed", items: closedProducts });
         }
 
-        setTicketItems(groups);
+        setProductItems(groups);
 
         const itemIdFromUrl = searchParams.get("itemId");
         if (itemIdFromUrl) {
@@ -322,8 +243,8 @@ const FulfillStorePurchasesInternal: React.FC<
           }
         }
       } catch (err) {
-        console.error("Failed to fetch ticket items:", err);
-        setTicketItems([]);
+        console.error("Failed to fetch products:", err);
+        setProductItems([]);
       }
     };
 
@@ -337,7 +258,7 @@ const FulfillStorePurchasesInternal: React.FC<
         cancelAnimationFrame(animationFrameId.current);
       }
     };
-  }, [getOrganizations, getTicketItems, searchParams, setSearchParams]);
+  }, [getOrganizations, api, searchParams, setSearchParams]);
 
   const processVideoFrame = async (
     video: HTMLVideoElement,
@@ -367,7 +288,143 @@ const FulfillStorePurchasesInternal: React.FC<
   };
 
   /**
-   * Reusable function to handle UIN-based ticket lookup and claiming
+   * Convert orders into the item selection format and populate pendingFulfillments map.
+   */
+  const presentOrdersForFulfillment = async (
+    orders: Array<{
+      orderId: string;
+      userId: string;
+      lineItems: Array<{
+        lineItemId: string;
+        productId: string;
+        variantId: string;
+        quantity: number;
+        isFulfilled: boolean;
+      }>;
+    }>,
+  ) => {
+    const fulfillmentMap = new Map<
+      string,
+      { orderId: string; lineItemId: string }
+    >();
+    const claimable: APIResponseSchema[] = [];
+    const unclaimable: APIResponseSchema[] = [];
+
+    for (const order of orders) {
+      for (const li of order.lineItems) {
+        const itemId = `${order.orderId}#${li.lineItemId}`;
+        fulfillmentMap.set(itemId, {
+          orderId: order.orderId,
+          lineItemId: li.lineItemId,
+        });
+
+        const entry: APIResponseSchema = {
+          valid: true,
+          itemId,
+          purchaserData: {
+            email: order.userId,
+            productId: li.productId,
+            quantity: li.quantity,
+            variantId: li.variantId,
+          },
+          refunded: false,
+          fulfilled: li.isFulfilled,
+        };
+
+        if (li.isFulfilled) {
+          unclaimable.push(entry);
+        } else {
+          claimable.push(entry);
+        }
+      }
+    }
+
+    setPendingFulfillments(fulfillmentMap);
+
+    if (claimable.length === 0) {
+      setError("All line items have already been fulfilled.");
+      setShowModal(true);
+      return;
+    }
+
+    if (claimable.length === 1 && unclaimable.length === 0) {
+      // Auto-fulfill single item
+      const item = claimable[0];
+      const fulfillment = fulfillmentMap.get(item.itemId)!;
+      await api.post(
+        `/api/v1/store/admin/orders/${fulfillment.orderId}/fulfill`,
+        { lineItemIds: [fulfillment.lineItemId] },
+      );
+      setScanResult(item);
+      setShowModal(true);
+    } else {
+      setAvailableItems(claimable);
+      setUnclaimableItems(unclaimable);
+      setSelectedItemsToFulfill(new Set());
+      setShowItemSelection(true);
+    }
+  };
+
+  /**
+   * Handle order ID lookup (scanned from QR code or typed in)
+   */
+  const handleOrderIdLookup = async (orderId: string) => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await api.get(`/api/v1/store/admin/order/${orderId}`);
+      const order = response.data;
+
+      if (order.status !== "ACTIVE") {
+        setError(`Order is in ${order.status} state and cannot be fulfilled.`);
+        setShowModal(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Filter line items to the selected product if one is selected
+      const lineItems = selectedItemFilter
+        ? order.lineItems.filter(
+            (li: any) => li.productId === selectedItemFilter,
+          )
+        : order.lineItems;
+
+      if (lineItems.length === 0) {
+        setError(
+          selectedItemFilter
+            ? "This order has no line items for the selected product."
+            : "This order has no line items.",
+        );
+        setShowModal(true);
+        setIsLoading(false);
+        return;
+      }
+
+      await presentOrdersForFulfillment([
+        { orderId: order.orderId, userId: order.userId, lineItems },
+      ]);
+
+      setIsLoading(false);
+    } catch (err: any) {
+      setIsLoading(false);
+      if (err.response && err.response.data) {
+        setError(
+          err.response.data
+            ? `Error ${err.response.data.id} (${err.response.data.name}): ${err.response.data.message}`
+            : "System encountered a failure, please contact the ACM Infra Chairs.",
+        );
+      } else {
+        setError(
+          "Failed to fetch order information. Please check your connection and try again.",
+        );
+      }
+      setShowModal(true);
+    }
+  };
+
+  /**
+   * Reusable function to handle UIN-based order lookup
    */
   const handleUinLookup = async (uin: string) => {
     if (!selectedItemFilter) {
@@ -386,59 +443,31 @@ const FulfillStorePurchasesInternal: React.FC<
     setError("");
 
     try {
-      const response = await getPurchasesByUin(uin, selectedItemFilter);
+      const response = await api.post(
+        `/api/v1/store/admin/orders/fetchUserOrders?productId=${encodeURIComponent(selectedItemFilter)}&orderStatus=ACTIVE`,
+        { type: "UIN", uin },
+      );
 
-      const allPurchasesForItem = [
-        ...response.tickets.filter(
-          (t) => t.purchaserData.productId === selectedItemFilter,
-        ),
-        ...response.merch.filter(
-          (m) => m.purchaserData.productId === selectedItemFilter,
-        ),
-      ];
+      const orders = response.data as Array<{
+        orderId: string;
+        userId: string;
+        lineItems: Array<{
+          lineItemId: string;
+          productId: string;
+          variantId: string;
+          quantity: number;
+          isFulfilled: boolean;
+        }>;
+      }>;
 
-      if (allPurchasesForItem.length === 0) {
-        setError("No purchases found for this user and selected event/item.");
+      if (orders.length === 0) {
+        setError("No active purchases found for this user and selected item.");
         setShowModal(true);
         setIsLoading(false);
         return;
       }
 
-      const claimableTickets = allPurchasesForItem.filter(
-        (p) => p.valid && !p.refunded && !p.fulfilled,
-      );
-
-      const unclaimableTickets = allPurchasesForItem.filter(
-        (p) => !p.valid || p.refunded || p.fulfilled,
-      );
-
-      if (claimableTickets.length === 0) {
-        let errorMessage = "No valid, unclaimed tickets found for this user.";
-        if (unclaimableTickets.length > 0) {
-          const firstReason = unclaimableTickets[0];
-          if (firstReason.fulfilled) {
-            errorMessage =
-              "All tickets for this event have already been claimed.";
-          } else if (firstReason.refunded) {
-            errorMessage = "This user's ticket has been refunded.";
-          } else if (!firstReason.valid) {
-            errorMessage = "This user's ticket is invalid.";
-          }
-        }
-        setError(errorMessage);
-        setShowModal(true);
-        setIsLoading(false);
-        return;
-      }
-
-      if (claimableTickets.length === 1 && unclaimableTickets.length === 0) {
-        await markTicket(claimableTickets[0]);
-      } else {
-        setAvailableTickets(claimableTickets);
-        setUnclaimableTicketsForSelection(unclaimableTickets);
-        setSelectedTicketsToClaim(new Set());
-        setShowTicketSelection(true);
-      }
+      await presentOrdersForFulfillment(orders);
 
       setIsLoading(false);
     } catch (err: any) {
@@ -451,7 +480,7 @@ const FulfillStorePurchasesInternal: React.FC<
         );
       } else {
         setError(
-          "Failed to fetch ticket information. Please check your connection and try again.",
+          "Failed to fetch order information. Please check your connection and try again.",
         );
       }
       setShowModal(true);
@@ -471,34 +500,24 @@ const FulfillStorePurchasesInternal: React.FC<
     try {
       const qrCode = await processVideoFrame(videoRef.current);
       if (qrCode && qrCode !== lastScannedCode) {
-        // Check if it's an iCard QR code (4 digits, UIN, 3 digits digits followed by =)
-        const isICardQR = /^\d{16}=/.test(qrCode);
-
-        if (isICardQR) {
-          const now = Date.now();
-          if (now - lastScanTime.current > 2000) {
+        const now = Date.now();
+        if (now - lastScanTime.current > 2000) {
+          // Check if it's an order ID QR code
+          if (qrCode.startsWith("ord_")) {
             lastScanTime.current = now;
             setLastScannedCode(qrCode);
             setIsLoading(true);
-            await handleSuccessfulScan(qrCode);
+            await handleOrderIdLookup(qrCode);
             setIsLoading(false);
           }
-        } else {
-          // Try to parse as JSON for pickup QR codes
-          try {
-            const parsedData = JSON.parse(qrCode);
-            if (["merch", "ticket"].includes(parsedData.type)) {
-              const now = Date.now();
-              if (now - lastScanTime.current > 2000) {
-                lastScanTime.current = now;
-                setLastScannedCode(qrCode);
-                setIsLoading(true);
-                await handleSuccessfulScan(parsedData);
-                setIsLoading(false);
-              }
-            }
-          } catch (err) {
-            console.warn("Invalid QR code format:", err);
+          // Check if it's an iCard QR code (4 digits, UIN, 3 digits digits followed by =)
+          else if (/^\d{16}=/.test(qrCode)) {
+            lastScanTime.current = now;
+            setLastScannedCode(qrCode);
+            setIsLoading(true);
+            const uin = qrCode.substring(4, 13);
+            await handleUinLookup(uin);
+            setIsLoading(false);
           }
         }
       }
@@ -587,50 +606,14 @@ const FulfillStorePurchasesInternal: React.FC<
     }
   };
 
-  const handleSuccessfulScan = async (parsedData: QRData | string) => {
-    try {
-      // Check if this is an iCard QR scan (16 digits followed by =)
-      if (typeof parsedData === "string" && /^\d{16}=/.test(parsedData)) {
-        // Extract UIN (digits 5-13, which is positions 4-12 in 0-indexed)
-        const uin = parsedData.substring(4, 13);
-        await handleUinLookup(uin);
-        return;
-      }
-
-      // Original logic for pickup QR codes
-      if (typeof parsedData === "object") {
-        const result = await checkInTicket(parsedData);
-        if (!result.valid) {
-          throw new Error("Ticket is invalid.");
-        }
-        setScanResult(result);
-        setShowModal(true);
-      } else {
-        throw new Error("Invalid QR code format.");
-      }
-    } catch (err: any) {
-      if (err.response && err.response.data) {
-        setError(
-          err.response.data
-            ? `Error ${err.response.data.id} (${err.response.data.name}): ${err.response.data.message}`
-            : "System encountered a failure, please contact the ACM Infra Chairs.",
-        );
-      } else {
-        setError(
-          err instanceof Error ? err.message : "Failed to process ticket",
-        );
-      }
-      setShowModal(true);
-    }
-  };
-
   const handleNextScan = () => {
     setScanResult(null);
     setError("");
     setShowModal(false);
     setManualInput("");
     setBulkScanResults([]);
-    setSelectedTicketsToClaim(new Set());
+    setSelectedItemsToFulfill(new Set());
+    setPendingFulfillments(new Map());
 
     setTimeout(() => {
       manualInputRef.current?.focus();
@@ -638,7 +621,7 @@ const FulfillStorePurchasesInternal: React.FC<
   };
 
   const handleManualInputSubmit = async () => {
-    if (!manualInput.trim() || !selectedItemFilter) {
+    if (!manualInput.trim()) {
       return;
     }
 
@@ -648,6 +631,20 @@ const FulfillStorePurchasesInternal: React.FC<
     try {
       setIsLoading(true);
       setError("");
+
+      // Check if input is an order ID
+      if (inputValue.startsWith("ord_")) {
+        await handleOrderIdLookup(inputValue);
+        return;
+      }
+
+      // Everything below requires a selected item
+      if (!selectedItemFilter) {
+        setError("Please select an event/item before scanning.");
+        setIsLoading(false);
+        setShowModal(true);
+        return;
+      }
 
       let inp = inputValue;
 
@@ -675,31 +672,26 @@ const FulfillStorePurchasesInternal: React.FC<
         );
       } else {
         setError(
-          "Failed to fetch ticket information. Please check your connection and try again.",
+          "Failed to fetch order information. Please check your connection and try again.",
         );
       }
       setShowModal(true);
     }
   };
 
-  const processTicketCheckIn = async (ticket: APIResponseSchema) => {
+  const processFulfillment = async (item: APIResponseSchema) => {
     try {
-      const checkInData =
-        ticket.type === ProductType.Merch
-          ? {
-              type: "merch",
-              stripePi: ticket.ticketId,
-              email: ticket.purchaserData.email,
-            }
-          : { type: "ticket", ticketId: ticket.ticketId };
-
-      const result = await checkInTicket(checkInData);
-      if (!result.valid) {
-        throw new Error("Ticket is invalid.");
+      const fulfillment = pendingFulfillments.get(item.itemId);
+      if (!fulfillment) {
+        throw new Error("No fulfillment data found for this item.");
       }
-      return { success: true, result };
+      await api.post(
+        `/api/v1/store/admin/orders/${fulfillment.orderId}/fulfill`,
+        { lineItemIds: [fulfillment.lineItemId] },
+      );
+      return { success: true, result: { ...item, fulfilled: true } };
     } catch (err: any) {
-      let errorMessage = "Failed to process ticket";
+      let errorMessage = "Failed to fulfill item";
       if (err.response && err.response.data) {
         errorMessage = err.response.data
           ? `Error ${err.response.data.id} (${err.response.data.name}): ${err.response.data.message}`
@@ -707,39 +699,19 @@ const FulfillStorePurchasesInternal: React.FC<
       } else if (err instanceof Error) {
         errorMessage = err.message;
       }
-      return { success: false, error: errorMessage, ticketId: ticket.ticketId };
+      return { success: false, error: errorMessage, itemId: item.itemId };
     }
   };
 
-  const markTicket = async (ticket: APIResponseSchema) => {
-    setIsLoading(true);
-    setShowTicketSelection(false);
-
-    const { success, result, error } = await processTicketCheckIn(ticket);
-
-    if (success && result) {
-      setScanResult(result);
-      setShowModal(true);
-    } else {
-      setError(error || "Failed to process ticket");
-      setShowModal(true);
-    }
-
-    setAvailableTickets([]);
-    setUnclaimableTicketsForSelection([]);
-    setSelectedTicketsToClaim(new Set());
-    setIsLoading(false);
-  };
-
-  const handleClaimSelectedTickets = async () => {
+  const handleFulfillSelected = async () => {
     setIsLoading(true);
 
-    const ticketsToClaim = availableTickets.filter((t) =>
-      selectedTicketsToClaim.has(t.ticketId),
+    const itemsToFulfill = availableItems.filter((item) =>
+      selectedItemsToFulfill.has(item.itemId),
     );
 
     const results = await Promise.allSettled(
-      ticketsToClaim.map(processTicketCheckIn),
+      itemsToFulfill.map(processFulfillment),
     );
 
     const successfulClaims = results.filter(
@@ -752,10 +724,11 @@ const FulfillStorePurchasesInternal: React.FC<
         (r.status === "fulfilled" && !r.value.success),
     );
 
-    setShowTicketSelection(false);
-    setAvailableTickets([]);
-    setUnclaimableTicketsForSelection([]);
-    setSelectedTicketsToClaim(new Set());
+    setShowItemSelection(false);
+    setAvailableItems([]);
+    setUnclaimableItems([]);
+    setSelectedItemsToFulfill(new Set());
+    setPendingFulfillments(new Map());
     setIsLoading(false);
 
     if (failedClaims.length > 0) {
@@ -771,7 +744,7 @@ const FulfillStorePurchasesInternal: React.FC<
           .error;
       }
       setError(
-        `Failed to claim ${failedClaims.length} ticket(s). First error: ${firstError}`,
+        `Failed to fulfill ${failedClaims.length} item(s). First error: ${firstError}`,
       );
     } else if (successfulClaims.length > 0) {
       setBulkScanResults(successfulClaims.map((r) => r.value.result));
@@ -792,7 +765,7 @@ const FulfillStorePurchasesInternal: React.FC<
     [setSearchParams],
   );
 
-  if (orgList === null || ticketItems === null) {
+  if (orgList === null || productItems === null) {
     return <FullScreenLoader />;
   }
 
@@ -804,14 +777,14 @@ const FulfillStorePurchasesInternal: React.FC<
       }}
     >
       <Box p="md">
-        <Title order={2}>Scan Tickets</Title>
+        <Title order={1}>Fulfill Store Purchases</Title>
         <Paper shadow="sm" p="md" withBorder maw={600} mx="auto" w="100%">
           <Stack align="center" w="100%">
-            {ticketItems !== null && (
+            {productItems !== null && (
               <Select
-                label="Select Event/Item"
-                placeholder="Select an event or item to begin"
-                data={ticketItems}
+                label="Select Product"
+                placeholder="Select a product to begin"
+                data={productItems}
                 value={selectedItemFilter}
                 onChange={handleItemFilterChange}
                 searchable
@@ -824,8 +797,8 @@ const FulfillStorePurchasesInternal: React.FC<
             {selectedItemFilter && (
               <>
                 <TextInput
-                  label="Enter UIN or Swipe iCard"
-                  placeholder="Enter UIN or Swipe iCard"
+                  label="Enter Order ID, UIN, or Swipe iCard"
+                  placeholder="Enter Order ID, UIN, or Swipe iCard"
                   value={manualInput}
                   onChange={(e) => setManualInput(e.currentTarget.value)}
                   onKeyDown={(e) => {
@@ -844,10 +817,15 @@ const FulfillStorePurchasesInternal: React.FC<
 
                 <Button
                   onClick={handleManualInputSubmit}
-                  disabled={isLoading || !manualInput.trim()}
+                  disabled={
+                    isLoading ||
+                    !manualInput.trim() ||
+                    (!selectedItemFilter &&
+                      !manualInput.trim().startsWith("ord_"))
+                  }
                   fullWidth
                 >
-                  Submit UIN
+                  Submit
                 </Button>
 
                 <div
@@ -947,16 +925,15 @@ const FulfillStorePurchasesInternal: React.FC<
                 variant="filled"
               >
                 <Text fw={700}>
-                  Successfully claimed {bulkScanResults.length} ticket(s)!
+                  Successfully fulfilled {bulkScanResults.length} item(s)!
                 </Text>
               </Alert>
               {bulkScanResults.map((result, index) => (
-                <Paper p="md" withBorder key={`${result.ticketId}-${index}`}>
+                <Paper p="md" withBorder key={`${result.itemId}-${index}`}>
                   <Stack>
                     <Text fw={700}>
-                      Ticket {index + 1} of {bulkScanResults.length} Details:
+                      Item {index + 1} of {bulkScanResults.length} Details:
                     </Text>
-                    <Text>Type: {result.type.toLocaleUpperCase()}</Text>
                     {result.purchaserData.productId && (
                       <Text>
                         Product:{" "}
@@ -967,8 +944,14 @@ const FulfillStorePurchasesInternal: React.FC<
                     {result.purchaserData.quantity && (
                       <Text>Quantity: {result.purchaserData.quantity}</Text>
                     )}
-                    {result.purchaserData.size && (
-                      <Text>Size: {result.purchaserData.size}</Text>
+                    {result.purchaserData.variantId && (
+                      <Text>
+                        {getVariantLabel(result.purchaserData.productId)}:{" "}
+                        {getVariantName(
+                          result.purchaserData.productId,
+                          result.purchaserData.variantId,
+                        )}
+                      </Text>
                     )}
                   </Stack>
                 </Paper>
@@ -986,12 +969,11 @@ const FulfillStorePurchasesInternal: React.FC<
                   color="green"
                   variant="filled"
                 >
-                  <Text fw={700}>Ticket verified successfully!</Text>
+                  <Text fw={700}>Item fulfilled successfully!</Text>
                 </Alert>
                 <Paper p="md" withBorder>
                   <Stack>
-                    <Text fw={700}>Ticket Details:</Text>
-                    <Text>Type: {scanResult?.type.toLocaleUpperCase()}</Text>
+                    <Text fw={700}>Fulfillment Details:</Text>
                     {scanResult.purchaserData.productId && (
                       <Text>
                         Product:{" "}
@@ -1002,8 +984,14 @@ const FulfillStorePurchasesInternal: React.FC<
                     {scanResult.purchaserData.quantity && (
                       <Text>Quantity: {scanResult.purchaserData.quantity}</Text>
                     )}
-                    {scanResult.purchaserData.size && (
-                      <Text>Size: {scanResult.purchaserData.size}</Text>
+                    {scanResult.purchaserData.variantId && (
+                      <Text>
+                        {getVariantLabel(scanResult.purchaserData.productId)}:{" "}
+                        {getVariantName(
+                          scanResult.purchaserData.productId,
+                          scanResult.purchaserData.variantId,
+                        )}
+                      </Text>
                     )}
                   </Stack>
                 </Paper>
@@ -1015,17 +1003,18 @@ const FulfillStorePurchasesInternal: React.FC<
           )}
         </Modal>
 
-        {/* Ticket Selection Modal */}
+        {/* Item Selection Modal */}
         <Modal
-          opened={showTicketSelection}
+          opened={showItemSelection}
           onClose={() => {
-            setShowTicketSelection(false);
-            setAvailableTickets([]);
-            setUnclaimableTicketsForSelection([]);
-            setSelectedTicketsToClaim(new Set());
+            setShowItemSelection(false);
+            setAvailableItems([]);
+            setUnclaimableItems([]);
+            setSelectedItemsToFulfill(new Set());
+            setPendingFulfillments(new Map());
             setManualInput("");
           }}
-          title="Select Ticket(s) to Claim"
+          title="Select Item(s) to Fulfill"
           size="lg"
           centered
           withCloseButton={!isLoading}
@@ -1038,19 +1027,19 @@ const FulfillStorePurchasesInternal: React.FC<
               Multiple purchases found. Please select which one(s) to claim:
             </Text>
 
-            {availableTickets.map((ticket, index) => (
+            {availableItems.map((item, index) => (
               <Paper
-                key={`${ticket.ticketId}-${index}`}
+                key={`${item.itemId}-${index}`}
                 p="md"
                 withBorder
                 onClick={() => {
-                  const newSet = new Set(selectedTicketsToClaim);
-                  if (newSet.has(ticket.ticketId)) {
-                    newSet.delete(ticket.ticketId);
+                  const newSet = new Set(selectedItemsToFulfill);
+                  if (newSet.has(item.itemId)) {
+                    newSet.delete(item.itemId);
                   } else {
-                    newSet.add(ticket.ticketId);
+                    newSet.add(item.itemId);
                   }
-                  setSelectedTicketsToClaim(newSet);
+                  setSelectedItemsToFulfill(newSet);
                 }}
                 style={(theme: MantineTheme) => ({
                   borderLeft: `5px solid ${theme.colors.green[6]}`,
@@ -1062,23 +1051,29 @@ const FulfillStorePurchasesInternal: React.FC<
               >
                 <Group>
                   <Checkbox
-                    checked={selectedTicketsToClaim.has(ticket.ticketId)}
+                    checked={selectedItemsToFulfill.has(item.itemId)}
                     readOnly
                     tabIndex={-1}
-                    aria-label={`Select ticket ${ticket.ticketId}`}
+                    aria-label={`Select item ${item.itemId}`}
                   />
                   <Stack gap="xs" style={{ flex: 1 }}>
                     <Text fw={700}>
-                      {getFriendlyName(ticket.purchaserData.productId)}
+                      {getFriendlyName(item.purchaserData.productId)}
                     </Text>
-                    <Text size="sm">Email: {ticket.purchaserData.email}</Text>
-                    {ticket.purchaserData.quantity && (
+                    <Text size="sm">Email: {item.purchaserData.email}</Text>
+                    {item.purchaserData.quantity && (
                       <Text size="sm">
-                        Quantity: {ticket.purchaserData.quantity}
+                        Quantity: {item.purchaserData.quantity}
                       </Text>
                     )}
-                    {ticket.purchaserData.size && (
-                      <Text size="sm">Size: {ticket.purchaserData.size}</Text>
+                    {item.purchaserData.variantId && (
+                      <Text size="sm">
+                        {getVariantLabel(item.purchaserData.productId)}:{" "}
+                        {getVariantName(
+                          item.purchaserData.productId,
+                          item.purchaserData.variantId,
+                        )}
+                      </Text>
                     )}
                     <Text size="xs" c="green" fw={700}>
                       Status: AVAILABLE
@@ -1088,23 +1083,23 @@ const FulfillStorePurchasesInternal: React.FC<
               </Paper>
             ))}
 
-            {unclaimableTicketsForSelection.map((ticket, index) => {
+            {unclaimableItems.map((item, index) => {
               let status = "Unknown";
               let color: MantineColor = "gray";
-              if (ticket.fulfilled) {
-                status = "ALREADY CLAIMED";
+              if (item.fulfilled) {
+                status = "ALREADY FULFILLED";
                 color = "orange";
-              } else if (ticket.refunded) {
+              } else if (item.refunded) {
                 status = "REFUNDED";
                 color = "red";
-              } else if (!ticket.valid) {
+              } else if (!item.valid) {
                 status = "INVALID";
                 color = "red";
               }
 
               return (
                 <Paper
-                  key={`${ticket.ticketId}-${index}`}
+                  key={`${item.itemId}-${index}`}
                   p="md"
                   withBorder
                   style={(theme: MantineTheme) => ({
@@ -1115,20 +1110,23 @@ const FulfillStorePurchasesInternal: React.FC<
                 >
                   <Stack gap="xs">
                     <Text fw={700} c="dimmed">
-                      {ticket.type.toUpperCase()} -{" "}
-                      {getFriendlyName(ticket.purchaserData.productId)}
+                      {getFriendlyName(item.purchaserData.productId)}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      Email: {ticket.purchaserData.email}
+                      Email: {item.purchaserData.email}
                     </Text>
-                    {ticket.purchaserData.quantity && (
+                    {item.purchaserData.quantity && (
                       <Text size="sm" c="dimmed">
-                        Quantity: {ticket.purchaserData.quantity}
+                        Quantity: {item.purchaserData.quantity}
                       </Text>
                     )}
-                    {ticket.purchaserData.size && (
+                    {item.purchaserData.variantId && (
                       <Text size="sm" c="dimmed">
-                        Size: {ticket.purchaserData.size}
+                        {getVariantLabel(item.purchaserData.productId)}:{" "}
+                        {getVariantName(
+                          item.purchaserData.productId,
+                          item.purchaserData.variantId,
+                        )}
                       </Text>
                     )}
                     <Text size="xs" c={color} fw={700}>
@@ -1144,21 +1142,22 @@ const FulfillStorePurchasesInternal: React.FC<
                 variant="subtle"
                 disabled={isLoading}
                 onClick={() => {
-                  setShowTicketSelection(false);
-                  setAvailableTickets([]);
-                  setUnclaimableTicketsForSelection([]);
-                  setSelectedTicketsToClaim(new Set());
+                  setShowItemSelection(false);
+                  setAvailableItems([]);
+                  setUnclaimableItems([]);
+                  setSelectedItemsToFulfill(new Set());
+                  setPendingFulfillments(new Map());
                   setManualInput("");
                 }}
               >
                 Cancel
               </Button>
               <Button
-                onClick={handleClaimSelectedTickets}
-                disabled={selectedTicketsToClaim.size === 0 || isLoading}
+                onClick={handleFulfillSelected}
+                disabled={selectedItemsToFulfill.size === 0 || isLoading}
                 loading={isLoading}
               >
-                Claim Selected ({selectedTicketsToClaim.size})
+                Fulfill Selected ({selectedItemsToFulfill.size})
               </Button>
             </Group>
           </Stack>
