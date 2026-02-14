@@ -33,6 +33,7 @@ import {
 } from "./stripe.js";
 import { getUserIdentity } from "./identity.js";
 import {
+  batchGetItemChunked,
   logOnRetry,
   retryDynamoTransactionWithBackoff,
   retryWithBackoff,
@@ -1303,6 +1304,37 @@ export async function processStorePaymentSuccess(
 
 // ============ Order Management Functions ============
 
+function formatOrder(orderMeta: Record<string, unknown>): Order {
+  return {
+    orderId: orderMeta.orderId as string,
+    userId: orderMeta.userId as string,
+    status: orderMeta.status as Order["status"],
+    // Some older records store the stripePaymentIntentId, but this is no longer used.
+    stripePaymentIdentifier: (orderMeta.stripePaymentIdentifier ||
+      orderMeta.stripePaymentIntentId) as string | undefined,
+    createdAt: orderMeta.createdAt as number,
+    confirmedAt: orderMeta.confirmedAt as number | undefined,
+    cancelledAt: orderMeta.cancelledAt as number | undefined,
+    refundId: orderMeta.refundId as string | undefined,
+    expiresAt: orderMeta.expiresAt as number | undefined,
+  };
+}
+
+function formatLineItem(li: Record<string, unknown>): LineItem {
+  return {
+    orderId: li.orderId as string,
+    lineItemId: li.lineItemId as string,
+    productId: li.productId as string,
+    variantId: li.variantId as string,
+    quantity: li.quantity as number,
+    priceId: li.priceId as string,
+    unitPriceCents: li.unitPriceCents as number | undefined,
+    createdAt: li.createdAt as number,
+    isFulfilled: (li.isFulfilled as boolean) ?? false,
+    userId: li.userId as string,
+  };
+}
+
 export async function getOrder({
   orderId,
   dynamoClient,
@@ -1331,30 +1363,8 @@ export async function getOrder({
   }
 
   return {
-    orderId: orderMeta.orderId as string,
-    userId: orderMeta.userId as string,
-    status: orderMeta.status as Order["status"],
-    // Some older records store the stripePaymentIntentId, but this is no longer used.
-    stripePaymentIdentifier: (orderMeta.stripePaymentIdentifier ||
-      orderMeta.stripePaymentIntentId) as string | undefined,
-    createdAt: orderMeta.createdAt as number,
-    confirmedAt: orderMeta.confirmedAt as number | undefined,
-    cancelledAt: orderMeta.cancelledAt as number | undefined,
-    refundId: orderMeta.refundId as string | undefined,
-    expiresAt: orderMeta.expiresAt as number | undefined,
-    lineItems: lineItems.map((li) => ({
-      orderId: li.orderId as string,
-      lineItemId: li.lineItemId as string,
-      productId: li.productId as string,
-      variantId: li.variantId as string,
-      quantity: li.quantity as number,
-      priceId: li.priceId as string,
-      unitPriceCents: li.unitPriceCents as number | undefined,
-      createdAt: li.createdAt as number,
-      itemId: li.itemId as string | undefined,
-      isFulfilled: (li.isFulfilled as boolean) ?? false,
-      userId: li.userId as string,
-    })),
+    ...formatOrder(orderMeta),
+    lineItems: lineItems.map(formatLineItem),
   };
 }
 
@@ -1400,109 +1410,43 @@ export async function listProductLineItems({
     ...new Set(lineItems.map((li) => li.orderId as string)),
   ];
 
-  // BatchGetItem has a limit of 100 items per request, so we need to chunk
-  const chunkSize = 100;
-  const chunks: string[][] = [];
+  const batchResults = await batchGetItemChunked({
+    keys: uniqueOrderIds.map((orderId) =>
+      marshall({ orderId, lineItemId: "ORDER" }),
+    ),
+    tableName: genericConfig.StoreCartsOrdersTableName,
+    dynamoClient,
+    logger,
+    requestOptions: {
+      ProjectionExpression: "orderId, userId, #status",
+      ExpressionAttributeNames: { "#status": "status" },
+    },
+    processItem: (item) => {
+      const unmarshalled = unmarshall(item);
+      return {
+        orderId: unmarshalled.orderId as string,
+        userId: unmarshalled.userId as string,
+        status: unmarshalled.status as Order["status"],
+      };
+    },
+  });
 
-  for (let i = 0; i < uniqueOrderIds.length; i += chunkSize) {
-    chunks.push(uniqueOrderIds.slice(i, i + chunkSize));
-  }
-
-  class UnprocessedKeysError extends Error {
-    constructor() {
-      super("BatchGetItem returned unprocessed keys");
-      this.name = "UnprocessedKeysError";
-    }
-  }
-
-  // Process all chunks in parallel
-  const batchResults = await Promise.all(
-    chunks.map(async (chunk) => {
-      const results: {
-        orderId: string;
-        userId: string;
-        status: Order["status"];
-      }[] = [];
-      let keysToFetch = chunk.map((orderId) =>
-        marshall({ orderId, lineItemId: "ORDER" }),
-      );
-
-      await retryWithBackoff(
-        async () => {
-          const batchGetResponse = await dynamoClient.send(
-            new BatchGetItemCommand({
-              RequestItems: {
-                [genericConfig.StoreCartsOrdersTableName]: {
-                  Keys: keysToFetch,
-                  ProjectionExpression: "orderId, userId, #status",
-                  ExpressionAttributeNames: { "#status": "status" },
-                },
-              },
-            }),
-          );
-
-          const orderItems =
-            batchGetResponse.Responses?.[
-              genericConfig.StoreCartsOrdersTableName
-            ] || [];
-
-          for (const item of orderItems) {
-            const unmarshalled = unmarshall(item);
-            results.push({
-              orderId: unmarshalled.orderId as string,
-              userId: unmarshalled.userId as string,
-              status: unmarshalled.status as Order["status"],
-            });
-          }
-
-          const unprocessedKeys =
-            batchGetResponse.UnprocessedKeys?.[
-              genericConfig.StoreCartsOrdersTableName
-            ]?.Keys;
-
-          if (unprocessedKeys && unprocessedKeys.length > 0) {
-            keysToFetch = unprocessedKeys;
-            throw new UnprocessedKeysError();
-          }
-        },
-        {
-          maxRetries: 3,
-          shouldRetry: (error) => error instanceof UnprocessedKeysError,
-          onRetry: logOnRetry("BatchGetOrderMetadata", logger),
-        },
-      );
-
-      return results;
-    }),
-  );
-
-  // Flatten results and build the map
   const orderMetadataMap = new Map<
     string,
     { userId: string; status: Order["status"] }
   >();
 
-  for (const results of batchResults) {
-    for (const result of results) {
-      orderMetadataMap.set(result.orderId, {
-        userId: result.userId,
-        status: result.status,
-      });
-    }
+  for (const result of batchResults) {
+    orderMetadataMap.set(result.orderId, {
+      userId: result.userId,
+      status: result.status,
+    });
   }
 
   return lineItems.map((i) => {
     const orderMeta = orderMetadataMap.get(i.orderId as string);
     return {
-      orderId: i.orderId as string,
-      lineItemId: i.lineItemId as string,
-      createdAt: i.createdAt as number,
-      expiresAt: i.expiresAt as number,
-      priceId: i.priceId as string,
-      productId: i.productId as string,
-      quantity: i.quantity as number,
-      variantId: i.variantId as string,
-      isFulfilled: (i.isFulfilled as boolean) ?? false,
+      ...formatLineItem(i),
       userId: orderMeta?.userId as string,
       status: orderMeta?.status as Order["status"],
     };
@@ -2170,6 +2114,107 @@ export async function refundOrder({
       TransactItems: transactItems,
     }),
   );
+}
+
+export async function listOrdersByUser({
+  userId,
+  productId,
+  orderStatus,
+  dynamoClient,
+}: {
+  userId: string;
+  productId?: string;
+  orderStatus?: Order["status"];
+  dynamoClient: DynamoDBClient;
+}): Promise<(Order & { lineItems: LineItem[] })[]> {
+  // 1. Query UserIdIndex to get ORDER metadata rows (GSI has ALL projection).
+  //    Filter to lineItemId = "ORDER" since line items may also have userId.
+  const orderMetaItems: Record<string, unknown>[] = [];
+  let lastEvaluatedKey: Record<string, AttributeValue> | undefined;
+
+  do {
+    const response = await dynamoClient.send(
+      new QueryCommand({
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        IndexName: "UserIdIndex",
+        KeyConditionExpression: "userId = :uid",
+        FilterExpression: "lineItemId = :orderKey",
+        ExpressionAttributeValues: marshall({
+          ":uid": userId,
+          ":orderKey": "ORDER",
+        }),
+        ExclusiveStartKey: lastEvaluatedKey,
+      }),
+    );
+
+    if (response.Items) {
+      orderMetaItems.push(...response.Items.map((i) => unmarshall(i)));
+    }
+    lastEvaluatedKey = response.LastEvaluatedKey;
+  } while (lastEvaluatedKey);
+
+  if (orderMetaItems.length === 0) {
+    return [];
+  }
+
+  // Filter by status before fetching line items to minimize queries
+  const filteredOrders = orderStatus
+    ? orderMetaItems.filter((o) => o.status === orderStatus)
+    : orderMetaItems;
+
+  if (filteredOrders.length === 0) {
+    return [];
+  }
+
+  // 2. Query main table by orderId for LINE_ items only (ORDER metadata already in hand).
+  const lineItemsByOrder = await Promise.all(
+    filteredOrders.map(async (orderMeta) => {
+      const orderId = orderMeta.orderId as string;
+      const lineItems: LineItem[] = [];
+      let queryLastKey: Record<string, AttributeValue> | undefined;
+      do {
+        const response = await dynamoClient.send(
+          new QueryCommand({
+            TableName: genericConfig.StoreCartsOrdersTableName,
+            KeyConditionExpression:
+              "orderId = :oid AND begins_with(lineItemId, :linePrefix)",
+            ExpressionAttributeValues: marshall({
+              ":oid": orderId,
+              ":linePrefix": "LINE_",
+              ...(productId && { ":pid": productId }),
+            }),
+            ...(productId && {
+              FilterExpression: "productId = :pid",
+            }),
+            ExclusiveStartKey: queryLastKey,
+          }),
+        );
+        if (response.Items) {
+          lineItems.push(
+            ...response.Items.map((i) => formatLineItem(unmarshall(i))),
+          );
+        }
+        queryLastKey = response.LastEvaluatedKey;
+      } while (queryLastKey);
+      return { orderMeta, lineItems };
+    }),
+  );
+
+  // 3. Build orders from results
+  const orders: (Order & { lineItems: LineItem[] })[] = [];
+
+  for (const { orderMeta, lineItems } of lineItemsByOrder) {
+    if (productId && lineItems.length === 0) {
+      continue;
+    }
+
+    orders.push({ ...formatOrder(orderMeta), lineItems });
+  }
+
+  // Sort by createdAt descending (newest first)
+  orders.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+
+  return orders;
 }
 
 export type FulfillOrderLineItemsInputs = {
