@@ -23,6 +23,7 @@ import {
   IconUser,
   IconInfoCircle,
   IconShoppingBag,
+  IconMailBolt,
 } from "@tabler/icons-react";
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
@@ -49,6 +50,13 @@ export const navItems = [
     icon: IconCalendar,
     description: null,
     validRoles: [AppRoles.EVENTS_MANAGER],
+  },
+  {
+    link: "/rsvps/manage",
+    name: "RSVPs",
+    icon: IconMailBolt,
+    description: null,
+    validRoles: [AppRoles.RSVP_MANAGER],
   },
   {
     link: "/store",
