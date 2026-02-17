@@ -109,9 +109,8 @@ describe("ViewStorePurchasesInternalPage", () => {
         </MantineProvider>
       </MemoryRouter>,
     );
-    await waitFor(() => {
-      expect(getProductPurchasesMock).toHaveBeenCalled();
-    });
+    // Wait for data to load and render
+    await screen.findByText(/Showing \d+ of \d+ line items/);
   };
 
   beforeEach(() => {
