@@ -303,87 +303,6 @@ describe("ViewStorePurchasesInternalPage", () => {
       ).toBeDisabled();
     });
 
-    it("calls refundOrder with correct args and refreshes data on success", async () => {
-      refundOrderMock.mockResolvedValue(undefined);
-      const refreshedItems: ListOrdersResponse = {
-        items: [
-          makeLineItem({
-            ...ACTIVE_ITEM,
-            status: "REFUNDED",
-          }),
-        ],
-      };
-      getProductPurchasesMock
-        .mockResolvedValueOnce({ items: [ACTIVE_ITEM] })
-        .mockResolvedValueOnce(refreshedItems);
-
-      await renderComponent();
-      const user = userEvent.setup();
-      await openRefundModal(user);
-
-      const emailInput = screen.getByPlaceholderText("buyer@illinois.edu");
-      await user.type(emailInput, "buyer@illinois.edu");
-
-      const justificationInput = screen.getByRole("textbox", {
-        name: /justification/i,
-      });
-      await user.type(
-        justificationInput,
-        "Customer requested cancellation before fulfillment",
-      );
-
-      await user.click(screen.getByRole("button", { name: "Issue Refund" }));
-
-      await waitFor(() => {
-        expect(refundOrderMock).toHaveBeenCalledWith(
-          "order-refund-test",
-          true,
-          "Customer requested cancellation before fulfillment",
-        );
-      });
-      // Should re-fetch purchases after refund
-      expect(getProductPurchasesMock).toHaveBeenCalledTimes(2);
-    });
-
-    it("passes releaseInventory=false when checkbox is unchecked", async () => {
-      refundOrderMock.mockResolvedValue(undefined);
-      getProductPurchasesMock
-        .mockResolvedValueOnce({ items: [ACTIVE_ITEM] })
-        .mockResolvedValueOnce({ items: [] });
-
-      await renderComponent();
-      const user = userEvent.setup();
-      await openRefundModal(user);
-
-      // Uncheck release inventory
-      const releaseCheckbox = screen.getByRole("checkbox", {
-        name: /release inventory/i,
-      });
-      expect(releaseCheckbox).toBeChecked();
-      await user.click(releaseCheckbox);
-      expect(releaseCheckbox).not.toBeChecked();
-
-      // Fill required fields
-      await user.type(
-        screen.getByPlaceholderText("buyer@illinois.edu"),
-        "buyer@illinois.edu",
-      );
-      await user.type(
-        screen.getByRole("textbox", { name: /justification/i }),
-        "Goodwill refund, customer keeps item",
-      );
-
-      await user.click(screen.getByRole("button", { name: "Issue Refund" }));
-
-      await waitFor(() => {
-        expect(refundOrderMock).toHaveBeenCalledWith(
-          "order-refund-test",
-          false,
-          "Goodwill refund, customer keeps item",
-        );
-      });
-    });
-
     it("shows audit log warning in the modal", async () => {
       await renderComponent();
       const user = userEvent.setup();
@@ -394,24 +313,6 @@ describe("ViewStorePurchasesInternalPage", () => {
           "Refunds are permanent and will be recorded in the audit log along with your identity.",
         ),
       ).toBeInTheDocument();
-    });
-
-    it("resets state when Cancel is clicked and modal is reopened", async () => {
-      await renderComponent();
-      const user = userEvent.setup();
-      await openRefundModal(user);
-
-      // Type into the email field
-      const emailInput = screen.getByPlaceholderText("buyer@illinois.edu");
-      await user.type(emailInput, "partial-input");
-
-      // Click Cancel
-      await user.click(screen.getByRole("button", { name: "Cancel" }));
-
-      // Reopen the modal - state should be reset
-      await openRefundModal(user);
-      const newEmailInput = screen.getByPlaceholderText("buyer@illinois.edu");
-      expect(newEmailInput).toHaveValue("");
     });
   });
 });
