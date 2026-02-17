@@ -771,11 +771,22 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               .status(200)
               .send({ handled: false, requestId: request.id });
           }
-          await expireCheckoutSession({
-            orderId,
-            dynamoClient: fastify.dynamoClient,
-            logger: request.log,
-          });
+          try {
+            await expireCheckoutSession({
+              orderId,
+              dynamoClient: fastify.dynamoClient,
+              logger: request.log,
+            });
+          } catch (err) {
+            if (err instanceof ValidationError) {
+              request.log.info(
+                { orderId },
+                "Order no longer PENDING during expiry, ignoring",
+              );
+            } else {
+              throw err;
+            }
+          }
           return reply.status(200).send({
             handled: true,
             requestId: request.id,
