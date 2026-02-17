@@ -307,7 +307,7 @@ export const ViewStorePurchasesInternalPage: React.FC<
     <AuthGuard
       resourceDef={{
         service: "core",
-        validRoles: [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
+        validRoles: [AppRoles.STORE_MANAGER],
       }}
       showSidebar
     >
