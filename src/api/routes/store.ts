@@ -228,6 +228,41 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     }),
   );
 
+  // Get a single product (including inactive) - Admin only
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "/admin/products/:productId",
+    {
+      schema: withRoles(
+        [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
+        withTags(["Store"], {
+          summary: "Get details of a specific product for management.",
+          params: z.object({
+            productId: z.string().min(1),
+          }),
+          response: {
+            200: {
+              description: "Product details.",
+              content: {
+                "application/json": {
+                  schema: productWithVariantsPublicCountSchema,
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    assertAuthenticated(async (request, reply) => {
+      const product = await getProduct({
+        productId: request.params.productId,
+        dynamoClient: fastify.dynamoClient,
+        includeInactive: true,
+      });
+      return reply.send(product);
+    }),
+  );
+
   // Create a product - Admin only
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/admin/products",
@@ -396,7 +431,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/admin/orders/:productId",
     {
       schema: withRoles(
-        [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
+        [AppRoles.STORE_MANAGER],
         withTags(["Store"], {
           summary: "List all orders/line items for a given product.",
           params: z.object({
@@ -439,6 +474,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }),
           body: z.object({
             releaseInventory: z.boolean(),
+            justification: z.string().min(10),
           }),
           response: {
             204: {
