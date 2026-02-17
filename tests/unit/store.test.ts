@@ -26,6 +26,7 @@ import {
 import { FastifyBaseLogger } from "fastify";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { DEFAULT_VARIANT_ID } from "../../src/common/types/store.js";
+import { expireCheckoutSession } from "../../src/api/functions/store.js";
 
 const app = await init();
 const ddbMock = mockClient(DynamoDBClient);
@@ -944,5 +945,233 @@ describe("POST /admin/orders/:orderId/fulfill", () => {
     // Verify no DynamoDB calls were made
     const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
     expect(transactCalls).toHaveLength(0);
+  });
+});
+
+describe("expireCheckoutSession", () => {
+  const mockLogger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    trace: vi.fn(),
+    fatal: vi.fn(),
+    child: vi.fn(),
+    silent: vi.fn(),
+    level: "debug",
+  } as unknown as FastifyBaseLogger;
+
+  beforeEach(() => {
+    ddbMock.reset();
+    vi.clearAllMocks();
+  });
+
+  test("Deletes ORDER and all line items for a PENDING order", async () => {
+    const orderId = "ord_pending-123";
+    const mockItems = [
+      { orderId: { S: orderId }, lineItemId: { S: "ORDER" } },
+      { orderId: { S: orderId }, lineItemId: { S: "LINE_0" } },
+      { orderId: { S: orderId }, lineItemId: { S: "LINE_1" } },
+    ];
+
+    ddbMock
+      .on(QueryCommand, {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        KeyConditionExpression: "orderId = :orderId",
+      })
+      .resolvesOnce({ Items: mockItems });
+
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    await expireCheckoutSession({
+      orderId,
+      dynamoClient: new DynamoDBClient({}),
+      logger: mockLogger,
+    });
+
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(transactCalls).toHaveLength(1);
+
+    const transactItems = transactCalls[0].args[0].input.TransactItems;
+    // 1 ConditionCheck + 3 Deletes (ORDER + LINE_0 + LINE_1)
+    expect(transactItems).toHaveLength(4);
+
+    // Verify ConditionCheck ensures order is PENDING
+    const conditionCheck = transactItems?.find(
+      (item) => item.ConditionCheck !== undefined,
+    );
+    expect(conditionCheck?.ConditionCheck).toEqual({
+      TableName: genericConfig.StoreCartsOrdersTableName,
+      Key: { orderId: { S: orderId }, lineItemId: { S: "ORDER" } },
+      ConditionExpression: "#status = :pending",
+      ExpressionAttributeNames: { "#status": "status" },
+      ExpressionAttributeValues: { ":pending": { S: "PENDING" } },
+    });
+
+    // Verify all three items are deleted
+    const deletes = transactItems?.filter((item) => item.Delete !== undefined);
+    expect(deletes).toHaveLength(3);
+    expect(deletes?.map((d) => d.Delete?.Key?.lineItemId?.S)).toEqual(
+      expect.arrayContaining(["ORDER", "LINE_0", "LINE_1"]),
+    );
+
+    // All deletes target the correct table and orderId
+    for (const d of deletes!) {
+      expect(d.Delete?.TableName).toBe(genericConfig.StoreCartsOrdersTableName);
+      expect(d.Delete?.Key?.orderId?.S).toBe(orderId);
+    }
+  });
+
+  test("Does not issue a transaction when Items array is empty", async () => {
+    ddbMock
+      .on(QueryCommand, {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        KeyConditionExpression: "orderId = :orderId",
+      })
+      .resolvesOnce({ Items: [] });
+
+    await expireCheckoutSession({
+      orderId: "ord_empty",
+      dynamoClient: new DynamoDBClient({}),
+      logger: mockLogger,
+    });
+
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(transactCalls).toHaveLength(0);
+  });
+
+  test("Does not issue a transaction when Items is undefined", async () => {
+    ddbMock
+      .on(QueryCommand, {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        KeyConditionExpression: "orderId = :orderId",
+      })
+      .resolvesOnce({ Items: undefined });
+
+    await expireCheckoutSession({
+      orderId: "ord_not-found",
+      dynamoClient: new DynamoDBClient({}),
+      logger: mockLogger,
+    });
+
+    const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(transactCalls).toHaveLength(0);
+  });
+
+  test("Throws ValidationError when order is not in PENDING status", async () => {
+    const orderId = "ord_active-456";
+    const mockItems = [
+      { orderId: { S: orderId }, lineItemId: { S: "ORDER" } },
+      { orderId: { S: orderId }, lineItemId: { S: "LINE_0" } },
+    ];
+
+    ddbMock
+      .on(QueryCommand, {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        KeyConditionExpression: "orderId = :orderId",
+      })
+      .resolvesOnce({ Items: mockItems });
+
+    ddbMock.on(TransactWriteItemsCommand).rejects(
+      new TransactionCanceledException({
+        message: "Transaction cancelled",
+        $metadata: {},
+        CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
+      }),
+    );
+
+    await expect(
+      expireCheckoutSession({
+        orderId,
+        dynamoClient: new DynamoDBClient({}),
+        logger: mockLogger,
+      }),
+    ).rejects.toThrow(`Order ${orderId} is not in PENDING status`);
+  });
+
+  test("Does not expire an ACTIVE order", async () => {
+    const orderId = "ord_active-789";
+    const mockItems = [
+      { orderId: { S: orderId }, lineItemId: { S: "ORDER" } },
+      { orderId: { S: orderId }, lineItemId: { S: "LINE_0" } },
+    ];
+
+    ddbMock
+      .on(QueryCommand, {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        KeyConditionExpression: "orderId = :orderId",
+      })
+      .resolvesOnce({ Items: mockItems });
+
+    ddbMock.on(TransactWriteItemsCommand).rejects(
+      new TransactionCanceledException({
+        message: "Transaction cancelled",
+        $metadata: {},
+        CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
+      }),
+    );
+
+    // An ACTIVE order must not be deleted - the function should throw
+    await expect(
+      expireCheckoutSession({
+        orderId,
+        dynamoClient: new DynamoDBClient({}),
+        logger: mockLogger,
+      }),
+    ).rejects.toThrow();
+  });
+
+  test("Does not expire a CANCELLED order", async () => {
+    const orderId = "ord_cancelled-101";
+    const mockItems = [{ orderId: { S: orderId }, lineItemId: { S: "ORDER" } }];
+
+    ddbMock
+      .on(QueryCommand, {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        KeyConditionExpression: "orderId = :orderId",
+      })
+      .resolvesOnce({ Items: mockItems });
+
+    ddbMock.on(TransactWriteItemsCommand).rejects(
+      new TransactionCanceledException({
+        message: "Transaction cancelled",
+        $metadata: {},
+        CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
+      }),
+    );
+
+    await expect(
+      expireCheckoutSession({
+        orderId,
+        dynamoClient: new DynamoDBClient({}),
+        logger: mockLogger,
+      }),
+    ).rejects.toThrow(`Order ${orderId} is not in PENDING status`);
+  });
+
+  test("Rethrows unexpected DynamoDB errors", async () => {
+    const orderId = "ord_dberror-202";
+    const mockItems = [
+      { orderId: { S: orderId }, lineItemId: { S: "ORDER" } },
+      { orderId: { S: orderId }, lineItemId: { S: "LINE_0" } },
+    ];
+
+    ddbMock
+      .on(QueryCommand, {
+        TableName: genericConfig.StoreCartsOrdersTableName,
+        KeyConditionExpression: "orderId = :orderId",
+      })
+      .resolvesOnce({ Items: mockItems });
+
+    const networkError = new Error("Network error");
+    ddbMock.on(TransactWriteItemsCommand).rejects(networkError);
+
+    await expect(
+      expireCheckoutSession({
+        orderId,
+        dynamoClient: new DynamoDBClient({}),
+        logger: mockLogger,
+      }),
+    ).rejects.toThrow("Network error");
   });
 });
