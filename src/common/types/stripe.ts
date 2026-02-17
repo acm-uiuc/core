@@ -43,6 +43,9 @@ export const invoiceLinkGetResponseSchema = z.array(
     invoiceId,
     invoiceAmountUsd,
     createdAt: z.union([z.iso.datetime(), z.null()]).meta({ description: "When the payment link was created." })
+  }).omit({
+    contactEmail: true,
+    contactName: true
   })
 );
 
