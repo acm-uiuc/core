@@ -1822,6 +1822,7 @@ export type RefundOrderInputs = {
   logger: ValidLoggers;
   stripeApiKey: string;
   releaseInventory: boolean;
+  justification: string;
 };
 
 export async function refundOrder({
@@ -1831,6 +1832,7 @@ export async function refundOrder({
   logger,
   stripeApiKey,
   releaseInventory,
+  justification,
 }: RefundOrderInputs) {
   const order = await getOrder({
     orderId,
@@ -2101,7 +2103,7 @@ export async function refundOrder({
       module: Modules.STORE,
       actor,
       target: orderId,
-      message: `Refunded order${releaseInventory ? " and released inventory" : ""}.`,
+      message: `Refunded order${releaseInventory ? " and released inventory" : ""}. Justification: ${justification}`,
     },
   });
 

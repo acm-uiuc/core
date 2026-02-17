@@ -29,6 +29,7 @@ import { ManageApiKeysPage } from "./pages/apiKeys/ManageKeys.page";
 import { ManageExternalMembershipPage } from "./pages/membershipLists/MembershipListsPage";
 import { OrgInfoPage } from "./pages/organization/OrgInfo.page";
 import { ViewStoreItemsPage } from "./pages/store/ViewStoreItems.page";
+import { ViewStorePurchasesPage } from "./pages/store/ViewStorePurchases.page";
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -199,6 +200,10 @@ const authenticatedRouter = createBrowserRouter([
       {
         path: "/store/fulfill",
         element: <FulfillStorePurchasesPage />,
+      },
+      {
+        path: "/store/sales/:productId",
+        element: <ViewStorePurchasesPage />,
       },
       {
         path: "/iam",
