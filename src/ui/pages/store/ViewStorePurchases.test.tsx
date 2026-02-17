@@ -30,6 +30,10 @@ vi.mock("@ui/components/AuthGuard", () => ({
   AuthGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock("@mantine/notifications", () => ({
+  notifications: { show: vi.fn() },
+}));
+
 const MOCK_PRODUCT: GetProductResponse = {
   productId: "test-product",
   name: "ACM T-Shirt",
@@ -79,7 +83,7 @@ const makeLineItem = (overrides: Partial<LineItem> = {}): LineItem => ({
 });
 
 const openRefundModal = async (user: ReturnType<typeof userEvent.setup>) => {
-  const refundButton = screen.getByRole("button", { name: "Refund" });
+  const refundButton = await screen.findByRole("button", { name: "Refund" });
   await user.click(refundButton);
   // Wait for modal content to appear
   await screen.findByText("You are about to issue the following refund:");
