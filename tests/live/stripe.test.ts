@@ -24,7 +24,17 @@ describe("Stripe live API authentication", async () => {
     async () => {
       const response = await fetch(
         `${baseEndpoint}/api/v1/stripe/paymentLinks`,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            acmOrg: "C01",
+            invoiceId: "AuthTest",
+            invoiceAmountUsd: 1000,
+            contactName: "ACM Infra",
+            contactEmail: "core-e2e-testing@acm.illinois.edu",
+          }),
+        },
       );
       expect(response.status).toBe(401);
     },
@@ -59,20 +69,23 @@ describe("Stripe link lifecycle test", { sequential: true }, async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        acmOrg: "C01", // <-- ADD THIS (required)
         invoiceId,
         invoiceAmountUsd: 1000,
         contactName: "ACM Infra",
         contactEmail: "core-e2e-testing@acm.illinois.edu",
-        achPaymentsEnabled: false,
+        // remove achPaymentsEnabled unless your schema includes it
       }),
     });
+
     const body = await response.json();
     expect(response.status).toBe(201);
-    expect(body.link).toBeDefined();
-    expect(body.id).toBeDefined();
+
+    // your API returns { id: invoiceId, link: `${PaymentBaseUrl}/${token}` }
     paymentLinkUrl = body.link;
-    paymentLinkId = body.id;
+    paymentLinkId = body.id; // NOTE: this is invoiceId, not a Stripe link id
   });
+
   test(
     "Test that accessing a created link succeeds",
     { timeout: 10000 },

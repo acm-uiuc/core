@@ -76,7 +76,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Stripe"], {
           summary: "Get available Stripe payment links.",
           response: {
-            201: {
+            200: {
               description: "Links retrieved successfully.",
               content: {
                 "application/json": {
@@ -146,9 +146,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             201: {
               description: "Invoice created.",
               content: {
-                "application/json": {
-                  schema: createInvoicePostResponseSchema,
-                },
+                "application/json": { schema: createInvoicePostResponseSchema },
               },
             },
             409: {
@@ -162,11 +160,14 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           },
         }),
       ),
+      onRequest: fastify.authorizeFromSchema, // <-- ADD THIS
     },
-    async (request, reply) => {
+    assertAuthenticated(async (request, reply) => {
+      // <-- WRAP THIS
       await authorizeByOrgRoleOrSchema(fastify, request, reply, {
         validRoles: [{ org: request.body.acmOrg, role: "LEAD" }],
       });
+
       const emailDomain = request.body.contactEmail.split("@").at(-1)!;
 
       const result = await addInvoice({
@@ -194,9 +195,9 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       return reply.status(201).send({
         id: request.body.invoiceId,
-        link: `${fastify.environmentConfig.PaymentBaseUrl}/${token}`, // http:127.0.1.1:8080 for local
+        link: `${fastify.environmentConfig.PaymentBaseUrl}/${token}`,
       });
-    },
+    }),
   );
   fastify.get("/pay/:token", async (request, reply) => {
     const { token } = request.params as { token: string };
