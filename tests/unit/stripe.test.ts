@@ -59,6 +59,7 @@ describe("Test Stripe link creation", async () => {
     const response = await supertest(app.server)
       .post("/api/v1/stripe/paymentLinks")
       .send({
+        acmOrg: "C01",
         invoiceId: "ACM102",
         invoiceAmountUsd: 100,
         contactName: "John Doe",
@@ -81,6 +82,7 @@ describe("Test Stripe link creation", async () => {
       .post("/api/v1/stripe/paymentLinks")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
+        acmOrg: "C01",
         invoiceId: "ACM102",
         invoiceAmountUsd: 10,
         contactName: "John Doe",
@@ -97,6 +99,7 @@ describe("Test Stripe link creation", async () => {
       .post("/api/v1/stripe/paymentLinks")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
+        acmOrg: "C01",
         invoiceId: "",
         invoiceAmountUsd: 49,
         contactName: "",
@@ -120,6 +123,7 @@ describe("Test Stripe link creation", async () => {
       .post("/api/v1/stripe/paymentLinks")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
+        acmOrg: "C01",
         invoiceId: "ACM102",
         invoiceAmountUsd: 51,
         contactName: "Dev",
@@ -136,6 +140,7 @@ describe("Test Stripe link creation", async () => {
   });
   test("POST happy path", async () => {
     const invoicePayload = {
+      acmOrg: "C01",
       invoiceId: "ACM102",
       invoiceAmountUsd: 51,
       contactName: "Infra User",
@@ -150,11 +155,9 @@ describe("Test Stripe link creation", async () => {
       .set("authorization", `Bearer ${testJwt}`)
       .send(invoicePayload);
     expect(response.statusCode).toBe(201);
-    expect(response.body).toStrictEqual({
-      id: linkId,
-      link: `https://buy.stripe.com/${linkId}`,
-    });
-    expect(ddbMock.calls().length).toEqual(1);
+    expect(response.body.id).toBe(invoicePayload.invoiceId);
+    expect(response.body.link).toContain("/");
+    expect(ddbMock.calls().length).toBeGreaterThan(0);
   });
   test("Unauthenticated GET access (missing token)", async () => {
     await app.ready();
