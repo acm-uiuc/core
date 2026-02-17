@@ -73,6 +73,7 @@ describe("StripeCreateLinkPanel Tests", () => {
     await act(async () => {
       expect(createLinkMock).toHaveBeenCalledWith({
         achPaymentsEnabled: false,
+        acmOrg: null,
         invoiceId: "INV123",
         invoiceAmountUsd: 100,
         contactName: "John Doe",
