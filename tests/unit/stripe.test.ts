@@ -20,6 +20,7 @@ import supertest from "supertest";
 import { createJwt } from "./utils.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { randomUUID } from "crypto";
+import { encodeInvoiceToken } from "../../src/common/utils.js";
 
 const ddbMock = mockClient(DynamoDBClient);
 const linkId = randomUUID();
@@ -40,6 +41,9 @@ vi.mock("stripe", () => {
       return {
         customers: {
           create: vi.fn(() => Promise.resolve(customerMock)),
+          retrieve: vi.fn(() =>
+            Promise.resolve({ name: "Old Name", email: "old@example.com" }),
+          ),
         },
         products: {
           create: vi.fn(() => Promise.resolve(productMock)),
@@ -51,6 +55,13 @@ vi.mock("stripe", () => {
         paymentLinks: {
           create: vi.fn(() => Promise.resolve(paymentLinkMock)),
           update: vi.fn(() => Promise.resolve({})),
+        },
+        checkout: {
+          sessions: {
+            create: vi.fn(() =>
+              Promise.resolve({ url: "https://checkout.stripe.com/test" }),
+            ),
+          },
         },
       };
     }),
@@ -314,6 +325,73 @@ describe("Test Stripe link creation", async () => {
     expect(response.statusCode).toBe(403);
     expect(ddbMock.calls().length).toEqual(1);
   });
+  test("POST returns 409 when existing Stripe customer info differs (needsConfirmation)", async () => {
+    const invoicePayload = {
+      acmOrg: "C01",
+      invoiceId: "ACM409",
+      invoiceAmountUsd: 51,
+      contactName: "New Name",
+      contactEmail: "new@example.com",
+    };
+
+    // checkOrCreateCustomer: CUSTOMER lookup returns existing customer
+    ddbMock.on(QueryCommand).resolvesOnce({
+      Count: 1,
+      Items: [marshall({ stripeCustomerId: "cus_existing" })],
+    });
+
+    // ensureEmailMap transact inside checkOrCreateCustomer
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    const testJwt = createJwt();
+    await app.ready();
+
+    const response = await supertest(app.server)
+      .post("/api/v1/stripe/paymentLinks")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(invoicePayload);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.body.needsConfirmation).toBe(true);
+    expect(response.body.customerId).toBe("cus_existing");
+    expect(response.body.current).toBeTruthy();
+    expect(response.body.incoming).toBeTruthy();
+  });
+  test("GET /pay/:token redirects to Stripe checkout session url (302)", async () => {
+    await app.ready();
+
+    const token = encodeInvoiceToken({
+      orgId: "C01",
+      emailDomain: "acm.illinois.edu",
+      invoiceId: "INV_PAY_1",
+    });
+
+    // 1) invoice query
+    ddbMock.on(QueryCommand).resolvesOnce({
+      Items: [
+        marshall({
+          invoiceAmtUsd: 5100, //
+        }),
+      ],
+    });
+
+    // 2) customer query
+    ddbMock.on(QueryCommand).resolvesOnce({
+      Items: [
+        marshall({
+          stripeCustomerId: "cus_pay_1",
+        }),
+      ],
+    });
+
+    const response = await supertest(app.server).get(
+      `/api/v1/stripe/pay/${token}`,
+    );
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toContain("https://checkout.stripe.com/");
+  });
+
   afterAll(async () => {
     await app.close();
   });
