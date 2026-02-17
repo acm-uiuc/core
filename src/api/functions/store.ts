@@ -658,12 +658,13 @@ export async function createStoreCheckout({
           "Once your order is confirmed, you will receive a confirmation email to the provided email address.",
       },
     },
+    expiresInSec: 3600,
   };
 
   let checkoutUrl: string;
   if (isVerifiedIdentity && stripeCustomerId) {
     // Use existing Stripe customer (only for verified identities)
-    logger.info(
+    logger.debug(
       { userId, stripeCustomerId },
       "Using existing Stripe customer for verified identity",
     );
@@ -675,7 +676,10 @@ export async function createStoreCheckout({
     });
   } else {
     // Use email-based checkout (for unverified or no existing customer)
-    logger.info({ userId, isVerifiedIdentity }, "Creating checkout with email");
+    logger.debug(
+      { userId, isVerifiedIdentity },
+      "Creating checkout with email",
+    );
     checkoutUrl = await createCheckoutSession({
       ...checkoutParams,
       customerEmail: userId,
@@ -2327,6 +2331,81 @@ export async function fulfillLineItems({
         });
       }
     }
+    throw error;
+  }
+}
+
+export type ExpireCheckoutSessionInputs = {
+  orderId: string;
+  dynamoClient: DynamoDBClient;
+  logger: ValidLoggers;
+};
+
+/**
+ * Expire a pending checkout session before it is picked up by DynamoDB's TTL.
+ * @param param0 The order ID to expire, logger instance, and a Dynamo DB client
+ * @returns
+ */
+export async function expireCheckoutSession({
+  orderId,
+  dynamoClient,
+  logger,
+}: ExpireCheckoutSessionInputs) {
+  const queryCommand = new QueryCommand({
+    TableName: genericConfig.StoreCartsOrdersTableName,
+    KeyConditionExpression: "orderId = :orderId",
+    ProjectionExpression: "orderId, lineItemId",
+    ExpressionAttributeValues: {
+      ":orderId": { S: orderId },
+    },
+  });
+
+  const { Items } = await dynamoClient.send(queryCommand);
+
+  if (!Items) {
+    return;
+  }
+
+  logger.debug({ orderId }, `Found ${Items.length} line items to delete.`);
+  if (Items.length === 0) {
+    return;
+  }
+
+  const transactCommand = new TransactWriteItemsCommand({
+    TransactItems: [
+      {
+        ConditionCheck: {
+          TableName: genericConfig.StoreCartsOrdersTableName,
+          Key: {
+            orderId: { S: orderId },
+            lineItemId: { S: "ORDER" },
+          },
+          ConditionExpression: "#status = :pending",
+          ExpressionAttributeNames: { "#status": "status" },
+          ExpressionAttributeValues: { ":pending": { S: "PENDING" } },
+        },
+      },
+      ...Items.map((item) => ({
+        Delete: {
+          TableName: genericConfig.StoreCartsOrdersTableName,
+          Key: {
+            orderId: { S: item.orderId.S! },
+            lineItemId: { S: item.lineItemId.S! },
+          },
+        },
+      })),
+    ],
+  });
+
+  try {
+    await dynamoClient.send(transactCommand);
+  } catch (error) {
+    if (error instanceof TransactionCanceledException) {
+      throw new ValidationError({
+        message: `Order ${orderId} is not in PENDING status`,
+      });
+    }
+    logger.error(error);
     throw error;
   }
 }

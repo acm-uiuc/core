@@ -29,6 +29,7 @@ import {
   refundOrder,
   fulfillLineItems,
   listOrdersByUser,
+  expireCheckoutSession,
 } from "api/functions/store.js";
 import {
   createCheckoutRequestSchema,
@@ -49,6 +50,7 @@ import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { createPresignedPut } from "api/functions/s3.js";
 import { S3Client } from "@aws-sdk/client-s3";
 import { illinoisUin } from "common/types/generic.js";
+import { DeleteItemCommand } from "@aws-sdk/client-dynamodb";
 
 export const STORE_CLIENT_HTTP_CACHE_POLICY = `public, max-age=${STORE_CACHED_DURATION}, stale-while-revalidate=${STORE_CACHED_DURATION}, stale-if-error=${STORE_CACHED_DURATION}`;
 
@@ -743,6 +745,40 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             handled: true,
             requestId: request.id,
             queueId: resp.MessageId || "",
+          });
+        }
+        case "checkout.session.expired": {
+          const session = event.data.object as Stripe.Checkout.Session;
+          const metadata = session.metadata;
+
+          // Only process store checkouts
+          if (metadata?.initiator !== "acm-store") {
+            request.log.info(
+              { initiator: metadata?.initiator },
+              "Skipping non-store checkout session",
+            );
+            return reply
+              .status(200)
+              .send({ handled: false, requestId: request.id });
+          }
+          const orderId = metadata.orderId;
+          if (!orderId) {
+            request.log.info(
+              { initiator: metadata?.initiator },
+              "Skipping checkout session expiry as no order ID found",
+            );
+            return reply
+              .status(200)
+              .send({ handled: false, requestId: request.id });
+          }
+          await expireCheckoutSession({
+            orderId,
+            dynamoClient: fastify.dynamoClient,
+            logger: request.log,
+          });
+          return reply.status(200).send({
+            handled: true,
+            requestId: request.id,
           });
         }
         default:
