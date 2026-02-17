@@ -8,7 +8,7 @@ const link = z.url().meta({
   description: "The Payment Link URL",
 })
 const invoiceId = z.string().min(1).meta({ description: "Invoice identifier. Should be prefixed with an organization identifier to allow for easy processing." });
-const invoiceAmountUsd = z.number().min(50).meta({ description: "Billed amount, in dollars." });
+const invoiceAmountUsd = z.number().min(50).meta({ description: "Billed amount, in cents." });
 
 export const invoiceLinkPostResponseSchema = z.object({
   id,

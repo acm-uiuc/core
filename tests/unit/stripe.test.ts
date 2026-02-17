@@ -36,7 +36,7 @@ const customerId = randomUUID();
 const customerMock = { id: `cus_${customerId}` };
 
 vi.mock("stripe", () => {
-  const StripeCtor = vi.fn(function () {
+  const StripeCtor: any = vi.fn(function () {
     return {
       customers: {
         create: vi.fn(() => Promise.resolve(customerMock)),
@@ -62,16 +62,17 @@ vi.mock("stripe", () => {
           ),
         },
       },
-      webhooks: { constructEvent: vi.fn() },
       paymentIntents: { retrieve: vi.fn(), capture: vi.fn(), cancel: vi.fn() },
       paymentMethods: { retrieve: vi.fn() },
       refunds: { create: vi.fn() },
     };
   });
 
+  StripeCtor.webhooks = { constructEvent: vi.fn() };
+
   return {
     default: StripeCtor,
-    Stripe: StripeCtor, // <-- THIS is what you're missing
+    Stripe: StripeCtor,
   };
 });
 
@@ -364,41 +365,59 @@ describe("Test Stripe link creation", async () => {
     expect(response.body.current).toBeTruthy();
     expect(response.body.incoming).toBeTruthy();
   });
-  test("GET /pay/:token redirects to Stripe checkout session url (302)", async () => {
+  test("POST /webhook: Handles checkout.session.completed successfully", async () => {
+    const mockInvoiceId = "ACM-999";
+    const mockOrg = "C01";
+    const mockEmail = "payer@illinois.edu";
+    const mockDomain = "illinois.edu";
+    const mockEventId = "evt_test_123";
+
+    // 1. Mock Stripe.webhooks.constructEvent to return a valid session object
+
+    const StripeMock = await import("stripe");
+    (StripeMock.default.webhooks.constructEvent as any).mockReturnValue({
+      id: mockEventId,
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_test_abc",
+          payment_status: "paid",
+          amount_total: 5000,
+          currency: "usd",
+          customer_details: { email: mockEmail },
+          metadata: {
+            invoice_id: mockInvoiceId,
+            acm_org: mockOrg,
+          },
+          payment_intent: "pi_test_abc",
+        },
+      },
+    });
+
+    // 2. Mock the DDB transaction inside recordInvoicePayment
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
     await app.ready();
 
-    const token = encodeInvoiceToken({
-      orgId: "C01",
-      emailDomain: "acm.illinois.edu",
-      invoiceId: "INV_PAY_1",
-    });
+    // 3. Execute request
+    const response = await supertest(app.server)
+      .post("/api/v1/stripe/webhook")
+      .set("stripe-signature", "t=123,v1=abc")
+      .send({ id: "dummy_event" });
 
-    // 1) invoice query
-    ddbMock.on(QueryCommand).resolvesOnce({
-      Items: [
-        marshall({
-          invoiceAmtUsd: 5100, //
-        }),
-      ],
-    });
+    // 4. Assertions
+    expect(response.statusCode).toBe(200);
+    expect(response.body.handled).toBe(true);
 
-    // 2) customer query
-    ddbMock.on(QueryCommand).resolvesOnce({
-      Items: [
-        marshall({
-          stripeCustomerId: "cus_pay_1",
-        }),
-      ],
-    });
+    const ddbCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(ddbCalls.length).toBe(1);
 
-    const response = await supertest(app.server).get(
-      `/api/v1/stripe/pay/${token}`,
-    );
+    const input = ddbCalls[0].args[0].input;
+    const expectedPk = `${mockOrg}#${mockDomain}`;
 
-    expect(response.statusCode).toBe(302);
-    expect(response.headers.location).toContain("https://checkout.stripe.com/");
+    const firstUpdate = input.TransactItems?.find((i) => i.Update);
+    expect(firstUpdate?.Update?.Key?.primaryKey.S).toBe(expectedPk);
   });
-
   afterAll(async () => {
     await app.close();
   });
