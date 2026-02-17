@@ -550,7 +550,8 @@ export const checkOrCreateCustomer = async ({
         !e.name.includes("ConditionalCheckFailedException")
       ) {
         console.warn(
-          `Failed to create EMAIL# mapping for ${normalizedEmail}:`,
+          "Failed to create EMAIL# mapping for email:",
+          normalizedEmail,
           e,
         );
       }
