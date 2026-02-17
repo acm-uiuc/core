@@ -36,35 +36,42 @@ const customerId = randomUUID();
 const customerMock = { id: `cus_${customerId}` };
 
 vi.mock("stripe", () => {
-  return {
-    default: vi.fn(function () {
-      return {
-        customers: {
-          create: vi.fn(() => Promise.resolve(customerMock)),
-          retrieve: vi.fn(() =>
-            Promise.resolve({ name: "Old Name", email: "old@example.com" }),
+  const StripeCtor = vi.fn(function () {
+    return {
+      customers: {
+        create: vi.fn(() => Promise.resolve(customerMock)),
+        retrieve: vi.fn(() =>
+          Promise.resolve({ name: "Old Name", email: "old@example.com" }),
+        ),
+      },
+      products: {
+        create: vi.fn(() => Promise.resolve(productMock)),
+        update: vi.fn(() => Promise.resolve({})),
+      },
+      prices: {
+        create: vi.fn(() => Promise.resolve(priceMock)),
+      },
+      paymentLinks: {
+        create: vi.fn(() => Promise.resolve(paymentLinkMock)),
+        update: vi.fn(() => Promise.resolve({})),
+      },
+      checkout: {
+        sessions: {
+          create: vi.fn(() =>
+            Promise.resolve({ url: "https://checkout.stripe.com/test" }),
           ),
         },
-        products: {
-          create: vi.fn(() => Promise.resolve(productMock)),
-          update: vi.fn(() => Promise.resolve({})),
-        },
-        prices: {
-          create: vi.fn(() => Promise.resolve(priceMock)),
-        },
-        paymentLinks: {
-          create: vi.fn(() => Promise.resolve(paymentLinkMock)),
-          update: vi.fn(() => Promise.resolve({})),
-        },
-        checkout: {
-          sessions: {
-            create: vi.fn(() =>
-              Promise.resolve({ url: "https://checkout.stripe.com/test" }),
-            ),
-          },
-        },
-      };
-    }),
+      },
+      webhooks: { constructEvent: vi.fn() },
+      paymentIntents: { retrieve: vi.fn(), capture: vi.fn(), cancel: vi.fn() },
+      paymentMethods: { retrieve: vi.fn() },
+      refunds: { create: vi.fn() },
+    };
+  });
+
+  return {
+    default: StripeCtor,
+    Stripe: StripeCtor, // <-- THIS is what you're missing
   };
 });
 
