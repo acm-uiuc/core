@@ -556,7 +556,7 @@ export const checkOrCreateCustomer = async ({
         );
       }
     }
-
+    // empty
     if (needsConfirmation) {
       return {
         customerId: existingCustomerId,
