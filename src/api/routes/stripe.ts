@@ -269,7 +269,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       allowAchPush: true,
     });
 
-    return reply.redirect(302, checkoutUrl);
+    return reply.redirect(checkoutUrl, 302);
   });
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/paymentLinks/:linkId",
