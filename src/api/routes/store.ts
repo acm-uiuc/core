@@ -474,7 +474,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }),
           body: z.object({
             releaseInventory: z.boolean(),
-            justification: z.string().min(10),
+            justification: z.string().trim().min(10),
           }),
           response: {
             204: {

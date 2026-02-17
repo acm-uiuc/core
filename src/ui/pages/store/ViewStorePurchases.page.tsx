@@ -35,7 +35,7 @@ import { formatChicagoTime } from "@ui/components/UrbanaDateTimePicker";
 import { generateErrorMessage, useApi } from "@ui/util/api";
 import { AxiosError } from "axios";
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 
 interface ViewStorePurchasesPageProps {
   getProductPurchases: (productId: string) => Promise<ListOrdersResponse>;
@@ -442,11 +442,10 @@ export const ViewStorePurchasesInternalPage: React.FC<
 export const ViewStorePurchasesPage: React.FC = () => {
   const { productId } = useParams();
   const api = useApi("core");
-  const navigate = useNavigate();
   if (!productId) {
-    navigate("/store");
-    return null;
+    return <Navigate to="/store" replace />;
   }
+
   const getProductPurchases = async (productId: string) => {
     const response = await api.get<ListOrdersResponse>(
       `/api/v1/store/admin/orders/${productId}`,
