@@ -31,11 +31,16 @@ const paymentLinkMock = {
   id: linkId,
   url: `https://buy.stripe.com/${linkId}`,
 };
+const customerId = randomUUID();
+const customerMock = { id: `cus_${customerId}` };
 
 vi.mock("stripe", () => {
   return {
     default: vi.fn(function () {
       return {
+        customers: {
+          create: vi.fn(() => Promise.resolve(customerMock)),
+        },
         products: {
           create: vi.fn(() => Promise.resolve(productMock)),
           update: vi.fn(() => Promise.resolve({})),
@@ -146,7 +151,11 @@ describe("Test Stripe link creation", async () => {
       contactName: "Infra User",
       contactEmail: "testing@acm.illinois.edu",
     };
-    ddbMock.on(TransactWriteItemsCommand).resolvesOnce({}).rejects();
+    // customer lookup (no existing customer)
+    ddbMock.on(QueryCommand).resolvesOnce({ Count: 0, Items: [] });
+
+    // addInvoice does 1+ transactions; easiest is “always succeed”
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
     const testJwt = createJwt();
     await app.ready();
 
