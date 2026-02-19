@@ -5,6 +5,16 @@ import { Octokit } from "octokit";
 import { createAppAuth } from "@octokit/auth-app";
 import { RequestError } from "@octokit/request-error";
 
+interface TeamSyncGroup {
+  group_id: string;
+  group_name: string;
+  group_description: string;
+}
+
+interface TeamSyncGroupsResponse {
+  groups: TeamSyncGroup[];
+}
+
 export interface GithubAppAuth {
   appId: number;
   installationId: number;
@@ -56,8 +66,8 @@ async function findIdpGroupWithRetry({
         },
       );
 
-      // Search for the group by ID
-      const group = response.data.groups?.find((g) => g.group_id === groupId);
+      const data = response.data as TeamSyncGroupsResponse;
+      const group = data.groups?.find((g) => g.group_id === groupId);
 
       if (group) {
         logger.info(`Found IdP group: ${group.group_name}`);
