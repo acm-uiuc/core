@@ -9,10 +9,12 @@ import {
 import {
   QueryCommand,
   TransactWriteItemsCommand,
+  TransactionCanceledException,
   GetItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall, marshall } from "@aws-sdk/util-dynamodb";
 import {
+  BaseError,
   DatabaseFetchError,
   DatabaseInsertError,
   ResourceConflictError,
@@ -94,7 +96,11 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         configItem = configResponse.Item
           ? unmarshall(configResponse.Item)
           : null;
-      } catch (err: any) {
+      } catch (err) {
+        request.log.error(err, "Failed to fetch event configuration.");
+        if (err instanceof BaseError) {
+          throw err;
+        }
         throw new DatabaseFetchError({
           message: "Failed to fetch event configuration.",
         });
@@ -151,21 +157,24 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       try {
         await fastify.dynamoClient.send(transactionCommand);
         return reply.status(201).send();
-      } catch (err: any) {
-        if (err.name === "TransactionCanceledException") {
-          if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
+      } catch (err) {
+        request.log.error(err, "Failed to process RSVP transaction");
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        if (err instanceof TransactionCanceledException) {
+          if (err.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") {
             throw new ResourceConflictError({
               message:
                 "This user has already submitted an RSVP for this event.",
             });
           }
-          if (err.CancellationReasons[1].Code === "ConditionalCheckFailed") {
+          if (err.CancellationReasons?.[1]?.Code === "ConditionalCheckFailed") {
             throw new ResourceConflictError({
               message: "RSVP limit has been reached for this event.",
             });
           }
         }
-        request.log.error(err, "Failed to process RSVP transaction");
         throw new DatabaseInsertError({
           message: "Failed to submit RSVP.",
         });
@@ -295,16 +304,18 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       try {
         await fastify.dynamoClient.send(command);
         return reply.status(200).send();
-      } catch (err: any) {
-        if (err.name === "TransactionCanceledException") {
-          if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
+      } catch (err) {
+        request.log.error(err, "Failed to update event config");
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        if (err instanceof TransactionCanceledException) {
+          if (err.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") {
             throw new NotFoundError({
               endpointName: request.url,
             });
           }
         }
-
-        request.log.error(err, "Failed to update event config");
         throw new DatabaseInsertError({
           message: "Failed to update event configuration.",
         });
@@ -353,13 +364,11 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }
         const configItem = unmarshall(response.Item);
         return reply.send(configItem);
-      } catch (err: any) {
-        if (err.name === "ResourceNotFoundException") {
-          throw new NotFoundError({
-            endpointName: request.url,
-          });
-        }
+      } catch (err) {
         request.log.error(err, "Failed to fetch event config");
+        if (err instanceof BaseError) {
+          throw err;
+        }
         throw new DatabaseFetchError({
           message: "Failed to fetch event configuration.",
         });
@@ -498,14 +507,16 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       try {
         await fastify.dynamoClient.send(transactionCommand);
         return reply.status(204).send();
-      } catch (err: any) {
-        if (err.name === "TransactionCanceledException") {
-          if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
+      } catch (err) {
+        request.log.error(err, "Failed to withdraw RSVP");
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        if (err instanceof TransactionCanceledException) {
+          if (err.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") {
             return reply.status(204).send();
           }
         }
-
-        request.log.error(err, "Failed to withdraw RSVP");
         throw new DatabaseInsertError({
           message: "Failed to withdraw RSVP.",
         });
@@ -574,16 +585,18 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       try {
         await fastify.dynamoClient.send(transactionCommand);
         return reply.status(204).send();
-      } catch (err: any) {
-        if (err.name === "TransactionCanceledException") {
-          if (err.CancellationReasons[0].Code === "ConditionalCheckFailed") {
+      } catch (err) {
+        request.log.error(err, "Failed to delete RSVP as manager");
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        if (err instanceof TransactionCanceledException) {
+          if (err.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") {
             throw new NotFoundError({
               endpointName: request.url,
             });
           }
         }
-
-        request.log.error(err, "Failed to delete RSVP as manager");
         throw new DatabaseInsertError({
           message: "Failed to remove RSVP.",
         });

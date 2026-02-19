@@ -13,8 +13,7 @@ import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 
-const responseSchema = z.array(loggingEntryFromDatabase);
-type ResponseType = z.infer<typeof responseSchema>;
+type ResponseType = z.infer<typeof loggingEntryFromDatabase>[];
 
 const logsPlugin: FastifyPluginAsync = async (fastify, _options) => {
   fastify.register(rateLimiter, {

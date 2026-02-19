@@ -3,6 +3,7 @@ import {
   DynamoDBClient,
   QueryCommand,
   TransactWriteItemsCommand,
+  TransactionCanceledException,
   GetItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
@@ -20,13 +21,11 @@ const DEFAULT_HEADERS = {
   "x-turnstile-response": "a", // needs to be one char
 };
 
-class TransactionError extends Error {
-  name = "TransactionCanceledException";
-  CancellationReasons: { Code: string }[];
-  constructor(reasons: { Code: string }[]) {
-    super("Transaction canceled");
-    this.CancellationReasons = reasons;
-  }
+function makeTransactionError(reasons: { Code: string }[]) {
+  return new TransactionCanceledException({
+    message: "Transaction canceled",
+    CancellationReasons: reasons,
+  });
 }
 
 vi.mock("../../src/api/functions/uin.js", async () => {
@@ -180,7 +179,7 @@ describe("RSVP API tests", () => {
       }),
     });
 
-    const txError = new TransactionError([
+    const txError = makeTransactionError([
       { Code: "ConditionalCheckFailed" },
       { Code: "None" },
     ]);
@@ -215,7 +214,7 @@ describe("RSVP API tests", () => {
       }),
     });
 
-    const txError = new TransactionError([
+    const txError = makeTransactionError([
       { Code: "None" },
       { Code: "ConditionalCheckFailed" },
     ]);
@@ -340,7 +339,7 @@ describe("RSVP API tests", () => {
   });
 
   test("Test withdrawing own RSVP when not RSVP'd", async () => {
-    const txError = new TransactionError([
+    const txError = makeTransactionError([
       { Code: "ConditionalCheckFailed" },
       { Code: "None" },
     ]);
@@ -376,7 +375,7 @@ describe("RSVP API tests", () => {
   });
 
   test("Test Manager deleting non-existent RSVP (Not Found)", async () => {
-    const txError = new TransactionError([
+    const txError = makeTransactionError([
       { Code: "ConditionalCheckFailed" },
       { Code: "None" },
     ]);
@@ -456,7 +455,7 @@ describe("RSVP API tests", () => {
   });
 
   test("Test Manager configuring non-existent event (404)", async () => {
-    const txError = new TransactionError([
+    const txError = makeTransactionError([
       { Code: "ConditionalCheckFailed" },
       { Code: "None" },
     ]);
@@ -483,7 +482,7 @@ describe("RSVP API tests", () => {
     expect(response.statusCode).toBe(404);
   });
 
-  test("Test manager getting non existent event config (500)", async () => {
+  test("Test manager getting non existent event config (404)", async () => {
     ddbMock.on(GetItemCommand).resolves({});
 
     const adminJwt = createJwt();
@@ -497,6 +496,6 @@ describe("RSVP API tests", () => {
       },
     });
 
-    expect(response.statusCode).toBe(500);
+    expect(response.statusCode).toBe(404);
   });
 });

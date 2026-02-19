@@ -133,7 +133,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             false,
           );
           isAuthenticated = true;
-        } catch (e) {
+        } catch {
           isAuthenticated = false;
         }
       }
@@ -210,7 +210,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             false,
           );
           isAuthenticated = true;
-        } catch (e) {
+        } catch {
           isAuthenticated = false;
         }
       }
@@ -443,6 +443,7 @@ const organizationsPlugin: FastifyPluginAsync = async (fastify, _options) => {
             grpShortName,
             memberUpns,
             fastify.runEnvironment,
+            request.log,
           );
 
           request.log.info(

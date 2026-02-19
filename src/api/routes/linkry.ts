@@ -47,7 +47,7 @@ import { withRoles, withTags } from "api/components/index.js";
 import { Organizations } from "@acm-uiuc/js-shared";
 import { authorizeByOrgRoleOrSchema } from "api/functions/authorization.js";
 import { assertAuthenticated } from "api/authenticated.js";
-import { NonAcmOrgUniqueId, OrgUniqueId } from "common/types/generic.js";
+import { NonAcmOrgUniqueId } from "common/types/generic.js";
 
 type OwnerRecord = {
   slug: string;
@@ -127,6 +127,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             ownerRecords,
             tableName,
             fastify.dynamoClient,
+            request.log,
           );
         } catch (error) {
           request.log.error(
@@ -191,7 +192,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             body: createRequest,
           }),
         ),
-        preValidation: async (request, reply) => {
+        preValidation: async (request, _reply) => {
           const routeAlreadyExists = fastify.hasRoute({
             url: `/${request.body.slug}`,
             method: "GET",
@@ -565,7 +566,7 @@ const linkryRoutes: FastifyPluginAsync = async (fastify, _options) => {
             },
           }),
         ),
-        preValidation: async (request, reply) => {
+        preValidation: async (request, _reply) => {
           const routeAlreadyExists = fastify.hasRoute({
             url: `/${request.params.orgId}#${request.body.slug}`,
             method: "GET",

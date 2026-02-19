@@ -24,7 +24,6 @@ import {
   NotFoundError,
   UnauthenticatedError,
   UnauthorizedError,
-  ValidationError,
 } from "../../common/errors/index.js";
 import { randomUUID } from "crypto";
 import { IUpdateDiscord, updateDiscord } from "../functions/discord.js";
@@ -102,7 +101,6 @@ const createProjectionParams = (includeMetadata: boolean = false) => {
     attributeMapping,
     expressionAttributeNames,
     projectionExpression,
-    getAttributes: <T>(item: any): T => item as T,
   };
 };
 

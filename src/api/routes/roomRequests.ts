@@ -172,6 +172,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           bucketName: fastify.environmentConfig.AssetsBucketId,
           length: fileSizeBytes,
           mimeType: contentType,
+          logger: request.log,
         });
       }
       const createdNotified =
@@ -658,13 +659,8 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     assertAuthenticated(async (request, reply) => {
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
+      await verifyRoomRequestAccess(fastify, request, requestId, semesterId);
       try {
-        const resp = await verifyRoomRequestAccess(
-          fastify,
-          request,
-          requestId,
-          semesterId,
-        );
         // this isn't atomic, but that's fine - a little inconsistency on this isn't a problem.
         try {
           const statusesResponse = await fastify.dynamoClient.send(
@@ -744,6 +740,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             s3client: fastify.s3Client,
             bucketName: fastify.environmentConfig.AssetsBucketId,
             key: unmarshalled.attachmentS3key,
+            logger: request.log,
           });
           return reply.status(200).send({ downloadUrl: url });
         } catch (e) {

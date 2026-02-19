@@ -18,7 +18,7 @@ import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 import { SKIP_EXTERNAL_ORG_LEAD_UPDATE } from "common/overrides.js";
-import { getOrgByName, Organizations } from "@acm-uiuc/js-shared";
+import { Organizations } from "@acm-uiuc/js-shared";
 import { createRedisModule } from "api/redis.js";
 
 export const createOrgGithubTeamHandler: SQSHandlerFunction<

@@ -19,8 +19,8 @@ export interface RetryOptions {
   maxRetries?: number;
   baseDelay?: number;
   maxDelay?: number;
-  shouldRetry?: (error: any, attempt: number) => boolean;
-  onRetry?: (error: any, attempt: number, delay: number) => void;
+  shouldRetry?: (error: unknown, attempt: number) => boolean;
+  onRetry?: (error: unknown, attempt: number, delay: number) => void;
 }
 
 export async function retryWithBackoff<T>(
@@ -40,7 +40,10 @@ export async function retryWithBackoff<T>(
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       return await operation();
-    } catch (error: any) {
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
       lastError = error;
 
       const isLastAttempt = attempt === maxRetries - 1;
@@ -64,7 +67,7 @@ export async function retryWithBackoff<T>(
 }
 
 export function logOnRetry(op: string, logger: ValidLoggers) {
-  return (error: any, attempt: number, delay: number) => {
+  return (error: unknown, attempt: number, delay: number) => {
     logger.warn(
       `${op} failed (attempt ${attempt + 1}/${3}), retrying in ${Math.round(delay)}ms...`,
     );
@@ -80,8 +83,9 @@ export async function retryDynamoTransactionWithBackoff<T>(
     maxRetries: 3,
     baseDelay: 100,
     shouldRetry: (error) =>
-      error.name === "TransactionCanceledException" ||
-      error.name === "ConditionalCheckFailedException",
+      error instanceof Error &&
+      (error.name === "TransactionCanceledException" ||
+        error.name === "ConditionalCheckFailedException"),
     onRetry: logOnRetry(operationName, logger),
   });
 }

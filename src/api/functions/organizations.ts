@@ -1,13 +1,12 @@
 import {
   AllOrganizationIdList,
   OrganizationId,
-  OrganizationName,
   Organizations,
 } from "@acm-uiuc/js-shared";
 import {
   QueryCommand,
-  ScanCommand,
   TransactWriteItemsCommand,
+  TransactionCanceledException,
   type DynamoDBClient,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -21,7 +20,6 @@ import {
 import { AvailableSQSFunctions } from "common/types/sqsMessage.js";
 import { getAllUserEmails } from "common/utils.js";
 import { type FastifyBaseLogger } from "fastify";
-import pino from "pino";
 import z from "zod";
 import { modifyGroup } from "./entraId.js";
 import { EntraGroupActions } from "common/types/iam.js";
@@ -44,7 +42,7 @@ export interface GetUserOrgRolesInputs {
   logger: ValidLoggers;
 }
 
-export type SQSMessage = Record<any, any>;
+export type SQSMessage = Record<string, unknown>;
 
 export async function getOrgInfo({
   id,
@@ -316,9 +314,13 @@ export const addLead = async ({
           logger,
           `Add lead ${username} to ${orgFriendlyName}`,
         );
-      } catch (e: any) {
+      } catch (e) {
+        logger.error(
+          e,
+          `Failed transaction for adding lead ${username} to ${orgFriendlyName}`,
+        );
         if (
-          e.name === "TransactionCanceledException" &&
+          e instanceof TransactionCanceledException &&
           e.message.includes("ConditionalCheckFailed")
         ) {
           logger.info(
@@ -488,9 +490,13 @@ export const removeLead = async ({
           logger,
           `Remove lead ${username} from ${orgFriendlyName}`,
         );
-      } catch (e: any) {
+      } catch (e) {
+        logger.error(
+          e,
+          `Failed transaction for removing lead ${username} from ${orgFriendlyName}`,
+        );
         if (
-          e.name === "TransactionCanceledException" &&
+          e instanceof TransactionCanceledException &&
           e.message.includes("ConditionalCheckFailed")
         ) {
           logger.info(
