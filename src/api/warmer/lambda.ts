@@ -104,7 +104,7 @@ async function invokeStreamingBatch(
  * Main handler that warms a target Lambda function by invoking it multiple times.
  * It can handle both standard and response-streaming target functions.
  */
-export const handler = async (event: {}) => {
+export const handler = async (_event: {}) => {
   const { lambdaName, numInstancesStr, maxWavesStr, isStreaming } = {
     lambdaName: process.env.LAMBDA_NAME,
     numInstancesStr: process.env.NUM_INSTANCES,

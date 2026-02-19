@@ -1,6 +1,6 @@
 import fp from "fastify-plugin";
 
-const locationPlugin = fp(async (fastify, opts) => {
+const locationPlugin = fp(async (fastify, _opts) => {
   const processHeader = (headerValue: string | string[] | undefined) => {
     if (Array.isArray(headerValue)) {
       return headerValue.join(",");

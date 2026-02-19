@@ -3,19 +3,10 @@ import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import rawbody from "fastify-raw-body";
 import stripe, { Stripe } from "stripe";
 import * as z from "zod/v4";
-import {
-  ts,
-  withRoles,
-  withTags,
-  withTurnstile,
-} from "api/components/index.js";
+import { withRoles, withTags, withTurnstile } from "api/components/index.js";
 import { AppRoles } from "common/roles.js";
 import { genericConfig, STORE_CACHED_DURATION } from "common/config.js";
-import {
-  BaseError,
-  UnauthenticatedError,
-  ValidationError,
-} from "common/errors/index.js";
+import { BaseError, ValidationError } from "common/errors/index.js";
 import { getUserIdByUin, verifyUiucAccessToken } from "api/functions/uin.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
@@ -50,7 +41,6 @@ import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { createPresignedPut } from "api/functions/s3.js";
 import { S3Client } from "@aws-sdk/client-s3";
 import { illinoisUin } from "common/types/generic.js";
-import { DeleteItemCommand } from "@aws-sdk/client-dynamodb";
 
 export const STORE_CLIENT_HTTP_CACHE_POLICY = `public, max-age=${STORE_CACHED_DURATION}, stale-while-revalidate=${STORE_CACHED_DURATION}, stale-if-error=${STORE_CACHED_DURATION}`;
 
@@ -328,6 +318,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           length: request.body.requestingImageUpload.fileSize,
           mimeType: request.body.requestingImageUpload.mimeType,
           md5hash: request.body.requestingImageUpload.contentMd5Hash,
+          logger: request.log,
         });
       } else {
         transformedBody = request.body;
@@ -407,6 +398,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           length: request.body.requestingImageUpload.fileSize,
           mimeType: request.body.requestingImageUpload.mimeType,
           md5hash: request.body.requestingImageUpload.contentMd5Hash,
+          logger: request.log,
         });
       }
 

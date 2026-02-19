@@ -1,6 +1,7 @@
 import {
   type AttributeValue,
   BatchGetItemCommand,
+  ConditionalCheckFailedException,
   DynamoDBClient,
   GetItemCommand,
   QueryCommand,
@@ -14,6 +15,7 @@ import {
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
 import {
+  BaseError,
   InsufficientInventoryError,
   ItemNotAvailableError,
   LimitExceededError,
@@ -724,7 +726,6 @@ export async function processStorePaymentSuccess(
     requestId,
     eventId,
     isVerifiedIdentity,
-    sqsQueueUrl,
   } = props;
   const now = Math.floor(Date.now() / 1000);
   // 1. Get order details
@@ -993,8 +994,15 @@ export async function processStorePaymentSuccess(
         "ProcessStorePaymentSuccess",
       );
       logger.info({ orderId }, "Inventory reserved, order in CAPTURING state");
-    } catch (error: any) {
-      if (error.name === "TransactionCanceledException") {
+    } catch (error) {
+      logger.error(
+        { error, orderId },
+        "Error during inventory reservation transaction",
+      );
+      if (error instanceof BaseError) {
+        throw error;
+      }
+      if (error instanceof TransactionCanceledException) {
         const reasons = error.CancellationReasons || [];
 
         // Check if order status condition failed (already processed)
@@ -1006,7 +1014,7 @@ export async function processStorePaymentSuccess(
 
         // Check for Conditional Failures in inventory or limits
         const failedIndex = reasons.findIndex(
-          (r: any, index: number) =>
+          (r, index: number) =>
             index > 0 && r.Code === "ConditionalCheckFailed",
         );
 
@@ -1194,15 +1202,18 @@ export async function processStorePaymentSuccess(
       }),
     );
     logger.info({ orderId }, "Order completed successfully - status ACTIVE");
-  } catch (error: any) {
-    if (error.name === "ConditionalCheckFailedException") {
-      logger.warn({ orderId }, "Order already ACTIVE");
-      return; // Success, already completed
-    }
+  } catch (error) {
     logger.error(
       { error, orderId },
       "Failed to update order to ACTIVE after capture",
     );
+    if (error instanceof BaseError) {
+      throw error;
+    }
+    if (error instanceof ConditionalCheckFailedException) {
+      logger.warn({ orderId }, "Order already ACTIVE");
+      return; // Success, already completed
+    }
     throw new InternalServerError({
       message: "Failed to finalize order status",
     });

@@ -7,7 +7,7 @@ import { TurnstileSchema } from "api/components/index.js";
 const validateTurnstileTokenPlugin: FastifyPluginAsync = fp(async (fastify) => {
   fastify.decorate(
     "validateTurnstileToken",
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (request: FastifyRequest, _reply: FastifyReply) => {
       const schema = request.routeOptions?.schema;
       if (
         !schema ||

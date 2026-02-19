@@ -3,6 +3,7 @@ import { sleep } from "api/utils.js";
 import { BaseError, GithubError } from "common/errors/index.js";
 import { Octokit } from "octokit";
 import { createAppAuth } from "@octokit/auth-app";
+import { RequestError } from "@octokit/request-error";
 
 export interface GithubAppAuth {
   appId: number;
@@ -56,9 +57,7 @@ async function findIdpGroupWithRetry({
       );
 
       // Search for the group by ID
-      const group = response.data.groups?.find(
-        (g: any) => g.group_id === groupId,
-      );
+      const group = response.data.groups?.find((g) => g.group_id === groupId);
 
       if (group) {
         logger.info(`Found IdP group: ${group.group_name}`);
@@ -101,7 +100,7 @@ async function findIdpGroupWithRetry({
   return null;
 }
 
-async function resolveTeamIdToSlug({
+async function _resolveTeamIdToSlug({
   octokit,
   orgId,
   teamId,
@@ -232,8 +231,15 @@ export async function assignIdpGroupsToTeam({
         },
       );
       logger.info("Team sync is available for this team");
-    } catch (checkError: any) {
-      if (checkError.status === 404) {
+    } catch (checkError) {
+      logger.error(
+        checkError,
+        `Failed to check team sync availability for team ${teamId}`,
+      );
+      if (checkError instanceof BaseError) {
+        throw checkError;
+      }
+      if (checkError instanceof RequestError && checkError.status === 404) {
         logger.warn(
           `Team sync is not available for team ${teamId}. This could mean:
           1. The organization doesn't have SAML SSO properly configured
@@ -281,20 +287,18 @@ export async function assignIdpGroupsToTeam({
     );
 
     logger.info(`Successfully mapped IdP groups to team ${teamId}`);
-  } catch (e: any) {
+  } catch (e) {
+    logger.error(e, `Failed to assign IdP groups to team ${teamId}`);
     if (e instanceof BaseError) {
       throw e;
     }
 
-    if (e.status === 404) {
+    if (e instanceof RequestError && e.status === 404) {
       logger.warn(
         `Team sync endpoint not available for team ${teamId}. IdP groups were not assigned.`,
       );
       return;
     }
-
-    logger.error(`Failed to assign IdP groups to team ${teamId}`);
-    logger.error(e);
     throw new GithubError({
       message: `Failed to assign IdP groups to team ${teamId}`,
     });

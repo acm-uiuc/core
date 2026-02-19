@@ -5,7 +5,7 @@ import { FastifyBaseLogger } from "fastify";
 interface SendBatchesParams {
   sqsClient: SQSClient;
   queueUrl: string;
-  sqsPayloads: Record<any, any>;
+  sqsPayloads: Record<string, unknown>[];
   logger: FastifyBaseLogger;
 }
 
@@ -25,10 +25,12 @@ export async function sendSqsMessagesInBatches({
     await sqsClient.send(
       new SendMessageBatchCommand({
         QueueUrl: queueUrl,
-        Entries: chunk.map((payload: any) => ({
-          Id: randomUUID(),
-          MessageBody: JSON.stringify(payload),
-        })),
+        Entries: chunk.map(
+          (payload: Record<string | number | symbol, unknown>) => ({
+            Id: randomUUID(),
+            MessageBody: JSON.stringify(payload),
+          }),
+        ),
       }),
     );
   }

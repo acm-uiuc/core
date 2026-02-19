@@ -139,14 +139,14 @@ export const docsHtml = `
 
 export const securitySchemes = {
   httpBearer: {
-    type: "http",
+    type: "http" as const,
     scheme: "bearer",
     bearerFormat: "JWT",
     description:
       "Authorization: Bearer {token}\n\nThis API uses JWT tokens issued by Entra ID (Azure AD) with the Core API audience. Tokens must be included in the Authorization header as a Bearer token for all protected endpoints.",
   },
   apiKeyHeader: {
-    type: "apiKey",
+    type: "apiKey" as const,
     in: "header",
     name: "X-Api-Key",
   },

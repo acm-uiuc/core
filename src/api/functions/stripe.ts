@@ -472,7 +472,11 @@ export const refundOrCancelPaymentIntent = async ({
   }
 };
 
-export const shouldRetryStripeError = (error: any): boolean => {
+export const shouldRetryStripeError = (error: unknown): boolean => {
+  if (!(error instanceof Stripe.errors.StripeError)) {
+    return false;
+  }
+
   if (error.type === "StripeConnectionError") {
     return true;
   }

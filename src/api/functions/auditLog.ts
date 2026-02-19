@@ -33,6 +33,7 @@ export async function createAuditLogEntry({
   entry,
 }: AuditLogParams) {
   if (process.env.DISABLE_AUDIT_LOG && process.env.RunEnvironment === "dev") {
+    // eslint-disable-next-line no-console
     console.log(`Audit log entry: ${JSON.stringify(entry)}`);
     return;
   }
@@ -58,6 +59,7 @@ export function buildAuditLogTransactPut({
   entry: AuditLogEntry;
 }): TransactWriteItem | null {
   if (process.env.DISABLE_AUDIT_LOG && process.env.RunEnvironment === "dev") {
+    // eslint-disable-next-line no-console
     console.log(`Audit log entry: ${JSON.stringify(entry)}`);
     return null;
   }

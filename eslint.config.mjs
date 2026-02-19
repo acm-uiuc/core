@@ -50,12 +50,11 @@ export default defineConfig([
         "ignorePackages",
         { js: "never", jsx: "never", ts: "never", tsx: "never" },
       ],
-      "no-unused-vars": "off",
       "max-classes-per-file": "off",
       "func-names": "off",
       "no-case-declarations": "off",
       "@typescript-eslint/no-unused-vars": [
-        "warn",
+        "error",
         {
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_",
@@ -63,7 +62,7 @@ export default defineConfig([
         },
       ],
 
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/explicit-module-boundary-types": "off",
     },
   },
