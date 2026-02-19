@@ -1,11 +1,10 @@
-import { expect, test, vi, describe, beforeEach } from "vitest";
+import { expect, test, vi, describe, beforeEach, afterEach } from "vitest";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
 import init from "../../src/api/server.js";
 import { createJwt } from "./utils.js";
 import { secretObject } from "./secret.testdata.js";
 import supertest from "supertest";
-import { afterEach } from "node:test";
 import jwt from "jsonwebtoken";
 
 const app = await init();
@@ -15,13 +14,13 @@ const jwt_secret = secretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
 vi.mock("ioredis", () => import("ioredis-mock"));
 
-describe("RSVP API tests", () => {
+describe("Clear session API tests", () => {
   beforeEach(() => {
     ddbMock.reset();
     vi.clearAllMocks();
   });
-  afterEach(() => {
-    app.redisClient.flushall();
+  afterEach(async () => {
+    await app.redisClient.flushall();
   });
   test("Happy path: the user's JWT is invalidated", async () => {
     const testJwt = createJwt();

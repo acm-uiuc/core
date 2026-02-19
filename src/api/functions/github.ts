@@ -110,40 +110,6 @@ async function findIdpGroupWithRetry({
   return null;
 }
 
-async function _resolveTeamIdToSlug({
-  octokit,
-  orgId,
-  teamId,
-  logger,
-}: {
-  octokit: Octokit;
-  orgId: number;
-  teamId: number;
-  logger: ValidLoggers;
-}): Promise<string> {
-  try {
-    logger.info(`Resolving team ID ${teamId} to slug`);
-    const response = await octokit.request(
-      "GET /organizations/{org}/team/{team_id}",
-      {
-        org: orgId,
-        team_id: teamId,
-        headers: {
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      },
-    );
-    const slug = response.data.slug;
-    logger.info(`Resolved team ID ${teamId} to slug: ${slug}`);
-    return slug;
-  } catch (error) {
-    logger.error(`Failed to resolve team ID ${teamId} to slug:`, error);
-    throw new GithubError({
-      message: `Failed to resolve team ID ${teamId} to slug`,
-    });
-  }
-}
-
 export async function createGithubTeam({
   auth,
   orgId,
