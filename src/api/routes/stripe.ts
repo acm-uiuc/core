@@ -9,14 +9,11 @@ import { withRoles, withTags } from "api/components/index.js";
 import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import {
   addInvoice,
-  createStripeLink,
   createCheckoutSessionWithCustomer,
   deactivateStripeLink,
   deactivateStripeProduct,
   getPaymentMethodDescriptionString,
   getPaymentMethodForPaymentIntent,
-  StripeLinkCreateParams,
-  InvoiceAddParams,
   SupportedStripePaymentMethod,
   supportedStripePaymentMethods,
   recordInvoicePayment,
@@ -36,15 +33,13 @@ import { Modules } from "common/modules.js";
 import { AppRoles } from "common/roles.js";
 import {
   invoiceLinkGetResponseSchema,
-  invoiceLinkPostRequestSchema,
-  invoiceLinkPostResponseSchema,
   createInvoicePostRequestSchema,
   createInvoiceConflictResponseSchema,
   createInvoicePostResponseSchema,
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
-import stripe, { Stripe } from "stripe";
+import { Stripe } from "stripe";
 import rawbody from "fastify-raw-body";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
@@ -172,7 +167,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       const emailDomain = request.body.contactEmail.split("@").at(-1)!;
 
-      const result = await addInvoice({
+      await addInvoice({
         ...request.body,
         redisClient: fastify.redisClient,
         dynamoClient: fastify.dynamoClient,
@@ -615,8 +610,11 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                   "unknown",
                 decrementOwed,
               });
-            } catch (e: any) {
-              if (e?.name === "TransactionCanceledException") {
+            } catch (e: unknown) {
+              if (
+                (e as { name?: string })?.name ===
+                "TransactionCanceledException"
+              ) {
                 request.log.info(
                   `Duplicate webhook event ${event.id}, acknowledging.`,
                 );
