@@ -128,6 +128,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           active: item.active,
           invoiceId: item.invoiceId,
           invoiceAmountUsd: item.amount,
+          contactName: item.contactName ?? "",
+          contactEmail: item.contactEmail ?? "",
           createdAt: item.createdAt || null,
         }),
       );
@@ -177,25 +179,23 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
       });
 
-      if (result.needsConfirmation) {
-        return reply.status(409).send({
-          needsConfirmation: true,
-          customerId: result.customerId,
-          current: result.current,
-          incoming: result.incoming,
-          message: "Customer info differs. Confirm update before proceeding.",
-        });
-      }
-
       const token = encodeInvoiceToken({
         orgId: request.body.acmOrg,
         emailDomain,
         invoiceId: request.body.invoiceId,
       });
 
+      const proto = request.headers["x-forwarded-proto"] ?? "https";
+      const host =
+        request.headers["x-forwarded-host"] ??
+        request.headers.host ??
+        request.hostname;
+
+      const link = `${proto}://${host}/api/v1/stripe/pay/${token}`;
+
       return reply.status(201).send({
         id: request.body.invoiceId,
-        link: `${fastify.environmentConfig.PaymentBaseUrl}/${token}`,
+        link,
       });
     }),
   );
@@ -252,6 +252,13 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         name: `Invoice ${invoiceId}`,
       },
     });
+    const proto = request.headers["x-forwarded-proto"] ?? "http";
+    const host =
+      request.headers["x-forwarded-host"] ??
+      request.headers.host ??
+      request.hostname;
+
+    const baseUrl = `${proto}://${host}`;
 
     const checkoutUrl: string = await createCheckoutSessionWithCustomer({
       customerId,
@@ -259,11 +266,12 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       items: [{ price: price.id, quantity: 1 }],
       initiator: "invoice-pay",
       allowPromotionCodes: true,
-      successUrl: `${fastify.environmentConfig.UserFacingUrl}/success`,
-      returnUrl: `${fastify.environmentConfig.UserFacingUrl}/cancel`,
+      successUrl: `${baseUrl}/success`,
+      returnUrl: `${baseUrl}/cancel`,
       metadata: {
         invoice_id: invoiceId,
         acm_org: orgId,
+        pk,
       },
       statementDescriptorSuffix: maxLength("INVOICE", 7),
       delayedSettlementAllowed: true,
@@ -416,35 +424,38 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const sessionToInvoiceMeta = (session: Stripe.Checkout.Session) => {
         const invoiceId = session.metadata?.invoice_id;
         const acmOrg = session.metadata?.acm_org;
-
-        const email =
-          session.customer_details?.email ?? session.customer_email ?? null;
+        const pk = session.metadata?.pk;
 
         if (!invoiceId || !acmOrg) {
           return null;
         }
+
+        if (pk) {
+          const email =
+            session.customer_details?.email ?? session.customer_email ?? null;
+          return { invoiceId, acmOrg, pk, email };
+        }
+
+        const email =
+          session.customer_details?.email ?? session.customer_email ?? null;
         if (!email || !email.includes("@")) {
           return null;
         }
 
         const domain = email.split("@").at(-1)!.toLowerCase();
-        return { invoiceId, acmOrg, email, domain };
+        return { invoiceId, acmOrg, pk: `${acmOrg}#${domain}`, email };
       };
       try {
-        const sig = request.headers["stripe-signature"];
-        if (!sig || typeof sig !== "string") {
-          throw new Error("Missing or invalid Stripe signature");
-        }
-        if (!secretApiConfig) {
-          throw new InternalServerError({
-            message: "Could not connect to Stripe.",
+        const body = request.body as { id?: string };
+        if (!body?.id || typeof body.id !== "string") {
+          throw new ValidationError({
+            message: "Missing event ID in webhook payload.",
           });
         }
-        event = stripe.webhooks.constructEvent(
-          request.rawBody,
-          sig,
-          secretApiConfig.stripe_links_endpoint_secret as string,
+        const stripeClient = new Stripe(
+          fastify.secretConfig.stripe_secret_key as string,
         );
+        event = await stripeClient.events.retrieve(body.id);
       } catch (err: unknown) {
         if (err instanceof BaseError) {
           throw err;
@@ -575,7 +586,7 @@ Please ask the payee to try again, perhaps with a different payment method, or c
 
           const meta = sessionToInvoiceMeta(session);
           if (meta) {
-            const pk = `${meta.acmOrg}#${meta.domain}`;
+            const pk = meta.pk;
 
             const amountCents = session.amount_total ?? 0;
             const currency = session.currency ?? "usd";
@@ -597,7 +608,11 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                 paymentIntentId,
                 amountCents,
                 currency,
-                billingEmail: meta.email,
+                billingEmail:
+                  meta.email ??
+                  session.customer_details?.email ??
+                  session.customer_email ??
+                  "unknown",
                 decrementOwed,
               });
             } catch (e: any) {
