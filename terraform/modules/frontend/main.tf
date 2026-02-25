@@ -514,31 +514,6 @@ output "linkry_cloudfront_domain_name" {
   value = aws_cloudfront_distribution.linkry_cloudfront_distribution.domain_name
 }
 
-resource "aws_cloudfront_function" "invoice_path_rewrite" {
-  name    = "${var.ProjectId}-rewrite-to-invoice-pay"
-  runtime = "cloudfront-js-2.0"
-  comment = "Rewrites /x to https://${var.CorePublicDomain}/api/v1/stripe/pay/x"
-  publish = true
-
-  code = <<-EOT
-    function handler(event) {
-      var request = event.request;
-      var uri = request.uri;
-
-      return {
-        statusCode: 301,
-        statusDescription: 'Found',
-        headers: {
-          location: { value: 'https://${var.CorePublicDomain}/api/v1/stripe/pay' + uri }
-        }
-      };
-
-      return request;
-    }
-  EOT
-}
-
-
 resource "aws_cloudfront_distribution" "invoice_pay" {
   http_version = "http2and3"
 
