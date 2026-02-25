@@ -490,6 +490,56 @@ resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
   price_class = "PriceClass_100"
 }
 
+resource "aws_cloudfront_distribution" "invoice_pay" {
+  http_version = "http2and3"
+
+  # Dynamic origins for each region's Lambda function
+  dynamic "origin" {
+    for_each = var.CoreLambdaHost
+    content {
+      origin_id   = "LambdaFunction-${origin.key}"
+      domain_name = origin.value
+      origin_path = "/api/v1/stripe/pay"
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2"]
+      }
+    }
+  }
+  aliases         = [var.InvoicePaymentPublicDomain]
+  enabled         = true
+  is_ipv6_enabled = true
+  default_cache_behavior {
+    compress                 = true
+    target_origin_id         = "LambdaFunction-${var.CurrentActiveRegion}"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["GET", "HEAD"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = aws_cloudfront_cache_policy.headers_no_cookies.id
+    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.origin_key_injection.arn
+    }
+  }
+
+  viewer_certificate {
+    acm_certificate_arn      = var.InvoicePaymentCertificate
+    minimum_protocol_version = "TLSv1.2_2021"
+    ssl_support_method       = "sni-only"
+  }
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+  price_class = "PriceClass_100"
+}
+
+
+
 output "main_cloudfront_distribution_id" {
   value = aws_cloudfront_distribution.app_cloudfront_distribution.id
 }
@@ -510,6 +560,11 @@ output "linkry_cloudfront_distribution_id" {
   value = aws_cloudfront_distribution.linkry_cloudfront_distribution.id
 }
 
+output "invoice_pay_domain_name" {
+  value = aws_cloudfront_distribution.invoice_pay.domain_name
+}
+
 output "linkry_cloudfront_domain_name" {
   value = aws_cloudfront_distribution.linkry_cloudfront_distribution.domain_name
 }
+
