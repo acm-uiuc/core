@@ -123,6 +123,7 @@ module "frontend" {
   LinkryCertificateArn       = var.LinkryCertificateArn
   LinkryEdgeFunctionArn      = module.lambdas.linkry_redirect_function_arn
   InvoicePaymentPublicDomain = var.InvoicePaymentPublicDomain
+  InvoicePaymentCertificate  = var.LinkryCertificateArn
 }
 
 module "assets" {

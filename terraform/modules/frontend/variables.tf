@@ -30,6 +30,13 @@ variable "InvoicePaymentPublicDomain" {
 
 }
 
+variable "InvoicePaymentCertificate" {
+  type        = string
+  description = "Invoice payment public URL domain certificate"
+
+}
+
+
 variable "LinkryPublicDomains" {
   type        = set(string)
   description = "Linky Public Hosts"
