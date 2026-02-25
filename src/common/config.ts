@@ -232,6 +232,7 @@ export type SecretConfig = {
 
 const roleArns = {
   Entra: process.env.EntraRoleArn,
+  SshIssuer: process.env.SshIssuerRoleArn,
 };
 
 export const EVENT_CACHED_DURATION = 120;
