@@ -131,3 +131,13 @@ jobs:
           VITE_RUN_ENVIRONMENT: prod
       - name: Call the health check script
         run: make prod_health_check
+
+  notify:
+    needs: [test, build, deploy-prod]
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - uses: lacherogwu/failed-jobs-discord-notification-action@v1
+        with:
+          discord_webhook_url: ${{ secrets.DISCORD_NOTIFICATION_WEBHOOK_URL }}
+          needs_json: ${{ toJSON(needs) }}
