@@ -560,8 +560,8 @@ output "linkry_cloudfront_distribution_id" {
   value = aws_cloudfront_distribution.linkry_cloudfront_distribution.id
 }
 
-output "invoice_pay_cloudfront_distribution_id" {
-  value = aws_cloudfront_distribution.invoice_pay.id
+output "invoice_pay_domain_name" {
+  value = aws_cloudfront_distribution.invoice_pay.domain_name
 }
 
 output "linkry_cloudfront_domain_name" {

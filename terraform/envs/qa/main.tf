@@ -224,7 +224,7 @@ resource "aws_route53_record" "invoice_pay" {
   type     = each.key
   name     = var.InvoicePaymentPublicDomain
   alias {
-    name                   = module.frontend.invoice_pay_cloudfront_distribution_id
+    name                   = module.frontend.invoice_pay_domain_name
     zone_id                = "Z2FDTNDATAQYW2"
     evaluate_target_health = false
   }
