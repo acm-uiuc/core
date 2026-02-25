@@ -490,30 +490,6 @@ resource "aws_cloudfront_distribution" "linkry_cloudfront_distribution" {
   price_class = "PriceClass_100"
 }
 
-output "main_cloudfront_distribution_id" {
-  value = aws_cloudfront_distribution.app_cloudfront_distribution.id
-}
-
-output "main_cloudfront_domain_name" {
-  value = aws_cloudfront_distribution.app_cloudfront_distribution.domain_name
-}
-
-output "ical_cloudfront_distribution_id" {
-  value = aws_cloudfront_distribution.ical_cloudfront_distribution.id
-}
-
-output "ical_cloudfront_domain_name" {
-  value = aws_cloudfront_distribution.ical_cloudfront_distribution.domain_name
-}
-
-output "linkry_cloudfront_distribution_id" {
-  value = aws_cloudfront_distribution.linkry_cloudfront_distribution.id
-}
-
-output "linkry_cloudfront_domain_name" {
-  value = aws_cloudfront_distribution.linkry_cloudfront_distribution.domain_name
-}
-
 resource "aws_cloudfront_distribution" "invoice_pay" {
   http_version = "http2and3"
 
@@ -560,5 +536,35 @@ resource "aws_cloudfront_distribution" "invoice_pay" {
     }
   }
   price_class = "PriceClass_100"
+}
+
+
+
+output "main_cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.app_cloudfront_distribution.id
+}
+
+output "main_cloudfront_domain_name" {
+  value = aws_cloudfront_distribution.app_cloudfront_distribution.domain_name
+}
+
+output "ical_cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.ical_cloudfront_distribution.id
+}
+
+output "ical_cloudfront_domain_name" {
+  value = aws_cloudfront_distribution.ical_cloudfront_distribution.domain_name
+}
+
+output "linkry_cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.linkry_cloudfront_distribution.id
+}
+
+output "invoice_pay_cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.invoice_pay.id
+}
+
+output "linkry_cloudfront_domain_name" {
+  value = aws_cloudfront_distribution.linkry_cloudfront_distribution.domain_name
 }
 

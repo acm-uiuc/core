@@ -218,6 +218,18 @@ resource "aws_route53_record" "linkry_wildcard" {
   }
 }
 
+resource "aws_route53_record" "invoice_pay" {
+  for_each = toset(["A", "AAAA"])
+  zone_id  = "Z04502822NVIA85WM2SML"
+  type     = each.key
+  name     = var.InvoicePaymentPublicDomain
+  alias {
+    name                   = module.frontend.invoice_pay_cloudfront_distribution_id
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
+}
+
 resource "aws_lambda_event_source_mapping" "queue_consumer" {
   region                  = "us-east-2"
   depends_on              = [module.lambdas, module.sqs_queues]
