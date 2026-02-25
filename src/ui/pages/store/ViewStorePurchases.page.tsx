@@ -324,7 +324,7 @@ export const ViewStorePurchasesInternalPage: React.FC<
             onClick={openVariantsModal}
             style={{ alignSelf: "flex-start" }}
           >
-            View Sales Statistics
+            View Variants / Inventory
           </Button>
           {!productSales && <Loader />}
           {productSales && (
