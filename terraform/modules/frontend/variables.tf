@@ -24,6 +24,12 @@ variable "IcalPublicDomain" {
   description = "Ical Public Host"
 }
 
+variable "InvoicePaymentPublicDomain" {
+  type        = string
+  description = "Invoice payment public URL domain"
+
+}
+
 variable "LinkryPublicDomains" {
   type        = set(string)
   description = "Linky Public Hosts"

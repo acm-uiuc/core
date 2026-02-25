@@ -113,15 +113,16 @@ module "frontend" {
     "us-east-2" = module.lambdas.core_function_url
     "us-west-2" = module.lambdas_usw2.core_function_url
   }
-  CurrentActiveRegion   = var.current_active_region
-  OriginVerifyKey       = module.origin_verify.current_origin_verify_key
-  ProjectId             = var.ProjectId
-  CoreCertificateArn    = var.CoreCertificateArn
-  CorePublicDomain      = var.CorePublicDomain
-  IcalPublicDomain      = var.IcalPublicDomain
-  LinkryPublicDomains   = [var.LinkryPublicDomain, "acm.gg"]
-  LinkryCertificateArn  = var.LinkryCertificateArn
-  LinkryEdgeFunctionArn = module.lambdas.linkry_redirect_function_arn
+  CurrentActiveRegion        = var.current_active_region
+  OriginVerifyKey            = module.origin_verify.current_origin_verify_key
+  ProjectId                  = var.ProjectId
+  CoreCertificateArn         = var.CoreCertificateArn
+  CorePublicDomain           = var.CorePublicDomain
+  IcalPublicDomain           = var.IcalPublicDomain
+  LinkryPublicDomains        = [var.LinkryPublicDomain, "acm.gg"]
+  LinkryCertificateArn       = var.LinkryCertificateArn
+  LinkryEdgeFunctionArn      = module.lambdas.linkry_redirect_function_arn
+  InvoicePaymentPublicDomain = var.InvoicePaymentPublicDomain
 }
 
 module "assets" {
