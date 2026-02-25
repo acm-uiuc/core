@@ -523,7 +523,7 @@ resource "aws_cloudfront_distribution" "invoice_pay" {
     content {
       origin_id   = "LambdaFunction-${origin.key}"
       domain_name = origin.value
-      origin_path = "/api/v1/stripe/pay/"
+      origin_path = "/api/v1/stripe/pay"
       custom_origin_config {
         http_port              = 80
         https_port             = 443
