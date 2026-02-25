@@ -21,8 +21,9 @@ import {
   Textarea,
 } from "@mantine/core";
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
+import { VariantsModal } from "./VariantsModal";
 import { notifications } from "@mantine/notifications";
-import { IconEye, IconSearch } from "@tabler/icons-react";
+import { IconChartBar, IconEye, IconSearch } from "@tabler/icons-react";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { NameOptionalUserCard } from "@ui/components/NameOptionalCard";
@@ -95,6 +96,10 @@ export const ViewStorePurchasesInternalPage: React.FC<
   const [
     refundModalOpened,
     { open: openRefundModal, close: closeRefundModal },
+  ] = useDisclosure(false);
+  const [
+    variantsModalOpened,
+    { open: openVariantsModal, close: closeVariantsModal },
   ] = useDisclosure(false);
 
   const handleRefundClick = (item: LineItem) => {
@@ -314,6 +319,13 @@ export const ViewStorePurchasesInternalPage: React.FC<
       <Container fluid>
         <Stack gap="md">
           <Title>Sales for {productInfo.name}</Title>
+          <Button
+            leftSection={<IconChartBar size={14} />}
+            onClick={openVariantsModal}
+            style={{ alignSelf: "flex-start" }}
+          >
+            View Variants / Inventory
+          </Button>
           {!productSales && <Loader />}
           {productSales && (
             <>
@@ -355,6 +367,15 @@ export const ViewStorePurchasesInternalPage: React.FC<
             </>
           )}
         </Stack>
+        <VariantsModal
+          opened={variantsModalOpened}
+          onClose={closeVariantsModal}
+          productName={productInfo.name}
+          variants={productInfo.variants}
+          inventoryMode={productInfo.inventoryMode}
+          totalInventoryCount={productInfo.totalInventoryCount}
+          totalSoldCount={productInfo.totalSoldCount}
+        />
         <Modal
           opened={refundModalOpened}
           onClose={closeRefundModal}
