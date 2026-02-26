@@ -16,7 +16,7 @@ const certificateIssuerRoutes: FastifyPluginAsync = async (
         [],
         withTags(["Certificate Issuer"], {
           body: z.undefined(),
-          summary: "Issue an emphemeral SSH certificate.",
+          summary: "Issue an ephemeral SSH certificate.",
         }),
       ),
       onRequest: fastify.authorizeFromSchema,

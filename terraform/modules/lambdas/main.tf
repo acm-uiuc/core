@@ -564,3 +564,7 @@ output "core_sqs_consumer_lambda_name" {
 output "linkry_redirect_function_arn" {
   value = local.is_primary_deployment ? aws_lambda_function.linkry_edge[0].qualified_arn : ""
 }
+
+output "core_api_execution_role_arn" {
+  value = aws_iam_role.api_role.arn
+}

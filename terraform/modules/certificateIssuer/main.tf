@@ -6,6 +6,10 @@ resource "aws_kms_key" "primary" {
   customer_master_key_spec = "RSA_4096"
   is_enabled               = true
   deletion_window_in_days  = var.DeletionWindowInDays
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = []
+  })
 }
 
 resource "aws_kms_alias" "primary" {
@@ -51,4 +55,15 @@ resource "aws_iam_policy" "kms_sign" {
 
 output "kms_sign_policy_arn" {
   value = aws_iam_policy.kms_sign.arn
+}
+
+output "kms_key_arns" {
+  value = merge(
+    { (var.PrimaryRegion) = aws_kms_key.primary.arn },
+    { for region, replica in aws_kms_replica_key.replica : region => replica.arn }
+  )
+}
+
+output "primary_key_id" {
+  value = aws_kms_key.primary.key_id
 }
