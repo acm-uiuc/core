@@ -47,7 +47,7 @@ resource "aws_iam_policy" "kms_sign" {
         Effect = "Allow"
         Action = ["kms:Sign", "kms:GetPublicKey"]
         Resource = [
-          for region in concat([var.PrimaryRegion], var.SecondaryRegions) :
+          for region in concat([var.PrimaryRegion], tolist(var.SecondaryRegions)) :
           "arn:aws:kms:${region}:${data.aws_caller_identity.current.account_id}:key/${aws_kms_key.primary.key_id}"
         ]
       }
