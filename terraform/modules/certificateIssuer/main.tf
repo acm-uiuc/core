@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 resource "aws_kms_key" "primary" {
   description              = var.Description
   multi_region             = true
