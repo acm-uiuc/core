@@ -14,8 +14,8 @@ resource "aws_kms_alias" "primary" {
 }
 
 resource "aws_kms_replica_key" "replica" {
-  for_each = toset(var.SecondaryRegions)
-  region = each.value
+  for_each                = toset(var.SecondaryRegions)
+  region                  = each.value
   primary_key_arn         = aws_kms_key.primary.arn
   description             = "${var.Description} (replica)"
   enabled                 = true
@@ -23,14 +23,14 @@ resource "aws_kms_replica_key" "replica" {
 }
 
 resource "aws_kms_alias" "replica" {
-  for_each = toset(var.SecondaryRegions)
-  region = each.value
+  for_each      = toset(var.SecondaryRegions)
+  region        = each.value
   name          = "alias/${var.AliasName}"
   target_key_id = aws_kms_replica_key.replica[each.key].key_id
 }
 
 resource "aws_iam_policy" "kms_sign" {
-  name = "${var.AliasName}-sign"
+  name        = "${var.AliasName}-sign"
   description = "Allows kms:Sign and kms:GetPublicKey on all regions of the ${var.AliasName} KMS key"
 
   policy = jsonencode({

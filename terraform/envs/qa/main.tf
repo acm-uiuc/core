@@ -138,10 +138,10 @@ module "assets" {
 }
 
 module "certificateIssuer" {
-  source       = "../../modules/certificateIssuer"
-  ProjectId                  = var.ProjectId
-  RunEnvironment = local.deployment_env
-  PrimaryRegion = "us-east-2"
+  source           = "../../modules/certificateIssuer"
+  ProjectId        = var.ProjectId
+  RunEnvironment   = local.deployment_env
+  PrimaryRegion    = "us-east-2"
   SecondaryRegions = toset(["us-west-2"])
 }
 

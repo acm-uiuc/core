@@ -12,15 +12,15 @@ variable "RunEnvironment" {
 }
 
 variable "PrimaryRegion" {
-  type = string
+  type        = string
   description = "primary deployment region"
-  default = "us-east-2"
+  default     = "us-east-2"
 }
 
 variable "SecondaryRegions" {
-  type = set(string)
+  type        = set(string)
   description = "secondary deployment regions"
-  default = toset(["us-west-2"])
+  default     = toset(["us-west-2"])
 }
 
 
@@ -39,6 +39,6 @@ variable "Description" {
 
 variable "AliasName" {
   type        = string
-  default = "infra-core-api-certificate-root-key"
+  default     = "infra-core-api-certificate-root-key"
   description = "Alias name suffix (will be prefixed with 'alias/')"
 }
