@@ -71,6 +71,7 @@ export type GenericConfigType = {
   StoreInventoryTableName: string;
   StoreCartsOrdersTableName: string;
   StoreLimitsTableName: string;
+  CertificateKmsKey: string;
 };
 
 type EnvironmentConfigType = {
@@ -116,6 +117,7 @@ const genericConfig: GenericConfigType = {
   StoreInventoryTableName: "infra-core-api-store-inventory",
   StoreCartsOrdersTableName: "infra-core-api-store-carts",
   StoreLimitsTableName: "infra-core-api-store-limits",
+  CertificateKmsKey: 'alias/infra-core-api-certificate-root-key'
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
