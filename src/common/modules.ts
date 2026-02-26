@@ -12,6 +12,7 @@ export enum Modules {
   EXTERNAL_MEMBERSHIP = "externalMembership",
   ORG_INFO = "orgInfo",
   STORE = "store",
+  CERTIFICATE_ISSUER = "certificateIssuer"
 }
 
 export const ModulesToHumanName: Record<Modules, string> = {
@@ -28,4 +29,5 @@ export const ModulesToHumanName: Record<Modules, string> = {
   [Modules.EXTERNAL_MEMBERSHIP]: "External Membership",
   [Modules.ORG_INFO]: "Organization Info & Leads",
   [Modules.STORE]: "Store",
+  [Modules.CERTIFICATE_ISSUER]: "Certificate Issuer",
 };

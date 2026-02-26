@@ -137,6 +137,15 @@ module "assets" {
   CoreCertificateArn       = var.CoreCertificateArn
 }
 
+module "certificateIssuer" {
+  source       = "../../modules/certificateIssuer"
+  ProjectId                  = var.ProjectId
+  RunEnvironment = local.deployment_env
+  PrimaryRegion = "us-east-2"
+  SecondaryRegions = toset(["us-west-2"])
+}
+
+
 // Multi-Region Failover: US-West-2
 
 module "lambdas_usw2" {
