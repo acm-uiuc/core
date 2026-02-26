@@ -2385,7 +2385,7 @@ export async function expireCheckoutSession({
   const transactCommand = new TransactWriteItemsCommand({
     TransactItems: [
       {
-        ConditionCheck: {
+        Delete: {
           TableName: genericConfig.StoreCartsOrdersTableName,
           Key: {
             orderId: { S: orderId },
@@ -2396,7 +2396,7 @@ export async function expireCheckoutSession({
           ExpressionAttributeValues: { ":pending": { S: "PENDING" } },
         },
       },
-      ...Items.map((item) => ({
+      ...Items.filter((item) => item.lineItemId.S !== "ORDER").map((item) => ({
         Delete: {
           TableName: genericConfig.StoreCartsOrdersTableName,
           Key: {
@@ -2412,9 +2412,15 @@ export async function expireCheckoutSession({
     await dynamoClient.send(transactCommand);
   } catch (error) {
     if (error instanceof TransactionCanceledException) {
-      throw new ValidationError({
-        message: `Order ${orderId} is not in PENDING status`,
-      });
+      const reasons = error.CancellationReasons ?? [];
+      const conditionFailed = reasons.some(
+        (r) => r.Code === "ConditionalCheckFailed",
+      );
+      if (conditionFailed) {
+        throw new ValidationError({
+          message: `Order ${orderId} is not in PENDING status`,
+        });
+      }
     }
     logger.error(error);
     throw error;

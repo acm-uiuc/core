@@ -20,7 +20,7 @@ variable "PrimaryRegion" {
 variable "SecondaryRegions" {
   type        = set(string)
   description = "secondary deployment regions"
-  default     = toset(["us-west-2"])
+  default     = ["us-west-2"]
 }
 
 
