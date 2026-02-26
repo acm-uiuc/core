@@ -6,7 +6,6 @@ import {
 } from "../../../src/api/functions/github.js";
 import { GithubError } from "../../../src/common/errors/index.js";
 import * as utils from "../../../src/api/utils.js";
-import { RequestError } from "@octokit/request-error";
 
 // Mock dependencies
 vi.mock("octokit");
@@ -374,18 +373,16 @@ describe("assignIdpGroupsToTeam", () => {
       GithubError
     );
     expect(mockLogger.error).toHaveBeenCalledWith(
-      expect.anything(),
       "Failed to assign IdP groups to team 123"
     );
   });
 
   it("should exit gracefully if team sync is not available (404)", async () => {
     // Mock team sync availability check returning 404
-    mockOctokit.request.mockRejectedValueOnce(
-      new RequestError("Not Found", 404, {
-        request: { method: "GET", url: "/", headers: {} },
-      })
-    );
+    mockOctokit.request.mockRejectedValueOnce({
+      status: 404,
+      message: "Not Found",
+    });
 
     await assignIdpGroupsToTeam(defaultInputs);
 
@@ -413,11 +410,10 @@ describe("assignIdpGroupsToTeam", () => {
     });
 
     // Mock PATCH request returning 404
-    mockOctokit.request.mockRejectedValueOnce(
-      new RequestError("Not Found", 404, {
-        request: { method: "PATCH", url: "/", headers: {} },
-      })
-    );
+    mockOctokit.request.mockRejectedValueOnce({
+      status: 404,
+      message: "Not Found",
+    });
 
     await assignIdpGroupsToTeam({
       ...defaultInputs,

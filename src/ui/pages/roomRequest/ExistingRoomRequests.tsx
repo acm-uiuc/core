@@ -3,17 +3,10 @@ import {
   RoomRequestListResponse,
   formatStatus,
 } from "@common/types/roomRequest";
-import { Badge, Loader } from "@mantine/core";
+import { Badge, Loader, Table } from "@mantine/core";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getStatusColor } from "./roomRequestUtils";
 import { Organizations } from "@acm-uiuc/js-shared";
-import {
-  ResponsiveTable,
-  Column,
-  useTableSort,
-} from "@ui/components/ResponsiveTable";
-
-type RoomRequestItem = RoomRequestListResponse[number];
 
 interface ExistingRoomRequestsProps {
   getRoomRequests: (semester: string) => Promise<RoomRequestListResponse>;
@@ -27,8 +20,6 @@ const ExistingRoomRequests: React.FC<ExistingRoomRequestsProps> = ({
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const onlySccs = searchParams.get("onlySccs") === "true";
-  const { sortBy, reversedSort, handleSort, sortData } =
-    useTableSort<RoomRequestItem>();
 
   useEffect(() => {
     const inner = async () => {
@@ -38,63 +29,53 @@ const ExistingRoomRequests: React.FC<ExistingRoomRequestsProps> = ({
   }, [semester]);
 
   const filteredData = data
-    ? sortData(
-        onlySccs ? data.filter((item) => item.requestsSccsRoom) : data,
-        (a, b, key) => {
-          const aVal =
-            key === "host"
-              ? Organizations[a.host].name
-              : String(a[key as keyof RoomRequestItem] ?? "");
-          const bVal =
-            key === "host"
-              ? Organizations[b.host].name
-              : String(b[key as keyof RoomRequestItem] ?? "");
-          return aVal.localeCompare(bVal);
-        },
-      )
+    ? onlySccs
+      ? data.filter((item) => item.requestsSccsRoom)
+      : data
     : null;
 
-  const columns: Column<RoomRequestItem>[] = [
-    {
-      key: "title",
-      label: "Name",
-      isPrimaryColumn: true,
-      render: (item) => item.title,
-    },
-    {
-      key: "host",
-      label: "Host",
-      render: (item) => Organizations[item.host].name,
-      sortable: true,
-    },
-    {
-      key: "status",
-      label: "Status",
-      render: (item) => (
-        <Badge color={getStatusColor(item.status)}>
-          {formatStatus(item.status)}
-        </Badge>
-      ),
-      sortable: true,
-    },
-  ];
-
-  if (!filteredData) {
-    return <Loader size={32} />;
-  }
-
   return (
-    <ResponsiveTable
-      data={filteredData}
-      columns={columns}
-      keyExtractor={(item) => item.requestId}
-      onRowClick={(item) =>
-        navigate(`/roomRequests/${item.semester}/${item.requestId}`)
-      }
-      onSort={handleSort}
-      sortBy={sortBy}
-      sortReversed={reversedSort}
-    />
+    <>
+      <Table>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>Name</Table.Th>
+            <Table.Th>Host</Table.Th>
+            <Table.Th>Status</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        {!data && <Loader size={32} />}
+        {filteredData && (
+          <Table.Tbody>
+            {filteredData.map((item) => {
+              return (
+                <Table.Tr key={item.requestId}>
+                  <Table.Td
+                    onClick={() =>
+                      navigate(
+                        `/roomRequests/${item.semester}/${item.requestId}`,
+                      )
+                    }
+                    style={{
+                      cursor: "pointer",
+                      color: "var(--mantine-color-blue-6)",
+                    }}
+                  >
+                    {item.title}
+                  </Table.Td>
+                  <Table.Td>{Organizations[item.host].name}</Table.Td>
+                  <Table.Td>
+                    <Badge color={getStatusColor(item.status)}>
+                      {formatStatus(item.status)}
+                    </Badge>
+                  </Table.Td>
+                </Table.Tr>
+              );
+            })}
+          </Table.Tbody>
+        )}
+      </Table>
+    </>
   );
 };
 

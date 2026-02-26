@@ -238,13 +238,3 @@ jobs:
         run: npm install -g npm@latest
       - name: Publish TypeScript client
         run: cd dist/clients/typescript-fetch && npm publish --provenance --access public
-
-  notify:
-    needs: [deploy-prod, publish-node-client, test-unit, build, test-e2e]
-    runs-on: ubuntu-latest
-    if: failure()
-    steps:
-      - uses: lacherogwu/failed-jobs-discord-notification-action@v1
-        with:
-          discord_webhook_url: ${{ secrets.DISCORD_NOTIFICATION_WEBHOOK_URL }}
-          needs_json: ${{ toJSON(needs) }}

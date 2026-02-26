@@ -239,17 +239,14 @@ export function ResponsiveTable<T>({
 }
 
 // Hook for sorting logic
-export function useTableSort<T>(
-  initialSortBy: string | null = null,
-  initialReversed: boolean = false,
-): {
+export function useTableSort<T>(initialSortBy: string | null = null): {
   sortBy: string | null;
   reversedSort: boolean;
   handleSort: (field: string) => void;
   sortData: (data: T[], sortFn: (a: T, b: T, sortBy: string) => number) => T[];
 } {
   const [sortBy, setSortBy] = useState<string | null>(initialSortBy);
-  const [reversedSort, setReversedSort] = useState(initialReversed);
+  const [reversedSort, setReversedSort] = useState(false);
 
   const handleSort = (field: string) => {
     if (sortBy === field) {

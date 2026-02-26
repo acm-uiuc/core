@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+import { fileURLToPath } from "url";
 import path from "node:path";
 import { writeFile, mkdir, rm } from "fs/promises";
 import init from "./server.js"; // Assuming this is your Fastify app initializer

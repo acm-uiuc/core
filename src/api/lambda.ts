@@ -3,7 +3,6 @@ import init, { instanceId } from "./server.js";
 import { ValidationError } from "common/errors/index.js";
 import { Readable } from "node:stream";
 import middy, { executionModeStreamifyResponse } from "@middy/core";
-import { APIGatewayProxyEventV2, Context } from "aws-lambda";
 
 // Initialize the proxy with the payloadAsStream option
 const app = await init();
@@ -37,13 +36,11 @@ const validateOriginHeader = (
   return false;
 };
 
-const lambdaHandler = async (event: unknown, context: Context) => {
+const lambdaHandler = async (event: any, context: any) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
-  const typedEvent = event as APIGatewayProxyEventV2;
-
   // 1. Handle warmer action
-  if ("action" in typedEvent && typedEvent.action === "warmer") {
+  if ("action" in event && event.action === "warmer") {
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
@@ -59,7 +56,7 @@ const lambdaHandler = async (event: unknown, context: Context) => {
       process.env.PREVIOUS_ORIGIN_VERIFY_KEY_EXPIRES_AT;
 
     const isValid = validateOriginHeader(
-      typedEvent.headers?.["x-origin-verify"] || "",
+      event.headers?.["x-origin-verify"],
       currentKey,
       previousKey,
       previousKeyExpiresAt,
@@ -75,11 +72,11 @@ const lambdaHandler = async (event: unknown, context: Context) => {
         body: Readable.from(Buffer.from(body)),
       };
     }
-    delete typedEvent.headers["x-origin-verify"];
+    delete event.headers["x-origin-verify"];
   }
 
   // 3. Call the proxy and return the streaming response
-  const { stream, meta } = await proxy(typedEvent, context);
+  const { stream, meta } = await proxy(event, context);
 
   // Fix issue with Lambda where streaming responses always require a body to be present
   const body =

@@ -16,10 +16,10 @@ async function checkRedisMode(url: string): Promise<RedisMode> {
     try {
       await testModule.set(testKey, "test", "EX", 1);
       return "read-write";
-    } catch {
+    } catch (writeError) {
       return "read-only";
     }
-  } catch {
+  } catch (error) {
     return "down";
   } finally {
     if (testModule) {

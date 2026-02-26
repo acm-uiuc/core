@@ -25,20 +25,20 @@ const toUtcIsoStringWithoutMillis = (date: Date): string => {
  * that extract a meaningful timestamp from a record. The function should
  * return a value parseable by the `Date` constructor (e.g., ISO 8601 string or epoch milliseconds).
  */
-type ArchiveRecord = Record<string, unknown>;
-type TimestampExtractor = (record: ArchiveRecord) => string | number;
-
-const ARCHIVE_TIMESTAMP_MAPPER: Record<string, TimestampExtractor> = {
+const ARCHIVE_TIMESTAMP_MAPPER: Record<
+  string,
+  (record: Record<string, any>) => string | number
+> = {
   "infra-core-api-room-requests-status": (record) =>
-    (record["createdAt#status"] as string).split("#")[0],
-  "infra-core-api-events": (record) => record.createdAt as string,
-  "infra-core-api-audit-log": (record) => (record.createdAt as number) * 1000, // Convert Unix seconds to milliseconds
+    record["createdAt#status"].split("#")[0],
+  "infra-core-api-events": (record) => record.createdAt,
+  "infra-core-api-audit-log": (record) => record.createdAt * 1000, // Convert Unix seconds to milliseconds
 };
 
 export const handler = async (
   event: DynamoDBStreamEvent,
   _context: Context,
-) => {
+): Promise<any> => {
   const firehoseRecordsToSend: { Data: Buffer }[] = [];
 
   for (const record of event.Records) {
@@ -69,7 +69,7 @@ export const handler = async (
       );
 
       // 4. **Construct the Payload**: Add metadata to the original record data.
-      const payload = {
+      const payload: Record<string, any> = {
         ...deserializedData,
         __infra_archive_resource: tableName,
         __infra_archive_timestamp: toUtcIsoStringWithoutMillis(new Date()), // Default timestamp is 'now'

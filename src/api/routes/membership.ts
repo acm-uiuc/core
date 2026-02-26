@@ -1,6 +1,10 @@
 import {
+  checkExternalMembership,
+  checkPaidMembershipFromTable,
+  MEMBER_CACHE_SECONDS,
   getExternalMemberList,
   patchExternalMemberList,
+  checkPaidMembership,
   checkMemberOfAnyList,
 } from "api/functions/membership.js";
 import { FastifyPluginAsync } from "fastify";
@@ -21,6 +25,7 @@ import rawbody from "fastify-raw-body";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
 import { illinoisNetId, withRoles, withTags } from "api/components/index.js";
+import { getKey, setKey } from "api/functions/redisCache.js";
 import { AppRoles } from "common/roles.js";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { verifyUiucAccessToken } from "api/functions/uin.js";

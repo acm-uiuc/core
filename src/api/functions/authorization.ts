@@ -4,6 +4,8 @@ import { genericConfig } from "../../common/config.js";
 import {
   BaseError,
   DatabaseFetchError,
+  InternalServerError,
+  UnauthenticatedError,
   UnauthorizedError,
 } from "../../common/errors/index.js";
 import {

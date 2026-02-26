@@ -1,7 +1,6 @@
 import {
   type AttributeValue,
   BatchGetItemCommand,
-  ConditionalCheckFailedException,
   DynamoDBClient,
   GetItemCommand,
   QueryCommand,
@@ -15,7 +14,6 @@ import {
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
 import {
-  BaseError,
   InsufficientInventoryError,
   ItemNotAvailableError,
   LimitExceededError,
@@ -660,13 +658,12 @@ export async function createStoreCheckout({
           "Once your order is confirmed, you will receive a confirmation email to the provided email address.",
       },
     },
-    expiresInSec: 3600,
   };
 
   let checkoutUrl: string;
   if (isVerifiedIdentity && stripeCustomerId) {
     // Use existing Stripe customer (only for verified identities)
-    logger.debug(
+    logger.info(
       { userId, stripeCustomerId },
       "Using existing Stripe customer for verified identity",
     );
@@ -678,10 +675,7 @@ export async function createStoreCheckout({
     });
   } else {
     // Use email-based checkout (for unverified or no existing customer)
-    logger.debug(
-      { userId, isVerifiedIdentity },
-      "Creating checkout with email",
-    );
+    logger.info({ userId, isVerifiedIdentity }, "Creating checkout with email");
     checkoutUrl = await createCheckoutSession({
       ...checkoutParams,
       customerEmail: userId,
@@ -726,6 +720,7 @@ export async function processStorePaymentSuccess(
     requestId,
     eventId,
     isVerifiedIdentity,
+    sqsQueueUrl,
   } = props;
   const now = Math.floor(Date.now() / 1000);
   // 1. Get order details
@@ -994,15 +989,8 @@ export async function processStorePaymentSuccess(
         "ProcessStorePaymentSuccess",
       );
       logger.info({ orderId }, "Inventory reserved, order in CAPTURING state");
-    } catch (error) {
-      logger.error(
-        { error, orderId },
-        "Error during inventory reservation transaction",
-      );
-      if (error instanceof BaseError) {
-        throw error;
-      }
-      if (error instanceof TransactionCanceledException) {
+    } catch (error: any) {
+      if (error.name === "TransactionCanceledException") {
         const reasons = error.CancellationReasons || [];
 
         // Check if order status condition failed (already processed)
@@ -1014,7 +1002,7 @@ export async function processStorePaymentSuccess(
 
         // Check for Conditional Failures in inventory or limits
         const failedIndex = reasons.findIndex(
-          (r, index: number) =>
+          (r: any, index: number) =>
             index > 0 && r.Code === "ConditionalCheckFailed",
         );
 
@@ -1202,18 +1190,15 @@ export async function processStorePaymentSuccess(
       }),
     );
     logger.info({ orderId }, "Order completed successfully - status ACTIVE");
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === "ConditionalCheckFailedException") {
+      logger.warn({ orderId }, "Order already ACTIVE");
+      return; // Success, already completed
+    }
     logger.error(
       { error, orderId },
       "Failed to update order to ACTIVE after capture",
     );
-    if (error instanceof BaseError) {
-      throw error;
-    }
-    if (error instanceof ConditionalCheckFailedException) {
-      logger.warn({ orderId }, "Order already ACTIVE");
-      return; // Success, already completed
-    }
     throw new InternalServerError({
       message: "Failed to finalize order status",
     });
@@ -1837,7 +1822,6 @@ export type RefundOrderInputs = {
   logger: ValidLoggers;
   stripeApiKey: string;
   releaseInventory: boolean;
-  justification: string;
 };
 
 export async function refundOrder({
@@ -1847,7 +1831,6 @@ export async function refundOrder({
   logger,
   stripeApiKey,
   releaseInventory,
-  justification,
 }: RefundOrderInputs) {
   const order = await getOrder({
     orderId,
@@ -2118,7 +2101,7 @@ export async function refundOrder({
       module: Modules.STORE,
       actor,
       target: orderId,
-      message: `Refunded order${releaseInventory ? " and released inventory" : ""}. Justification: ${justification}`,
+      message: `Refunded order${releaseInventory ? " and released inventory" : ""}.`,
     },
   });
 
@@ -2342,87 +2325,6 @@ export async function fulfillLineItems({
         });
       }
     }
-    throw error;
-  }
-}
-
-export type ExpireCheckoutSessionInputs = {
-  orderId: string;
-  dynamoClient: DynamoDBClient;
-  logger: ValidLoggers;
-};
-
-/**
- * Expire a pending checkout session before it is picked up by DynamoDB's TTL.
- * @param param0 The order ID to expire, logger instance, and a Dynamo DB client
- * @returns
- */
-export async function expireCheckoutSession({
-  orderId,
-  dynamoClient,
-  logger,
-}: ExpireCheckoutSessionInputs) {
-  const queryCommand = new QueryCommand({
-    TableName: genericConfig.StoreCartsOrdersTableName,
-    KeyConditionExpression: "orderId = :orderId",
-    ProjectionExpression: "orderId, lineItemId",
-    ExpressionAttributeValues: {
-      ":orderId": { S: orderId },
-    },
-  });
-
-  const { Items } = await dynamoClient.send(queryCommand);
-
-  if (!Items) {
-    return;
-  }
-
-  logger.debug({ orderId }, `Found ${Items.length} line items to delete.`);
-  if (Items.length === 0) {
-    return;
-  }
-
-  const transactCommand = new TransactWriteItemsCommand({
-    TransactItems: [
-      {
-        Delete: {
-          TableName: genericConfig.StoreCartsOrdersTableName,
-          Key: {
-            orderId: { S: orderId },
-            lineItemId: { S: "ORDER" },
-          },
-          ConditionExpression: "#status = :pending",
-          ExpressionAttributeNames: { "#status": "status" },
-          ExpressionAttributeValues: { ":pending": { S: "PENDING" } },
-        },
-      },
-      ...Items.filter((item) => item.lineItemId.S !== "ORDER").map((item) => ({
-        Delete: {
-          TableName: genericConfig.StoreCartsOrdersTableName,
-          Key: {
-            orderId: { S: item.orderId.S! },
-            lineItemId: { S: item.lineItemId.S! },
-          },
-        },
-      })),
-    ],
-  });
-
-  try {
-    await dynamoClient.send(transactCommand);
-  } catch (error) {
-    if (error instanceof TransactionCanceledException) {
-      const reasons = error.CancellationReasons ?? [];
-      const conditionFailed = reasons.some(
-        (r) => r.Code === "ConditionalCheckFailed",
-      );
-      if (conditionFailed) {
-        throw new ValidationError({
-          message: `Order ${orderId} is not in PENDING status`,
-        });
-      }
-    }
-    logger.error(error);
     throw error;
   }
 }

@@ -48,7 +48,6 @@ export type StripeCheckoutSessionCreateParams = {
   customText?: Stripe.Checkout.SessionCreateParams.CustomText;
   statementDescriptorSuffix: MaxLengthString<7>;
   delayedSettlementAllowed: boolean;
-  expiresInSec?: number;
 };
 
 export type StripeCheckoutSessionCreateWithCustomerParams =
@@ -125,7 +124,6 @@ export const createCheckoutSession = async ({
   captureMethod,
   customText,
   statementDescriptorSuffix,
-  expiresInSec,
 }: StripeCheckoutSessionCreateParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
@@ -148,9 +146,6 @@ export const createCheckoutSession = async ({
     allow_promotion_codes: allowPromotionCodes,
     custom_text: customText,
     custom_fields: customFields,
-    ...(expiresInSec && {
-      expires_at: Math.ceil(Date.now() / 1000) + expiresInSec + 5,
-    }), // grant 5 second grace period in expiry
     payment_intent_data: {
       ...(captureMethod && { capture_method: captureMethod }),
       statement_descriptor_suffix: statementDescriptorSuffix,
@@ -178,7 +173,6 @@ export const createCheckoutSessionWithCustomer = async ({
   captureMethod,
   customText,
   statementDescriptorSuffix,
-  expiresInSec,
 }: StripeCheckoutSessionCreateWithCustomerParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: Stripe.Checkout.SessionCreateParams = {
@@ -198,9 +192,6 @@ export const createCheckoutSessionWithCustomer = async ({
       ...(metadata || {}),
       initiator,
     },
-    ...(expiresInSec && {
-      expires_at: Math.ceil(Date.now() / 1000) + expiresInSec + 5,
-    }), // grant 5 second grace period in expiry
     allow_promotion_codes: allowPromotionCodes,
     custom_text: customText,
     custom_fields: customFields,
@@ -472,11 +463,7 @@ export const refundOrCancelPaymentIntent = async ({
   }
 };
 
-export const shouldRetryStripeError = (error: unknown): boolean => {
-  if (!(error instanceof Stripe.errors.StripeError)) {
-    return false;
-  }
-
+export const shouldRetryStripeError = (error: any): boolean => {
   if (error.type === "StripeConnectionError") {
     return true;
   }

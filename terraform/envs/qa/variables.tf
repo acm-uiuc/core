@@ -63,8 +63,3 @@ variable "current_active_region" {
     error_message = "Invalid value for current_active_region"
   }
 }
-
-variable "InvoicePaymentPublicDomain" {
-  type    = string
-  default = "invoice.aws.qa.acmuiuc.org"
-}

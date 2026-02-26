@@ -25,6 +25,7 @@ import {
   DatabaseInsertError,
   InternalServerError,
   NotFoundError,
+  UnauthenticatedError,
   UnauthorizedError,
   ValidationError,
 } from "common/errors/index.js";

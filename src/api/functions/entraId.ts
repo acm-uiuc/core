@@ -741,7 +741,6 @@ export async function createM365Group(
   mailNickname: string,
   memberUpns: string[] = [],
   runEnvironment: RunEnvironment,
-  logger: ValidLoggers,
 ): Promise<string> {
   const groupSuffix = environmentConfig[runEnvironment].GroupSuffix;
   const groupEmailSuffix = environmentConfig[runEnvironment].GroupEmailSuffix;
@@ -887,13 +886,13 @@ export async function createM365Group(
         const errorData = (await addOwnerResponse.json()) as {
           error?: { message?: string };
         };
-        logger.warn(
+        console.warn(
           `Failed to add service principal as owner: ${errorData?.error?.message ?? addOwnerResponse.statusText}`,
         );
         // Don't throw here - group was created successfully, owner addition is non-critical
       }
     } catch (ownerError) {
-      logger.warn(ownerError, `Failed to add service principal as owner`);
+      console.warn(`Failed to add service principal as owner:`, ownerError);
       // Don't throw - group was created successfully
     }
 

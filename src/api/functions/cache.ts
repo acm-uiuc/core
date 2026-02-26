@@ -67,7 +67,7 @@ export async function atomicIncrementCacheCounter(
   const expressionAttributeNames: { [key: string]: string } = {
     "#counterValue": "counterValue",
   };
-  const expressionAttributeValues: { [key: string]: string | number } = {
+  const expressionAttributeValues: { [key: string]: any } = {
     ":increment": amount,
   };
   if (expiresAt) {

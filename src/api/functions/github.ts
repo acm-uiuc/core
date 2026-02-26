@@ -3,17 +3,6 @@ import { sleep } from "api/utils.js";
 import { BaseError, GithubError } from "common/errors/index.js";
 import { Octokit } from "octokit";
 import { createAppAuth } from "@octokit/auth-app";
-import { RequestError } from "@octokit/request-error";
-
-interface TeamSyncGroup {
-  group_id: string;
-  group_name: string;
-  group_description: string;
-}
-
-interface TeamSyncGroupsResponse {
-  groups: TeamSyncGroup[];
-}
 
 export interface GithubAppAuth {
   appId: number;
@@ -66,8 +55,10 @@ async function findIdpGroupWithRetry({
         },
       );
 
-      const data = response.data as TeamSyncGroupsResponse;
-      const group = data.groups?.find((g) => g.group_id === groupId);
+      // Search for the group by ID
+      const group = response.data.groups?.find(
+        (g: any) => g.group_id === groupId,
+      );
 
       if (group) {
         logger.info(`Found IdP group: ${group.group_name}`);
@@ -108,6 +99,40 @@ async function findIdpGroupWithRetry({
   }
 
   return null;
+}
+
+async function resolveTeamIdToSlug({
+  octokit,
+  orgId,
+  teamId,
+  logger,
+}: {
+  octokit: Octokit;
+  orgId: number;
+  teamId: number;
+  logger: ValidLoggers;
+}): Promise<string> {
+  try {
+    logger.info(`Resolving team ID ${teamId} to slug`);
+    const response = await octokit.request(
+      "GET /organizations/{org}/team/{team_id}",
+      {
+        org: orgId,
+        team_id: teamId,
+        headers: {
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      },
+    );
+    const slug = response.data.slug;
+    logger.info(`Resolved team ID ${teamId} to slug: ${slug}`);
+    return slug;
+  } catch (error) {
+    logger.error(`Failed to resolve team ID ${teamId} to slug:`, error);
+    throw new GithubError({
+      message: `Failed to resolve team ID ${teamId} to slug`,
+    });
+  }
 }
 
 export async function createGithubTeam({
@@ -207,15 +232,8 @@ export async function assignIdpGroupsToTeam({
         },
       );
       logger.info("Team sync is available for this team");
-    } catch (checkError) {
-      logger.error(
-        checkError,
-        `Failed to check team sync availability for team ${teamId}`,
-      );
-      if (checkError instanceof BaseError) {
-        throw checkError;
-      }
-      if (checkError instanceof RequestError && checkError.status === 404) {
+    } catch (checkError: any) {
+      if (checkError.status === 404) {
         logger.warn(
           `Team sync is not available for team ${teamId}. This could mean:
           1. The organization doesn't have SAML SSO properly configured
@@ -263,18 +281,20 @@ export async function assignIdpGroupsToTeam({
     );
 
     logger.info(`Successfully mapped IdP groups to team ${teamId}`);
-  } catch (e) {
-    logger.error(e, `Failed to assign IdP groups to team ${teamId}`);
+  } catch (e: any) {
     if (e instanceof BaseError) {
       throw e;
     }
 
-    if (e instanceof RequestError && e.status === 404) {
+    if (e.status === 404) {
       logger.warn(
         `Team sync endpoint not available for team ${teamId}. IdP groups were not assigned.`,
       );
       return;
     }
+
+    logger.error(`Failed to assign IdP groups to team ${teamId}`);
+    logger.error(e);
     throw new GithubError({
       message: `Failed to assign IdP groups to team ${teamId}`,
     });

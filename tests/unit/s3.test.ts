@@ -8,21 +8,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   createPresignedPut,
   createPresignedGet,
-} from "../../../src/api/functions/s3.js";
-import { InternalServerError } from "../../../src/common/errors/index.js";
-import { ValidLoggers } from "../../../src/api/types.js";
-
-const mockLogger = {
-  debug: vi.fn(),
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  trace: vi.fn(),
-  fatal: vi.fn(),
-  child: vi.fn(),
-  silent: vi.fn(),
-  level: "debug",
-} as unknown as ValidLoggers;
+} from "../../src/api/functions/s3.js";
+import { InternalServerError } from "../../src/common/errors/index.js";
 
 // Mock the getSignedUrl function from AWS SDK
 // Note: We use vi.mock here instead of aws-sdk-client-mock because
@@ -51,7 +38,6 @@ describe("S3 Presigned URL Functions", () => {
         key: "test-key",
         length: 1024,
         mimeType: "application/pdf",
-        logger: mockLogger,
       });
 
       expect(result).toBe(mockUrl);
@@ -74,7 +60,6 @@ describe("S3 Presigned URL Functions", () => {
         length: 2048,
         mimeType: "image/png",
         urlExpiresIn: 3600,
-        logger: mockLogger,
       });
 
       expect(result).toBe(mockUrl);
@@ -96,7 +81,6 @@ describe("S3 Presigned URL Functions", () => {
         length: 512,
         mimeType: "application/pdf",
         md5hash: "base64-encoded-hash",
-        logger: mockLogger,
       });
 
       expect(result).toBe(mockUrl);
@@ -115,7 +99,6 @@ describe("S3 Presigned URL Functions", () => {
           key: "test-key",
           length: 1024,
           mimeType: "application/pdf",
-          logger: mockLogger,
         }),
       ).rejects.toThrow(InternalServerError);
 
@@ -128,7 +111,6 @@ describe("S3 Presigned URL Functions", () => {
           key: "test-key",
           length: 1024,
           mimeType: "application/pdf",
-          logger: mockLogger,
         }),
       ).rejects.toThrow("Could not create S3 upload presigned url.");
     });
@@ -145,7 +127,6 @@ describe("S3 Presigned URL Functions", () => {
         s3client: mockS3Client,
         bucketName: "test-bucket",
         key: "test-key",
-        logger: mockLogger,
       });
 
       expect(result).toBe(mockUrl);
@@ -167,7 +148,6 @@ describe("S3 Presigned URL Functions", () => {
         bucketName: "test-bucket",
         key: "test-key",
         urlExpiresIn: 1800,
-        logger: mockLogger,
       });
 
       expect(result).toBe(mockUrl);
@@ -188,7 +168,6 @@ describe("S3 Presigned URL Functions", () => {
           s3client: mockS3Client,
           bucketName: "test-bucket",
           key: "test-key",
-          logger: mockLogger,
         }),
       ).rejects.toThrow(InternalServerError);
 
@@ -199,7 +178,6 @@ describe("S3 Presigned URL Functions", () => {
           s3client: mockS3Client,
           bucketName: "test-bucket",
           key: "test-key",
-          logger: mockLogger,
         }),
       ).rejects.toThrow("Could not create S3 download presigned url.");
     });

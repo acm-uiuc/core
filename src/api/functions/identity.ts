@@ -1,4 +1,8 @@
-import { BatchGetItemCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  BatchGetItemCommand,
+  DynamoDBClient,
+  GetItemCommand,
+} from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { ValidLoggers } from "api/types.js";
 import { genericConfig } from "common/config.js";

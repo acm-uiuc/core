@@ -16,8 +16,10 @@ import { PKPass } from "passkit-generator";
 import { promises as fs } from "fs";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { RunEnvironment } from "common/roles.js";
+import pino from "pino";
 import { createAuditLogEntry } from "./auditLog.js";
 import { Modules } from "common/modules.js";
+import { FastifyBaseLogger } from "fastify";
 import { ValidLoggers } from "api/types.js";
 import { wwdrCert } from "api/components/wwdr.js";
 

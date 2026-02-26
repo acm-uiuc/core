@@ -3,10 +3,19 @@ import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import rawbody from "fastify-raw-body";
 import stripe, { Stripe } from "stripe";
 import * as z from "zod/v4";
-import { withRoles, withTags, withTurnstile } from "api/components/index.js";
+import {
+  ts,
+  withRoles,
+  withTags,
+  withTurnstile,
+} from "api/components/index.js";
 import { AppRoles } from "common/roles.js";
 import { genericConfig, STORE_CACHED_DURATION } from "common/config.js";
-import { BaseError, ValidationError } from "common/errors/index.js";
+import {
+  BaseError,
+  UnauthenticatedError,
+  ValidationError,
+} from "common/errors/index.js";
 import { getUserIdByUin, verifyUiucAccessToken } from "api/functions/uin.js";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
@@ -20,7 +29,6 @@ import {
   refundOrder,
   fulfillLineItems,
   listOrdersByUser,
-  expireCheckoutSession,
 } from "api/functions/store.js";
 import {
   createCheckoutRequestSchema,
@@ -220,41 +228,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     }),
   );
 
-  // Get a single product (including inactive) - Admin only
-  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/admin/products/:productId",
-    {
-      schema: withRoles(
-        [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
-        withTags(["Store"], {
-          summary: "Get details of a specific product for management.",
-          params: z.object({
-            productId: z.string().min(1),
-          }),
-          response: {
-            200: {
-              description: "Product details.",
-              content: {
-                "application/json": {
-                  schema: productWithVariantsPublicCountSchema,
-                },
-              },
-            },
-          },
-        }),
-      ),
-      onRequest: fastify.authorizeFromSchema,
-    },
-    assertAuthenticated(async (request, reply) => {
-      const product = await getProduct({
-        productId: request.params.productId,
-        dynamoClient: fastify.dynamoClient,
-        includeInactive: true,
-      });
-      return reply.send(product);
-    }),
-  );
-
   // Create a product - Admin only
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
     "/admin/products",
@@ -318,7 +291,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           length: request.body.requestingImageUpload.fileSize,
           mimeType: request.body.requestingImageUpload.mimeType,
           md5hash: request.body.requestingImageUpload.contentMd5Hash,
-          logger: request.log,
         });
       } else {
         transformedBody = request.body;
@@ -398,7 +370,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           length: request.body.requestingImageUpload.fileSize,
           mimeType: request.body.requestingImageUpload.mimeType,
           md5hash: request.body.requestingImageUpload.contentMd5Hash,
-          logger: request.log,
         });
       }
 
@@ -425,7 +396,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/admin/orders/:productId",
     {
       schema: withRoles(
-        [AppRoles.STORE_MANAGER],
+        [AppRoles.STORE_MANAGER, AppRoles.STORE_FULFILLMENT],
         withTags(["Store"], {
           summary: "List all orders/line items for a given product.",
           params: z.object({
@@ -468,7 +439,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }),
           body: z.object({
             releaseInventory: z.boolean(),
-            justification: z.string().trim().min(10),
           }),
           response: {
             204: {
@@ -737,51 +707,6 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             handled: true,
             requestId: request.id,
             queueId: resp.MessageId || "",
-          });
-        }
-        case "checkout.session.expired": {
-          const session = event.data.object as Stripe.Checkout.Session;
-          const metadata = session.metadata;
-
-          // Only process store checkouts
-          if (metadata?.initiator !== "acm-store") {
-            request.log.info(
-              { initiator: metadata?.initiator },
-              "Skipping non-store checkout session",
-            );
-            return reply
-              .status(200)
-              .send({ handled: false, requestId: request.id });
-          }
-          const orderId = metadata.orderId;
-          if (!orderId) {
-            request.log.info(
-              { initiator: metadata?.initiator },
-              "Skipping checkout session expiry as no order ID found",
-            );
-            return reply
-              .status(200)
-              .send({ handled: false, requestId: request.id });
-          }
-          try {
-            await expireCheckoutSession({
-              orderId,
-              dynamoClient: fastify.dynamoClient,
-              logger: request.log,
-            });
-          } catch (err) {
-            if (err instanceof ValidationError) {
-              request.log.info(
-                { orderId },
-                "Order no longer PENDING during expiry, ignoring",
-              );
-            } else {
-              throw err;
-            }
-          }
-          return reply.status(200).send({
-            handled: true,
-            requestId: request.id,
           });
         }
         default:

@@ -1,4 +1,5 @@
 import type RedisModule from "ioredis";
+import type pino from "pino";
 import { ValidLoggers } from "api/types.js";
 
 export type GetFromCacheInput = {

@@ -232,7 +232,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
 
           openapi: "3.1.0" satisfies ZodOpenApiVersion, // If this is not specified, it will default to 3.1.0
           components: {
-            securitySchemes,
+            securitySchemes: securitySchemes as any,
           },
         },
         transform: fastifyZodOpenApiTransform,

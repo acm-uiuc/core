@@ -121,7 +121,6 @@ export async function getGroupsForSlugs(
   ownerRecords: LinkRecord[],
   tableName: string,
   dynamoClient: DynamoDBClient,
-  logger: ValidLoggers,
 ) {
   const groupsPromises = slugs.map(async (slug) => {
     const groupQueryCommand = new QueryCommand({
@@ -153,7 +152,7 @@ export async function getGroupsForSlugs(
         access: groupIds,
       };
     } catch (error) {
-      logger.error(error, `Error fetching groups for slug ${slug}`);
+      console.error(`Error fetching groups for slug ${slug}:`, error);
       const originalRecord =
         ownerRecords.find((item) => item.slug === slug) || {};
       return {

@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "6.34.0"
+      version = "6.31.0"
     }
   }
 
@@ -125,17 +125,15 @@ module "frontend" {
     "us-east-2" = module.lambdas.core_function_url
     "us-west-2" = module.lambdas_usw2.core_function_url
   }
-  CurrentActiveRegion        = var.current_active_region
-  OriginVerifyKey            = module.origin_verify.current_origin_verify_key
-  ProjectId                  = var.ProjectId
-  CoreCertificateArn         = var.CoreCertificateArn
-  CorePublicDomain           = var.CorePublicDomain
-  IcalPublicDomain           = var.IcalPublicDomain
-  LinkryPublicDomains        = [var.LinkryPublicDomain]
-  LinkryEdgeFunctionArn      = module.lambdas.linkry_redirect_function_arn
-  LinkryCertificateArn       = var.LinkryCertificateArn
-  InvoicePaymentPublicDomain = var.InvoicePaymentPublicDomain
-  InvoicePaymentCertificate  = var.CoreCertificateArn
+  CurrentActiveRegion   = var.current_active_region
+  OriginVerifyKey       = module.origin_verify.current_origin_verify_key
+  ProjectId             = var.ProjectId
+  CoreCertificateArn    = var.CoreCertificateArn
+  CorePublicDomain      = var.CorePublicDomain
+  IcalPublicDomain      = var.IcalPublicDomain
+  LinkryPublicDomains   = [var.LinkryPublicDomain]
+  LinkryEdgeFunctionArn = module.lambdas.linkry_redirect_function_arn
+  LinkryCertificateArn  = var.LinkryCertificateArn
 }
 
 module "assets" {
@@ -259,18 +257,6 @@ resource "aws_route53_record" "linkry_wildcard" {
   name     = "*.${var.LinkryPublicDomain}"
   alias {
     name                   = module.frontend.linkry_cloudfront_domain_name
-    zone_id                = "Z2FDTNDATAQYW2"
-    evaluate_target_health = false
-  }
-}
-
-resource "aws_route53_record" "invoice_pay" {
-  for_each = toset(["A", "AAAA"])
-  zone_id  = "Z04502822NVIA85WM2SML"
-  type     = each.key
-  name     = var.InvoicePaymentPublicDomain
-  alias {
-    name                   = module.frontend.invoice_pay_domain_name
     zone_id                = "Z2FDTNDATAQYW2"
     evaluate_target_health = false
   }

@@ -236,7 +236,7 @@ export function withRoles<T extends FastifyZodOpenApiSchema>(
   schema: T,
   { disableApiKeyAuth, notes }: RolesConfig = { disableApiKeyAuth: false },
 ): T & RoleSchema {
-  const security: Record<string, string[]>[] = [{ httpBearer: [] }];
+  const security = [{ httpBearer: [] }] as any;
   if (!disableApiKeyAuth) {
     security.push({ apiKeyHeader: [] });
   }
