@@ -231,7 +231,7 @@ export type SecretConfig = {
 };
 
 const roleArns = {
-  Entra: process.env.EntraRoleArn,
+  Entra: process.env.EntraRoleArn
 };
 
 export const EVENT_CACHED_DURATION = 120;

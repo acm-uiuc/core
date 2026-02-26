@@ -96,6 +96,15 @@ module "archival" {
   })
 }
 
+
+module "certificateIssuer" {
+  source           = "../../modules/certificateIssuer"
+  ProjectId        = var.ProjectId
+  RunEnvironment   = local.deployment_env
+  PrimaryRegion    = "us-east-2"
+  SecondaryRegions = toset(["us-west-2"])
+}
+
 module "lambdas" {
   region                           = "us-east-2"
   source                           = "../../modules/lambdas"
@@ -106,7 +115,7 @@ module "lambdas" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
-  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn }
+  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn, certIssuer : module.certificateIssuer.kms_sign_policy_arn }
 }
 
 module "frontend" {
@@ -137,6 +146,8 @@ module "assets" {
   CoreCertificateArn       = var.CoreCertificateArn
 }
 
+
+
 // Multi-Region Failover: US-West-2
 
 module "lambdas_usw2" {
@@ -149,7 +160,7 @@ module "lambdas_usw2" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
-  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn }
+  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn, certIssuer : module.certificateIssuer.kms_sign_policy_arn }
 }
 
 module "sqs_queues_usw2" {
@@ -168,6 +179,40 @@ resource "aws_lambda_event_source_mapping" "queue_consumer_usw2" {
   event_source_arn        = each.value
   function_name           = module.lambdas_usw2.core_sqs_consumer_lambda_arn
   function_response_types = ["ReportBatchItemFailures"]
+}
+
+resource "aws_kms_key_policy" "signer" {
+  for_each = module.certificateIssuer.kms_key_ids
+  key_id   = each.value
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowRootAccess"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "*"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowApiLambdaUse"
+        Effect = "Allow"
+        Principal = {
+          AWS = tolist(toset([
+            module.lambdas.core_api_execution_role_arn,
+            module.lambdas_usw2.core_api_execution_role_arn
+          ]))
+        }
+        Action = [
+          "kms:Sign",
+          "kms:GetPublicKey"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
 
 // QA only - setup Route 53 records

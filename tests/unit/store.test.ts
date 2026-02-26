@@ -993,14 +993,20 @@ describe("expireCheckoutSession", () => {
     expect(transactCalls).toHaveLength(1);
 
     const transactItems = transactCalls[0].args[0].input.TransactItems;
-    // 1 ConditionCheck + 3 Deletes (ORDER + LINE_0 + LINE_1)
-    expect(transactItems).toHaveLength(4);
+    // 3 Deletes only: ORDER (with condition) + LINE_0 + LINE_1
+    expect(transactItems).toHaveLength(3);
 
-    // Verify ConditionCheck ensures order is PENDING
+    // No separate ConditionCheck — condition is embedded in the ORDER delete
     const conditionCheck = transactItems?.find(
       (item) => item.ConditionCheck !== undefined,
     );
-    expect(conditionCheck?.ConditionCheck).toEqual({
+    expect(conditionCheck).toBeUndefined();
+
+    // Verify ORDER delete has the condition expression
+    const orderDelete = transactItems?.find(
+      (item) => item.Delete?.Key?.lineItemId?.S === "ORDER",
+    );
+    expect(orderDelete?.Delete).toEqual({
       TableName: genericConfig.StoreCartsOrdersTableName,
       Key: { orderId: { S: orderId }, lineItemId: { S: "ORDER" } },
       ConditionExpression: "#status = :pending",

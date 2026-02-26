@@ -62,6 +62,7 @@ import storeRoutes from "./routes/store.js";
 import { getSsmParameters } from "./utils.js";
 import { SSMClient } from "@aws-sdk/client-ssm";
 import validateTurnstileTokenPlugin from "./plugins/validateTurnstile.js";
+import certificateIssuerRoutes from "./routes/certificateIssuer.js";
 /** END ROUTES */
 
 export const instanceId = randomUUID();
@@ -221,6 +222,11 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
             {
               name: "API Keys",
               description: "Manage the lifecycle of API keys.",
+            },
+            {
+              name: "Certificate Issuer",
+              description:
+                "Issuing short-lived SSH certificates to access ACM servers.",
             },
           ],
 
@@ -396,6 +402,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       api.register(apiKeyRoute, { prefix: "/apiKey" });
       api.register(clearSessionRoute, { prefix: "/clearSession" });
       api.register(userRoute, { prefix: "/users" });
+      api.register(certificateIssuerRoutes, { prefix: "/certIssuer" });
       if (app.runEnvironment === "dev") {
         api.register(vendingPlugin, { prefix: "/vending" });
       }
