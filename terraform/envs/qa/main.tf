@@ -160,7 +160,7 @@ module "lambdas_usw2" {
   PreviousOriginVerifyKeyExpiresAt = module.origin_verify.previous_invalid_time
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
-  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn }
+  AdditionalIamPolicies            = { assets : module.assets.access_policy_arn, certIssuer : module.certificateIssuer.kms_sign_policy_arn }
 }
 
 module "sqs_queues_usw2" {
