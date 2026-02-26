@@ -77,6 +77,9 @@ output "kms_key_arns" {
   )
 }
 
-output "primary_key_id" {
-  value = aws_kms_key.primary.key_id
+output "kms_key_ids" {
+  value = merge(
+    { (var.PrimaryRegion) = aws_kms_key.primary.key_id },
+    { for region, replica in aws_kms_replica_key.replica : region => replica.key_id }
+  )
 }

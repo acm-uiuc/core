@@ -182,7 +182,8 @@ resource "aws_lambda_event_source_mapping" "queue_consumer_usw2" {
 }
 
 resource "aws_kms_key_policy" "signer" {
-  key_id = module.certificateIssuer.primary_key_id
+  for_each = module.certificateIssuer.kms_key_ids
+  key_id   = each.value
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
