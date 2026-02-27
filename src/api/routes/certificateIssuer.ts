@@ -12,16 +12,16 @@ const certificateIssuerRoutes: FastifyPluginAsync = async (
   _options,
 ) => {
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
-    "/ssh",
+    "/ssh/signPublicKey",
     {
       schema: withRoles(
         [],
         withTags(["Certificate Issuer"], {
           body: z.object({
-            sshPublicKey: z
-              .string()
-              .min(1)
-              .meta({ description: "The user's SSH public key to sign." }),
+            sshPublicKey: z.string().min(1).meta({
+              description: "The user's SSH public key to sign.",
+              examples: [],
+            }),
           }),
           response: {
             201: {
