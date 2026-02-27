@@ -6,7 +6,7 @@ import {
 } from "./secret.testdata.js";
 import jwt from "jsonwebtoken";
 
-const jwt_secret = secretObject["jwt_key"];
+const jwt_secret = secretObject["jwt_key"]!;
 
 export function createJwt(date?: Date, groups?: string[], email?: string) {
   let modifiedPayload = {
