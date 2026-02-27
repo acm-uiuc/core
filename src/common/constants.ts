@@ -9,4 +9,4 @@ export const EVENTS_EXPIRY_AFTER_LAST_OCCURRENCE_DAYS = 1460; // hold events for
 export const UPLOAD_GRACE_PERIOD_MS = 30 * 60 * 1000; // 30 minutes
 export const DEFAULT_TIMEZONE = "America/Chicago";
 export const AUTH_CACHE_PREFIX = `authCache:`;
-// we keep data longer for historical analytics purposes in S3 as needed
+export const SSH_CERTIFICATE_SIGNATURE_VALIDITY_SECONDS = 3600; // 1 hour, see certificate issuer routes

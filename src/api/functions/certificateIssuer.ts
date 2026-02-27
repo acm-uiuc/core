@@ -5,7 +5,7 @@ import {
 } from "@aws-sdk/client-kms";
 import { type ValidLoggers } from "api/types.js";
 import { genericConfig } from "common/config.js";
-import { InternalServerError } from "common/errors/index.js";
+import { InternalServerError, ValidationError } from "common/errors/index.js";
 import { randomBytes, createPublicKey } from "crypto";
 
 export interface SignSshCertParams {
@@ -34,6 +34,31 @@ function createSshMpint(buf: Buffer): Buffer {
   return createSshString(buf);
 }
 
+export function deconstructRsaPublicKey({
+  userPubKeyString,
+  logger,
+}: {
+  userPubKeyString: string;
+  logger: ValidLoggers;
+}) {
+  const parts = userPubKeyString.trim().split(/\s+/);
+  if (parts.length < 2) {
+    logger.error("ssh-cert: malformed SSH public key string");
+    throw new ValidationError({
+      message:
+        "Malformed SSH public key string: expected '<type> <base64> [comment]'.",
+    });
+  }
+  const [keyType, base64Key] = parts;
+  if (keyType !== "ssh-rsa") {
+    logger.error("ssh-cert: unsupported key type, only ssh-rsa is supported");
+    throw new ValidationError({
+      message: `Unsupported SSH key type '${keyType}': only ssh-rsa is supported.`,
+    });
+  }
+  return { keyType, base64Key };
+}
+
 export async function signSshCertificateWithKMS({
   principals,
   identity,
@@ -45,29 +70,10 @@ export async function signSshCertificateWithKMS({
   const logCtx = { principals };
   logger.info(logCtx, "ssh-cert: starting certificate signing");
 
-  // Parse the SSH public key string into a raw wire-format buffer
-  // Expected format: "<key-type> <base64-encoded-key> [comment]"
-  const parts = userPubKeyString.trim().split(/\s+/);
-  if (parts.length < 2) {
-    logger.error(
-      { ...logCtx, userPubKeyString },
-      "ssh-cert: malformed SSH public key string",
-    );
-    throw new InternalServerError({
-      message:
-        "Malformed SSH public key string: expected '<type> <base64> [comment]'.",
-    });
-  }
-  const [keyType, base64Key] = parts;
-  if (keyType !== "ssh-rsa") {
-    logger.error(
-      { ...logCtx, keyType },
-      "ssh-cert: unsupported key type, only ssh-rsa is supported",
-    );
-    throw new InternalServerError({
-      message: `Unsupported SSH key type '${keyType}': only ssh-rsa is supported.`,
-    });
-  }
+  const { keyType, base64Key } = deconstructRsaPublicKey({
+    userPubKeyString,
+    logger,
+  });
   const userPubKeyBuffer = Buffer.from(base64Key, "base64");
   logger.trace(
     { ...logCtx, keyType },
