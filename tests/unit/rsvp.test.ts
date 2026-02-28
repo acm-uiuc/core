@@ -517,9 +517,12 @@ describe("RSVP API tests", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: `/api/v1/rsvp/checkin/event/${encodeURIComponent(eventId)}/attendee/${encodeURIComponent(targetUserId)}`,
+      url: `/api/v1/rsvp/checkin/event/${encodeURIComponent(eventId)}`,
       headers: {
         Authorization: `Bearer ${adminJwt}`,
+      },
+      payload: {
+        uin: targetUserId,
       },
     });
 
@@ -539,9 +542,12 @@ describe("RSVP API tests", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: `/api/v1/rsvp/checkin/event/${encodeURIComponent(eventId)}/attendee/${encodeURIComponent(targetUserId)}`,
+      url: `/api/v1/rsvp/checkin/event/${encodeURIComponent(eventId)}`,
       headers: {
         Authorization: `Bearer ${adminJwt}`,
+      },
+      payload: {
+        uin: targetUserId,
       },
     });
 

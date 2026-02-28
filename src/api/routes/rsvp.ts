@@ -751,7 +751,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
-    "/checkin/event/:eventId/attendee/:uin",
+    "/checkin/event/:eventId",
     {
       schema: withRoles(
         [AppRoles.RSVP_MANAGER],
@@ -761,8 +761,10 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             eventId: z.string().min(1).meta({
               description: "The previously-created event ID in the events API.",
             }),
-            uin: z.string().min(1).max(9).meta({
-              description: "The 9-digit UIN of the RSVP to check in.",
+          }),
+          body: z.object({
+            uin: z.string().min(1).meta({
+              description: "The UIN of the attendee to check in.",
             }),
           }),
           response: {
@@ -790,7 +792,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     async (request, reply) => {
       const { id: userEmail } = await getUserIdByUin({
         dynamoClient: fastify.dynamoClient,
-        uin: request.params.uin,
+        uin: request.body.uin,
       });
 
       const rsvpPartitionKey = `RSVP#${request.params.eventId}#${userEmail}`;
