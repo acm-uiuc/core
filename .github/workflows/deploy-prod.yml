@@ -26,7 +26,7 @@ jobs:
           cache: "yarn"
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.12.2
 
@@ -79,7 +79,7 @@ jobs:
           VITE_BUILD_HASH: ${{ env.VITE_BUILD_HASH }}
 
       - name: Upload Build files
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           include-hidden-files: true
           name: build-prod
@@ -95,7 +95,7 @@ jobs:
           RunEnvironment: dev
 
       - name: Upload Build files
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           include-hidden-files: true
           name: build-qa
@@ -128,7 +128,7 @@ jobs:
           cache: "yarn"
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.12.2
 
@@ -141,7 +141,7 @@ jobs:
             yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
       - name: Download Build files
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: build-qa
 
@@ -184,7 +184,7 @@ jobs:
           node-version: 24.x
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.12.2
 
@@ -193,7 +193,7 @@ jobs:
           HUSKY: "0"
 
       - name: Download Build files
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: build-prod
       - uses: aws-actions/configure-aws-credentials@v6
@@ -231,7 +231,7 @@ jobs:
           distribution: 'adopt'
           java-version: '25'
       - name: Download Build files
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: build-prod
       - name: Update NPM to the latest version
