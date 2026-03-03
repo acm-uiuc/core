@@ -125,7 +125,7 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
           label="Invoice Amount"
           leftSectionPointerEvents="none"
           leftSection={<Text>$</Text>}
-          placeholder="100"
+          placeholder="Invoice ID"
           min={0.5}
           {...form.getInputProps("invoiceAmountUsd")}
           required

@@ -51,7 +51,7 @@ describe("StripeCreateLinkPanel Tests", () => {
       screen.getByPlaceholderText("email@illinois.edu"),
       "invalidEmail",
     );
-    await user.clear(screen.getByPlaceholderText("ACM100"));
+    await user.clear(screen.getByLabelText("Invoice ID"));
     expect(createLinkMock).toHaveBeenCalledTimes(0);
   });
 
@@ -60,7 +60,7 @@ describe("StripeCreateLinkPanel Tests", () => {
     const user = userEvent.setup();
     await renderComponent();
 
-    await user.type(screen.getByPlaceholderText("ACM100"), "INV123");
+    await user.type(screen.getByLabelText("Invoice ID"), "INV123");
     await user.clear(screen.getByPlaceholderText("100"));
     await user.type(screen.getByPlaceholderText("100"), "100");
     await user.type(screen.getByPlaceholderText("John Doe"), "John Doe");
@@ -87,7 +87,7 @@ describe("StripeCreateLinkPanel Tests", () => {
     const user = userEvent.setup();
     await renderComponent();
 
-    await user.type(screen.getByPlaceholderText("ACM100"), "INV123");
+    await user.type(screen.getByLabelText("Invoice ID"), "INV123");
     await user.type(screen.getByPlaceholderText("100"), "100");
     await user.type(screen.getByPlaceholderText("John Doe"), "John Doe");
     await user.type(
@@ -108,7 +108,7 @@ describe("StripeCreateLinkPanel Tests", () => {
     const user = userEvent.setup();
     await renderComponent();
 
-    await user.type(screen.getByPlaceholderText("ACM100"), "INV123");
+    await user.type(screen.getByLabelText("Invoice ID"), "INV123");
     await user.type(screen.getByPlaceholderText("100"), "100");
     await user.type(screen.getByPlaceholderText("John Doe"), "John Doe");
     await user.type(
