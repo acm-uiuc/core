@@ -33,7 +33,7 @@ describe("StripeCreateLinkPanel Tests", () => {
   it("renders the form fields correctly", async () => {
     await renderComponent();
 
-    expect(screen.getByText("Invoice ID")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("123")).toBeInTheDocument();
     expect(screen.getByText("Invoice Amount")).toBeInTheDocument();
     expect(screen.getByText("Invoice Recipient Name")).toBeInTheDocument();
     expect(screen.getByText("Invoice Recipient Email")).toBeInTheDocument();
@@ -51,7 +51,7 @@ describe("StripeCreateLinkPanel Tests", () => {
       screen.getByPlaceholderText("email@illinois.edu"),
       "invalidEmail",
     );
-    await user.clear(screen.getByLabelText("Invoice ID"));
+    await user.clear(screen.getByPlaceholderText("123"));
     expect(createLinkMock).toHaveBeenCalledTimes(0);
   });
 
@@ -60,7 +60,7 @@ describe("StripeCreateLinkPanel Tests", () => {
     const user = userEvent.setup();
     await renderComponent();
 
-    await user.type(screen.getByLabelText("Invoice ID"), "INV123");
+    await user.type(screen.getByPlaceholderText("123"), "INV123");
     await user.clear(screen.getByPlaceholderText("100"));
     await user.type(screen.getByPlaceholderText("100"), "100");
     await user.type(screen.getByPlaceholderText("John Doe"), "John Doe");
@@ -87,7 +87,7 @@ describe("StripeCreateLinkPanel Tests", () => {
     const user = userEvent.setup();
     await renderComponent();
 
-    await user.type(screen.getByLabelText("Invoice ID"), "INV123");
+    await user.type(screen.getByPlaceholderText("123"), "INV123");
     await user.type(screen.getByPlaceholderText("100"), "100");
     await user.type(screen.getByPlaceholderText("John Doe"), "John Doe");
     await user.type(
@@ -108,7 +108,7 @@ describe("StripeCreateLinkPanel Tests", () => {
     const user = userEvent.setup();
     await renderComponent();
 
-    await user.type(screen.getByLabelText("Invoice ID"), "INV123");
+    await user.type(screen.getByPlaceholderText("123"), "INV123");
     await user.type(screen.getByPlaceholderText("100"), "100");
     await user.type(screen.getByPlaceholderText("John Doe"), "John Doe");
     await user.type(

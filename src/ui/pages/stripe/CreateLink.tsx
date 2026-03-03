@@ -116,7 +116,7 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
         />
         <TextInput
           label="Invoice ID"
-          placeholder="100"
+          placeholder="123"
           description="Make sure the Invoice ID is prefixed with a unique string for your group to avoid processing delays."
           {...form.getInputProps("invoiceId")}
           required
@@ -125,7 +125,7 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
           label="Invoice Amount"
           leftSectionPointerEvents="none"
           leftSection={<Text>$</Text>}
-          placeholder="Invoice ID"
+          placeholder="100"
           min={0.5}
           {...form.getInputProps("invoiceAmountUsd")}
           required
