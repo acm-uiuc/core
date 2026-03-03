@@ -1,557 +1,680 @@
-import { expect, test, vi, describe, beforeEach } from "vitest";
+import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
+import init from "../../src/api/server.js";
+import { mockClient } from "aws-sdk-client-mock";
 import {
   DynamoDBClient,
-  QueryCommand,
-  TransactWriteItemsCommand,
-  GetItemCommand,
   PutItemCommand,
-  DeleteItemCommand,
-  UpdateItemCommand,
+  QueryCommand,
+  ScanCommand,
+  TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
-import { mockClient } from "aws-sdk-client-mock";
-import init from "../../src/api/server.js";
+import supertest from "supertest";
 import { createJwt } from "./utils.js";
-import { secretObject } from "./secret.testdata.js";
-import { Redis } from "../../src/api/types.js";
-import { FastifyBaseLogger } from "fastify";
-import { randomUUID } from "node:crypto";
+import { marshall } from "@aws-sdk/util-dynamodb";
+import { environmentConfig, genericConfig } from "../../src/common/config.js";
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
+import { AvailableSQSFunctions } from "../../src/common/types/sqsMessage.js";
+import { RoomRequestStatus } from "../../src/common/types/roomRequest.js";
 
-const DUMMY_JWT = createJwt();
-const DEFAULT_HEADERS = {
-  "x-uiuc-token": DUMMY_JWT,
-  "x-turnstile-response": "a", // needs to be one char
-};
+// Mock the S3 functions module
+vi.mock("../../src/api/functions/s3.js", () => ({
+  createPresignedPut: vi.fn(),
+  createPresignedGet: vi.fn(),
+}));
 
-const MOCK_UPN = "jd3@illinois.edu";
-
-class TransactionError extends Error {
-  name = "TransactionCanceledException";
-  CancellationReasons: { Code: string }[];
-  constructor(reasons: { Code: string }[]) {
-    super("Transaction canceled");
-    this.CancellationReasons = reasons;
-  }
-}
-
-vi.mock("../../src/api/functions/uin.js", async () => {
-  const actual = await vi.importActual("../../src/api/functions/uin.js");
-  return {
-    ...actual,
-    verifyUiucAccessToken: vi
-      .fn()
-      .mockImplementation(
-        async ({
-          token,
-          logger,
-        }: {
-          token: string;
-          logger: FastifyBaseLogger;
-        }) => {
-          return {
-            userPrincipalName: MOCK_UPN,
-            givenName: "John",
-            surname: "Doe",
-            mail: "johndoe@gmail.com",
-            netId: "jd3",
-          };
-        },
-      ),
-    getUserIdByUin: vi
-      .fn()
-      .mockImplementation(
-        async ({
-          uin,
-          logger,
-          dynamoClient,
-        }: {
-          uin: string;
-          logger: FastifyBaseLogger;
-          dynamoClient: DynamoDBClient;
-        }) => {
-          if (uin == "123456789") {
-            return { id: "user1@illinois.edu" };
-          }
-          return { id: "missing_user1@illinois.edu" };
-        },
-      ),
-  };
-});
-
-vi.mock("../../src/api/functions/membership.js", async () => {
-  const actual = await vi.importActual("../../src/api/functions/membership.js");
-  return {
-    ...actual,
-    checkPaidMembership: vi
-      .fn()
-      .mockImplementation(
-        async ({
-          netId,
-          redisClient,
-          dynamoClient,
-          logger,
-        }: {
-          netId: string;
-          redisClient: Redis;
-          dynamoClient: DynamoDBClient;
-          logger: FastifyBaseLogger;
-        }) => {
-          if (netId === "jd3") {
-            return true;
-          }
-          return false;
-        },
-      ),
-  };
-});
+vi.mock("../../src/api/functions/organizations.js", () => ({
+  getUserOrgRoles: vi.fn().mockResolvedValue([{ org: "C01", role: "LEAD" }]),
+}));
 
 const ddbMock = mockClient(DynamoDBClient);
-const jwt_secret = secretObject["jwt_key"];
-vi.stubEnv("JwtSigningKey", jwt_secret);
+const sqsMock = mockClient(SQSClient);
 
 const app = await init();
-
-const setupMockProfile = (exists = true) => {
-  if (!exists) {
-    ddbMock
-      .on(GetItemCommand, {
-        Key: marshall({ partitionKey: `PROFILE#${MOCK_UPN}` }),
-      })
-      .resolves({});
-    return;
-  }
-  ddbMock
-    .on(GetItemCommand, {
-      Key: marshall({ partitionKey: `PROFILE#${MOCK_UPN}` }),
-    })
-    .resolves({
-      Item: marshall({
-        partitionKey: `PROFILE#${MOCK_UPN}`,
-        userId: MOCK_UPN,
-        schoolYear: "Junior",
-        intendedMajor: "Computer Science",
-        interests: ["AI"],
-        dietaryRestrictions: ["None"],
-        updatedAt: 12345,
-      }),
-    });
-};
-
-describe("RSVP API tests", () => {
-  beforeEach(() => {
-    ddbMock.reset();
-    vi.clearAllMocks();
+describe("Test Room Request Creation", async () => {
+  const testRequestId = "test-request-id";
+  const testSemesterId = "sp25";
+  const statusBody = {
+    status: RoomRequestStatus.APPROVED,
+    notes: "Request approved by committee.",
+  };
+  const makeUrl = () =>
+    `/api/v1/roomRequests/${testSemesterId}/${testRequestId}/status`;
+  test("Unauthenticated access (missing token)", async () => {
+    await app.ready();
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .send({
+        invoiceId: "ACM102",
+        invoiceAmountUsd: 100,
+        contactName: "John Doe",
+        contactEmail: "john@example.com",
+      });
+    expect(response.statusCode).toBe(401);
   });
-
-  test("POST /profile - Create/Update Profile successfully", async () => {
-    ddbMock.on(PutItemCommand).resolves({});
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/v1/rsvp/profile",
-      headers: DEFAULT_HEADERS,
-      payload: {
-        schoolYear: "Senior",
-        intendedMajor: "Computer Science",
-        interests: ["Systems", "Security"],
-        dietaryRestrictions: ["Vegan"],
-      },
-    });
-
-    expect(response.statusCode).toBe(201);
-    expect(ddbMock.calls()).toHaveLength(1); // 1 PutItem
-  });
-
-  test("GET /profile/me - Retrieve Profile", async () => {
-    setupMockProfile(true);
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/api/v1/rsvp/profile/me",
-      headers: DEFAULT_HEADERS,
-    });
-
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.body);
-    expect(body.schoolYear).toBe("Junior");
-    expect(body.intendedMajor).toBe("Computer Science");
-  });
-
-  test("GET /profile/me - Not Found", async () => {
-    setupMockProfile(false);
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/api/v1/rsvp/profile/me",
-      headers: DEFAULT_HEADERS,
-    });
-
-    expect(response.statusCode).toBe(404);
-  });
-
-  test("DELETE /profile/me - Delete Profile", async () => {
-    ddbMock.on(DeleteItemCommand).resolves({});
-
-    const response = await app.inject({
-      method: "DELETE",
-      url: "/api/v1/rsvp/profile/me",
-      headers: DEFAULT_HEADERS,
-    });
-
-    expect(response.statusCode).toBe(200);
-  });
-
-  test("Submitting RSVPs requires the turnstile token header", async () => {
-    const eventId = randomUUID();
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
-      headers: { "x-uiuc-token": DUMMY_JWT },
-    });
+  test("Validation failure: Missing required fields", async () => {
+    await app.ready();
+    const testJwt = createJwt();
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({});
     expect(response.statusCode).toBe(400);
   });
-
-  test("Test posting an RSVP (Success with Profile)", async () => {
-    const eventId = "Make Your Own Database";
-
-    ddbMock
-      .on(GetItemCommand, {
-        Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
-      })
-      .resolves({
-        Item: marshall({
-          partitionKey: `CONFIG#${eventId}`,
-          eventId,
-          rsvpLimit: 100,
-          rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
-          rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
-          rsvpCheckInEnabled: false,
-        }),
-      });
-    setupMockProfile(true);
-
-    ddbMock.on(TransactWriteItemsCommand).resolves({});
-
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
-      headers: DEFAULT_HEADERS,
-    });
-
+  test("Virtual reservation request is accepted", async () => {
+    await app.ready();
+    const testJwt = createJwt();
+    ddbMock.on(TransactWriteItemsCommand).resolvesOnce({}).rejects();
+    const roomRequest = {
+      host: "C01",
+      title: "Testing",
+      theme: "Athletics",
+      semester: "sp25",
+      description: " f f f f f f  f f f f f  f f f ffffff",
+      eventStart: "2025-04-24T18:00:30.679Z",
+      eventEnd: "2025-04-24T19:00:30.679Z",
+      isRecurring: false,
+      setupNeeded: false,
+      hostingMinors: false,
+      locationType: "virtual",
+      onCampusPartners: null,
+      offCampusPartners: null,
+      nonIllinoisSpeaker: null,
+      nonIllinoisAttendees: null,
+      foodOrDrink: false,
+      crafting: false,
+      comments: "",
+      requestsSccsRoom: true,
+    };
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(roomRequest);
     expect(response.statusCode).toBe(201);
+    expect(ddbMock.calls().length).toEqual(1);
   });
-
-  test("Test posting an RSVP FAILS if Profile is missing", async () => {
-    const eventId = "Make Your Own Database";
-
-    ddbMock
-      .on(GetItemCommand, {
-        Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
-      })
-      .resolves({
-        Item: marshall({
-          partitionKey: `CONFIG#${eventId}`,
-          rsvpLimit: 100,
-          rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
-          rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
-        }),
+  test("Hybrid reservation request is accepted", async () => {
+    await app.ready();
+    const testJwt = createJwt();
+    ddbMock.on(TransactWriteItemsCommand).resolvesOnce({}).rejects();
+    const roomRequest = {
+      host: "C01",
+      title: "Testing",
+      theme: "Athletics",
+      semester: "sp25",
+      description: " f f f f f f  f f f f f  f f f ffffff",
+      eventStart: "2025-04-24T18:00:30.679Z",
+      eventEnd: "2025-04-24T19:00:30.679Z",
+      isRecurring: false,
+      setupNeeded: false,
+      hostingMinors: false,
+      locationType: "both",
+      spaceType: "campus_classroom",
+      specificRoom: "None",
+      estimatedAttendees: 10,
+      seatsNeeded: 20,
+      onCampusPartners: null,
+      offCampusPartners: null,
+      nonIllinoisSpeaker: null,
+      nonIllinoisAttendees: null,
+      foodOrDrink: false,
+      crafting: false,
+      comments: "",
+      requestsSccsRoom: true,
+    };
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(roomRequest);
+    expect(response.statusCode).toBe(201);
+    expect(ddbMock.calls().length).toEqual(1);
+  });
+  test("Validation failure: eventEnd before eventStart", async () => {
+    const testJwt = createJwt();
+    ddbMock.rejects();
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        host: "C01",
+        title: "Valid Title",
+        semester: "sp25",
+        theme: "Athletics",
+        description: "This is a valid description with at least ten words.",
+        eventStart: "2025-04-25T12:00:00Z",
+        eventEnd: "2025-04-25T10:00:00Z",
+        isRecurring: false,
+        setupNeeded: false,
+        hostingMinors: false,
+        locationType: "virtual",
+        foodOrDrink: false,
+        crafting: false,
+        onCampusPartners: null,
+        offCampusPartners: null,
+        nonIllinoisSpeaker: null,
+        nonIllinoisAttendees: null,
+        requestsSccsRoom: false,
       });
-    setupMockProfile(false);
-
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
-      headers: DEFAULT_HEADERS,
-    });
-
-    // Expecting 400 Bad Request because profile is required logic
     expect(response.statusCode).toBe(400);
-    const body = JSON.parse(response.body);
-    expect(body.message).toBe("Profile Required");
+    expect(response.body.message).toContain(
+      "End date/time must be after start date/time",
+    );
+    expect(ddbMock.calls.length).toEqual(0);
   });
-
-  test("Test posting an RSVP fails if Event Config is missing", async () => {
-    const eventId = "Closed Event";
-
-    // Only config fetch happens first, fails, so profile fetch might happen concurrently but config failure throws first
-    ddbMock.on(GetItemCommand).resolves({});
-
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
-      headers: DEFAULT_HEADERS,
-    });
-
-    expect(response.statusCode).toBe(404);
+  test("Validation failure: eventEnd equals eventStart", async () => {
+    const testJwt = createJwt();
+    ddbMock.rejects();
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        host: "C01",
+        title: "Valid Title",
+        semester: "sp25",
+        theme: "Athletics",
+        description: "This is a valid description with at least ten words.",
+        eventStart: "2025-04-25T10:00:00Z",
+        eventEnd: "2025-04-25T10:00:00Z",
+        isRecurring: false,
+        setupNeeded: false,
+        hostingMinors: false,
+        locationType: "virtual",
+        foodOrDrink: false,
+        crafting: false,
+        onCampusPartners: null,
+        offCampusPartners: null,
+        nonIllinoisSpeaker: null,
+        nonIllinoisAttendees: null,
+        requestsSccsRoom: true,
+      });
+    expect(response.statusCode).toBe(400);
+    expect(response.body.message).toContain(
+      "End date/time must be after start date/time",
+    );
+    expect(ddbMock.calls.length).toEqual(0);
   });
+  test("Validation failure: isRecurring without recurrencePattern and endDate", async () => {
+    const testJwt = createJwt();
+    ddbMock.rejects();
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        host: "C01",
+        title: "Recurring Event",
+        semester: "sp25",
+        theme: "Athletics",
+        description:
+          "This description includes enough words to pass the test easily.",
+        eventStart: "2025-04-25T12:00:00Z",
+        eventEnd: "2025-04-25T13:00:00Z",
+        isRecurring: true,
+        setupNeeded: false,
+        hostingMinors: false,
+        locationType: "virtual",
+        foodOrDrink: false,
+        crafting: false,
+        onCampusPartners: null,
+        offCampusPartners: null,
+        nonIllinoisSpeaker: null,
+        nonIllinoisAttendees: null,
+        requestsSccsRoom: true,
+      });
+    expect(response.statusCode).toBe(400);
+    expect(response.body.message).toContain(
+      "Please select a recurrence pattern",
+    );
+    expect(response.body.message).toContain(
+      "Please select an end date for the recurring event",
+    );
+    expect(ddbMock.calls.length).toEqual(0);
+  });
+  test("Validation failure: setupNeeded is true without setupMinutesBefore", async () => {
+    const testJwt = createJwt();
+    ddbMock.rejects();
 
-  test("Test double RSVP (Conflict)", async () => {
-    const eventId = "Make Your Own Database";
-    setupMockProfile(true);
-
-    ddbMock
-      .on(GetItemCommand, {
-        Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
-      })
-      .resolves({
-        Item: marshall({
-          partitionKey: `CONFIG#${eventId}`,
-          rsvpLimit: 100,
-          rsvpCount: 10,
-          rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
-          rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
-        }),
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        host: "C01",
+        title: "Setup Event",
+        semester: "sp25",
+        theme: "Athletics",
+        description:
+          "Wordy description that definitely contains more than ten words easily.",
+        eventStart: "2025-04-25T12:00:00Z",
+        eventEnd: "2025-04-25T13:00:00Z",
+        isRecurring: false,
+        setupNeeded: true,
+        hostingMinors: false,
+        locationType: "virtual",
+        foodOrDrink: false,
+        crafting: false,
+        onCampusPartners: null,
+        offCampusPartners: null,
+        nonIllinoisSpeaker: null,
+        nonIllinoisAttendees: null,
+        requestsSccsRoom: true,
       });
 
-    const txError = new TransactionError([
-      { Code: "ConditionalCheckFailed" },
-      { Code: "None" },
-    ]);
-    ddbMock.on(TransactWriteItemsCommand).rejects(txError);
-
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
-      headers: DEFAULT_HEADERS,
-    });
-
-    expect(response.statusCode).toBe(409);
-    const body = JSON.parse(response.body);
-    expect(body.message).toBe("You have already RSVP'd for this event.");
+    expect(response.statusCode).toBe(400);
+    expect(response.body.message).toContain(
+      "how many minutes before the event",
+    );
+    expect(ddbMock.calls()).toHaveLength(0);
   });
+  test("Validation failure: in-person event missing spaceType, room, seats", async () => {
+    const testJwt = createJwt();
+    ddbMock.rejects();
 
-  test("Test posting RSVP when Event is Full (Limit Reached)", async () => {
-    const eventId = "Popular Event";
-    setupMockProfile(true);
-
-    ddbMock
-      .on(GetItemCommand, {
-        Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
-      })
-      .resolves({
-        Item: marshall({
-          partitionKey: `CONFIG#${eventId}`,
-          rsvpLimit: 100,
-          rsvpCount: 100,
-          rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
-          rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
-        }),
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        host: "C01",
+        title: "Physical Event",
+        semester: "sp25",
+        theme: "Athletics",
+        description:
+          "This description has more than enough words to satisfy the validator.",
+        eventStart: "2025-04-25T12:00:00Z",
+        eventEnd: "2025-04-25T13:00:00Z",
+        isRecurring: false,
+        setupNeeded: false,
+        hostingMinors: false,
+        locationType: "in-person",
+        foodOrDrink: false,
+        crafting: false,
+        onCampusPartners: null,
+        offCampusPartners: null,
+        nonIllinoisSpeaker: null,
+        nonIllinoisAttendees: null,
+        requestsSccsRoom: false,
       });
 
-    const txError = new TransactionError([
-      { Code: "None" },
-      { Code: "ConditionalCheckFailed" },
-    ]);
-    ddbMock.on(TransactWriteItemsCommand).rejects(txError);
-
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
-      headers: DEFAULT_HEADERS,
-    });
-
-    expect(response.statusCode).toBe(409);
-    const body = JSON.parse(response.body);
-    expect(body.message).toBe("RSVP limit has been reached.");
+    expect(response.statusCode).toBe(400);
+    expect(response.body.message).toContain("Please select a space type");
+    expect(response.body.message).toContain(
+      "Please provide details about the room location",
+    );
+    expect(response.body.message).toContain(
+      "Please provide an estimated number of attendees",
+    );
+    expect(response.body.message).toContain(
+      "Please specify how many seats you need",
+    );
+    expect(ddbMock.calls()).toHaveLength(0);
   });
+  test("Validation failure: seatsNeeded < estimatedAttendees", async () => {
+    const testJwt = createJwt();
+    ddbMock.rejects();
 
-  test("Test getting my own RSVPs", async () => {
-    const upn = MOCK_UPN;
-    const mockRsvps = [
-      {
-        partitionKey: `RSVP#EventA#${upn}`,
-        eventId: "EventA",
-        userId: upn,
-        isPaidMember: true,
-        checkedIn: false,
-        schoolYear: "Junior",
-        intendedMajor: "CS",
-        interests: [],
-        dietaryRestrictions: [],
-        createdAt: Math.floor(Date.now() / 1000),
-      },
-    ];
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send({
+        host: "C01",
+        title: "Seats Mismatch",
+        semester: "sp25",
+        theme: "Athletics",
+        description:
+          "Description with lots of words to ensure it is long enough to pass validation.",
+        eventStart: "2025-04-25T12:00:00Z",
+        eventEnd: "2025-04-25T13:00:00Z",
+        isRecurring: false,
+        setupNeeded: false,
+        hostingMinors: false,
+        locationType: "in-person",
+        spaceType: "campus_classroom",
+        specificRoom: "Room 101",
+        estimatedAttendees: 20,
+        seatsNeeded: 10,
+        foodOrDrink: false,
+        crafting: false,
+        onCampusPartners: null,
+        offCampusPartners: null,
+        nonIllinoisSpeaker: null,
+        nonIllinoisAttendees: null,
+        requestsSccsRoom: false,
+      });
 
-    ddbMock.on(QueryCommand).resolves({
-      Items: mockRsvps.map((item) => marshall(item)),
-    });
-
-    const response = await app.inject({
-      method: "GET",
-      url: `/api/v1/rsvp/me`,
-      headers: DEFAULT_HEADERS,
-    });
-
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.body);
-    expect(body).toHaveLength(1);
-    expect(body[0].eventId).toBe("EventA");
+    expect(response.statusCode).toBe(400);
+    expect(response.body.message).toContain(
+      "Number of seats must be greater than or equal to number of attendees",
+    );
+    expect(ddbMock.calls()).toHaveLength(0);
   });
+  test("Successful request writes 3 items to DynamoDB transaction", async () => {
+    const testJwt = createJwt();
 
-  test("Test getting RSVPs for an event", async () => {
-    const eventId = "EventA";
-    const mockRsvps = [
-      {
-        partitionKey: `RSVP#${eventId}#user1@illinois.edu`,
-        eventId,
-        userId: "user1@illinois.edu",
-        isPaidMember: true,
-        checkedIn: true,
-        schoolYear: "Senior",
-        intendedMajor: "CS",
-        interests: ["Systems"],
-        dietaryRestrictions: ["None"],
-        createdAt: Math.floor(Date.now() / 1000),
-      },
-    ];
+    ddbMock.on(TransactWriteItemsCommand).callsFake((input) => {
+      expect(input.TransactItems).toHaveLength(3);
 
-    ddbMock.on(QueryCommand).resolves({
-      Items: mockRsvps.map((item) => marshall(item)),
+      const tableNames = input.TransactItems.map(
+        (item: Record<string, any>) => Object.values(item)[0].TableName,
+      );
+
+      expect(tableNames).toEqual(
+        expect.arrayContaining([
+          genericConfig.RoomRequestsTableName,
+          genericConfig.RoomRequestsStatusTableName,
+          genericConfig.AuditLogTable,
+        ]),
+      );
+
+      return { $metadata: { httpStatusCode: 200 } };
     });
 
-    const adminJwt = createJwt();
-
-    const response = await app.inject({
-      method: "GET",
-      url: `/api/v1/rsvp/event/${eventId}`,
-      headers: { Authorization: `Bearer ${adminJwt}` },
-    });
-
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.body);
-    expect(body).toHaveLength(1);
-    expect(body[0].userId).toBe("user1@illinois.edu");
-    expect(body[0].checkedIn).toBe(true);
-  });
-
-  test("Test withdrawing own RSVP", async () => {
-    ddbMock.on(TransactWriteItemsCommand).resolves({});
-
-    const eventId = "Make Your Own Database";
-    const response = await app.inject({
-      method: "DELETE",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/me`,
-      headers: DEFAULT_HEADERS,
-    });
-
-    expect(response.statusCode).toBe(204);
-  });
-
-  test("Test Manager deleting a user's RSVP", async () => {
-    ddbMock.on(TransactWriteItemsCommand).resolves({});
-
-    const adminJwt = createJwt();
-    const eventId = "Make Your Own Database";
-    const targetUserId = "user1@illinois.edu";
-
-    const response = await app.inject({
-      method: "DELETE",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/${encodeURIComponent(targetUserId)}`,
-      headers: {
-        Authorization: `Bearer ${adminJwt}`,
-      },
-    });
-
-    expect(response.statusCode).toBe(204);
-  });
-
-  test("Test Manager configuring rsvp limit", async () => {
-    ddbMock.on(TransactWriteItemsCommand).resolves({});
-
-    const adminJwt = createJwt();
-    const eventId = "Make Your Own Database";
-    const newLimit = 50;
-
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/config`,
-      headers: {
-        Authorization: `Bearer ${adminJwt}`,
-      },
-      payload: {
-        rsvpLimit: newLimit,
-        rsvpCheckInEnabled: false,
-        rsvpOpenAt: Math.floor(Date.now() / 1000),
-        rsvpCloseAt: Math.floor(Date.now() / 1000) + 100,
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-  });
-
-  test("Test Manager getting RSVP configuration", async () => {
-    const eventId = "Make Your Own Database";
-    const mockConfig = {
-      partitionKey: `CONFIG#${eventId}`,
-      eventId,
-      rsvpLimit: 50,
-      rsvpCheckInEnabled: true,
-      rsvpOpenAt: Math.floor(Date.now() / 1000) - 100,
-      rsvpCloseAt: Math.floor(Date.now() / 1000) + 100,
+    const roomRequest = {
+      host: "C01",
+      title: "Valid Request",
+      semester: "sp25",
+      theme: "Athletics",
+      description:
+        "This is a valid request with enough words in the description field.",
+      eventStart: new Date("2025-04-24T12:00:00Z"),
+      eventEnd: new Date("2025-04-24T13:00:00Z"),
+      isRecurring: false,
+      setupNeeded: false,
+      hostingMinors: false,
+      locationType: "virtual",
+      foodOrDrink: false,
+      crafting: false,
+      onCampusPartners: null,
+      offCampusPartners: null,
+      nonIllinoisSpeaker: null,
+      nonIllinoisAttendees: null,
+      requestsSccsRoom: false,
     };
 
-    ddbMock.on(GetItemCommand).resolves({
-      Item: marshall(mockConfig),
-    });
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(roomRequest);
 
-    const adminJwt = createJwt();
-
-    const response = await app.inject({
-      method: "GET",
-      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/config`,
-      headers: {
-        Authorization: `Bearer ${adminJwt}`,
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.body);
-    expect(body.rsvpLimit).toBe(50);
+    expect(response.statusCode).toBe(201);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(1);
   });
-  test("Test Manager checking in a user (Success)", async () => {
-    ddbMock.on(UpdateItemCommand).resolves({});
+  test("Successful request queues a message to SQS", async () => {
+    const testJwt = createJwt();
 
-    const adminJwt = createJwt();
-    const eventId = "Make Your Own Database";
-    const targetUserId = "123456789";
+    // Mock DynamoDB transaction success
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
 
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/checkin/event/${encodeURIComponent(eventId)}`,
-      headers: {
-        Authorization: `Bearer ${adminJwt}`,
-      },
+    // Mock SQS response
+    sqsMock.on(SendMessageCommand).resolves({ MessageId: "mocked-message-id" });
+
+    const roomRequest = {
+      host: "C01",
+      title: "Valid SQS Request",
+      semester: "sp25",
+      theme: "Athletics",
+      description:
+        "A well-formed description that has at least ten total words.",
+      eventStart: "2025-04-24T12:00:00Z",
+      eventEnd: "2025-04-24T13:00:00Z",
+      isRecurring: false,
+      setupNeeded: false,
+      hostingMinors: false,
+      locationType: "virtual",
+      foodOrDrink: false,
+      crafting: false,
+      onCampusPartners: null,
+      offCampusPartners: null,
+      nonIllinoisSpeaker: null,
+      nonIllinoisAttendees: null,
+      requestsSccsRoom: false,
+    };
+
+    const response = await supertest(app.server)
+      .post("/api/v1/roomRequests")
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(roomRequest);
+    console.error(response.headers["x-request-id"]);
+    expect(response.statusCode).toBe(201);
+    expect(sqsMock.commandCalls(SendMessageCommand).length).toBe(1);
+
+    const sent = sqsMock.commandCalls(SendMessageCommand)[0].args[0]
+      .input as SendMessageCommand["input"];
+
+    expect(sent.QueueUrl).toBe(environmentConfig["dev"].SqsQueueUrl);
+    expect(JSON.parse(sent.MessageBody as string)).toMatchObject({
+      function: AvailableSQSFunctions.EmailNotifications,
       payload: {
-        uin: targetUserId,
+        subject: expect.stringContaining("New Room Reservation Request"),
       },
     });
+  });
+  afterAll(async () => {
+    await app.close();
+    vi.resetAllMocks();
+  });
+  beforeEach(() => {
+    (app as any).redisClient.flushall();
+    ddbMock.reset();
+    sqsMock.reset();
+    vi.clearAllMocks();
+  });
+  test("Unauthenticated access is rejected", async () => {
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .send(statusBody);
 
-    console.log(response.body);
-
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(401);
   });
 
-  test("Test Manager checking in a user (RSVP Not Found)", async () => {
-    const error = new Error("ConditionalCheckFailedException");
-    error.name = "ConditionalCheckFailedException";
-    ddbMock.on(UpdateItemCommand).rejects(error);
+  test("Fails if request status with CREATED not found", async () => {
+    const testJwt = createJwt();
+    ddbMock.on(QueryCommand).resolves({ Count: 0, Items: [] });
+    ddbMock.rejects(); // ensure no other writes
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBody);
 
-    const adminJwt = createJwt();
-    const eventId = "Make Your Own Database";
-    const targetUserId = "111111111"; // non-existent UIN
+    expect(response.statusCode).toBe(500);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(0);
+  });
 
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/rsvp/checkin/event/${encodeURIComponent(eventId)}`,
-      headers: {
-        Authorization: `Bearer ${adminJwt}`,
-      },
-      payload: {
-        uin: targetUserId,
-      },
+  test("Fails if original request found but missing createdBy", async () => {
+    const testJwt = createJwt();
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({})],
+    });
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBody);
+
+    expect(response.statusCode).toBe(500);
+    expect(response.body.message).toContain(
+      "Could not find original reservation requestor",
+    );
+  });
+
+  test("Creates status update with audit log in DynamoDB", async () => {
+    const testJwt = createJwt();
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
     });
 
-    console.log(response.body);
+    ddbMock.on(TransactWriteItemsCommand).callsFake((input) => {
+      expect(input.TransactItems).toHaveLength(2);
+
+      const tableNames = input.TransactItems.map(
+        (item: Record<string, any>) => Object.values(item)[0].TableName,
+      );
+
+      expect(tableNames).toEqual(
+        expect.arrayContaining([
+          genericConfig.RoomRequestsStatusTableName,
+          genericConfig.AuditLogTable,
+        ]),
+      );
+
+      return { $metadata: { httpStatusCode: 200 } };
+    });
+
+    sqsMock.on(SendMessageCommand).resolves({ MessageId: "sqs-message-id" });
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBody);
+
+    expect(response.statusCode).toBe(201);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(1);
+  });
+
+  test("Queues SQS notification after status update", async () => {
+    const testJwt = createJwt();
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
+    });
+
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    sqsMock.on(SendMessageCommand).resolves({ MessageId: "mock-sqs-id" });
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBody);
+
+    expect(response.statusCode).toBe(201);
+    expect(sqsMock.commandCalls(SendMessageCommand).length).toBe(1);
+
+    const sent = sqsMock.commandCalls(SendMessageCommand)[0].args[0]
+      .input as SendMessageCommand["input"];
+
+    const body = JSON.parse(sent.MessageBody as string);
+    expect(body.function).toBe(AvailableSQSFunctions.EmailNotifications);
+    expect(body.payload.subject).toContain(
+      "Room Reservation Request Status Change",
+    );
+    expect(body.payload.to).toEqual(["originalUser"]);
+  });
+
+  test("Returns uploadUrl when attachment info is provided", async () => {
+    const testJwt = createJwt();
+    const mockPresignedUrl =
+      "https://s3.amazonaws.com/bucket/key?signature=abc123";
+
+    // Import the mocked module
+    const s3Functions = await import("../../src/api/functions/s3.js");
+    vi.mocked(s3Functions.createPresignedPut).mockResolvedValue(
+      mockPresignedUrl,
+    );
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
+    });
+
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+    sqsMock.on(SendMessageCommand).resolves({ MessageId: "mock-sqs-id" });
+
+    const statusBodyWithAttachment = {
+      status: RoomRequestStatus.APPROVED,
+      notes: "Request approved with attachment.",
+      attachmentInfo: {
+        filename: "approval-letter.pdf",
+        fileSizeBytes: 102400,
+        contentType: "application/pdf",
+      },
+    };
+
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBodyWithAttachment);
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body).toHaveProperty("uploadUrl");
+    expect(response.body.uploadUrl).toBe(mockPresignedUrl);
+    expect(s3Functions.createPresignedPut).toHaveBeenCalledOnce();
+  });
+
+  test("Does not return uploadUrl when no attachment info is provided", async () => {
+    const testJwt = createJwt();
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
+    });
+
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+    sqsMock.on(SendMessageCommand).resolves({ MessageId: "mock-sqs-id" });
+
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(statusBody);
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body).toEqual({});
+  });
+
+  test("Validates attachment info schema", async () => {
+    const testJwt = createJwt();
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
+    });
+
+    const invalidAttachmentBody = {
+      status: RoomRequestStatus.APPROVED,
+      notes: "Request approved.",
+      attachmentInfo: {
+        filename: "test.pdf",
+        fileSizeBytes: 999999999999, // exceeds max size
+        contentType: "application/pdf",
+      },
+    };
+
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(invalidAttachmentBody);
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  test("Validates attachment content type", async () => {
+    const testJwt = createJwt();
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [marshall({ createdBy: "originalUser" })],
+    });
+
+    const invalidContentTypeBody = {
+      status: RoomRequestStatus.APPROVED,
+      notes: "Request approved.",
+      attachmentInfo: {
+        filename: "malicious.exe",
+        fileSizeBytes: 1024,
+        contentType: "application/x-msdownload", // invalid type
+      },
+    };
+
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(makeUrl())
+      .set("authorization", `Bearer ${testJwt}`)
+      .send(invalidContentTypeBody);
 
     expect(response.statusCode).toBe(400);
   });
