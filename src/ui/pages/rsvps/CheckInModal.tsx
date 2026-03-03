@@ -69,7 +69,10 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
   const parseInput = (
     input: string,
   ): { userId: string; type: string } | null => {
+    let inputType = "Manual UIN Entry";
+
     if (input.startsWith("ACMCARD")) {
+      inputType = "ACM Card Swipe"; // Set the type if a swipe is detected
       const uinMatch = input.match(/^ACMCARD\d{4}(\d{9})/);
 
       if (uinMatch) {
@@ -79,10 +82,11 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
         input = flexibleMatch ? flexibleMatch[1] : input;
       }
     }
+
     if (/^\d{9}$/.test(input)) {
       return {
         userId: input,
-        type: "Manual UIN Entry",
+        type: inputType, // Use the variable instead of the hardcoded string
       };
     }
 
