@@ -79,6 +79,7 @@ describe("Stripe link lifecycle test", { sequential: true }, async () => {
     });
 
     const body = await response.json();
+    console.log("POST body:", JSON.stringify(body));
     expect(response.status).toBe(201);
 
     // your API returns { id: invoiceId, link: `${PaymentBaseUrl}/${token}` }
