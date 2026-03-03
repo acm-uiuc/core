@@ -37,7 +37,7 @@ import {
   createInvoiceConflictResponseSchema,
   createInvoicePostResponseSchema,
 } from "common/types/stripe.js";
-import { FastifyPluginAsync } from "fastify";
+import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { Stripe } from "stripe";
 import rawbody from "fastify-raw-body";
@@ -63,6 +63,30 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     global: false,
     runFirst: true,
   });
+
+  const getRequestOrigin = (request: FastifyRequest) => {
+    const proto = request.headers["x-forwarded-proto"] ?? "http";
+    const host =
+      request.headers["x-forwarded-host"] ??
+      request.headers.host ??
+      request.hostname;
+    return `${proto}://${host}`;
+  };
+
+  const getInvoiceBaseUrl = (request: FastifyRequest) => {
+    const reqOrigin = getRequestOrigin(request);
+
+    if (
+      reqOrigin.includes("localhost") ||
+      reqOrigin.includes("127.0.0.1") ||
+      reqOrigin.includes("0.0.0.0")
+    ) {
+      return reqOrigin;
+    }
+
+    // Deployed environments: use the public invoice domain from config
+    return fastify.environmentConfig.PaymentBaseUrl;
+  };
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/paymentLinks",
     {
@@ -180,13 +204,16 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         invoiceId: request.body.invoiceId,
       });
 
-      const proto = request.headers["x-forwarded-proto"] ?? "https";
-      const host =
-        request.headers["x-forwarded-host"] ??
-        request.headers.host ??
-        request.hostname;
+      const baseUrl = getInvoiceBaseUrl(request);
 
-      const link = `${proto}://${host}/api/v1/stripe/pay/${token}`;
+      const isLocal =
+        baseUrl.includes("localhost") ||
+        baseUrl.includes("127.0.0.1") ||
+        baseUrl.includes("0.0.0.0");
+
+      const link = isLocal
+        ? `${baseUrl}/api/v1/stripe/pay/${token}`
+        : `${baseUrl}/${token}`;
 
       return reply.status(201).send({
         id: request.body.invoiceId,
@@ -241,19 +268,14 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     const stripe = new Stripe(fastify.secretConfig.stripe_secret_key as string);
 
     const price = await stripe.prices.create({
-      unit_amount: amountUsd,
+      unit_amount: Math.round(amountUsd * 100),
       currency: "usd",
       product_data: {
         name: `Invoice ${invoiceId}`,
       },
     });
-    const proto = request.headers["x-forwarded-proto"] ?? "http";
-    const host =
-      request.headers["x-forwarded-host"] ??
-      request.headers.host ??
-      request.hostname;
 
-    const baseUrl = `${proto}://${host}`;
+    const baseUrl = getInvoiceBaseUrl(request);
 
     const checkoutUrl: string = await createCheckoutSessionWithCustomer({
       customerId,
@@ -592,6 +614,15 @@ Please ask the payee to try again, perhaps with a different payment method, or c
             const decrementOwed =
               session.payment_status === "paid" ||
               event.type === "checkout.session.async_payment_succeeded";
+
+            if (!decrementOwed) {
+              request.log.info(
+                `Not recording payment for invoice ${meta.invoiceId} because payment not settled yet (status=${session.payment_status}, event=${event.type}).`,
+              );
+              return reply
+                .status(200)
+                .send({ handled: true, requestId: request.id });
+            }
 
             try {
               await recordInvoicePayment({

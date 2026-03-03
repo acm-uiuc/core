@@ -111,11 +111,12 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
           }}
           label="Invoice Recipient Org"
           placeholder="Select recipient organization"
+          description="Only orgs you manage are shown here."
           withAsterisk
         />
         <TextInput
           label="Invoice ID"
-          placeholder="ACM100"
+          placeholder="100"
           description="Make sure the Invoice ID is prefixed with a unique string for your group to avoid processing delays."
           {...form.getInputProps("invoiceId")}
           required
