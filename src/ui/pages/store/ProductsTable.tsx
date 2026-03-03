@@ -14,7 +14,7 @@ import {
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconEdit } from "@tabler/icons-react";
+import { IconEdit, IconEye } from "@tabler/icons-react";
 import {
   AdminListProductsResponse,
   ModifyProductRequest,
@@ -37,6 +37,7 @@ import { uploadToS3PresignedUrl } from "@ui/util/s3";
 import { AppRoles } from "@common/roles";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { VariantsModal } from "./VariantsModal";
+import { useNavigate } from "react-router-dom";
 
 interface ProductsTableProps {
   getProducts: () => Promise<AdminListProductsResponse["products"]>;
@@ -73,6 +74,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   const [imageUploadResult, setImageUploadResult] =
     useState<ImageUploadResult | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
+  const navigate = useNavigate();
 
   // Variants modal state
   const [
@@ -298,6 +300,15 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
               }}
             >
               Edit
+            </Button>
+            <Button
+              leftSection={<IconEye size={14} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/store/sales/${product.productId}`);
+              }}
+            >
+              View Sales
             </Button>
           </ButtonGroup>
         </AuthGuard>
