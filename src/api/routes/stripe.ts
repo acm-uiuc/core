@@ -191,12 +191,20 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       const emailDomain = request.body.contactEmail.split("@").at(-1)!;
 
-      await addInvoice({
+      const addRes = await addInvoice({
         ...request.body,
         redisClient: fastify.redisClient,
         dynamoClient: fastify.dynamoClient,
         stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
       });
+
+      if (addRes.needsConfirmation) {
+        return reply.status(409).send({
+          ...addRes,
+          message:
+            "Existing Stripe customer info differs; confirmation required before creating invoice.",
+        });
+      }
 
       const token = encodeInvoiceToken({
         orgId: request.body.acmOrg,
@@ -463,16 +471,29 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         return { invoiceId, acmOrg, pk: `${acmOrg}#${domain}`, email };
       };
       try {
-        const body = request.body as { id?: string };
-        if (!body?.id || typeof body.id !== "string") {
-          throw new ValidationError({
-            message: "Missing event ID in webhook payload.",
-          });
+        const sig = request.headers["stripe-signature"];
+        const sigStr = Array.isArray(sig) ? sig[0] : sig;
+
+        if (sigStr) {
+          // Signed webhook flow (unit tests)
+          event = Stripe.webhooks.constructEvent(
+            request.rawBody,
+            sigStr,
+            secretApiConfig.stripe_links_endpoint_secret as string,
+          );
+        } else {
+          // Fallback flow: body = { id }, retrieve from Stripe
+          const body = request.body as { id?: string };
+          if (!body?.id || typeof body.id !== "string") {
+            throw new ValidationError({
+              message: "Missing event ID in webhook payload.",
+            });
+          }
+          const stripeClient = new Stripe(
+            fastify.secretConfig.stripe_secret_key as string,
+          );
+          event = await stripeClient.events.retrieve(body.id);
         }
-        const stripeClient = new Stripe(
-          fastify.secretConfig.stripe_secret_key as string,
-        );
-        event = await stripeClient.events.retrieve(body.id);
       } catch (err: unknown) {
         if (err instanceof BaseError) {
           throw err;
