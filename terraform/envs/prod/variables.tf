@@ -54,6 +54,11 @@ variable "IcalPublicDomain" {
   default = "ical.acm.illinois.edu"
 }
 
+variable "InvoicePaymentPublicDomain" {
+  type    = string
+  default = "invoice.acm.gg"
+}
+
 variable "current_active_region" {
   type        = string
   description = "Currently active AWS region"
