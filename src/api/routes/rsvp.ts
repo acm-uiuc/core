@@ -224,11 +224,12 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
 
       let profileItem;
+
       try {
         const rawItem = unmarshall(response.Items[0]);
         if (!rawItem.schoolYear || !rawItem.intendedMajor) {
-          throw new NotFoundError({
-            endpointName: request.url,
+          throw new DatabaseFetchError({
+            message: `Raw Item: ${rawItem}`,
           });
         }
         profileItem = rsvpProfileSchema.parse(rawItem);
