@@ -23,6 +23,7 @@ import { AppRoles } from "@common/roles.js";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 import * as z from "zod/v4";
 import { size } from "zod/v4";
+import { title } from "process";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
 
@@ -119,7 +120,6 @@ export const ViewRsvpConfigsPage: React.FC = () => {
 
         setEventList(enrichedResponse);
       } catch (error) {
-        console.error("Error fetching events:", error);
         notifications.show({
           title: "Error fetching events",
           message: `${error}`,
@@ -152,8 +152,16 @@ export const ViewRsvpConfigsPage: React.FC = () => {
       } else {
         openRsvpNotFoundModal();
       }
-    } catch (error) {
-      openRsvpNotFoundModal();
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        openRsvpNotFoundModal();
+        return;
+      }
+      notifications.show({
+        title: "Error fetching RSVP configuration",
+        message: "Unable to load RSVP configuration. Please try again.",
+        color: "red",
+      });
     }
   };
 

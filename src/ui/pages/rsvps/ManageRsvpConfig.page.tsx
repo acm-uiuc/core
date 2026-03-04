@@ -31,17 +31,15 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
   const [checkInEnabled, setCheckInEnabled] = useState(false);
 
   const checkRsvpConfigExists = useCallback(async () => {
+    setHasRsvpConfig(false);
+    setCheckInEnabled(false);
     try {
       const response = await api.get(`/api/v1/rsvp/event/${eventId}/config`);
       const config = rsvpConfigSchemaFrontend.parse(response.data);
       setHasRsvpConfig(true);
       setCheckInEnabled(config.rsvpCheckInEnabled);
     } catch (error: any) {
-      console.error("Error checking RSVP config:", error);
-      if (error?.response?.status === 404) {
-        setHasRsvpConfig(false);
-        setCheckInEnabled(false);
-      } else {
+      if (error?.response?.status !== 404) {
         notifications.show({
           title: "Error loading RSVP config",
           message: "Unable to determine RSVP settings. Please try again.",

@@ -71,8 +71,6 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
         rsvpCheckInEnabled: data.rsvpCheckInEnabled,
       });
     } catch (e: any) {
-      console.error("Error fetching RSVP config:", e);
-
       if (e?.response?.status === 404 || e?.message?.includes("not found")) {
         setConfigData(null);
         setNoConfigFound(true);
@@ -133,7 +131,6 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
 
       await fetchRsvpConfig();
     } catch (e) {
-      console.error(e);
       notifications.show({
         title: "Error",
         message: "Failed to save RSVP configuration.",

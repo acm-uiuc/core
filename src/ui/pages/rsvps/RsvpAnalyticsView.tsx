@@ -93,7 +93,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
         majorBreakdown: {},
         dietaryRestrictionsBreakdown: {},
       });
-      console.error("Error fetching RSVPs:", error);
       notifications.show({
         title: "Error fetching RSVPs",
         message: error instanceof Error ? error.message : String(error),
