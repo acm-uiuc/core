@@ -52,13 +52,6 @@ export const navItems = [
     validRoles: [AppRoles.EVENTS_MANAGER],
   },
   {
-    link: "/rsvps/manage",
-    name: "RSVPs",
-    icon: IconMailBolt,
-    description: null,
-    validRoles: [AppRoles.RSVP_MANAGER],
-  },
-  {
     link: "/store",
     name: "Store",
     icon: IconShoppingBag,
