@@ -401,3 +401,7 @@ export class OrderNotFoundError extends BaseError<"OrderNotFoundError"> {
     });
   }
 }
+
+export interface AWSDynamoError extends Error {
+  CancellationReasons?: { Code: string }[];
+}
