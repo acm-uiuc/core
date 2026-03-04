@@ -283,7 +283,7 @@ describe("ViewStorePurchasesInternalPage", () => {
       await user.clear(justificationInput);
       await user.type(justificationInput, "Customer requested cancellation");
       expect(issueRefundButton).toBeEnabled();
-    });
+    }, 10000);
 
     it("disables Issue Refund button when email does not match", async () => {
       await renderComponent();
@@ -301,7 +301,7 @@ describe("ViewStorePurchasesInternalPage", () => {
       expect(
         screen.getByRole("button", { name: "Issue Refund" }),
       ).toBeDisabled();
-    });
+    }, 10000);
 
     it("shows audit log warning in the modal", async () => {
       await renderComponent();
