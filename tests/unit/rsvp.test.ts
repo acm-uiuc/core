@@ -17,6 +17,7 @@ import { secretObject } from "./secret.testdata.js";
 import { Redis } from "../../src/api/types.js";
 import { FastifyBaseLogger } from "fastify";
 import { randomUUID } from "node:crypto";
+import { genericConfig } from "../../src/common/config.js";
 
 const DUMMY_JWT = createJwt();
 const DEFAULT_HEADERS = {
@@ -121,9 +122,7 @@ const setupMockProfile = (exists = true) => {
   const userKey = marshall({ partitionKey: `UIN#jd3@illinois.edu` });
 
   if (!exists) {
-    // Mock the GET /profile/me query
     ddbMock.on(QueryCommand).resolves({ Items: [] });
-    // Mock the POST /event/:eventId profile check
     ddbMock.on(GetItemCommand, { Key: userKey }).resolves({});
     return;
   }
@@ -155,7 +154,6 @@ describe("RSVP API tests", () => {
   });
 
   test("POST /profile - Create/Update Profile successfully", async () => {
-    // Changed to UpdateItemCommand
     ddbMock.on(UpdateItemCommand).resolves({});
 
     const response = await app.inject({
@@ -197,12 +195,10 @@ describe("RSVP API tests", () => {
       headers: DEFAULT_HEADERS,
     });
 
-    // We now throw a ValidationError when the UIN index is empty or NotFoundError if no schoolYear
     expect(response.statusCode).toBeGreaterThanOrEqual(400);
   });
 
   test("DELETE /profile/me - Delete Profile", async () => {
-    // Changed to UpdateItemCommand since we now REMOVE attributes
     ddbMock.on(UpdateItemCommand).resolves({});
 
     const response = await app.inject({
@@ -502,6 +498,12 @@ describe("RSVP API tests", () => {
 
   test("Test Manager getting RSVP configuration", async () => {
     const eventId = "Make Your Own Database";
+
+    const mockEvent = {
+      id: eventId,
+      rsvpEnabled: true,
+    };
+
     const mockConfig = {
       partitionKey: `CONFIG#${eventId}`,
       eventId,
@@ -511,9 +513,19 @@ describe("RSVP API tests", () => {
       rsvpCloseAt: Math.floor(Date.now() / 1000) + 100,
     };
 
-    ddbMock.on(GetItemCommand).resolves({
-      Item: marshall(mockConfig),
-    });
+    ddbMock
+      .on(GetItemCommand, {
+        TableName: genericConfig.EventsDynamoTableName,
+      })
+      .resolves({
+        Item: marshall(mockEvent),
+      })
+      .on(GetItemCommand, {
+        TableName: genericConfig.RSVPDynamoTableName,
+      })
+      .resolves({
+        Item: marshall(mockConfig),
+      });
 
     const adminJwt = createJwt();
 
