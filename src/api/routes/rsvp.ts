@@ -963,10 +963,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         if (err instanceof BaseError) {
           throw err;
         }
-        if (
-          err instanceof ConditionalCheckFailedException ||
-          err.name === "ConditionalCheckFailedException"
-        ) {
+        if (err instanceof ConditionalCheckFailedException) {
           return reply.status(400).send();
         }
         throw new DatabaseInsertError({
