@@ -256,9 +256,9 @@ export const rsvpProfileSchema = z.object({
   dietaryRestrictions: z.array(z.string()).default([]).meta({
     description: "User's dietary restrictions."
   }),
-  updatedAt: z.number().meta({
-    description: "Epoch timestamp (sec) when the profile was last updated.",
-    example: 1705512000,
+  updatedAt: z.string().datetime().meta({
+    description: "ISO timestamp when the profile was last updated.",
+    example: "2026-03-04T22:58:04.694Z",
   }),
 }).meta({
   description: "Represents a user's RSVP profile information.",

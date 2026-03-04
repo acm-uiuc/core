@@ -39,10 +39,24 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
       setHasRsvpConfig(true);
       setCheckInEnabled(config.rsvpCheckInEnabled);
     } catch (error: any) {
-      if (error?.response?.status !== 404) {
+      if (error?.response?.status === 409) {
         notifications.show({
-          title: "Error loading RSVP config",
-          message: "Unable to determine RSVP settings. Please try again.",
+          title: "Event Not Found With RSVP Enabled",
+          message: "The specified event does not exist.",
+          color: "red",
+        });
+        navigate("/events/manage");
+      } else if (error?.response?.status === 404) {
+        notifications.show({
+          title: "RSVP Configuration Not Found",
+          message: "No RSVP configuration found for this event.",
+          color: "yellow",
+        });
+      } else {
+        notifications.show({
+          title: "Error Fetching RSVP Configuration",
+          message:
+            "An unexpected error occurred while fetching the RSVP configuration.",
           color: "red",
         });
       }

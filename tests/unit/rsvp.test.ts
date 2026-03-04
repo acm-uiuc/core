@@ -135,7 +135,7 @@ const setupMockProfile = (exists = true) => {
     intendedMajor: "Computer Science",
     interests: ["AI"],
     dietaryRestrictions: ["None"],
-    updatedAt: 12345,
+    updatedAt: "2026-03-04T22:58:04.694Z",
   };
 
   ddbMock.on(QueryCommand).resolves({
@@ -548,6 +548,17 @@ describe("RSVP API tests", () => {
     const eventId = "Make Your Own Database";
     const targetUserId = "123456789";
 
+    ddbMock
+      .on(GetItemCommand, {
+        TableName: genericConfig.UserInfoTable,
+      })
+      .resolves({
+        Item: marshall({
+          id: `UIN#${targetUserId}`,
+          dietaryRestrictions: ["Vegetarian"],
+        }),
+      });
+
     const response = await app.inject({
       method: "POST",
       url: `/api/v1/rsvp/checkin/event/${encodeURIComponent(eventId)}`,
@@ -558,9 +569,6 @@ describe("RSVP API tests", () => {
         uin: targetUserId,
       },
     });
-
-    console.log(response.body);
-
     expect(response.statusCode).toBe(200);
   });
 

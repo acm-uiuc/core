@@ -87,8 +87,7 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
         setConfigData(null);
         notifications.show({
           title: "Error loading config",
-          message:
-            "There was an error loading the RSVP configuration. Please check the console.",
+          message: "There was an error loading the RSVP configuration.",
           color: "red",
         });
       }

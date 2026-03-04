@@ -226,6 +226,11 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       let profileItem;
       try {
         const rawItem = unmarshall(response.Items[0]);
+        if (!rawItem.schoolYear || !rawItem.intendedMajor) {
+          throw new NotFoundError({
+            endpointName: request.url,
+          });
+        }
         profileItem = rsvpProfileSchema.parse(rawItem);
       } catch (err) {
         if (err instanceof BaseError) {
@@ -916,7 +921,15 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "Successfully checked in RSVP",
               content: {
                 "application/json": {
-                  schema: z.null(),
+                  schema: z.object({
+                    upn: z.string().min(1).meta({
+                      description: "The UPN of the checked-in attendee.",
+                    }),
+                    dietaryRestrictions: z.array(z.string()).meta({
+                      description:
+                        "Dietary restrictions of the checked-in attendee.",
+                    }),
+                  }),
                 },
               },
             },
@@ -958,7 +971,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       try {
         await fastify.dynamoClient.send(command);
-        return reply.status(200).send();
       } catch (err) {
         if (err instanceof BaseError) {
           throw err;
@@ -972,6 +984,33 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }
         throw new DatabaseInsertError({
           message: "Could not check RSVP in",
+        });
+      }
+
+      const partitionKey = { id: `UIN#${userEmail}` };
+      const getUserCommand = new GetItemCommand({
+        TableName: genericConfig.UserInfoTable,
+        Key: marshall(partitionKey),
+        ProjectionExpression: "dietaryRestrictions",
+      });
+
+      try {
+        const userResponse = await fastify.dynamoClient.send(getUserCommand);
+        if (!userResponse || !userResponse.Item) {
+          return reply.status(200).send({
+            upn: userEmail,
+            dietaryRestrictions: [],
+          });
+        }
+        const userItem = unmarshall(userResponse.Item);
+        return reply.status(200).send({
+          upn: userEmail,
+          dietaryRestrictions: userItem.dietaryRestrictions || [],
+        });
+      } catch (err) {
+        request.log.error(err, "Failed to retrieve user information");
+        throw new DatabaseFetchError({
+          message: "Failed to retrieve user information.",
         });
       }
     },

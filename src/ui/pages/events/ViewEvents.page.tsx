@@ -201,6 +201,7 @@ export const ViewEventsPage: React.FC = () => {
           </Button>
           {event.rsvpEnabled && (
             <Button
+              color="green"
               onClick={(e) => {
                 e.stopPropagation();
                 navigate(`/events/rsvp/${event.id}`);
