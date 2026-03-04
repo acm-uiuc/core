@@ -364,7 +364,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       });
 
       const configKey = { partitionKey: `CONFIG#${eventId}` };
-      const profileKey = { partitionKey: `UIN#${netId}@illinois.edu` };
+      const profileKey = { id: `UIN#${netId}@illinois.edu` };
 
       const [configResponse, profileResponse] = await Promise.all([
         fastify.dynamoClient.send(
@@ -668,7 +668,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const checkEventCommand = new GetItemCommand({
         TableName: genericConfig.EventsDynamoTableName,
         Key: marshall({ id: eventId }),
-        ProjectionExpression: "id",
+        ProjectionExpression: "id, rsvpEnabled",
       });
 
       try {

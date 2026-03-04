@@ -119,7 +119,7 @@ vi.stubEnv("JwtSigningKey", jwt_secret);
 const app = await init();
 
 const setupMockProfile = (exists = true) => {
-  const userKey = marshall({ partitionKey: `UIN#jd3@illinois.edu` });
+  const userKey = marshall({ id: `UIN#jd3@illinois.edu` });
 
   if (!exists) {
     ddbMock.on(QueryCommand).resolves({ Items: [] });

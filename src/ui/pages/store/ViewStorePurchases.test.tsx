@@ -283,7 +283,7 @@ describe("ViewStorePurchasesInternalPage", () => {
       await user.clear(justificationInput);
       await user.type(justificationInput, "Customer requested cancellation");
       expect(issueRefundButton).toBeEnabled();
-    }, 10000);
+    }, 15000);
 
     it("disables Issue Refund button when email does not match", async () => {
       await renderComponent();

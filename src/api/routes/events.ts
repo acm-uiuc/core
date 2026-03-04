@@ -84,6 +84,7 @@ const createProjectionParams = (includeMetadata: boolean = false) => {
     repeatEnds: "#repeatEnds",
     repeatExcludes: "#repeatExcludes",
     paidEventId: "#paidEventId",
+    rsvpEnabled: "#rsvpEnabled",
     ...(includeMetadata ? { metadata: "#metadata" } : {}),
   };
 
