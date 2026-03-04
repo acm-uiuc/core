@@ -104,19 +104,36 @@ describe("Stripe link lifecycle test", { sequential: true }, async () => {
     "Test that deleting a created link succeeds",
     { timeout: 10000 },
     async () => {
-      if (!paymentLinkUrl || !paymentLinkId) {
+      if (!paymentLinkUrl) {
         throw new Error("Payment link was not created.");
       }
-      const response = await fetch(
-        `${baseEndpoint}/api/v1/stripe/paymentLinks/${paymentLinkId}`,
+
+      // 1) List links to find the actual linkId (plink_...) for our invoiceId
+      const listRes = await fetch(
+        `${baseEndpoint}/api/v1/stripe/paymentLinks`,
         {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
         },
       );
-      expect(response.status).toBe(204);
+      expect(listRes.status).toBe(200);
+
+      const links = await listRes.json();
+      const match = links.find((l: any) => l.invoiceId === invoiceId);
+
+      if (!match?.id) {
+        throw new Error(`Created link not found for invoiceId=${invoiceId}`);
+      }
+
+      // 2) Delete using the real link id
+      const delRes = await fetch(
+        `${baseEndpoint}/api/v1/stripe/paymentLinks/${match.id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      expect(delRes.status).toBe(204);
     },
   );
 });
