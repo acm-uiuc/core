@@ -16,6 +16,7 @@ vi.mock("@mantine/hooks", async () => {
   return {
     ...actual,
   };
+  // type
 });
 
 vi.mock("@ui/components/AuthContext", async () => {
