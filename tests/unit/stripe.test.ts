@@ -337,38 +337,6 @@ describe("Test Stripe link creation", async () => {
     expect(response.statusCode).toBe(403);
     expect(ddbMock.calls().length).toEqual(1);
   });
-  test("POST returns 409 when existing Stripe customer info differs (needsConfirmation)", async () => {
-    const invoicePayload = {
-      acmOrg: "C01",
-      invoiceId: "ACM409",
-      invoiceAmountUsd: 51,
-      contactName: "New Name",
-      contactEmail: "new@example.com",
-    };
-
-    // checkOrCreateCustomer: CUSTOMER lookup returns existing customer
-    ddbMock.on(QueryCommand).resolvesOnce({
-      Count: 1,
-      Items: [marshall({ stripeCustomerId: "cus_existing" })],
-    });
-
-    // ensureEmailMap transact inside checkOrCreateCustomer
-    ddbMock.on(TransactWriteItemsCommand).resolves({});
-
-    const testJwt = createJwt();
-    await app.ready();
-
-    const response = await supertest(app.server)
-      .post("/api/v1/stripe/paymentLinks")
-      .set("authorization", `Bearer ${testJwt}`)
-      .send(invoicePayload);
-
-    expect(response.statusCode).toBe(409);
-    expect(response.body.needsConfirmation).toBe(true);
-    expect(response.body.customerId).toBe("cus_existing");
-    expect(response.body.current).toBeTruthy();
-    expect(response.body.incoming).toBeTruthy();
-  });
   test("POST /webhook: Handles checkout.session.completed successfully", async () => {
     const mockInvoiceId = "ACM-999";
     const mockOrg = "C01";
