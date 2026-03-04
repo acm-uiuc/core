@@ -423,7 +423,6 @@ export const checkOrCreateCustomer = async ({
   redisClient,
   dynamoClient,
   customerEmail,
-  customerName,
   stripeApiKey,
 }: checkCustomerParams): Promise<CheckOrCreateResult> => {
   const normalizedEmail = customerEmail.trim().toLowerCase();
@@ -505,21 +504,10 @@ export const checkOrCreateCustomer = async ({
       return { customerId: customer };
     }
 
-    const existingCustomerId = (customerResponse.Items![0] as any)
-      .stripeCustomerId.S as string;
-    const stripeClient = new Stripe(stripeApiKey);
-
-    const stripeCustomer =
-      await stripeClient.customers.retrieve(existingCustomerId);
-
-    const liveName =
-      "name" in stripeCustomer ? (stripeCustomer as any).name : null;
-    const liveEmail =
-      "email" in stripeCustomer ? (stripeCustomer as any).email : null;
-
-    const needsConfirmation =
-      (!!liveName && liveName !== customerName) ||
-      (!!liveEmail && liveEmail.toLowerCase() !== normalizedEmail);
+    const existing = unmarshall(customerResponse.Items![0]) as {
+      stripeCustomerId: string;
+    };
+    const existingCustomerId = existing.stripeCustomerId;
 
     const ensureEmailMap = new TransactWriteItemsCommand({
       TransactItems: [
@@ -557,14 +545,6 @@ export const checkOrCreateCustomer = async ({
       }
     }
     // empty
-    if (needsConfirmation) {
-      return {
-        customerId: existingCustomerId,
-        needsConfirmation: true,
-        current: { name: liveName ?? null, email: liveEmail ?? null },
-        incoming: { name: customerName, email: normalizedEmail },
-      };
-    }
 
     return { customerId: existingCustomerId };
   });
@@ -612,10 +592,6 @@ export const addInvoice = async ({
     customerName: contactName,
     stripeApiKey,
   });
-
-  if (result.needsConfirmation) {
-    return result;
-  }
 
   const dynamoCommand = new TransactWriteItemsCommand({
     TransactItems: [

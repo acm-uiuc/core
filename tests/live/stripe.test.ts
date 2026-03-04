@@ -62,6 +62,9 @@ describe("Stripe link lifecycle test", { sequential: true }, async () => {
   let paymentLinkUrl: string | undefined;
   let paymentLinkId: string | undefined;
   test("Test that creating a link succeeds", { timeout: 10000 }, async () => {
+    const runTag = randomUUID().split("-")[0];
+    const contactEmail = `core-e2e-testing+${runTag}@example.com`;
+
     const response = await fetch(`${baseEndpoint}/api/v1/stripe/paymentLinks`, {
       method: "POST",
       headers: {
@@ -69,22 +72,26 @@ describe("Stripe link lifecycle test", { sequential: true }, async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        acmOrg: "C01", // <-- ADD THIS (required)
+        acmOrg: "C01",
         invoiceId,
         invoiceAmountUsd: 1000,
         contactName: "ACM Infra",
-        contactEmail: "core-e2e-testing@acm.illinois.edu",
-        // remove achPaymentsEnabled unless your schema includes it
+        contactEmail,
       }),
     });
 
     const body = await response.json();
-    console.log("POST body:", JSON.stringify(body));
-    expect(response.status).toBe(201);
+    console.log("POST status:", response.status, "body:", JSON.stringify(body));
 
-    // your API returns { id: invoiceId, link: `${PaymentBaseUrl}/${token}` }
+    // if it ever happens again, make the failure message obvious
+    if (response.status !== 201) {
+      throw new Error(
+        `Expected 201, got ${response.status}: ${JSON.stringify(body)}`,
+      );
+    }
+
     paymentLinkUrl = body.link;
-    paymentLinkId = body.id; // NOTE: this is invoiceId, not a Stripe link id
+    paymentLinkId = body.id; // still invoiceId in your API response
   });
 
   test(
