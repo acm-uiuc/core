@@ -365,16 +365,17 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         return reply.status(201).send();
       } catch (err) {
         const awsErr = err as AWSDynamoError;
-        if (
-          awsErr.name === "TransactionCanceledException" &&
-          awsErr.CancellationReasons
-        ) {
-          if (awsErr.CancellationReasons[0].Code === "ConditionalCheckFailed") {
+        if (awsErr.name === "TransactionCanceledException") {
+          if (
+            awsErr.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed"
+          ) {
             throw new ResourceConflictError({
               message: "You have already RSVP'd for this event.",
             });
           }
-          if (awsErr.CancellationReasons[1].Code === "ConditionalCheckFailed") {
+          if (
+            awsErr.CancellationReasons?.[1]?.Code === "ConditionalCheckFailed"
+          ) {
             throw new ResourceConflictError({
               message: "RSVP limit has been reached.",
             });
@@ -444,11 +445,11 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           eventId,
           userId,
           isPaidMember,
-          dietaryRestrictions,
-          intendedMajor,
-          schoolYear,
-          interests,
-          checkedIn,
+          dietaryRestrictions: dietaryRestrictions ?? [],
+          intendedMajor: intendedMajor ?? "Unknown",
+          schoolYear: schoolYear ?? "Unknown",
+          interests: interests ?? [],
+          checkedIn: checkedIn ?? false,
           createdAt,
         }),
       );
@@ -525,11 +526,10 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         return reply.status(200).send();
       } catch (err) {
         const awsErr = err as AWSDynamoError;
-        if (
-          awsErr.name === "TransactionCanceledException" &&
-          awsErr.CancellationReasons
-        ) {
-          if (awsErr.CancellationReasons[0].Code === "ConditionalCheckFailed") {
+        if (awsErr.name === "TransactionCanceledException") {
+          if (
+            awsErr.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed"
+          ) {
             throw new NotFoundError({
               endpointName: request.url,
             });
@@ -748,11 +748,10 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         return reply.status(204).send();
       } catch (err) {
         const awsErr = err as AWSDynamoError;
-        if (
-          awsErr.name === "TransactionCanceledException" &&
-          awsErr.CancellationReasons
-        ) {
-          if (awsErr.CancellationReasons[0].Code === "ConditionalCheckFailed") {
+        if (awsErr.name === "TransactionCanceledException") {
+          if (
+            awsErr.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed"
+          ) {
             return reply.status(204).send();
           }
         }
@@ -904,11 +903,10 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         return reply.status(204).send();
       } catch (err) {
         const awsErr = err as AWSDynamoError;
-        if (
-          awsErr.name === "TransactionCanceledException" &&
-          awsErr.CancellationReasons
-        ) {
-          if (awsErr.CancellationReasons[0].Code === "ConditionalCheckFailed") {
+        if (awsErr.name === "TransactionCanceledException") {
+          if (
+            awsErr.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed"
+          ) {
             throw new NotFoundError({
               endpointName: request.url,
             });

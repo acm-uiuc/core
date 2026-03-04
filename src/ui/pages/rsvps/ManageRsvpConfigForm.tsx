@@ -23,7 +23,7 @@ import * as z from "zod/v4";
 const rsvpConfigSchema = z.object({
   rsvpOpenAt: z.number().min(0).max(9007199254740991),
   rsvpCloseAt: z.number().min(0).max(9007199254740991),
-  rsvpLimit: z.number().min(0).max(20000).nullable(),
+  rsvpLimit: z.number().min(1).max(20000).nullable(),
   rsvpCheckInEnabled: z.boolean().default(false),
 });
 

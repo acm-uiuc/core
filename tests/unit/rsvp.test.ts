@@ -69,7 +69,7 @@ vi.mock("../../src/api/functions/uin.js", async () => {
           logger: FastifyBaseLogger;
           dynamoClient: DynamoDBClient;
         }) => {
-          if (uin == "123456789") {
+          if (uin === "123456789") {
             return { id: "user1@illinois.edu" };
           }
           return { id: "missing_user1@illinois.edu" };

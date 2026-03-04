@@ -2,7 +2,7 @@ import * as z from "zod/v4";
 
 export const rsvpConfigSchema = z
   .object({
-    rsvpLimit: z.number().int().min(0).max(20000).nullable().meta({
+    rsvpLimit: z.number().int().min(1).max(20000).nullable().meta({
       description:
         "The maximum number of attendees allowed. Set to null for unlimited.",
       example: 50,

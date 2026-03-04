@@ -83,6 +83,16 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
       setRsvps(validatedData);
       calculateStats(validatedData);
     } catch (error) {
+      setRsvps([]);
+      setStats({
+        totalRsvps: 0,
+        totalPaidMembers: 0,
+        totalCheckedIn: 0,
+        schoolYearBreakdown: {},
+        interestsBreakdown: {},
+        majorBreakdown: {},
+        dietaryRestrictionsBreakdown: {},
+      });
       console.error("Error fetching RSVPs:", error);
       notifications.show({
         title: "Error fetching RSVPs",

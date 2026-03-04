@@ -13,7 +13,7 @@ import { notifications } from "@mantine/notifications";
 import { IconSettings } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { href, useNavigate } from "react-router-dom";
 
 import { capitalizeFirstLetter } from "../events/ManageEvent.page.js";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
@@ -22,6 +22,7 @@ import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles.js";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 import * as z from "zod/v4";
+import { size } from "zod/v4";
 
 const repeatOptions = ["weekly", "biweekly"] as const;
 
@@ -55,6 +56,7 @@ export type EventsGetResponse = z.infer<typeof getEventsSchema>;
 export const ViewRsvpConfigsPage: React.FC = () => {
   const api = useApi("core");
   const [eventList, setEventList] = useState<EventsGetResponse>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showPrevious, { toggle: togglePrevious }] = useDisclosure(false);
   const [selectedEventForRsvp, setSelectedEventForRsvp] =
     useState<EventGetResponse | null>(null);
@@ -93,6 +95,7 @@ export const ViewRsvpConfigsPage: React.FC = () => {
   useEffect(() => {
     const getEvents = async () => {
       try {
+        setIsLoading(true);
         const response = await api.get(`/api/v1/events?ts=${Date.now()}`);
         const upcomingEvents = await api.get(
           `/api/v1/events?upcomingOnly=true&ts=${Date.now()}`,
@@ -122,11 +125,13 @@ export const ViewRsvpConfigsPage: React.FC = () => {
           message: `${error}`,
           color: "red",
         });
+      } finally {
+        setIsLoading(false);
       }
     };
 
     getEvents();
-  }, []);
+  }, [api]);
 
   const checkRsvpConfig = async (eventId: string): Promise<boolean> => {
     const response = await api.get(`/api/v1/rsvp/event/${eventId}/config`);
@@ -185,7 +190,12 @@ export const ViewRsvpConfigsPage: React.FC = () => {
       label: "Location",
       render: (event) =>
         event.locationLink ? (
-          <Anchor target="_blank" size="sm" href={event.locationLink}>
+          <Anchor
+            target="_blank"
+            rel="noopener noreferrer"
+            size="sm"
+            href={event.locationLink}
+          >
             {event.location}
           </Anchor>
         ) : (
@@ -221,7 +231,7 @@ export const ViewRsvpConfigsPage: React.FC = () => {
     },
   ];
 
-  if (eventList.length === 0) {
+  if (isLoading) {
     return <FullScreenLoader />;
   }
 

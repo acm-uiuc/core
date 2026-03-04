@@ -67,6 +67,8 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
     data: RsvpConfigData,
   ): Promise<void> => {
     await api.post(`/api/v1/rsvp/event/${eventId}/config`, data);
+    setHasRsvpConfig(true);
+    setCheckInEnabled(data.rsvpCheckInEnabled);
   };
 
   const getRsvps = async (eventId: string): Promise<RsvpData[]> => {
