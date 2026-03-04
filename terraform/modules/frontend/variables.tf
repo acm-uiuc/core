@@ -46,12 +46,6 @@ variable "CoreCertificateArn" {
   description = "Core ACM ARN"
 }
 
-variable "InvoicePaymentPublicDomain" {
-  type        = string
-  description = "Public domain for hosted invoice payment pages (e.g. pay.acm.illinois.edu)"
-}
-// ^ use this new vairable called InvoicePaymentPublicDomain, pass into environments, then write cloudfront distribution
-
 variable "LinkryCertificateArn" {
   type        = string
   description = "Linkry ACM ARN"
