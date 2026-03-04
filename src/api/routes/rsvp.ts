@@ -11,8 +11,9 @@ import {
   TransactWriteItemsCommand,
   GetItemCommand,
   UpdateItemCommand,
-  PutItemCommand,
-  DeleteItemCommand,
+  TransactionCanceledException,
+  ConditionalCheckFailedException,
+  ResourceNotFoundException,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall, marshall } from "@aws-sdk/util-dynamodb";
 import {
@@ -22,7 +23,7 @@ import {
   NotFoundError,
   ValidationError,
   DatabaseDeleteError,
-  AWSDynamoError,
+  BaseError,
 } from "common/errors/index.js";
 import {
   rsvpConfigSchema,
@@ -31,11 +32,16 @@ import {
   rsvpProfileSchema,
 } from "common/types/rsvp.js";
 import * as z from "zod/v4";
-import { verifyUiucAccessToken, getUserIdByUin } from "api/functions/uin.js";
+import {
+  verifyUiucAccessToken,
+  getUserIdByUin,
+  getUserUin,
+} from "api/functions/uin.js";
 import { checkPaidMembership } from "api/functions/membership.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { genericConfig } from "common/config.js";
 import { AppRoles } from "common/roles.js";
+import { UIN_RETENTION_DAYS } from "common/constants.js";
 
 const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -86,7 +92,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];
-      const { userPrincipalName: upn } = await verifyUiucAccessToken({
+      const { netId } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
       });
@@ -96,26 +102,49 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       const now = Math.floor(Date.now() / 1000);
 
-      const profileItem = {
-        partitionKey: `PROFILE#${upn}`,
-        schoolYear,
-        intendedMajor,
-        interests,
-        dietaryRestrictions,
-        updatedAt: now,
-      };
-
+      const uin = await getUserUin({ uiucAccessToken: accessToken });
+      const expiresAt = now + UIN_RETENTION_DAYS * 86400;
       try {
         await fastify.dynamoClient.send(
-          new PutItemCommand({
-            TableName: genericConfig.RSVPDynamoTableName,
-            Item: marshall(profileItem),
+          new UpdateItemCommand({
+            TableName: genericConfig.UserInfoTable,
+            Key: marshall({
+              id: `UIN#${netId}@illinois.edu`,
+            }),
+            UpdateExpression:
+              "SET #uin = :uin, #netId = :netId, #updatedAt = :updatedAt, #expiresAt = :expiresAt, #schoolYear = :schoolYear, #intendedMajor = :intendedMajor, #interests = :interests, #dietaryRestrictions = :dietaryRestrictions",
+            ExpressionAttributeNames: {
+              "#uin": "uin",
+              "#netId": "netId",
+              "#updatedAt": "updatedAt",
+              "#expiresAt": "expiresAt",
+              "#schoolYear": "schoolYear",
+              "#intendedMajor": "intendedMajor",
+              "#interests": "interests",
+              "#dietaryRestrictions": "dietaryRestrictions",
+            },
+            ExpressionAttributeValues: marshall({
+              ":uin": uin,
+              ":netId": netId,
+              ":updatedAt": new Date().toISOString(),
+              ":expiresAt": expiresAt,
+              ":schoolYear": schoolYear,
+              ":intendedMajor": intendedMajor,
+              ":interests": interests || [],
+              ":dietaryRestrictions": dietaryRestrictions || [],
+            }),
           }),
         );
+
         return reply.status(201).send();
       } catch (err) {
-        const awsErr = err as AWSDynamoError;
-        request.log.error(awsErr, "Failed to update user profile");
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        request.log.error(
+          err,
+          "Failed to update UserInfoTable with RSVP profile",
+        );
         throw new DatabaseInsertError({
           message: "Failed to update profile.",
         });
@@ -147,33 +176,67 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];
-      const { userPrincipalName: upn } = await verifyUiucAccessToken({
+      await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
       });
+      const uin = await getUserUin({ uiucAccessToken: accessToken });
 
-      const key = { partitionKey: `PROFILE#${upn}` };
+      const queryCommand = new QueryCommand({
+        TableName: genericConfig.UserInfoTable,
+        IndexName: "UinIndex",
+        KeyConditionExpression: "uin = :uin",
+        ExpressionAttributeValues: {
+          ":uin": { S: uin },
+        },
+      });
+      let response;
+      try {
+        response = await fastify.dynamoClient.send(queryCommand);
+      } catch (err) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        request.log.error(err, "Failed to fetch user from UinIndex");
+        throw new DatabaseFetchError({
+          message: "Failed to retrieve user from database.",
+        });
+      }
+
+      if (!response || !response.Items) {
+        throw new DatabaseFetchError({
+          message: "Failed to retrieve user from database.",
+        });
+      }
+
+      if (response.Items.length === 0) {
+        throw new ValidationError({
+          message:
+            "Failed to find user in database. Please have the user run sync and try again.",
+        });
+      }
+
+      if (response.Items.length > 1) {
+        throw new ValidationError({
+          message:
+            "Multiple users tied to this UIN. This user probably had a NetID change. Please contact support.",
+        });
+      }
 
       let profileItem;
       try {
-        const response = await fastify.dynamoClient.send(
-          new GetItemCommand({
-            TableName: genericConfig.RSVPDynamoTableName,
-            Key: marshall(key),
-          }),
-        );
-        if (!response || !response.Item) {
-          throw new NotFoundError({
-            endpointName: request.url,
-          });
-        }
-        profileItem = unmarshall(response.Item);
+        const rawItem = unmarshall(response.Items[0]);
+        profileItem = rsvpProfileSchema.parse(rawItem);
       } catch (err) {
-        if (err instanceof NotFoundError) {
+        if (err instanceof BaseError) {
           throw err;
         }
+        request.log.error(
+          err,
+          "Failed to parse RSVP profile data from UserInfoTable",
+        );
         throw new DatabaseFetchError({
-          message: "Could not retrieve profile.",
+          message: "Could not retrieve profile. Data is malformed.",
         });
       }
 
@@ -205,23 +268,53 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];
-      const { userPrincipalName: upn } = await verifyUiucAccessToken({
+      const { netId } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
       });
 
-      const key = { partitionKey: `PROFILE#${upn}` };
+      const now = Math.floor(Date.now() / 1000);
+      const uin = await getUserUin({ uiucAccessToken: accessToken });
+      const expiresAt = now + UIN_RETENTION_DAYS * 86400;
+
+      const key = { id: `UIN#${netId}@illinois.edu` };
 
       try {
         await fastify.dynamoClient.send(
-          new DeleteItemCommand({
-            TableName: genericConfig.RSVPDynamoTableName,
+          new UpdateItemCommand({
+            TableName: genericConfig.UserInfoTable,
             Key: marshall(key),
+            UpdateExpression:
+              "SET #uin = :uin, #netId = :netId, #updatedAt = :updatedAt, #expiresAt = :expiresAt REMOVE #schoolYear, #intendedMajor, #interests, #dietaryRestrictions",
+            ExpressionAttributeNames: {
+              "#uin": "uin",
+              "#netId": "netId",
+              "#updatedAt": "updatedAt",
+              "#expiresAt": "expiresAt",
+              "#schoolYear": "schoolYear",
+              "#intendedMajor": "intendedMajor",
+              "#interests": "interests",
+              "#dietaryRestrictions": "dietaryRestrictions",
+            },
+            ExpressionAttributeValues: marshall({
+              ":uin": uin,
+              ":netId": netId,
+              ":updatedAt": new Date().toISOString(),
+              ":expiresAt": expiresAt,
+            }),
           }),
         );
-      } catch {
+      } catch (err) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        request.log.error(
+          err,
+          "Failed to remove RSVP fields from UserInfoTable",
+        );
         throw new DatabaseDeleteError({ message: "Could not delete profile." });
       }
+
       return reply.status(200).send();
     },
   );
@@ -271,7 +364,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       });
 
       const configKey = { partitionKey: `CONFIG#${eventId}` };
-      const profileKey = { partitionKey: `PROFILE#${upn}` };
+      const profileKey = { partitionKey: `UIN#${netId}@illinois.edu` };
 
       const [configResponse, profileResponse] = await Promise.all([
         fastify.dynamoClient.send(
@@ -282,7 +375,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ),
         fastify.dynamoClient.send(
           new GetItemCommand({
-            TableName: genericConfig.RSVPDynamoTableName,
+            TableName: genericConfig.UserInfoTable,
             Key: marshall(profileKey),
           }),
         ),
@@ -364,24 +457,22 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         await fastify.dynamoClient.send(transactionCommand);
         return reply.status(201).send();
       } catch (err) {
-        const awsErr = err as AWSDynamoError;
-        if (awsErr.name === "TransactionCanceledException") {
-          if (
-            awsErr.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed"
-          ) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        if (err instanceof TransactionCanceledException) {
+          if (err.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") {
             throw new ResourceConflictError({
               message: "You have already RSVP'd for this event.",
             });
           }
-          if (
-            awsErr.CancellationReasons?.[1]?.Code === "ConditionalCheckFailed"
-          ) {
+          if (err.CancellationReasons?.[1]?.Code === "ConditionalCheckFailed") {
             throw new ResourceConflictError({
               message: "RSVP limit has been reached.",
             });
           }
         }
-        request.log.error(awsErr, "Failed to process RSVP transaction");
+        request.log.error(err, "Failed to process RSVP transaction");
         //500
         throw new DatabaseInsertError({ message: "Failed to submit RSVP." });
       }
@@ -498,7 +589,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             ConditionCheck: {
               TableName: genericConfig.EventsDynamoTableName,
               Key: marshall({ id: eventId }),
-              ConditionExpression: "attribute_exists(id)",
+              ConditionExpression:
+                "attribute_exists(id) AND rsvpEnabled = :true",
+              ExpressionAttributeValues: marshall({ ":true": true }),
             },
           },
           {
@@ -525,18 +618,18 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         await fastify.dynamoClient.send(command);
         return reply.status(200).send();
       } catch (err) {
-        const awsErr = err as AWSDynamoError;
-        if (awsErr.name === "TransactionCanceledException") {
-          if (
-            awsErr.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed"
-          ) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        if (err instanceof TransactionCanceledException) {
+          if (err.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") {
             throw new NotFoundError({
               endpointName: request.url,
             });
           }
         }
 
-        request.log.error(awsErr, "Failed to update event config");
+        request.log.error(err, "Failed to update event config");
         throw new DatabaseInsertError({
           message: "Failed to update event configuration.",
         });
@@ -571,6 +664,42 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const { eventId } = request.params;
+
+      const checkEventCommand = new GetItemCommand({
+        TableName: genericConfig.EventsDynamoTableName,
+        Key: marshall({ id: eventId }),
+        ProjectionExpression: "id",
+      });
+
+      try {
+        const eventResponse =
+          await fastify.dynamoClient.send(checkEventCommand);
+        if (!eventResponse.Item) {
+          throw new NotFoundError({
+            endpointName: request.url,
+          });
+        }
+        const eventItem = unmarshall(eventResponse.Item);
+        if (!eventItem.rsvpEnabled) {
+          throw new ResourceConflictError({
+            message: "RSVP is not enabled for this event.",
+          });
+        }
+      } catch (err) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        if (err instanceof ResourceNotFoundException) {
+          throw new NotFoundError({
+            endpointName: request.url,
+          });
+        }
+        request.log.error(err, "Failed to verify event existence");
+        throw new DatabaseFetchError({
+          message: "Failed to fetch event information.",
+        });
+      }
+
       const command = new GetItemCommand({
         TableName: genericConfig.RSVPDynamoTableName,
         Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
@@ -586,13 +715,15 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const configItem = unmarshall(response.Item);
         return reply.send(configItem);
       } catch (err) {
-        const awsErr = err as AWSDynamoError;
-        if (awsErr.name === "ResourceNotFoundException") {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        if (err instanceof ResourceNotFoundException) {
           throw new NotFoundError({
             endpointName: request.url,
           });
         }
-        request.log.error(awsErr, "Failed to fetch event config");
+        request.log.error(err, "Failed to fetch event config");
         throw new DatabaseFetchError({
           message: "Failed to fetch event configuration.",
         });
@@ -747,17 +878,17 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         await fastify.dynamoClient.send(transactionCommand);
         return reply.status(204).send();
       } catch (err) {
-        const awsErr = err as AWSDynamoError;
-        if (awsErr.name === "TransactionCanceledException") {
-          if (
-            awsErr.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed"
-          ) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        if (err instanceof TransactionCanceledException) {
+          if (err.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") {
             return reply.status(204).send();
           }
         }
 
-        request.log.error(awsErr, "Failed to withdraw RSVP");
-        throw new DatabaseInsertError({
+        request.log.error(err, "Failed to withdraw RSVP");
+        throw new DatabaseDeleteError({
           message: "Failed to withdraw RSVP.",
         });
       }
@@ -829,8 +960,13 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         await fastify.dynamoClient.send(command);
         return reply.status(200).send();
       } catch (err) {
-        const awsErr = err as AWSDynamoError;
-        if (awsErr.name === "ConditionalCheckFailedException") {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        if (
+          err instanceof ConditionalCheckFailedException ||
+          err.name === "ConditionalCheckFailedException"
+        ) {
           return reply.status(400).send();
         }
         throw new DatabaseInsertError({
@@ -902,18 +1038,18 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         await fastify.dynamoClient.send(transactionCommand);
         return reply.status(204).send();
       } catch (err) {
-        const awsErr = err as AWSDynamoError;
-        if (awsErr.name === "TransactionCanceledException") {
-          if (
-            awsErr.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed"
-          ) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        if (err instanceof TransactionCanceledException) {
+          if (err.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") {
             throw new NotFoundError({
               endpointName: request.url,
             });
           }
         }
 
-        request.log.error(awsErr, "Failed to delete RSVP as manager");
+        request.log.error(err, "Failed to delete RSVP as manager");
         throw new DatabaseDeleteError({
           message: "Failed to remove RSVP.",
         });

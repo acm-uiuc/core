@@ -30,7 +30,6 @@ import { ManageExternalMembershipPage } from "./pages/membershipLists/Membership
 import { OrgInfoPage } from "./pages/organization/OrgInfo.page";
 import { ViewStoreItemsPage } from "./pages/store/ViewStoreItems.page";
 import { ViewStorePurchasesPage } from "./pages/store/ViewStorePurchases.page";
-import { ViewRsvpConfigsPage } from "./pages/rsvps/ViewRsvpConfigs.page";
 import { ManageRsvpConfigFormPage } from "./pages/rsvps/ManageRsvpConfig.page";
 
 const ProfileRediect: React.FC = () => {
@@ -176,11 +175,7 @@ const authenticatedRouter = createBrowserRouter([
         element: <ViewEventsPage />,
       },
       {
-        path: "/rsvps/manage",
-        element: <ViewRsvpConfigsPage />,
-      },
-      {
-        path: "/rsvps/manage/:eventId",
+        path: "/events/rsvp/:eventId",
         element: <ManageRsvpConfigFormPage />,
       },
       {

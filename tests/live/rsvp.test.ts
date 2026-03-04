@@ -41,6 +41,7 @@ describe(
           host: "ACM",
           featured: true,
           repeats: "weekly",
+          rsvpEnabled: true,
         }),
       });
 

@@ -249,11 +249,11 @@ export const rsvpProfileSchema = z.object({
     description: "The student's primary major at UIUC",
     example: "Computer Science",
   }),
-  interests: z.array(z.string()).meta({
+  interests: z.array(z.string()).default([]).meta({
     description: "List of attendee's interests.",
     example: ["AI", "Web Development"],
   }),
-  dietaryRestrictions:z.array(z.string()).meta({
+  dietaryRestrictions: z.array(z.string()).default([]).meta({
     description: "User's dietary restrictions."
   }),
   updatedAt: z.number().meta({

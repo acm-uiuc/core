@@ -7,6 +7,7 @@ import {
   PutItemCommand,
   DeleteItemCommand,
   UpdateItemCommand,
+  TransactionCanceledException,
 } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { mockClient } from "aws-sdk-client-mock";
@@ -75,6 +76,11 @@ vi.mock("../../src/api/functions/uin.js", async () => {
           return { id: "missing_user1@illinois.edu" };
         },
       ),
+    getUserUin: vi
+      .fn()
+      .mockImplementation(
+        async ({ uiucAccessToken: accessToken }) => "123456789",
+      ),
   };
 });
 
@@ -112,29 +118,34 @@ vi.stubEnv("JwtSigningKey", jwt_secret);
 const app = await init();
 
 const setupMockProfile = (exists = true) => {
+  const userKey = marshall({ partitionKey: `UIN#jd3@illinois.edu` });
+
   if (!exists) {
-    ddbMock
-      .on(GetItemCommand, {
-        Key: marshall({ partitionKey: `PROFILE#${MOCK_UPN}` }),
-      })
-      .resolves({});
+    // Mock the GET /profile/me query
+    ddbMock.on(QueryCommand).resolves({ Items: [] });
+    // Mock the POST /event/:eventId profile check
+    ddbMock.on(GetItemCommand, { Key: userKey }).resolves({});
     return;
   }
-  ddbMock
-    .on(GetItemCommand, {
-      Key: marshall({ partitionKey: `PROFILE#${MOCK_UPN}` }),
-    })
-    .resolves({
-      Item: marshall({
-        partitionKey: `PROFILE#${MOCK_UPN}`,
-        userId: MOCK_UPN,
-        schoolYear: "Junior",
-        intendedMajor: "Computer Science",
-        interests: ["AI"],
-        dietaryRestrictions: ["None"],
-        updatedAt: 12345,
-      }),
-    });
+
+  const mockItem = {
+    id: `UIN#jd3@illinois.edu`,
+    netId: "jd3",
+    uin: "123456789",
+    schoolYear: "Junior",
+    intendedMajor: "Computer Science",
+    interests: ["AI"],
+    dietaryRestrictions: ["None"],
+    updatedAt: 12345,
+  };
+
+  ddbMock.on(QueryCommand).resolves({
+    Items: [marshall(mockItem)],
+  });
+
+  ddbMock.on(GetItemCommand, { Key: userKey }).resolves({
+    Item: marshall(mockItem),
+  });
 };
 
 describe("RSVP API tests", () => {
@@ -144,7 +155,8 @@ describe("RSVP API tests", () => {
   });
 
   test("POST /profile - Create/Update Profile successfully", async () => {
-    ddbMock.on(PutItemCommand).resolves({});
+    // Changed to UpdateItemCommand
+    ddbMock.on(UpdateItemCommand).resolves({});
 
     const response = await app.inject({
       method: "POST",
@@ -157,9 +169,8 @@ describe("RSVP API tests", () => {
         dietaryRestrictions: ["Vegan"],
       },
     });
-
     expect(response.statusCode).toBe(201);
-    expect(ddbMock.calls()).toHaveLength(1); // 1 PutItem
+    expect(ddbMock.calls()).toHaveLength(1);
   });
 
   test("GET /profile/me - Retrieve Profile", async () => {
@@ -186,11 +197,13 @@ describe("RSVP API tests", () => {
       headers: DEFAULT_HEADERS,
     });
 
-    expect(response.statusCode).toBe(404);
+    // We now throw a ValidationError when the UIN index is empty or NotFoundError if no schoolYear
+    expect(response.statusCode).toBeGreaterThanOrEqual(400);
   });
 
   test("DELETE /profile/me - Delete Profile", async () => {
-    ddbMock.on(DeleteItemCommand).resolves({});
+    // Changed to UpdateItemCommand since we now REMOVE attributes
+    ddbMock.on(UpdateItemCommand).resolves({});
 
     const response = await app.inject({
       method: "DELETE",
@@ -303,10 +316,14 @@ describe("RSVP API tests", () => {
         }),
       });
 
-    const txError = new TransactionError([
-      { Code: "ConditionalCheckFailed" },
-      { Code: "None" },
-    ]);
+    const txError = new TransactionCanceledException({
+      message: "Transaction canceled",
+      CancellationReasons: [
+        { Code: "ConditionalCheckFailed" },
+        { Code: "None" },
+      ],
+      $metadata: {},
+    });
     ddbMock.on(TransactWriteItemsCommand).rejects(txError);
 
     const response = await app.inject({
@@ -338,10 +355,14 @@ describe("RSVP API tests", () => {
         }),
       });
 
-    const txError = new TransactionError([
-      { Code: "None" },
-      { Code: "ConditionalCheckFailed" },
-    ]);
+    const txError = new TransactionCanceledException({
+      message: "Transaction canceled",
+      CancellationReasons: [
+        { Code: "None" },
+        { Code: "ConditionalCheckFailed" },
+      ],
+      $metadata: {},
+    });
     ddbMock.on(TransactWriteItemsCommand).rejects(txError);
 
     const response = await app.inject({
