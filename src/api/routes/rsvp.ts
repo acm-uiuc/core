@@ -196,8 +196,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         const rawItem = unmarshall(response.Item);
 
         if (!rawItem.schoolYear || !rawItem.intendedMajor) {
+          request.log("rawItem");
           throw new DatabaseFetchError({
-            message: `Raw Item: ${rawItem}`,
+            message: `Profile does not have all needed parts`,
           });
         }
         profileItem = rsvpProfileSchema.parse(rawItem);
