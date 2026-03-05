@@ -176,57 +176,40 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];
-      await verifyUiucAccessToken({
+      const { netId } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
       });
-      const uin = await getUserUin({ uiucAccessToken: accessToken });
 
-      const queryCommand = new QueryCommand({
+      const getCommand = new GetItemCommand({
         TableName: genericConfig.UserInfoTable,
-        IndexName: "UinIndex",
-        KeyConditionExpression: "uin = :uin",
-        ExpressionAttributeValues: {
-          ":uin": { S: uin },
-        },
+        Key: marshall({ id: `UIN#${netId}@illinois.edu` }),
       });
+
       let response;
       try {
-        response = await fastify.dynamoClient.send(queryCommand);
+        response = await fastify.dynamoClient.send(getCommand);
       } catch (err) {
         if (err instanceof BaseError) {
           throw err;
         }
-        request.log.error(err, "Failed to fetch user from UinIndex");
+        request.log.error(err, "Failed to fetch user from UserInfoTable");
         throw new DatabaseFetchError({
           message: "Failed to retrieve user from database.",
         });
       }
 
-      if (!response || !response.Items) {
+      if (!response || !response.Item) {
         throw new DatabaseFetchError({
           message: "Failed to retrieve user from database.",
-        });
-      }
-
-      if (response.Items.length === 0) {
-        throw new ValidationError({
-          message:
-            "Failed to find user in database. Please have the user run sync and try again.",
-        });
-      }
-
-      if (response.Items.length > 1) {
-        throw new ValidationError({
-          message:
-            "Multiple users tied to this UIN. This user probably had a NetID change. Please contact support.",
         });
       }
 
       let profileItem;
 
       try {
-        const rawItem = unmarshall(response.Items[0]);
+        const rawItem = unmarshall(response.Item);
+
         if (!rawItem.schoolYear || !rawItem.intendedMajor) {
           throw new DatabaseFetchError({
             message: `Raw Item: ${rawItem}`,
