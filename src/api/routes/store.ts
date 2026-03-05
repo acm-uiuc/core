@@ -306,7 +306,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       if (request.body.requestingImageUpload) {
         const { requestingImageUpload: _, ...rest } = request.body;
         const fileExtension = ".webp";
-        const itemKey = `public/store/images/${request.body.productId}.${fileExtension}`;
+        const itemKey = `public/store/images/${request.body.productId}${fileExtension}`;
         transformedBody = {
           ...rest,
           imageUrl: `https://${fastify.environmentConfig.AssetsBucketPublicUrl}/${itemKey}`,
@@ -386,7 +386,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       if (request.body.requestingImageUpload) {
         const { requestingImageUpload: _, ...rest } = modifyData;
         const fileExtension = ".webp";
-        const itemKey = `public/store/images/${request.params.productId}.${fileExtension}`;
+        const itemKey = `public/store/images/${request.params.productId}${fileExtension}`;
         modifyData = {
           ...rest,
           imageUrl: `https://${fastify.environmentConfig.AssetsBucketPublicUrl}/${itemKey}`,
