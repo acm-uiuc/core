@@ -16,12 +16,16 @@ import {
   IconCreditCard,
   IconCheck,
 } from "@tabler/icons-react";
+import { AxiosError } from "axios";
 
 interface CheckInModalProps {
   opened: boolean;
   onClose: () => void;
   eventId: string;
-  checkInAttendee: (eventId: string, userId: string) => Promise<void>;
+  checkInAttendee: (
+    eventId: string,
+    userId: string,
+  ) => Promise<{ upn: string; dietaryRestrictions: string[] }>;
 }
 
 export const CheckInModal: React.FC<CheckInModalProps> = ({
@@ -35,12 +39,17 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
   const [manualInput, setManualInput] = useState<string>("");
   const [lastCheckIn, setLastCheckIn] = useState<{
     userId: string;
+    upn: string;
+    dietaryRestrictions: string[];
     timestamp: Date;
     type: string;
   } | null>(null);
+
   const [checkInHistory, setCheckInHistory] = useState<
     Array<{
       userId: string;
+      upn: string;
+      dietaryRestrictions: string[];
       timestamp: Date;
       type: string;
     }>
@@ -106,10 +115,12 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
     setError("");
 
     try {
-      await checkInAttendee(eventId, userId);
+      const result = await checkInAttendee(eventId, userId);
 
       const checkInData = {
         userId,
+        upn: result.upn || userId,
+        dietaryRestrictions: result.dietaryRestrictions || [],
         timestamp: new Date(),
         type,
       };
@@ -122,9 +133,12 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
         setProcessing(false);
       }, 1000);
     } catch (error: any) {
-      const errorMessage =
-        error?.response?.data?.message || "Failed to check in attendee.";
-      setError(errorMessage);
+      if (error instanceof AxiosError && error.status === 400) {
+        setError("Attendee has not RSVP'd");
+      } else {
+        const errorMessage = "Failed to check in attendee.";
+        setError(errorMessage);
+      }
       setProcessing(false);
     }
   };
@@ -253,9 +267,28 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
               <Paper p="sm" withBorder bg="white">
                 <Stack gap="xs">
                   <Text fw={600} size="sm">
-                    UIN:
+                    UPN:
                   </Text>
-                  <Code>{lastCheckIn.userId}</Code>
+                  <Code>{lastCheckIn.upn}</Code>
+                  {lastCheckIn.dietaryRestrictions.length > 0 && (
+                    <>
+                      <Text fw={600} size="sm">
+                        Dietary Restrictions:
+                      </Text>
+                      <Group gap="xs">
+                        {lastCheckIn.dietaryRestrictions.map((restriction) => (
+                          <Badge key={restriction} color="orange">
+                            {restriction}
+                          </Badge>
+                        ))}
+                      </Group>
+                    </>
+                  )}
+                  {lastCheckIn.dietaryRestrictions.length === 0 && (
+                    <Text size="sm" c="dimmed">
+                      No dietary restrictions
+                    </Text>
+                  )}
                 </Stack>
               </Paper>
             </Stack>
@@ -293,10 +326,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
         <Paper p="sm" withBorder bg="gray.0">
           <Text size="xs" c="dimmed" ta="center">
-            <strong>Supported formats:</strong>
-            <br />
-            • ACM Card Swipe: ACMCARD####XXXXXXXXX
-            <br />• UIN: 9-digit number (e.g., 123456789)
+            Swipe Student Card or Enter UIN
           </Text>
         </Paper>
       </Stack>

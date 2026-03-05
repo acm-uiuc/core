@@ -17,8 +17,10 @@ import {
   IconCreditCard,
   IconCheck,
   IconChartBar,
+  IconX,
 } from "@tabler/icons-react";
 import * as z from "zod/v4";
+import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
 
 const rsvpSchema = z.object({
   eventId: z.string(),
@@ -41,11 +43,11 @@ interface RsvpAnalyticsViewProps {
 
 const analyticsViews = [
   { value: "overview", label: "Overview Statistics" },
+  { value: "attendees", label: "All Attendees" },
   { value: "demographics", label: "Demographics (School Year)" },
   { value: "major", label: "Intended Major" },
   { value: "interests", label: "User Interests" },
   { value: "dietary", label: "Dietary Restrictions" },
-  { value: "checkin", label: "Check-In Status" },
 ] as const;
 
 interface AnalyticsStats {
@@ -58,13 +60,18 @@ interface AnalyticsStats {
   dietaryRestrictionsBreakdown: Record<string, number>;
 }
 
+interface BreakdownRow {
+  label: string;
+  count: number;
+}
+
 export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
   eventId,
   getRsvps,
 }) => {
   const [rsvps, setRsvps] = useState<RsvpData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedView, setSelectedView] = useState<string>("overview");
+  const [selectedView, setSelectedView] = useState<string>("attendees");
   const [stats, setStats] = useState<AnalyticsStats>({
     totalRsvps: 0,
     totalPaidMembers: 0,
@@ -74,6 +81,60 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
     majorBreakdown: {},
     dietaryRestrictionsBreakdown: {},
   });
+
+  const calculateStats = (rsvpData: RsvpData[]) => {
+    const totalRsvps = rsvpData.length;
+    const totalPaidMembers = rsvpData.filter((r) => r.isPaidMember).length;
+    const totalCheckedIn = rsvpData.filter((r) => r.checkedIn).length;
+
+    const schoolYearBreakdown = rsvpData.reduce(
+      (acc, rsvp) => {
+        const year = rsvp.schoolYear || "Unknown";
+        acc[year] = (acc[year] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    const interestsBreakdown = rsvpData.reduce(
+      (acc, rsvp) => {
+        (rsvp.interests || []).forEach((interest) => {
+          acc[interest] = (acc[interest] || 0) + 1;
+        });
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    const majorBreakdown = rsvpData.reduce(
+      (acc, rsvp) => {
+        const major = rsvp.intendedMajor || "Unknown";
+        acc[major] = (acc[major] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    const dietaryRestrictionsBreakdown = rsvpData.reduce(
+      (acc, rsvp) => {
+        (rsvp.dietaryRestrictions || []).forEach((restriction) => {
+          acc[restriction] = (acc[restriction] || 0) + 1;
+        });
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    setStats({
+      totalRsvps,
+      totalPaidMembers,
+      totalCheckedIn,
+      schoolYearBreakdown,
+      interestsBreakdown,
+      majorBreakdown,
+      dietaryRestrictionsBreakdown,
+    });
+  };
 
   const fetchRsvps = useCallback(async () => {
     setLoading(true);
@@ -107,61 +168,12 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
     fetchRsvps();
   }, [fetchRsvps]);
 
-  const calculateStats = (rsvpData: RsvpData[]) => {
-    const totalRsvps = rsvpData.length;
-    const totalPaidMembers = rsvpData.filter((r) => r.isPaidMember).length;
-    const totalCheckedIn = rsvpData.filter((r) => r.checkedIn).length;
-
-    const schoolYearBreakdown = rsvpData.reduce(
-      (acc, rsvp) => {
-        const year = rsvp.schoolYear || "Unknown";
-        acc[year] = (acc[year] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-    const interestsBreakdown = rsvpData.reduce(
-      (acc, rsvp) => {
-        const interests = rsvp.interests || [];
-        interests.forEach((interest) => {
-          acc[interest] = (acc[interest] || 0) + 1;
-        });
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-    const majorBreakdown = rsvpData.reduce(
-      (acc, rsvp) => {
-        const major = rsvp.intendedMajor || "Unknown";
-        acc[major] = (acc[major] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-    const dietaryRestrictionsBreakdown = rsvpData.reduce(
-      (acc, rsvp) => {
-        const restrictions = rsvp.dietaryRestrictions || [];
-        restrictions.forEach((restriction) => {
-          acc[restriction] = (acc[restriction] || 0) + 1;
-        });
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-    setStats({
-      totalRsvps,
-      totalPaidMembers,
-      totalCheckedIn,
-      schoolYearBreakdown,
-      interestsBreakdown,
-      majorBreakdown,
-      dietaryRestrictionsBreakdown,
-    });
-  };
+  const breakdownTableData = (
+    breakdown: Record<string, number>,
+  ): BreakdownRow[] =>
+    Object.entries(breakdown)
+      .sort(([, a], [, b]) => b - a)
+      .map(([label, count]) => ({ label, count }));
 
   const renderOverview = () => (
     <Grid>
@@ -180,7 +192,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
           </Group>
         </Paper>
       </Grid.Col>
-
       <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
         <Paper withBorder p="md" radius="md">
           <Group>
@@ -196,7 +207,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
           </Group>
         </Paper>
       </Grid.Col>
-
       <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
         <Paper withBorder p="md" radius="md">
           <Group>
@@ -212,7 +222,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
           </Group>
         </Paper>
       </Grid.Col>
-
       <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
         <Paper withBorder p="md" radius="md">
           <Group>
@@ -233,168 +242,151 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
     </Grid>
   );
 
-  const renderDemographics = () => (
-    <Paper withBorder p="lg" radius="md">
-      <Title order={4} mb="md">
-        School Year Breakdown
-      </Title>
-      {Object.keys(stats.schoolYearBreakdown).length > 0 ? (
-        <Stack gap="md">
-          {Object.entries(stats.schoolYearBreakdown)
-            .sort(([, a], [, b]) => b - a)
-            .map(([year, count]) => (
-              <Group key={year} justify="space-between">
-                <Text>{year}</Text>
-                <Badge size="lg">{count}</Badge>
-              </Group>
-            ))}
-        </Stack>
-      ) : (
-        <Box py="xl">
-          <Text c="dimmed" ta="center">
-            No school year data available for this event
-          </Text>
-        </Box>
-      )}
-    </Paper>
-  );
-
-  const renderInterests = () => (
-    <Paper withBorder p="lg" radius="md">
-      <Title order={4} mb="md">
-        User Interests
-      </Title>
-      {Object.keys(stats.interestsBreakdown).length > 0 ? (
-        <Stack gap="md">
-          {Object.entries(stats.interestsBreakdown)
-            .sort(([, a], [, b]) => b - a)
-            .map(([interest, count]) => (
-              <Group key={interest} justify="space-between">
-                <Text>{interest}</Text>
-                <Badge size="lg">{count}</Badge>
-              </Group>
-            ))}
-        </Stack>
-      ) : (
-        <Box py="xl">
-          <Text c="dimmed" ta="center">
-            User interests data not available yet
-          </Text>
-        </Box>
-      )}
-    </Paper>
-  );
-
-  const renderMajor = () => (
-    <Paper withBorder p="lg" radius="md">
-      <Title order={4} mb="md">
-        Intended Major Breakdown
-      </Title>
-      {Object.keys(stats.majorBreakdown).length > 0 ? (
-        <Stack gap="md">
-          {Object.entries(stats.majorBreakdown)
-            .sort(([, a], [, b]) => b - a)
-            .map(([major, count]) => (
-              <Group key={major} justify="space-between">
-                <Text>{major}</Text>
-                <Badge size="lg">{count}</Badge>
-              </Group>
-            ))}
-        </Stack>
-      ) : (
-        <Box py="xl">
-          <Text c="dimmed" ta="center">
-            No major data available for this event
-          </Text>
-        </Box>
-      )}
-    </Paper>
-  );
-
-  const renderDietary = () => (
-    <Paper withBorder p="lg" radius="md">
-      <Title order={4} mb="md">
-        Dietary Restrictions
-      </Title>
-      {Object.keys(stats.dietaryRestrictionsBreakdown).length > 0 ? (
-        <Stack gap="md">
-          {Object.entries(stats.dietaryRestrictionsBreakdown)
-            .sort(([, a], [, b]) => b - a)
-            .map(([restriction, count]) => (
-              <Group key={restriction} justify="space-between">
-                <Text>{restriction}</Text>
-                <Badge size="lg" color="orange">
-                  {count}
+  const renderAttendees = () => {
+    const columns: Column<RsvpData>[] = [
+      {
+        key: "userId",
+        label: "User",
+        isPrimaryColumn: true,
+        render: (rsvp) => rsvp.userId,
+      },
+      {
+        key: "schoolYear",
+        label: "Year",
+        render: (rsvp) => rsvp.schoolYear || "—",
+      },
+      {
+        key: "intendedMajor",
+        label: "Major",
+        render: (rsvp) => rsvp.intendedMajor || "—",
+      },
+      {
+        key: "isPaidMember",
+        label: "Member",
+        render: (rsvp) => (
+          <Badge color={rsvp.isPaidMember ? "blue" : "gray"}>
+            {rsvp.isPaidMember ? "Paid" : "Free"}
+          </Badge>
+        ),
+      },
+      {
+        key: "checkedIn",
+        label: "Check-In",
+        render: (rsvp) =>
+          rsvp.checkedIn ? <IconCheck color="green" /> : <IconX color="red" />,
+      },
+      {
+        key: "rsvpedAt",
+        label: "RSVPed At",
+        render: (rsvp) =>
+          rsvp.createdAt
+            ? new Date(rsvp.createdAt * 1000).toLocaleString()
+            : "—",
+      },
+      {
+        key: "dietaryRestrictions",
+        label: "Dietary",
+        render: (rsvp) =>
+          rsvp.dietaryRestrictions.length > 0 ? (
+            <Group gap="xs">
+              {rsvp.dietaryRestrictions.map((r) => (
+                <Badge key={r} color="orange" size="sm">
+                  {r}
                 </Badge>
-              </Group>
-            ))}
-        </Stack>
-      ) : (
-        <Box py="xl">
-          <Text c="dimmed" ta="center">
-            No dietary restrictions data available for this event
-          </Text>
-        </Box>
-      )}
-    </Paper>
-  );
-
-  const renderCheckinStatus = () => {
-    const checkedInUsers = rsvps.filter((r) => r.checkedIn);
-    const notCheckedInUsers = rsvps.filter((r) => !r.checkedIn);
+              ))}
+            </Group>
+          ) : (
+            <Text size="sm" c="dimmed">
+              None
+            </Text>
+          ),
+      },
+      {
+        key: "interests",
+        label: "Interests",
+        render: (rsvp) =>
+          rsvp.interests.length > 0 ? (
+            <Group gap="xs">
+              {rsvp.interests.map((i) => (
+                <Badge key={i} color="violet" size="sm">
+                  {i}
+                </Badge>
+              ))}
+            </Group>
+          ) : (
+            <Text size="sm" c="dimmed">
+              None
+            </Text>
+          ),
+      },
+    ];
 
     return (
       <Paper withBorder p="lg" radius="md">
         <Title order={4} mb="md">
-          Check-In Status
+          All Attendees ({rsvps.length})
         </Title>
-        <Grid>
-          <Grid.Col span={{ base: 12, md: 6 }}>
-            <Paper withBorder p="md" bg="green.0">
-              <Text fw={600} mb="sm" c="green.7">
-                Checked In ({checkedInUsers.length})
-              </Text>
-              {checkedInUsers.length > 0 ? (
-                <Stack gap="xs">
-                  {checkedInUsers.map((rsvp) => (
-                    <Group key={rsvp.userId} gap="xs">
-                      <Badge size="sm" color="green" variant="dot">
-                        {rsvp.userId}
-                      </Badge>
-                    </Group>
-                  ))}
-                </Stack>
-              ) : (
-                <Text size="sm" c="dimmed">
-                  No one has checked in yet
-                </Text>
-              )}
-            </Paper>
-          </Grid.Col>
+        {rsvps.length > 0 ? (
+          <ResponsiveTable
+            data={rsvps}
+            columns={columns}
+            keyExtractor={(rsvp) => rsvp.userId}
+            testIdPrefix="attendee-row"
+            testId="attendees-table"
+          />
+        ) : (
+          <Text c="dimmed" ta="center" py="xl">
+            No RSVPs for this event yet
+          </Text>
+        )}
+      </Paper>
+    );
+  };
 
-          <Grid.Col span={{ base: 12, md: 6 }}>
-            <Paper withBorder p="md" bg="orange.0">
-              <Text fw={600} mb="sm" c="orange.7">
-                Not Checked In ({notCheckedInUsers.length})
-              </Text>
-              {notCheckedInUsers.length > 0 ? (
-                <Stack gap="xs">
-                  {notCheckedInUsers.map((rsvp) => (
-                    <Group key={rsvp.userId} gap="xs">
-                      <Badge size="sm" color="orange" variant="dot">
-                        {rsvp.userId}
-                      </Badge>
-                    </Group>
-                  ))}
-                </Stack>
-              ) : (
-                <Text size="sm" c="dimmed">
-                  Everyone has checked in!
-                </Text>
-              )}
-            </Paper>
-          </Grid.Col>
-        </Grid>
+  const renderBreakdownTable = (
+    title: string,
+    breakdown: Record<string, number>,
+    emptyMessage: string,
+    badgeColor?: string,
+  ) => {
+    const data = breakdownTableData(breakdown);
+    const columns: Column<BreakdownRow>[] = [
+      {
+        key: "label",
+        label: "Name",
+        isPrimaryColumn: true,
+        render: (row) => row.label,
+      },
+      {
+        key: "count",
+        label: "Count",
+        render: (row) => (
+          <Badge size="lg" color={badgeColor}>
+            {row.count}
+          </Badge>
+        ),
+      },
+    ];
+
+    return (
+      <Paper withBorder p="lg" radius="md">
+        <Title order={4} mb="md">
+          {title}
+        </Title>
+        {data.length > 0 ? (
+          <ResponsiveTable
+            data={data}
+            columns={columns}
+            keyExtractor={(row) => row.label}
+            testIdPrefix="breakdown-row"
+          />
+        ) : (
+          <Box py="xl">
+            <Text c="dimmed" ta="center">
+              {emptyMessage}
+            </Text>
+          </Box>
+        )}
       </Paper>
     );
   };
@@ -403,16 +395,33 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
     switch (selectedView) {
       case "overview":
         return renderOverview();
+      case "attendees":
+        return renderAttendees();
       case "demographics":
-        return renderDemographics();
+        return renderBreakdownTable(
+          "School Year Breakdown",
+          stats.schoolYearBreakdown,
+          "No school year data available for this event",
+        );
       case "major":
-        return renderMajor();
+        return renderBreakdownTable(
+          "Intended Major Breakdown",
+          stats.majorBreakdown,
+          "No major data available for this event",
+        );
       case "interests":
-        return renderInterests();
+        return renderBreakdownTable(
+          "User Interests",
+          stats.interestsBreakdown,
+          "User interests data not available yet",
+        );
       case "dietary":
-        return renderDietary();
-      case "checkin":
-        return renderCheckinStatus();
+        return renderBreakdownTable(
+          "Dietary Restrictions",
+          stats.dietaryRestrictionsBreakdown,
+          "No dietary restrictions data available for this event",
+          "orange",
+        );
       default:
         return renderOverview();
     }
@@ -421,7 +430,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
   return (
     <Box pos="relative">
       <LoadingOverlay visible={loading} />
-
       <Stack gap="md">
         <Group justify="space-between" align="center">
           <Title order={4}>Analytics Dashboard</Title>
@@ -433,7 +441,6 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
             style={{ width: 250 }}
           />
         </Group>
-
         {renderSelectedView()}
       </Stack>
     </Box>

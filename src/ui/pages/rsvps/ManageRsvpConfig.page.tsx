@@ -91,8 +91,11 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
   const checkInAttendee = async (
     eventId: string,
     userId: string,
-  ): Promise<void> => {
-    await api.post(`/api/v1/rsvp/checkin/event/${eventId}`, { uin: userId });
+  ): Promise<{ upn: string; dietaryRestrictions: string[] }> => {
+    const response = await api.post(`/api/v1/rsvp/checkin/event/${eventId}`, {
+      uin: userId,
+    });
+    return response.data;
   };
 
   if (!eventId) {
@@ -109,16 +112,6 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
       resourceDef={{ service: "core", validRoles: [AppRoles.RSVP_MANAGER] }}
     >
       <Container size="lg">
-        <Group mb="xl">
-          <Button
-            variant="subtle"
-            leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate(-1)}
-          >
-            Back
-          </Button>
-        </Group>
-
         <Group justify="space-between" align="center" mb="md">
           <Title order={1}>Manage RSVP Configuration</Title>
           {hasRsvpConfig && checkInEnabled && (
