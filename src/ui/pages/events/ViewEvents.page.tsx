@@ -199,17 +199,7 @@ export const ViewEventsPage: React.FC = () => {
           >
             Edit
           </Button>
-          {event.rsvpEnabled && (
-            <Button
-              color="green"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/events/rsvp/${event.id}`);
-              }}
-            >
-              Manage RSVP
-            </Button>
-          )}
+
           <Button
             color="red"
             onClick={(e) => {

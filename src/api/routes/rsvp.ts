@@ -28,7 +28,6 @@ import {
 import {
   rsvpConfigSchema,
   rsvpItemSchema,
-  majorSchema,
   rsvpProfileSchema,
 } from "common/types/rsvp.js";
 import * as z from "zod/v4";
@@ -56,21 +55,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         {},
         withTags(["RSVP"], {
           summary: "Create an RSVP profile for events",
-          body: z.object({
-            schoolYear: z
-              .enum(["Freshman", "Sophomore", "Junior", "Senior", "Graduate"])
-              .meta({
-                description:
-                  "The school year associated with the user's profile.",
-              }),
-            intendedMajor: majorSchema,
-            interests: z.array(z.string()).meta({
-              description: "The interests associated with the user's profile",
-            }),
-            dietaryRestrictions: z.array(z.string()).meta({
-              description: "User's dietary restrictions.",
-            }),
-          }),
+          body: rsvpProfileSchema.omit({ updatedAt: true }),
           headers: z.object({
             "x-uiuc-token": z.jwt().min(1).meta({
               description:

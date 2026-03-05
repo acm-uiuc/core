@@ -44,7 +44,7 @@ interface RsvpAnalyticsViewProps {
 const analyticsViews = [
   { value: "overview", label: "Overview Statistics" },
   { value: "attendees", label: "All Attendees" },
-  { value: "demographics", label: "Demographics (School Year)" },
+  { value: "demographics", label: "Demographics (Graduation)" },
   { value: "major", label: "Intended Major" },
   { value: "interests", label: "User Interests" },
   { value: "dietary", label: "Dietary Restrictions" },
@@ -64,6 +64,21 @@ interface BreakdownRow {
   label: string;
   count: number;
 }
+
+const formatGraduation = (val?: string) => {
+  if (!val) {
+    return "Unknown";
+  }
+
+  if (val.includes(",")) {
+    const parts = val.split(",").map((p) => p.trim());
+    if (parts.length === 3) {
+      return `${parts[0]} ${parts[1]} - ${parts[2]}`;
+    }
+  }
+
+  return val;
+};
 
 export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
   eventId,
@@ -89,8 +104,8 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
 
     const schoolYearBreakdown = rsvpData.reduce(
       (acc, rsvp) => {
-        const year = rsvp.schoolYear || "Unknown";
-        acc[year] = (acc[year] || 0) + 1;
+        const gradInfo = formatGraduation(rsvp.schoolYear);
+        acc[gradInfo] = (acc[gradInfo] || 0) + 1;
         return acc;
       },
       {} as Record<string, number>,
@@ -252,8 +267,11 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
       },
       {
         key: "schoolYear",
-        label: "Year",
-        render: (rsvp) => rsvp.schoolYear || "—",
+        label: "Graduation", // Updated Label
+        render: (rsvp) => {
+          const parsed = formatGraduation(rsvp.schoolYear);
+          return parsed === "Unknown" ? "—" : parsed;
+        },
       },
       {
         key: "intendedMajor",
@@ -399,9 +417,9 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
         return renderAttendees();
       case "demographics":
         return renderBreakdownTable(
-          "School Year Breakdown",
+          "Graduation Breakdown", // Updated Title
           stats.schoolYearBreakdown,
-          "No school year data available for this event",
+          "No graduation data available for this event", // Updated fallback message
         );
       case "major":
         return renderBreakdownTable(

@@ -131,7 +131,7 @@ const setupMockProfile = (exists = true) => {
     id: `UIN#jd3@illinois.edu`,
     netId: "jd3",
     uin: "123456789",
-    schoolYear: "Junior",
+    schoolYear: "May, 2026, Bachelors",
     intendedMajor: "Computer Science",
     interests: ["AI"],
     dietaryRestrictions: ["None"],
@@ -161,12 +161,13 @@ describe("RSVP API tests", () => {
       url: "/api/v1/rsvp/profile",
       headers: DEFAULT_HEADERS,
       payload: {
-        schoolYear: "Senior",
+        schoolYear: "May, 2026, Bachelors",
         intendedMajor: "Computer Science",
         interests: ["Systems", "Security"],
         dietaryRestrictions: ["Vegan"],
       },
     });
+    console.log(response);
     expect(response.statusCode).toBe(201);
     expect(ddbMock.calls()).toHaveLength(1);
   });
@@ -182,7 +183,7 @@ describe("RSVP API tests", () => {
 
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    expect(body.schoolYear).toBe("Junior");
+    expect(body.schoolYear).toBe("May, 2026, Bachelors");
     expect(body.intendedMajor).toBe("Computer Science");
   });
 

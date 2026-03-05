@@ -42,10 +42,10 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
       if (error?.response?.status === 409) {
         notifications.show({
           title: "Event Not Found With RSVP Enabled",
-          message: "The specified event does not exist.",
+          message: "Make sure to enable RSVP & click save",
           color: "red",
         });
-        navigate("/events/manage");
+        navigate(-1);
       } else if (error?.response?.status === 404) {
         notifications.show({
           title: "RSVP Configuration Not Found",

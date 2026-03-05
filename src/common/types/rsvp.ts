@@ -240,10 +240,25 @@ const MAJORS = [
 
 export const majorSchema = z.enum(MAJORS).meta({description: "The student's primary major at UIUC"});
 
+const ACCEPTED_MONTHS = ["May", "August", "December"] as const;
+const ACCEPTED_DEGREES = ["Bachelors", "Masters", "PhD", "Other"] as const;
+
 export const rsvpProfileSchema = z.object({
-  schoolYear: z.enum(["Freshman", "Sophomore", "Junior", "Senior", "Graduate"]).meta({
-    description: "The attendee's current year in school.",
-    example: "Sophomore",
+  schoolYear: z.string().refine((val) => {
+    const parts = val.split(',').map(part => part.trim());
+    if (parts.length !== 3) return false;
+
+    const [month, year, degree] = parts;
+    const isValidMonth = ACCEPTED_MONTHS.includes(month as any);
+    const isValidYear = /^20\d{2}$/.test(year);
+    const isValidDegree = ACCEPTED_DEGREES.includes(degree as any);
+
+    return isValidMonth && isValidYear && isValidDegree;
+  }, {
+    message: "schoolYear must be formatted as 'Month, Year, Degree' using valid options.",
+  }).meta({
+    description: "The attendee's expected graduation month, year, and degree.",
+    example: "May, 2026, Bachelors",
   }),
   intendedMajor: majorSchema.meta({
     description: "The student's primary major at UIUC",

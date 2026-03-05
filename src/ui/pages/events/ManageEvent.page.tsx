@@ -800,7 +800,23 @@ export const ManageEventPage: React.FC = () => {
       resourceDef={{ service: "core", validRoles: [AppRoles.EVENTS_MANAGER] }}
     >
       <Box maw={600} mx="auto" mt="sm">
-        <Title order={2}>{isEditing ? `Edit` : `Create`} Event</Title>
+        <Group justify="space-between" align="flex-start" mb="md">
+          <Box>
+            <Title order={2}>{isEditing ? `Edit` : `Create`} Event</Title>
+          </Box>
+
+          {isEditing && form.values.rsvpEnabled && (
+            <Button
+              color="green"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/events/rsvp/${eventId}`);
+              }}
+            >
+              Manage RSVP
+            </Button>
+          )}
+        </Group>
         {eventId && (
           <Text size="xs" c="dimmed" mb="md">
             Event ID: <code>{eventId}</code>
