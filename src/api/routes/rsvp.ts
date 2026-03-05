@@ -24,6 +24,7 @@ import {
   ValidationError,
   DatabaseDeleteError,
   BaseError,
+  PendingProvisioningError,
 } from "common/errors/index.js";
 import {
   rsvpConfigSchema,
@@ -31,16 +32,11 @@ import {
   rsvpProfileSchema,
 } from "common/types/rsvp.js";
 import * as z from "zod/v4";
-import {
-  verifyUiucAccessToken,
-  getUserIdByUin,
-  getUserUin,
-} from "api/functions/uin.js";
+import { verifyUiucAccessToken, getUserIdByUin } from "api/functions/uin.js";
 import { checkPaidMembership } from "api/functions/membership.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { genericConfig } from "common/config.js";
 import { AppRoles } from "common/roles.js";
-import { UIN_RETENTION_DAYS } from "common/constants.js";
 
 const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rateLimiter, {
@@ -77,43 +73,43 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];
-      const { netId } = await verifyUiucAccessToken({
+      const { userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
       });
 
-      const { schoolYear, intendedMajor, interests, dietaryRestrictions } =
-        request.body;
+      const {
+        gradYear,
+        gradMonth,
+        expectedDegree,
+        intendedMajor,
+        interests,
+        dietaryRestrictions,
+      } = request.body;
 
-      const now = Math.floor(Date.now() / 1000);
-
-      const uin = await getUserUin({ uiucAccessToken: accessToken });
-      const expiresAt = now + UIN_RETENTION_DAYS * 86400;
       try {
         await fastify.dynamoClient.send(
           new UpdateItemCommand({
             TableName: genericConfig.UserInfoTable,
             Key: marshall({
-              id: `UIN#${netId}@illinois.edu`,
+              id: upn,
             }),
             UpdateExpression:
-              "SET #uin = :uin, #netId = :netId, #updatedAt = :updatedAt, #expiresAt = :expiresAt, #schoolYear = :schoolYear, #intendedMajor = :intendedMajor, #interests = :interests, #dietaryRestrictions = :dietaryRestrictions",
+              "SET #updatedAt = :updatedAt, #gradYear = :gradYear, #gradMonth = :gradMonth, #expectedDegree = :expectedDegree, #intendedMajor = :intendedMajor, #interests = :interests, #dietaryRestrictions = :dietaryRestrictions",
             ExpressionAttributeNames: {
-              "#uin": "uin",
-              "#netId": "netId",
               "#updatedAt": "updatedAt",
-              "#expiresAt": "expiresAt",
-              "#schoolYear": "schoolYear",
+              "#gradYear": "gradYear",
+              "#gradMonth": "gradMonth",
+              "#expectedDegree": "expectedDegree",
               "#intendedMajor": "intendedMajor",
               "#interests": "interests",
               "#dietaryRestrictions": "dietaryRestrictions",
             },
             ExpressionAttributeValues: marshall({
-              ":uin": uin,
-              ":netId": netId,
               ":updatedAt": new Date().toISOString(),
-              ":expiresAt": expiresAt,
-              ":schoolYear": schoolYear,
+              ":gradYear": gradYear,
+              ":gradMonth": gradMonth,
+              ":expectedDegree": expectedDegree,
               ":intendedMajor": intendedMajor,
               ":interests": interests || [],
               ":dietaryRestrictions": dietaryRestrictions || [],
@@ -161,14 +157,14 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];
-      const { netId } = await verifyUiucAccessToken({
+      const { userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
       });
 
       const getCommand = new GetItemCommand({
         TableName: genericConfig.UserInfoTable,
-        Key: marshall({ id: `UIN#${netId}@illinois.edu` }),
+        Key: marshall({ id: upn }),
       });
 
       let response;
@@ -195,10 +191,14 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       try {
         const rawItem = unmarshall(response.Item);
 
-        if (!rawItem.schoolYear || !rawItem.intendedMajor) {
-          request.log("rawItem");
-          throw new DatabaseFetchError({
-            message: `Profile does not have all needed parts`,
+        if (
+          !rawItem.gradYear ||
+          !rawItem.gradMonth ||
+          !rawItem.expectedDegree ||
+          !rawItem.intendedMajor
+        ) {
+          throw new PendingProvisioningError({
+            message: `Profile has not been created yet`,
           });
         }
         profileItem = rsvpProfileSchema.parse(rawItem);
@@ -243,16 +243,12 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const accessToken = request.headers["x-uiuc-token"];
-      const { netId } = await verifyUiucAccessToken({
+      const { userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
       });
 
-      const now = Math.floor(Date.now() / 1000);
-      const uin = await getUserUin({ uiucAccessToken: accessToken });
-      const expiresAt = now + UIN_RETENTION_DAYS * 86400;
-
-      const key = { id: `UIN#${netId}@illinois.edu` };
+      const key = { id: upn };
 
       try {
         await fastify.dynamoClient.send(
@@ -260,22 +256,18 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             TableName: genericConfig.UserInfoTable,
             Key: marshall(key),
             UpdateExpression:
-              "SET #uin = :uin, #netId = :netId, #updatedAt = :updatedAt, #expiresAt = :expiresAt REMOVE #schoolYear, #intendedMajor, #interests, #dietaryRestrictions",
+              "SET #updatedAt = :updatedAt, REMOVE #gradYear, #gradMonth, #expectedDegree, #intendedMajor, #interests, #dietaryRestrictions",
             ExpressionAttributeNames: {
-              "#uin": "uin",
-              "#netId": "netId",
               "#updatedAt": "updatedAt",
-              "#expiresAt": "expiresAt",
-              "#schoolYear": "schoolYear",
+              "#gradYear": "gradYear",
+              "#gradMonth": "gradMonth",
+              "#expectedDegree": "expectedDegree",
               "#intendedMajor": "intendedMajor",
               "#interests": "interests",
               "#dietaryRestrictions": "dietaryRestrictions",
             },
             ExpressionAttributeValues: marshall({
-              ":uin": uin,
-              ":netId": netId,
               ":updatedAt": new Date().toISOString(),
-              ":expiresAt": expiresAt,
             }),
           }),
         );
@@ -339,7 +331,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       });
 
       const configKey = { partitionKey: `CONFIG#${eventId}` };
-      const profileKey = { id: `UIN#${netId}@illinois.edu` };
+      const profileKey = { id: upn };
 
       const [configResponse, profileResponse] = await Promise.all([
         fastify.dynamoClient.send(
@@ -399,7 +391,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         userId: upn,
         isPaidMember,
         createdAt: now,
-        schoolYear: profileItem.schoolYear,
+        gradYear: profileItem.gradYear,
+        gradMonth: profileItem.gradMonth,
+        expectedDegree: profileItem.expectedDegree,
         intendedMajor: profileItem.intendedMajor,
         interests: profileItem.interests || [],
         dietaryRestrictions: profileItem.dietaryRestrictions || [],
@@ -503,7 +497,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           isPaidMember,
           dietaryRestrictions,
           intendedMajor,
-          schoolYear,
+          gradYear,
+          gradMonth,
+          expectedDegree,
           interests,
           checkedIn,
           createdAt,
@@ -513,7 +509,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           isPaidMember,
           dietaryRestrictions: dietaryRestrictions ?? [],
           intendedMajor: intendedMajor ?? "Unknown",
-          schoolYear: schoolYear ?? "Unknown",
+          gradYear,
+          gradMonth,
+          expectedDegree,
           interests: interests ?? [],
           checkedIn: checkedIn ?? false,
           createdAt,
@@ -758,7 +756,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           isPaidMember,
           dietaryRestrictions,
           intendedMajor,
-          schoolYear,
+          gradYear,
+          gradMonth,
+          expectedDegree,
           interests,
           checkedIn,
           createdAt,
@@ -768,7 +768,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           isPaidMember,
           dietaryRestrictions: dietaryRestrictions ?? [],
           intendedMajor: intendedMajor ?? "Unknown",
-          schoolYear: schoolYear ?? "Unknown",
+          gradYear,
+          gradMonth,
+          expectedDegree,
           interests: interests ?? [],
           checkedIn: checkedIn ?? false,
           createdAt,
@@ -957,7 +959,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
 
-      const partitionKey = { id: `UIN#${userEmail}` };
+      const partitionKey = { id: `${userEmail}` };
       const getUserCommand = new GetItemCommand({
         TableName: genericConfig.UserInfoTable,
         Key: marshall(partitionKey),

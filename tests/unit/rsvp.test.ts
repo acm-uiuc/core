@@ -119,7 +119,7 @@ vi.stubEnv("JwtSigningKey", jwt_secret);
 const app = await init();
 
 const setupMockProfile = (exists = true) => {
-  const userKey = marshall({ id: `UIN#jd3@illinois.edu` });
+  const userKey = marshall({ id: `jd3@illinois.edu` });
 
   if (!exists) {
     ddbMock.on(QueryCommand).resolves({ Items: [] });
@@ -128,10 +128,12 @@ const setupMockProfile = (exists = true) => {
   }
 
   const mockItem = {
-    id: `UIN#jd3@illinois.edu`,
+    id: `jd3@illinois.edu`,
     netId: "jd3",
     uin: "123456789",
-    schoolYear: "May, 2026, Bachelors",
+    gradYear: 2026,
+    gradMonth: "May",
+    expectedDegree: "Bachelor's",
     intendedMajor: "Computer Science",
     interests: ["AI"],
     dietaryRestrictions: ["None"],
@@ -161,7 +163,9 @@ describe("RSVP API tests", () => {
       url: "/api/v1/rsvp/profile",
       headers: DEFAULT_HEADERS,
       payload: {
-        schoolYear: "May, 2026, Bachelors",
+        gradYear: 2026,
+        gradMonth: "May",
+        expectedDegree: "Bachelor's",
         intendedMajor: "Computer Science",
         interests: ["Systems", "Security"],
         dietaryRestrictions: ["Vegan"],
@@ -183,7 +187,7 @@ describe("RSVP API tests", () => {
 
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    expect(body.schoolYear).toBe("May, 2026, Bachelors");
+    expect(body.gradYear).toBe(2026);
     expect(body.intendedMajor).toBe("Computer Science");
   });
 
@@ -382,7 +386,9 @@ describe("RSVP API tests", () => {
         userId: upn,
         isPaidMember: true,
         checkedIn: false,
-        schoolYear: "Junior",
+        gradYear: 2026,
+        gradMonth: "May",
+        expectedDegree: "Bachelor's",
         intendedMajor: "CS",
         interests: [],
         dietaryRestrictions: [],
@@ -415,7 +421,9 @@ describe("RSVP API tests", () => {
         userId: "user1@illinois.edu",
         isPaidMember: true,
         checkedIn: true,
-        schoolYear: "Senior",
+        gradYear: 2026,
+        gradMonth: "May",
+        expectedDegree: "Bachelor's",
         intendedMajor: "CS",
         interests: ["Systems"],
         dietaryRestrictions: ["None"],

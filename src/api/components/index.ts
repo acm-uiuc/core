@@ -160,6 +160,29 @@ export const resourceConflictError = getCorrectJsonSchema({
   },
 });
 
+export const PendingProvisioningError = getCorrectJsonSchema({
+  schema: z
+    .object({
+      error: z.literal(true),
+      name: z.literal("PendingProvisioningError"),
+      id: z.literal(113),
+      message: z.string().min(1),
+    })
+    .meta({
+      id: "pendingProvisioningError",
+      description:
+        "The request could not be completed due to a pending provisioning of this resource.",
+    }),
+  description:
+    "The request could not be completed due to a pending provisioning of this resource.",
+  example: {
+    error: true,
+    name: "PendingProvisioningError",
+    id: 113,
+    message: "This resource is pending provisioning",
+  },
+});
+
 export const internalServerError = getCorrectJsonSchema({
   schema: {
     content: {

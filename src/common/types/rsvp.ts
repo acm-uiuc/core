@@ -46,33 +46,17 @@ export const rsvpConfigSchema = z
   });
 
 export const rsvpItemSchema = z.object({
-  eventId: z.string().meta({ 
-    description: "The ID of the event." 
-  }),
-  userId: z.string().meta({ 
-    description: "The user's UPN." 
-  }),
-  isPaidMember: z.boolean().meta({ 
-    description: "Membership status at time of RSVP." 
-  }),
-  checkedIn: z.boolean().default(false).meta({ 
-    description: "Attendance status. False on creation." 
-  }),
-  createdAt: z.number().meta({ 
-    description: "Unix timestamp of RSVP creation." 
-  }),  
-  schoolYear: z.string().meta({ 
-    description: "Snapshot of user's year at time of RSVP." 
-  }),
-  intendedMajor: z.string().meta({ 
-    description: "Snapshot of user's major at time of RSVP." 
-  }),
-  dietaryRestrictions:z.array(z.string()).meta({
-    description: "User's dietary restrictions."
-  }),
-  interests: z.array(z.string()).meta({ 
-    description: "Snapshot of user's interests." 
-  }),
+  eventId: z.string().meta({ description: "The ID of the event." }),
+  userId: z.string().meta({ description: "The user's UPN." }),
+  isPaidMember: z.boolean().meta({ description: "Membership status at time of RSVP." }),
+  checkedIn: z.boolean().default(false).meta({ description: "Attendance status. False on creation." }),
+  createdAt: z.number().meta({ description: "Unix timestamp of RSVP creation." }),
+  gradYear: z.number().meta({ description: "Snapshot of user's graduation year at time of RSVP." }),
+  gradMonth: z.string().meta({ description: "Snapshot of user's graduation month at time of RSVP." }),
+  expectedDegree: z.string().meta({ description: "Snapshot of user's expected degree at time of RSVP." }),
+  intendedMajor: z.string().meta({ description: "Snapshot of user's major at time of RSVP." }),
+  dietaryRestrictions: z.array(z.string()).meta({ description: "User's dietary restrictions." }),
+  interests: z.array(z.string()).meta({ description: "Snapshot of user's interests." }),
 }).meta({ description: "The final RSVP record." });
 
 const MAJORS = [
@@ -241,24 +225,25 @@ const MAJORS = [
 export const majorSchema = z.enum(MAJORS).meta({description: "The student's primary major at UIUC"});
 
 const ACCEPTED_MONTHS = ["May", "August", "December"] as const;
-const ACCEPTED_DEGREES = ["Bachelors", "Masters", "PhD", "Other"] as const;
+const ACCEPTED_DEGREES = ["Bachelor's", "Master's", "PhD", "Other"] as const;
+const ACCEPTED_YEARS: number[] = Array.from({ length: 15 }, (_, i) => new Date().getFullYear() + i);
 
 export const rsvpProfileSchema = z.object({
-  schoolYear: z.string().refine((val) => {
-    const parts = val.split(',').map(part => part.trim());
-    if (parts.length !== 3) return false;
-
-    const [month, year, degree] = parts;
-    const isValidMonth = ACCEPTED_MONTHS.includes(month as any);
-    const isValidYear = /^20\d{2}$/.test(year);
-    const isValidDegree = ACCEPTED_DEGREES.includes(degree as any);
-
-    return isValidMonth && isValidYear && isValidDegree;
-  }, {
-    message: "schoolYear must be formatted as 'Month, Year, Degree' using valid options.",
-  }).meta({
-    description: "The attendee's expected graduation month, year, and degree.",
-    example: "May, 2026, Bachelors",
+  gradYear: z.number()
+    .refine((year) => ACCEPTED_YEARS.includes(year), {
+      message: "Invalid graduation year",
+    })
+    .meta({
+      description: "The year the student will graduate",
+      example: 2027,
+    }),
+  gradMonth: z.enum(ACCEPTED_MONTHS).meta({
+    description: "The month the student will graduate",
+    example: "May"
+  }),
+  expectedDegree: z.enum(ACCEPTED_DEGREES).meta({
+    description: "The major the student is pursuing",
+    example: "Bachelor's"
   }),
   intendedMajor: majorSchema.meta({
     description: "The student's primary major at UIUC",

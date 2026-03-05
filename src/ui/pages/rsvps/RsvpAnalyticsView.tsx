@@ -21,20 +21,9 @@ import {
 } from "@tabler/icons-react";
 import * as z from "zod/v4";
 import { ResponsiveTable, Column } from "@ui/components/ResponsiveTable";
+import { rsvpItemSchema } from "../../../common/types/rsvp";
 
-const rsvpSchema = z.object({
-  eventId: z.string(),
-  userId: z.string(),
-  isPaidMember: z.boolean(),
-  checkedIn: z.boolean(),
-  createdAt: z.number(),
-  schoolYear: z.string(),
-  intendedMajor: z.string(),
-  dietaryRestrictions: z.array(z.string()),
-  interests: z.array(z.string()),
-});
-
-type RsvpData = z.infer<typeof rsvpSchema>;
+type RsvpData = z.infer<typeof rsvpItemSchema>;
 
 interface RsvpAnalyticsViewProps {
   eventId: string;
@@ -65,19 +54,11 @@ interface BreakdownRow {
   count: number;
 }
 
-const formatGraduation = (val?: string) => {
-  if (!val) {
+const formatGraduation = (rsvp: RsvpData) => {
+  if (!rsvp.gradMonth && !rsvp.gradYear && !rsvp.expectedDegree) {
     return "Unknown";
   }
-
-  if (val.includes(",")) {
-    const parts = val.split(",").map((p) => p.trim());
-    if (parts.length === 3) {
-      return `${parts[0]} ${parts[1]} - ${parts[2]}`;
-    }
-  }
-
-  return val;
+  return `${rsvp.gradMonth} ${rsvp.gradYear} - ${rsvp.expectedDegree}`.trim();
 };
 
 export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
@@ -104,7 +85,7 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
 
     const schoolYearBreakdown = rsvpData.reduce(
       (acc, rsvp) => {
-        const gradInfo = formatGraduation(rsvp.schoolYear);
+        const gradInfo = formatGraduation(rsvp);
         acc[gradInfo] = (acc[gradInfo] || 0) + 1;
         return acc;
       },
@@ -155,7 +136,7 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
     setLoading(true);
     try {
       const data = await getRsvps(eventId);
-      const validatedData = data.map((item) => rsvpSchema.parse(item));
+      const validatedData = data.map((item) => rsvpItemSchema.parse(item));
       setRsvps(validatedData);
       calculateStats(validatedData);
     } catch (error) {
@@ -267,9 +248,9 @@ export const RsvpAnalyticsView: React.FC<RsvpAnalyticsViewProps> = ({
       },
       {
         key: "schoolYear",
-        label: "Graduation", // Updated Label
+        label: "Graduation",
         render: (rsvp) => {
-          const parsed = formatGraduation(rsvp.schoolYear);
+          const parsed = formatGraduation(rsvp);
           return parsed === "Unknown" ? "—" : parsed;
         },
       },
