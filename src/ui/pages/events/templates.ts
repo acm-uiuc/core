@@ -66,6 +66,7 @@ export const EVENT_TEMPLATES = {
       location: "Siebel CS 2405",
       locationLink: "https://maps.app.goo.gl/u1uEUiFgu3XvQcv97",
       featured: true,
+      rsvpEnabled: true,
     },
   },
   major_event: {

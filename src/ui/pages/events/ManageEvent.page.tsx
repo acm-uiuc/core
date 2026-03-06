@@ -104,6 +104,7 @@ const baseBodySchema = z.object({
   locationLink: z.optional(z.string().url("Invalid URL")),
   host: z.string().min(1, "Host is required"),
   featured: z.boolean().default(false),
+  rsvpEnabled: z.boolean().default(false),
   paidEventId: z
     .string()
     .min(1, "Paid Event ID must be at least 1 character")
@@ -403,6 +404,12 @@ const EventFormComponent: React.FC<EventFormProps> = ({
         {...form.getInputProps("featured", { type: "checkbox" })}
       />
 
+      <Switch
+        label="Enable RSVP?"
+        style={{ paddingTop: "0.5em" }}
+        {...form.getInputProps("rsvpEnabled", { type: "checkbox" })}
+      />
+
       <Select
         label="Repeats"
         placeholder="Select repeat frequency"
@@ -574,6 +581,7 @@ export const ManageEventPage: React.FC = () => {
           locationLink: eventData.locationLink,
           host: eventData.host,
           featured: eventData.featured,
+          rsvpEnabled: eventData.rsvpEnabled,
           repeats: eventData.repeats,
           repeatEnds: eventData.repeatEnds
             ? new Date(eventData.repeatEnds)
@@ -608,6 +616,7 @@ export const ManageEventPage: React.FC = () => {
       locationLink: "https://maps.app.goo.gl/dwbBBBkfjkgj8gvA8",
       host: userPrimaryOrg || "",
       featured: false,
+      rsvpEnabled: false,
       repeats: undefined,
       repeatEnds: undefined,
       paidEventId: undefined,
@@ -791,7 +800,23 @@ export const ManageEventPage: React.FC = () => {
       resourceDef={{ service: "core", validRoles: [AppRoles.EVENTS_MANAGER] }}
     >
       <Box maw={600} mx="auto" mt="sm">
-        <Title order={2}>{isEditing ? `Edit` : `Create`} Event</Title>
+        <Group justify="space-between" align="flex-start" mb="md">
+          <Box>
+            <Title order={2}>{isEditing ? `Edit` : `Create`} Event</Title>
+          </Box>
+
+          {isEditing && form.values.rsvpEnabled && (
+            <Button
+              color="green"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/events/rsvp/${eventId}`);
+              }}
+            >
+              Manage RSVP
+            </Button>
+          )}
+        </Group>
         {eventId && (
           <Text size="xs" c="dimmed" mb="md">
             Event ID: <code>{eventId}</code>

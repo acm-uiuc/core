@@ -419,6 +419,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
   await app.register(cors, {
     origin: app.environmentConfig.ValidCorsOrigins,
     methods: ["GET", "HEAD", "POST", "PATCH", "DELETE"],
+    exposedHeaders: ["X-Request-Id"],
   });
 
   app.addHook("onSend", async (request, reply) => {

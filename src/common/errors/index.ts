@@ -222,6 +222,17 @@ export class ResourceConflictError extends BaseError<"ResourceConflictError"> {
   }
 }
 
+export class PendingProvisioningError extends BaseError<"PendingProvisioningError"> {
+  constructor({ message }: { message?: string }) {
+    super({
+      name: "PendingProvisioningError",
+      id: 113,
+      message: message || "Pending provisioning for this resource",
+      httpStatusCode: 400,
+    })
+  }
+}
+
 export class EntraGroupError extends BaseError<"EntraGroupError"> {
   group: string;
   constructor({

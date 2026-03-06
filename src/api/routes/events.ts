@@ -84,6 +84,7 @@ const createProjectionParams = (includeMetadata: boolean = false) => {
     repeatEnds: "#repeatEnds",
     repeatExcludes: "#repeatExcludes",
     paidEventId: "#paidEventId",
+    rsvpEnabled: "#rsvpEnabled",
     ...(includeMetadata ? { metadata: "#metadata" } : {}),
   };
 
@@ -186,6 +187,9 @@ const baseSchema = z.object({
       "Whether or not the event should be shown on the ACM @ UIUC website home page (and added to Discord, as available).",
   }),
   paidEventId: z.optional(z.string().min(1)),
+  rsvpEnabled: z.boolean().default(false).meta({
+    description: "Whether or not RSVPs are enabled for this event.",
+  }),
   metadata: metadataSchema,
 });
 
@@ -245,6 +249,9 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             host: z.optional(acmCoreOrganization).meta({
               description: "Retrieve events only for this organization.",
             }),
+            rsvpOnly: BooleanFromString.default(false).optional().meta({
+              description: "If true, only get events which have RSVPs enabled.",
+            }),
             ts,
             includeMetadata: zodIncludeMetadata,
           }),
@@ -263,6 +270,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
       async (request, reply) => {
         const upcomingOnly = request.query?.upcomingOnly || false;
         const featuredOnly = request.query?.featuredOnly || false;
+        const rsvpOnly = request.query?.rsvpOnly || false;
         const includeMetadata = request.query.includeMetadata || false;
         const host = request.query?.host;
         const ts = request.query?.ts;
@@ -345,6 +353,9 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
                 return false;
               }
             });
+          }
+          if (rsvpOnly) {
+            parsedItems = parsedItems.filter((x) => x.rsvpEnabled);
           }
           if (featuredOnly) {
             parsedItems = parsedItems.filter((x) => x.featured);

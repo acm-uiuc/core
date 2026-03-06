@@ -35,6 +35,7 @@ const baseSchema = z.object({
   locationLink: z.optional(z.string().url()),
   host: z.string(),
   featured: z.boolean().default(false),
+  rsvpEnabled: z.boolean().default(false),
   paidEventId: z.optional(z.string().min(1)),
 });
 
@@ -198,6 +199,7 @@ export const ViewEventsPage: React.FC = () => {
           >
             Edit
           </Button>
+
           <Button
             color="red"
             onClick={(e) => {
