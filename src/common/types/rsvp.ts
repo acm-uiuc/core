@@ -61,21 +61,17 @@ export const rsvpItemSchema = z.object({
   interests: z.array(z.string()).meta({ description: "Snapshot of user's interests." }),
 }).meta({ description: "The final RSVP record." });
 
-export const majorSchema = z.enum(ALL_MAJORS).meta({description: "The student's primary major at UIUC"});
+export const majorSchema = z.enum(ALL_MAJORS).meta({ description: "The student's primary major at UIUC" });
 
 const ACCEPTED_MONTHS = ["May", "August", "December"] as const;
 const ACCEPTED_DEGREES = ["Bachelor's", "Master's", "PhD", "Other"] as const;
 const CURRENT_YEAR = new Date().getFullYear();
-const ACCEPTED_YEARS: number[] = Array.from(
-  { length: 71 }, 
-  (_, i) => currentYear - 50 + i
-);
 
 export const rsvpProfileSchema = z.object({
   gradYear: z.number()
-    .refine((year) => ACCEPTED_YEARS.includes(year), {
-      message: "Invalid graduation year",
-    })
+    .int()
+    .min(CURRENT_YEAR - 10)
+    .max(CURRENT_YEAR + 10)
     .meta({
       description: "The year the student will graduate",
       example: 2027,
