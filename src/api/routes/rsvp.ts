@@ -51,7 +51,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         {},
         withTags(["RSVP"], {
           summary: "Create an RSVP profile for events",
-          body: rsvpProfileSchema.omit({ updatedAt: true }),
+          body: rsvpProfileSchema,
           headers: z.object({
             "x-uiuc-token": z.jwt().min(1).meta({
               description:
@@ -95,9 +95,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               id: upn,
             }),
             UpdateExpression:
-              "SET #updatedAt = :updatedAt, #gradYear = :gradYear, #gradMonth = :gradMonth, #expectedDegree = :expectedDegree, #intendedMajor = :intendedMajor, #interests = :interests, #dietaryRestrictions = :dietaryRestrictions",
+              "SET #gradYear = :gradYear, #gradMonth = :gradMonth, #expectedDegree = :expectedDegree, #intendedMajor = :intendedMajor, #interests = :interests, #dietaryRestrictions = :dietaryRestrictions",
             ExpressionAttributeNames: {
-              "#updatedAt": "updatedAt",
               "#gradYear": "gradYear",
               "#gradMonth": "gradMonth",
               "#expectedDegree": "expectedDegree",
@@ -106,7 +105,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               "#dietaryRestrictions": "dietaryRestrictions",
             },
             ExpressionAttributeValues: marshall({
-              ":updatedAt": new Date().toISOString(),
               ":gradYear": gradYear,
               ":gradMonth": gradMonth,
               ":expectedDegree": expectedDegree,
@@ -116,7 +114,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             }),
           }),
         );
-
+        request.log.info(
+          `Updated user ${upn} at ${Date.now().toLocaleString()}`,
+        );
         return reply.status(201).send();
       } catch (err) {
         if (err instanceof BaseError) {
@@ -256,9 +256,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
             TableName: genericConfig.UserInfoTable,
             Key: marshall(key),
             UpdateExpression:
-              "SET #updatedAt = :updatedAt, REMOVE #gradYear, #gradMonth, #expectedDegree, #intendedMajor, #interests, #dietaryRestrictions",
+              "SET REMOVE #gradYear, #gradMonth, #expectedDegree, #intendedMajor, #interests, #dietaryRestrictions",
             ExpressionAttributeNames: {
-              "#updatedAt": "updatedAt",
               "#gradYear": "gradYear",
               "#gradMonth": "gradMonth",
               "#expectedDegree": "expectedDegree",
@@ -266,9 +265,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               "#interests": "interests",
               "#dietaryRestrictions": "dietaryRestrictions",
             },
-            ExpressionAttributeValues: marshall({
-              ":updatedAt": new Date().toISOString(),
-            }),
           }),
         );
       } catch (err) {
@@ -281,7 +277,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         );
         throw new DatabaseDeleteError({ message: "Could not delete profile." });
       }
-
+      request.log.info(`Updated user ${upn} at ${Date.now().toLocaleString()}`);
       return reply.status(200).send();
     },
   );
@@ -872,7 +868,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
-    "/checkin/event/:eventId",
+    "/checkIn/event/:eventId",
     {
       schema: withRoles(
         [AppRoles.RSVP_MANAGER],

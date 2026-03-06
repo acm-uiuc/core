@@ -92,7 +92,7 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
     eventId: string,
     userId: string,
   ): Promise<{ upn: string; dietaryRestrictions: string[] }> => {
-    const response = await api.post(`/api/v1/rsvp/checkin/event/${eventId}`, {
+    const response = await api.post(`/api/v1/rsvp/checkIn/event/${eventId}`, {
       uin: userId,
     });
     return response.data;

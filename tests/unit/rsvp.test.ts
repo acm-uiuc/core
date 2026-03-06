@@ -226,7 +226,7 @@ describe("RSVP API tests", () => {
   });
 
   test("Test posting an RSVP (Success with Profile)", async () => {
-    const eventId = "Make Your Own Database";
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
 
     ddbMock
       .on(GetItemCommand, {
@@ -256,7 +256,7 @@ describe("RSVP API tests", () => {
   });
 
   test("Test posting an RSVP FAILS if Profile is missing", async () => {
-    const eventId = "Make Your Own Database";
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
 
     ddbMock
       .on(GetItemCommand, {
@@ -300,7 +300,7 @@ describe("RSVP API tests", () => {
   });
 
   test("Test double RSVP (Conflict)", async () => {
-    const eventId = "Make Your Own Database";
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
     setupMockProfile(true);
 
     ddbMock
@@ -453,7 +453,7 @@ describe("RSVP API tests", () => {
   test("Test withdrawing own RSVP", async () => {
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
-    const eventId = "Make Your Own Database";
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
     const response = await app.inject({
       method: "DELETE",
       url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}/attendee/me`,
@@ -467,7 +467,7 @@ describe("RSVP API tests", () => {
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
     const adminJwt = createJwt();
-    const eventId = "Make Your Own Database";
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
     const targetUserId = "user1@illinois.edu";
 
     const response = await app.inject({
@@ -485,7 +485,7 @@ describe("RSVP API tests", () => {
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
     const adminJwt = createJwt();
-    const eventId = "Make Your Own Database";
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
     const newLimit = 50;
 
     const response = await app.inject({
@@ -506,7 +506,7 @@ describe("RSVP API tests", () => {
   });
 
   test("Test Manager getting RSVP configuration", async () => {
-    const eventId = "Make Your Own Database";
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
 
     const mockEvent = {
       id: eventId,
@@ -554,7 +554,7 @@ describe("RSVP API tests", () => {
     ddbMock.on(UpdateItemCommand).resolves({});
 
     const adminJwt = createJwt();
-    const eventId = "Make Your Own Database";
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
     const targetUserId = "123456789";
 
     ddbMock
@@ -570,7 +570,7 @@ describe("RSVP API tests", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: `/api/v1/rsvp/checkin/event/${encodeURIComponent(eventId)}`,
+      url: `/api/v1/rsvp/checkIn/event/${encodeURIComponent(eventId)}`,
       headers: {
         Authorization: `Bearer ${adminJwt}`,
       },
@@ -587,12 +587,12 @@ describe("RSVP API tests", () => {
     ddbMock.on(UpdateItemCommand).rejects(error);
 
     const adminJwt = createJwt();
-    const eventId = "Make Your Own Database";
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
     const targetUserId = "111111111"; // non-existent UIN
 
     const response = await app.inject({
       method: "POST",
-      url: `/api/v1/rsvp/checkin/event/${encodeURIComponent(eventId)}`,
+      url: `/api/v1/rsvp/checkIn/event/${encodeURIComponent(eventId)}`,
       headers: {
         Authorization: `Bearer ${adminJwt}`,
       },
