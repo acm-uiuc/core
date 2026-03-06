@@ -93,3 +93,5 @@ export const maxLength = <const S extends string, N extends number>(
   }
   return s as unknown as MaxLengthString<N>;
 };
+
+export const EmptyResponse = z.object({}).meta({ id: 'EmptyResponse' });
