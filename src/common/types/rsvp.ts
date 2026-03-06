@@ -65,7 +65,7 @@ export const majorSchema = z.enum(ALL_MAJORS).meta({description: "The student's 
 
 const ACCEPTED_MONTHS = ["May", "August", "December"] as const;
 const ACCEPTED_DEGREES = ["Bachelor's", "Master's", "PhD", "Other"] as const;
-const currentYear = new Date().getFullYear();
+const CURRENT_YEAR = new Date().getFullYear();
 const ACCEPTED_YEARS: number[] = Array.from(
   { length: 71 }, 
   (_, i) => currentYear - 50 + i
