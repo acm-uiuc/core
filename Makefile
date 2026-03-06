@@ -57,8 +57,8 @@ build: src/
 	make generate_clients
 
 generate_clients:
-    OPENAPI_SPEC=$(shell pwd)/dist_ui/docs/openapi.json node dist/api/generateClients.js
-    cd dist/clients/typescript-fetch && npm run build 
+	OPENAPI_SPEC=$(shell pwd)/dist_ui/docs/openapi.json node dist/api/generateClients.js \
+	cd dist/clients/typescript-fetch && npm run build
 
 local:
 	mkdir -p dist_devel/
