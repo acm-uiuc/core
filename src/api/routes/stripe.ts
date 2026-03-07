@@ -8,14 +8,15 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
 import { buildAuditLogTransactPut } from "api/functions/auditLog.js";
 import {
-  createStripeLink,
+  addInvoice,
+  createCheckoutSessionWithCustomer,
   deactivateStripeLink,
   deactivateStripeProduct,
   getPaymentMethodDescriptionString,
   getPaymentMethodForPaymentIntent,
-  StripeLinkCreateParams,
   SupportedStripePaymentMethod,
   supportedStripePaymentMethods,
+  recordInvoicePayment,
 } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
 import { genericConfig, notificationRecipients } from "common/config.js";
@@ -32,23 +33,29 @@ import { Modules } from "common/modules.js";
 import { AppRoles } from "common/roles.js";
 import {
   invoiceLinkGetResponseSchema,
-  invoiceLinkPostRequestSchema,
-  invoiceLinkPostResponseSchema,
+  createInvoicePostRequestSchema,
+  createInvoiceConflictResponseSchema,
+  createInvoicePostResponseSchema,
 } from "common/types/stripe.js";
-import { FastifyPluginAsync } from "fastify";
+import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
-import stripe, { Stripe } from "stripe";
+import { Stripe } from "stripe";
 import rawbody from "fastify-raw-body";
 import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import * as z from "zod/v4";
-import { getAllUserEmails } from "common/utils.js";
+import {
+  getAllUserEmails,
+  encodeInvoiceToken,
+  decodeInvoiceToken,
+} from "common/utils.js";
 import {
   STRIPE_LINK_RETENTION_DAYS,
   STRIPE_LINK_RETENTION_DAYS_QA,
 } from "common/constants.js";
 import { assertAuthenticated } from "api/authenticated.js";
 import { maxLength } from "common/types/generic.js";
+import { authorizeByOrgRoleOrSchema } from "api/functions/authorization.js";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -56,6 +63,30 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     global: false,
     runFirst: true,
   });
+
+  const getRequestOrigin = (request: FastifyRequest) => {
+    const proto = request.headers["x-forwarded-proto"] ?? "http";
+    const host =
+      request.headers["x-forwarded-host"] ??
+      request.headers.host ??
+      request.hostname;
+    return `${proto}://${host}`;
+  };
+
+  const getInvoiceBaseUrl = (request: FastifyRequest) => {
+    const reqOrigin = getRequestOrigin(request);
+
+    if (
+      reqOrigin.includes("localhost") ||
+      reqOrigin.includes("127.0.0.1") ||
+      reqOrigin.includes("0.0.0.0")
+    ) {
+      return reqOrigin;
+    }
+
+    // Deployed environments: use the public invoice domain from config
+    return fastify.environmentConfig.PaymentBaseUrl;
+  };
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/paymentLinks",
     {
@@ -64,7 +95,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         withTags(["Stripe"], {
           summary: "Get available Stripe payment links.",
           response: {
-            201: {
+            200: {
               description: "Links retrieved successfully.",
               content: {
                 "application/json": {
@@ -116,6 +147,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           active: item.active,
           invoiceId: item.invoiceId,
           invoiceAmountUsd: item.amount,
+          contactName: item.contactName ?? "",
+          contactEmail: item.contactEmail ?? "",
           createdAt: item.createdAt || null,
         }),
       );
@@ -129,86 +162,149 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         [AppRoles.STRIPE_LINK_CREATOR],
         withTags(["Stripe"], {
           summary: "Create a Stripe payment link.",
-          body: invoiceLinkPostRequestSchema,
+          body: createInvoicePostRequestSchema,
           response: {
             201: {
-              description: "Link created successfully.",
+              description: "Invoice created.",
+              content: {
+                "application/json": { schema: createInvoicePostResponseSchema },
+              },
+            },
+            409: {
+              description: "Customer info mismatch.",
               content: {
                 "application/json": {
-                  schema: invoiceLinkPostResponseSchema,
+                  schema: createInvoiceConflictResponseSchema,
                 },
               },
             },
           },
         }),
       ),
-      onRequest: fastify.authorizeFromSchema,
+      onRequest: fastify.authorizeFromSchema, // <-- ADD THIS
     },
     assertAuthenticated(async (request, reply) => {
-      const secretApiConfig = fastify.secretConfig;
-      const payload: StripeLinkCreateParams = {
+      // <-- WRAP THIS
+      await authorizeByOrgRoleOrSchema(fastify, request, reply, {
+        validRoles: [{ org: request.body.acmOrg, role: "LEAD" }],
+      });
+
+      const emailDomain = request.body.contactEmail.split("@").at(-1)!;
+
+      const addRes = await addInvoice({
         ...request.body,
-        createdBy: request.username,
-        stripeApiKey: secretApiConfig.stripe_secret_key as string,
-        statementDescriptorSuffix: maxLength("INVOICE", 7),
-        delayedSettlementAllowed: true,
-      };
-      const { url, linkId, priceId, productId } =
-        await createStripeLink(payload);
-      const invoiceId = request.body.invoiceId;
-      const logStatement = buildAuditLogTransactPut({
-        entry: {
-          module: Modules.STRIPE,
-          actor: request.username,
-          target: `Link ${linkId} | Invoice ${invoiceId}`,
-          message: "Created Stripe payment link",
-        },
+        redisClient: fastify.redisClient,
+        dynamoClient: fastify.dynamoClient,
+        stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
       });
-      const dynamoCommand = new TransactWriteItemsCommand({
-        TransactItems: [
-          ...(logStatement ? [logStatement] : []),
-          {
-            Put: {
-              TableName: genericConfig.StripeLinksDynamoTableName,
-              Item: marshall(
-                {
-                  userId: request.username,
-                  linkId,
-                  priceId,
-                  productId,
-                  invoiceId,
-                  url,
-                  amount: request.body.invoiceAmountUsd,
-                  active: true,
-                  createdAt: new Date().toISOString(),
-                },
-                { removeUndefinedValues: true },
-              ),
-            },
-          },
-        ],
-      });
-      try {
-        await fastify.dynamoClient.send(dynamoCommand);
-      } catch (e) {
-        await deactivateStripeLink({
-          stripeApiKey: secretApiConfig.stripe_secret_key as string,
-          linkId,
-        });
-        fastify.log.info(
-          `Deactivated Stripe link ${linkId} due to error in writing to database.`,
-        );
-        if (e instanceof BaseError) {
-          throw e;
-        }
-        fastify.log.error(e);
-        throw new DatabaseInsertError({
-          message: "Could not write Stripe link to database.",
+
+      if (addRes.needsConfirmation) {
+        return reply.status(409).send({
+          ...addRes,
+          message:
+            "Existing Stripe customer info differs; confirmation required before creating invoice.",
         });
       }
-      reply.status(201).send({ id: linkId, link: url });
+
+      const token = encodeInvoiceToken({
+        orgId: request.body.acmOrg,
+        emailDomain,
+        invoiceId: request.body.invoiceId,
+      });
+
+      const baseUrl = getInvoiceBaseUrl(request);
+
+      const isLocal =
+        baseUrl.includes("localhost") ||
+        baseUrl.includes("127.0.0.1") ||
+        baseUrl.includes("0.0.0.0");
+
+      const link = isLocal
+        ? `${baseUrl}/api/v1/stripe/pay/${token}`
+        : `${baseUrl}/${token}`;
+
+      return reply.status(201).send({
+        id: request.body.invoiceId,
+        link,
+      });
     }),
   );
+  fastify.get("/pay/:token", async (request, reply) => {
+    const { token } = request.params as { token: string };
+
+    const { orgId, emailDomain, invoiceId } = decodeInvoiceToken(token);
+
+    const pk = `${orgId}#${emailDomain}`;
+
+    // Fetch invoice
+    const invoiceRes = await fastify.dynamoClient.send(
+      new QueryCommand({
+        TableName: genericConfig.StripePaymentsDynamoTableName,
+        KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+        ExpressionAttributeValues: {
+          ":pk": { S: pk },
+          ":sk": { S: `CHARGE#${invoiceId}` },
+        },
+        ConsistentRead: true,
+      }),
+    );
+
+    if (!invoiceRes.Items?.length) {
+      throw new NotFoundError({ endpointName: request.url });
+    }
+
+    // Fetch customer
+    const customerRes = await fastify.dynamoClient.send(
+      new QueryCommand({
+        TableName: genericConfig.StripePaymentsDynamoTableName,
+        KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+        ExpressionAttributeValues: {
+          ":pk": { S: pk },
+          ":sk": { S: "CUSTOMER" },
+        },
+        ConsistentRead: true,
+      }),
+    );
+
+    if (!customerRes.Items?.length) {
+      throw new NotFoundError({ endpointName: request.url });
+    }
+
+    const customerId = unmarshall(customerRes.Items[0]).stripeCustomerId;
+    const amountUsd = unmarshall(invoiceRes.Items[0]).invoiceAmtUsd;
+
+    const stripe = new Stripe(fastify.secretConfig.stripe_secret_key as string);
+
+    const price = await stripe.prices.create({
+      unit_amount: Math.round(amountUsd * 100),
+      currency: "usd",
+      product_data: {
+        name: `Invoice ${invoiceId}`,
+      },
+    });
+
+    const baseUrl = getInvoiceBaseUrl(request);
+
+    const checkoutUrl: string = await createCheckoutSessionWithCustomer({
+      customerId,
+      stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
+      items: [{ price: price.id, quantity: 1 }],
+      initiator: "invoice-pay",
+      allowPromotionCodes: true,
+      successUrl: `${baseUrl}/success`,
+      returnUrl: `${baseUrl}/cancel`,
+      metadata: {
+        invoice_id: invoiceId,
+        acm_org: orgId,
+        pk,
+      },
+      statementDescriptorSuffix: maxLength("INVOICE", 7),
+      delayedSettlementAllowed: true,
+      allowAchPush: true,
+    });
+
+    return reply.redirect(checkoutUrl, 302);
+  });
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/paymentLinks/:linkId",
     {
@@ -350,21 +446,54 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           fastify.secretsManagerClient,
           genericConfig.ConfigSecretName,
         )) || {};
+      const sessionToInvoiceMeta = (session: Stripe.Checkout.Session) => {
+        const invoiceId = session.metadata?.invoice_id;
+        const acmOrg = session.metadata?.acm_org;
+        const pk = session.metadata?.pk;
+
+        if (!invoiceId || !acmOrg) {
+          return null;
+        }
+
+        if (pk) {
+          const email =
+            session.customer_details?.email ?? session.customer_email ?? null;
+          return { invoiceId, acmOrg, pk, email };
+        }
+
+        const email =
+          session.customer_details?.email ?? session.customer_email ?? null;
+        if (!email || !email.includes("@")) {
+          return null;
+        }
+
+        const domain = email.split("@").at(-1)!.toLowerCase();
+        return { invoiceId, acmOrg, pk: `${acmOrg}#${domain}`, email };
+      };
       try {
         const sig = request.headers["stripe-signature"];
-        if (!sig || typeof sig !== "string") {
-          throw new Error("Missing or invalid Stripe signature");
+        const sigStr = Array.isArray(sig) ? sig[0] : sig;
+
+        if (sigStr) {
+          // Signed webhook flow (unit tests)
+          event = Stripe.webhooks.constructEvent(
+            request.rawBody,
+            sigStr,
+            secretApiConfig.stripe_links_endpoint_secret as string,
+          );
+        } else {
+          // Fallback flow: body = { id }, retrieve from Stripe
+          const body = request.body as { id?: string };
+          if (!body?.id || typeof body.id !== "string") {
+            throw new ValidationError({
+              message: "Missing event ID in webhook payload.",
+            });
+          }
+          const stripeClient = new Stripe(
+            fastify.secretConfig.stripe_secret_key as string,
+          );
+          event = await stripeClient.events.retrieve(body.id);
         }
-        if (!secretApiConfig) {
-          throw new InternalServerError({
-            message: "Could not connect to Stripe.",
-          });
-        }
-        event = stripe.webhooks.constructEvent(
-          request.rawBody,
-          sig,
-          secretApiConfig.stripe_links_endpoint_secret as string,
-        );
       } catch (err: unknown) {
         if (err instanceof BaseError) {
           throw err;
@@ -491,6 +620,68 @@ Please ask the payee to try again, perhaps with a different payment method, or c
             .send({ handled: false, requestId: request.id });
         case "checkout.session.async_payment_succeeded":
         case "checkout.session.completed":
+          const session = event.data.object as Stripe.Checkout.Session;
+
+          const meta = sessionToInvoiceMeta(session);
+          if (meta) {
+            const pk = meta.pk;
+
+            const amountCents = session.amount_total ?? 0;
+            const currency = session.currency ?? "usd";
+            const checkoutSessionId = session.id;
+            const paymentIntentId = session.payment_intent?.toString() ?? null;
+
+            // decrement owed only when actually settled/paid:
+            const decrementOwed =
+              session.payment_status === "paid" ||
+              event.type === "checkout.session.async_payment_succeeded";
+
+            if (!decrementOwed) {
+              request.log.info(
+                `Not recording payment for invoice ${meta.invoiceId} because payment not settled yet (status=${session.payment_status}, event=${event.type}).`,
+              );
+              return reply
+                .status(200)
+                .send({ handled: true, requestId: request.id });
+            }
+
+            try {
+              await recordInvoicePayment({
+                dynamoClient: fastify.dynamoClient,
+                pk,
+                invoiceId: meta.invoiceId,
+                eventId: event.id,
+                checkoutSessionId,
+                paymentIntentId,
+                amountCents,
+                currency,
+                billingEmail:
+                  meta.email ??
+                  session.customer_details?.email ??
+                  session.customer_email ??
+                  "unknown",
+                decrementOwed,
+              });
+            } catch (e: unknown) {
+              if (
+                (e as { name?: string })?.name ===
+                "TransactionCanceledException"
+              ) {
+                request.log.info(
+                  `Duplicate webhook event ${event.id}, acknowledging.`,
+                );
+                return reply
+                  .status(200)
+                  .send({ handled: true, requestId: request.id });
+              }
+              throw e;
+            }
+
+            return reply
+              .status(200)
+              .send({ handled: true, requestId: request.id });
+          }
+
           if (event.data.object.payment_link) {
             const eventId = event.id;
             const paymentAmount = event.data.object.amount_total;

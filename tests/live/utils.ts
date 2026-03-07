@@ -39,6 +39,9 @@ export async function createJwt(
     unique_name: username,
     uti: randomUUID().toString(),
     ver: "1.0",
+    orgRoles: {
+      C01: ["LEAD"],
+    },
   };
   const token = jwt.sign(payload, secretData.JWTKEY, { algorithm: "HS256" });
   return token;

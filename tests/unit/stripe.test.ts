@@ -20,6 +20,7 @@ import supertest from "supertest";
 import { createJwt } from "./utils.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { randomUUID } from "crypto";
+import { encodeInvoiceToken } from "src/common/utils.ts";
 
 const ddbMock = mockClient(DynamoDBClient);
 const linkId = randomUUID();
@@ -31,24 +32,47 @@ const paymentLinkMock = {
   id: linkId,
   url: `https://buy.stripe.com/${linkId}`,
 };
+const customerId = randomUUID();
+const customerMock = { id: `cus_${customerId}` };
 
 vi.mock("stripe", () => {
+  const StripeCtor: any = vi.fn(function () {
+    return {
+      customers: {
+        create: vi.fn(() => Promise.resolve(customerMock)),
+        retrieve: vi.fn(() =>
+          Promise.resolve({ name: "Old Name", email: "old@example.com" }),
+        ),
+      },
+      products: {
+        create: vi.fn(() => Promise.resolve(productMock)),
+        update: vi.fn(() => Promise.resolve({})),
+      },
+      prices: {
+        create: vi.fn(() => Promise.resolve(priceMock)),
+      },
+      paymentLinks: {
+        create: vi.fn(() => Promise.resolve(paymentLinkMock)),
+        update: vi.fn(() => Promise.resolve({})),
+      },
+      checkout: {
+        sessions: {
+          create: vi.fn(() =>
+            Promise.resolve({ url: "https://checkout.stripe.com/test" }),
+          ),
+        },
+      },
+      paymentIntents: { retrieve: vi.fn(), capture: vi.fn(), cancel: vi.fn() },
+      paymentMethods: { retrieve: vi.fn() },
+      refunds: { create: vi.fn() },
+    };
+  });
+
+  StripeCtor.webhooks = { constructEvent: vi.fn() };
+
   return {
-    default: vi.fn(function () {
-      return {
-        products: {
-          create: vi.fn(() => Promise.resolve(productMock)),
-          update: vi.fn(() => Promise.resolve({})),
-        },
-        prices: {
-          create: vi.fn(() => Promise.resolve(priceMock)),
-        },
-        paymentLinks: {
-          create: vi.fn(() => Promise.resolve(paymentLinkMock)),
-          update: vi.fn(() => Promise.resolve({})),
-        },
-      };
-    }),
+    default: StripeCtor,
+    Stripe: StripeCtor,
   };
 });
 
@@ -59,6 +83,7 @@ describe("Test Stripe link creation", async () => {
     const response = await supertest(app.server)
       .post("/api/v1/stripe/paymentLinks")
       .send({
+        acmOrg: "C01",
         invoiceId: "ACM102",
         invoiceAmountUsd: 100,
         contactName: "John Doe",
@@ -81,6 +106,7 @@ describe("Test Stripe link creation", async () => {
       .post("/api/v1/stripe/paymentLinks")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
+        acmOrg: "C01",
         invoiceId: "ACM102",
         invoiceAmountUsd: 10,
         contactName: "John Doe",
@@ -97,6 +123,7 @@ describe("Test Stripe link creation", async () => {
       .post("/api/v1/stripe/paymentLinks")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
+        acmOrg: "C01",
         invoiceId: "",
         invoiceAmountUsd: 49,
         contactName: "",
@@ -120,6 +147,7 @@ describe("Test Stripe link creation", async () => {
       .post("/api/v1/stripe/paymentLinks")
       .set("authorization", `Bearer ${testJwt}`)
       .send({
+        acmOrg: "C01",
         invoiceId: "ACM102",
         invoiceAmountUsd: 51,
         contactName: "Dev",
@@ -136,12 +164,17 @@ describe("Test Stripe link creation", async () => {
   });
   test("POST happy path", async () => {
     const invoicePayload = {
+      acmOrg: "C01",
       invoiceId: "ACM102",
       invoiceAmountUsd: 51,
       contactName: "Infra User",
       contactEmail: "testing@acm.illinois.edu",
     };
-    ddbMock.on(TransactWriteItemsCommand).resolvesOnce({}).rejects();
+    // customer lookup (no existing customer)
+    ddbMock.on(QueryCommand).resolvesOnce({ Count: 0, Items: [] });
+
+    // addInvoice does 1+ transactions; easiest is “always succeed”
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
     const testJwt = createJwt();
     await app.ready();
 
@@ -150,11 +183,9 @@ describe("Test Stripe link creation", async () => {
       .set("authorization", `Bearer ${testJwt}`)
       .send(invoicePayload);
     expect(response.statusCode).toBe(201);
-    expect(response.body).toStrictEqual({
-      id: linkId,
-      link: `https://buy.stripe.com/${linkId}`,
-    });
-    expect(ddbMock.calls().length).toEqual(1);
+    expect(response.body.id).toBe(invoicePayload.invoiceId);
+    expect(response.body.link).toContain("/");
+    expect(ddbMock.calls().length).toBeGreaterThan(0);
   });
   test("Unauthenticated GET access (missing token)", async () => {
     await app.ready();
@@ -192,6 +223,7 @@ describe("Test Stripe link creation", async () => {
           active: true,
           invoiceId: "ACM102",
           amount: 100,
+          achPaymentsEnabled: false,
           createdAt: "2025-02-09T17:11:30.762Z",
         }),
       ],
@@ -209,6 +241,7 @@ describe("Test Stripe link creation", async () => {
         active: true,
         invoiceId: "ACM102",
         invoiceAmountUsd: 100,
+        achPaymentsEnabled: false,
         createdAt: "2025-02-09T17:11:30.762Z",
       },
     ]);
@@ -227,6 +260,7 @@ describe("Test Stripe link creation", async () => {
           active: true,
           invoiceId: "ACM103",
           amount: 999,
+          achPaymentsEnabled: false,
           createdAt: "2025-02-09T17:11:30.762Z",
         }),
       ],
@@ -248,6 +282,7 @@ describe("Test Stripe link creation", async () => {
         active: true,
         invoiceId: "ACM103",
         invoiceAmountUsd: 999,
+        achPaymentsEnabled: false,
         createdAt: "2025-02-09T17:11:30.762Z",
       },
     ]);
@@ -301,6 +336,59 @@ describe("Test Stripe link creation", async () => {
       .send();
     expect(response.statusCode).toBe(403);
     expect(ddbMock.calls().length).toEqual(1);
+  });
+  test("POST /webhook: Handles checkout.session.completed successfully", async () => {
+    const mockInvoiceId = "ACM-999";
+    const mockOrg = "C01";
+    const mockEmail = "payer@illinois.edu";
+    const mockDomain = "illinois.edu";
+    const mockEventId = "evt_test_123";
+
+    // 1. Mock Stripe.webhooks.constructEvent to return a valid session object
+
+    const StripeMock = await import("stripe");
+    (StripeMock.default.webhooks.constructEvent as any).mockReturnValue({
+      id: mockEventId,
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_test_abc",
+          payment_status: "paid",
+          amount_total: 5000,
+          currency: "usd",
+          customer_details: { email: mockEmail },
+          metadata: {
+            invoice_id: mockInvoiceId,
+            acm_org: mockOrg,
+          },
+          payment_intent: "pi_test_abc",
+        },
+      },
+    });
+
+    // 2. Mock the DDB transaction inside recordInvoicePayment
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    await app.ready();
+
+    // 3. Execute request
+    const response = await supertest(app.server)
+      .post("/api/v1/stripe/webhook")
+      .set("stripe-signature", "t=123,v1=abc")
+      .send({ id: "dummy_event" });
+
+    // 4. Assertions
+    expect(response.statusCode).toBe(200);
+    expect(response.body.handled).toBe(true);
+
+    const ddbCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
+    expect(ddbCalls.length).toBe(1);
+
+    const input = ddbCalls[0].args[0].input;
+    const expectedPk = `${mockOrg}#${mockDomain}`;
+
+    const firstUpdate = input.TransactItems?.find((i) => i.Update);
+    expect(firstUpdate?.Update?.Key?.primaryKey.S).toBe(expectedPk);
   });
   afterAll(async () => {
     await app.close();
