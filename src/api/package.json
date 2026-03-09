@@ -65,12 +65,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
-    "@types/aws-lambda": "^8.10.160",
-    "@types/ioredis-mock": "^8.2.5",
+    "@types/aws-lambda": "^8.10.161",
+    "@types/ioredis-mock": "^8.2.7",
     "@types/qrcode": "^1.5.5",
     "@types/sanitize-html": "^2.16.0",
     "ioredis-mock": "^8.9.0",
-    "nodemon": "^3.1.10",
+    "nodemon": "^3.1.14",
     "pino-pretty": "^13.1.1",
     "yaml": "^2.8.1"
   }
