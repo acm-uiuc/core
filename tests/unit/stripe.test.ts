@@ -344,8 +344,6 @@ describe("Test Stripe link creation", async () => {
     const mockDomain = "illinois.edu";
     const mockEventId = "evt_test_123";
 
-    // 1. Mock Stripe.webhooks.constructEvent to return a valid session object
-
     const StripeMock = await import("stripe");
     (StripeMock.default.webhooks.constructEvent as any).mockReturnValue({
       id: mockEventId,
@@ -366,18 +364,26 @@ describe("Test Stripe link creation", async () => {
       },
     });
 
-    // 2. Mock the DDB transaction inside recordInvoicePayment
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [
+        marshall({
+          primaryKey: `${mockOrg}#${mockDomain}`,
+          sortKey: `CHARGE#${mockInvoiceId}`,
+          createdBy: "not-an-email",
+        }),
+      ],
+    });
+
     ddbMock.on(TransactWriteItemsCommand).resolves({});
 
     await app.ready();
 
-    // 3. Execute request
     const response = await supertest(app.server)
       .post("/api/v1/stripe/webhook")
       .set("stripe-signature", "t=123,v1=abc")
       .send({ id: "dummy_event" });
 
-    // 4. Assertions
     expect(response.statusCode).toBe(200);
     expect(response.body.handled).toBe(true);
 
