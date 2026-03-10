@@ -193,6 +193,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
       const addRes = await addInvoice({
         ...request.body,
+        createdBy: request.username,
         redisClient: fastify.redisClient,
         dynamoClient: fastify.dynamoClient,
         stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
@@ -631,6 +632,27 @@ Please ask the payee to try again, perhaps with a different payment method, or c
             const checkoutSessionId = session.id;
             const paymentIntentId = session.payment_intent?.toString() ?? null;
 
+            const invoiceRecordRes = await fastify.dynamoClient.send(
+              new QueryCommand({
+                TableName: genericConfig.StripePaymentsDynamoTableName,
+                KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+                ExpressionAttributeValues: {
+                  ":pk": { S: pk },
+                  ":sk": { S: `CHARGE#${meta.invoiceId}` },
+                },
+                ConsistentRead: true,
+              }),
+            );
+
+            const invoiceRecord = invoiceRecordRes.Items?.[0]
+              ? unmarshall(invoiceRecordRes.Items[0])
+              : null;
+
+            const createdBy =
+              typeof invoiceRecord?.createdBy === "string"
+                ? invoiceRecord.createdBy
+                : null;
+
             // decrement owed only when actually settled/paid:
             const decrementOwed =
               session.payment_status === "paid" ||
@@ -640,10 +662,68 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               request.log.info(
                 `Not recording payment for invoice ${meta.invoiceId} because payment not settled yet (status=${session.payment_status}, event=${event.type}).`,
               );
-              return reply
-                .status(200)
-                .send({ handled: true, requestId: request.id });
+
+              let queueId;
+              if (createdBy?.includes("@")) {
+                const amountFormatted = new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: currency.toUpperCase(),
+                }).format(amountCents / 100);
+
+                const payerEmail =
+                  meta.email ??
+                  session.customer_details?.email ??
+                  session.customer_email ??
+                  "unknown";
+
+                const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
+                  {
+                    function: AvailableSQSFunctions.EmailNotifications,
+                    metadata: {
+                      initiator: event.id,
+                      reqId: request.id,
+                    },
+                    payload: {
+                      to: getAllUserEmails(createdBy),
+                      subject: `Payment Pending for Invoice ${meta.invoiceId}`,
+                      content: `
+            ACM @ UIUC has received intent of payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
+
+            The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
+
+            Please contact Officer Board with any questions.
+                    `,
+                      callToActionButton: {
+                        name: "View Your Stripe Links",
+                        url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
+                      },
+                    },
+                  };
+
+                if (!fastify.sqsClient) {
+                  fastify.sqsClient = new SQSClient({
+                    region: genericConfig.AwsRegion,
+                  });
+                }
+
+                const result = await fastify.sqsClient.send(
+                  new SendMessageCommand({
+                    QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+                    MessageBody: JSON.stringify(sqsPayload),
+                    MessageGroupId: "invoiceNotification",
+                  }),
+                );
+                queueId = result.MessageId || "";
+              }
+
+              return reply.status(200).send({
+                handled: true,
+                requestId: request.id,
+                queueId: queueId || "",
+              });
             }
+
+            let queueId;
 
             try {
               await recordInvoicePayment({
@@ -677,9 +757,66 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               throw e;
             }
 
-            return reply
-              .status(200)
-              .send({ handled: true, requestId: request.id });
+            if (createdBy?.includes("@")) {
+              const amountFormatted = new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: currency.toUpperCase(),
+              }).format(amountCents / 100);
+
+              const payerEmail =
+                meta.email ??
+                session.customer_details?.email ??
+                session.customer_email ??
+                "unknown";
+
+              const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
+                {
+                  function: AvailableSQSFunctions.EmailNotifications,
+                  metadata: {
+                    initiator: event.id,
+                    reqId: request.id,
+                  },
+                  payload: {
+                    to: getAllUserEmails(createdBy),
+                    cc: [
+                      notificationRecipients[fastify.runEnvironment].Treasurer,
+                    ],
+                    subject: `Payment received for Invoice ${meta.invoiceId}`,
+                    content: `
+            ACM @ UIUC has received payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
+
+            This invoice should now be considered settled.
+
+            Please contact Officer Board with any questions.
+                  `,
+                    callToActionButton: {
+                      name: "View Your Stripe Links",
+                      url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
+                    },
+                  },
+                };
+
+              if (!fastify.sqsClient) {
+                fastify.sqsClient = new SQSClient({
+                  region: genericConfig.AwsRegion,
+                });
+              }
+
+              const result = await fastify.sqsClient.send(
+                new SendMessageCommand({
+                  QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+                  MessageBody: JSON.stringify(sqsPayload),
+                  MessageGroupId: "invoiceNotification",
+                }),
+              );
+              queueId = result.MessageId || "";
+            }
+
+            return reply.status(200).send({
+              handled: true,
+              requestId: request.id,
+              queueId: queueId || "",
+            });
           }
 
           if (event.data.object.payment_link) {

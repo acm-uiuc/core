@@ -581,6 +581,7 @@ export type InvoiceAddParams = {
   dynamoClient: DynamoDBClient;
   contactEmail: string;
   contactName: string;
+  createdBy: string;
   stripeApiKey: string;
 };
 
@@ -590,6 +591,7 @@ export const addInvoice = async ({
   acmOrg,
   invoiceId,
   invoiceAmountUsd,
+  createdBy,
   redisClient,
   dynamoClient,
   stripeApiKey,
@@ -624,6 +626,7 @@ export const addInvoice = async ({
               primaryKey: pk,
               sortKey: `CHARGE#${invoiceId}`,
               invoiceAmtUsd: invoiceAmountUsd / 100,
+              createdBy,
               createdAt: new Date().toISOString(),
             },
             { removeUndefinedValues: true },
