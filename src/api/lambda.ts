@@ -2,7 +2,8 @@ import awsLambdaFastify from "@fastify/aws-lambda";
 import init, { instanceId } from "./server.js";
 import { ValidationError } from "common/errors/index.js";
 import { Readable } from "node:stream";
-import middy, { executionModeStreamifyResponse } from "@middy/core";
+import middy from "@middy/core";
+import { executionModeStreamifyResponse } from "@middy/core/StreamifyResponse";
 import { APIGatewayProxyEventV2, Context } from "aws-lambda";
 
 // Initialize the proxy with the payloadAsStream option
