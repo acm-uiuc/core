@@ -74,7 +74,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
           summary:
             "Sync the Illinois NetID account with the ACM @ UIUC account.",
           response: {
-            201: {
+            204: {
               description: "The user has been synced.",
               content: {
                 "application/json": {
@@ -135,7 +135,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
             userPrincipalName: `${netId}@acm.illinois.edu`,
           });
         }
-        return reply.status(201).send();
+        return reply.status(204).send();
       },
     );
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
