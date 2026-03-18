@@ -362,7 +362,15 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         throw new NotFoundError({ endpointName: request.url });
       }
 
-      if (!profileItem) {
+      if (
+        !profileItem ||
+        !(
+          profileItem.gradYear &&
+          profileItem.gradMonth &&
+          profileItem.expectedDegree &&
+          profileItem.intendedMajor
+        )
+      ) {
         return reply.status(400).send({
           message: "Profile Required",
         });
