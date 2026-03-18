@@ -683,6 +683,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
           });
         }
         const configItem = unmarshall(response.Item);
+        if (configItem.rsvpLimit === null) {
+          delete configItem.rsvpLimit;
+        }
         return reply.send(configItem);
       } catch (err) {
         if (err instanceof BaseError) {
