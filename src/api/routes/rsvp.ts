@@ -331,20 +331,32 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const configKey = { partitionKey: `CONFIG#${eventId}` };
       const profileKey = { id: upn };
 
-      const profileResponse = await fastify.dynamoClient.send(
-        new GetItemCommand({
-          TableName: genericConfig.UserInfoTable,
-          Key: marshall(profileKey),
-        }),
-      );
+      let configItem: Awaited<ReturnType<typeof getRsvpConfig>>;
+      let profileItem: Record<string, unknown> | null;
 
-      const configItem = await getRsvpConfig({
-        eventId,
-        dynamoClient: fastify.dynamoClient,
-      });
-      const profileItem = profileResponse.Item
-        ? unmarshall(profileResponse.Item)
-        : null;
+      try {
+        const [profileResponse, resolvedConfig] = await Promise.all([
+          fastify.dynamoClient.send(
+            new GetItemCommand({
+              TableName: genericConfig.UserInfoTable,
+              Key: marshall(profileKey),
+            }),
+          ),
+          getRsvpConfig({ eventId, dynamoClient: fastify.dynamoClient }),
+        ]);
+        configItem = resolvedConfig;
+        profileItem = profileResponse.Item
+          ? unmarshall(profileResponse.Item)
+          : null;
+      } catch (err) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        request.log.error(err, "Failed to fetch profile or RSVP config");
+        throw new DatabaseFetchError({
+          message: "Failed to fetch event or profile data.",
+        });
+      }
 
       if (!configItem) {
         throw new NotFoundError({ endpointName: request.url });
@@ -356,7 +368,6 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
 
-      const now = Math.floor(Date.now() / 1000);
       if (!isRsvpOpen(configItem)) {
         throw new ValidationError({
           message: "RSVPs are not currently open for this event.",
@@ -375,7 +386,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         eventId,
         userId: upn,
         isPaidMember,
-        createdAt: now,
+        createdAt: Math.floor(Date.now() / 1000),
         gradYear: profileItem.gradYear,
         gradMonth: profileItem.gradMonth,
         expectedDegree: profileItem.expectedDegree,
