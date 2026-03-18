@@ -4,9 +4,9 @@ import { ALL_MAJORS } from "@acm-uiuc/js-shared";
 
 export const rsvpConfigSchema = z
   .object({
-    rsvpLimit: z.number().int().min(1).max(20000).nullable().meta({
+    rsvpLimit: z.number().int().min(1).max(20000).optional().meta({
       description:
-        "The maximum number of attendees allowed. Set to null for unlimited.",
+        "The maximum number of attendees allowed. Omit or leave undefined for unlimited.",
       example: 50,
     }),
     rsvpCheckInEnabled: z.boolean().default(false).meta({
