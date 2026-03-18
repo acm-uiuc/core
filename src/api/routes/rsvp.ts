@@ -33,6 +33,7 @@ import {
 } from "common/types/rsvp.js";
 import * as z from "zod/v4";
 import { verifyUiucAccessToken, getUserIdByUin } from "api/functions/uin.js";
+import { getRsvpConfig, isRsvpOpen } from "api/functions/rsvp.js";
 import { checkPaidMembership } from "api/functions/membership.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { genericConfig } from "common/config.js";
@@ -330,24 +331,17 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const configKey = { partitionKey: `CONFIG#${eventId}` };
       const profileKey = { id: upn };
 
-      const [configResponse, profileResponse] = await Promise.all([
-        fastify.dynamoClient.send(
-          new GetItemCommand({
-            TableName: genericConfig.RSVPDynamoTableName,
-            Key: marshall(configKey),
-          }),
-        ),
-        fastify.dynamoClient.send(
-          new GetItemCommand({
-            TableName: genericConfig.UserInfoTable,
-            Key: marshall(profileKey),
-          }),
-        ),
-      ]);
+      const profileResponse = await fastify.dynamoClient.send(
+        new GetItemCommand({
+          TableName: genericConfig.UserInfoTable,
+          Key: marshall(profileKey),
+        }),
+      );
 
-      const configItem = configResponse.Item
-        ? unmarshall(configResponse.Item)
-        : null;
+      const configItem = await getRsvpConfig({
+        eventId,
+        dynamoClient: fastify.dynamoClient,
+      });
       const profileItem = profileResponse.Item
         ? unmarshall(profileResponse.Item)
         : null;
@@ -363,15 +357,9 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
 
       const now = Math.floor(Date.now() / 1000);
-      if (configItem.rsvpOpenAt && now < configItem.rsvpOpenAt) {
-        // 400 error
+      if (!isRsvpOpen(configItem)) {
         throw new ValidationError({
-          message: "RSVPs are not yet open for this event.",
-        });
-      }
-      if (configItem.rsvpCloseAt && now > configItem.rsvpCloseAt) {
-        throw new ValidationError({
-          message: "RSVPs are closed for this event.",
+          message: "RSVPs are not currently open for this event.",
         });
       }
 

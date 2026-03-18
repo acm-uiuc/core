@@ -33,6 +33,7 @@ import {
   deleteCacheCounter,
   getCacheCounter,
 } from "api/functions/cache.js";
+import { getRsvpConfig, isRsvpOpen } from "api/functions/rsvp.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import {
@@ -355,7 +356,19 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             });
           }
           if (rsvpOnly) {
-            parsedItems = parsedItems.filter((x) => x.rsvpEnabled);
+            const rsvpEnabledItems = parsedItems.filter((x) => x.rsvpEnabled);
+
+            const withOpenStatus = await Promise.all(
+              rsvpEnabledItems.map(async (item) => {
+                const config = await getRsvpConfig({
+                  eventId: item.id,
+                  dynamoClient: fastify.dynamoClient,
+                });
+                return { ...item, isOpen: isRsvpOpen(config) };
+              }),
+            );
+
+            parsedItems = withOpenStatus.filter((x) => x.isOpen);
           }
           if (featuredOnly) {
             parsedItems = parsedItems.filter((x) => x.featured);
