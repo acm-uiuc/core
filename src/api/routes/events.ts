@@ -251,7 +251,8 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               description: "Retrieve events only for this organization.",
             }),
             rsvpOnly: BooleanFromString.default(false).optional().meta({
-              description: "If true, only get events which have RSVPs enabled.",
+              description:
+                "If true, only get events which have RSVPs enabled and RSVP Configs.",
             }),
             ts,
             includeMetadata: zodIncludeMetadata,
