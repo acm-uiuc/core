@@ -33,6 +33,7 @@ import {
   deleteCacheCounter,
   getCacheCounter,
 } from "api/functions/cache.js";
+import { getRsvpConfigs, isRsvpOpen } from "api/functions/rsvp.js";
 import { createAuditLogEntry } from "api/functions/auditLog.js";
 import { Modules } from "common/modules.js";
 import {
@@ -250,7 +251,8 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
               description: "Retrieve events only for this organization.",
             }),
             rsvpOnly: BooleanFromString.default(false).optional().meta({
-              description: "If true, only get events which have RSVPs enabled.",
+              description:
+                "If true, only get events which have RSVPs enabled and RSVP Configs.",
             }),
             ts,
             includeMetadata: zodIncludeMetadata,
@@ -355,7 +357,15 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             });
           }
           if (rsvpOnly) {
-            parsedItems = parsedItems.filter((x) => x.rsvpEnabled);
+            const rsvpEnabledItems = parsedItems.filter((x) => x.rsvpEnabled);
+            const configs = await getRsvpConfigs({
+              eventIds: rsvpEnabledItems.map((x) => x.id),
+              dynamoClient: fastify.dynamoClient,
+              logger: request.log,
+            });
+            parsedItems = rsvpEnabledItems.filter((item) =>
+              isRsvpOpen(configs.get(`CONFIG#${item.id}`) ?? null),
+            );
           }
           if (featuredOnly) {
             parsedItems = parsedItems.filter((x) => x.featured);
