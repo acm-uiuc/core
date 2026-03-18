@@ -1,4 +1,8 @@
-import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import {
+  BatchGetItemCommand,
+  DynamoDBClient,
+  GetItemCommand,
+} from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
 
@@ -16,6 +20,36 @@ export async function getRsvpConfig({
     }),
   );
   return response.Item ? unmarshall(response.Item) : null;
+}
+
+export async function getRsvpConfigs({
+  eventIds,
+  dynamoClient,
+}: {
+  eventIds: string[];
+  dynamoClient: DynamoDBClient;
+}): Promise<Map<string, Record<string, unknown>>> {
+  if (eventIds.length === 0) {
+    return new Map();
+  }
+  const response = await dynamoClient.send(
+    new BatchGetItemCommand({
+      RequestItems: {
+        [genericConfig.RSVPDynamoTableName]: {
+          Keys: eventIds.map((id) =>
+            marshall({ partitionKey: `CONFIG#${id}` }),
+          ),
+        },
+      },
+    }),
+  );
+  const configs = new Map<string, Record<string, unknown>>();
+  for (const raw of response.Responses?.[genericConfig.RSVPDynamoTableName] ??
+    []) {
+    const config = unmarshall(raw);
+    configs.set(config.partitionKey as string, config);
+  }
+  return configs;
 }
 
 export function isRsvpOpen(

@@ -18,7 +18,6 @@ import { Redis } from "../../src/api/types.js";
 import { FastifyBaseLogger } from "fastify";
 import { randomUUID } from "node:crypto";
 import { genericConfig } from "../../src/common/config.js";
-import { getRsvpConfig, isRsvpOpen } from "../../src/api/functions/rsvp.js";
 
 const DUMMY_JWT = createJwt();
 const DEFAULT_HEADERS = {
@@ -113,15 +112,6 @@ vi.mock("../../src/api/functions/membership.js", async () => {
   };
 });
 
-vi.mock("../../src/api/functions/rsvp.js", async () => {
-  const actual = await vi.importActual("../../src/api/functions/rsvp.js");
-  return {
-    ...actual,
-    getRsvpConfig: vi.fn(),
-    isRsvpOpen: vi.fn().mockReturnValue(true),
-  };
-});
-
 const ddbMock = mockClient(DynamoDBClient);
 const jwt_secret = secretObject["jwt_key"];
 vi.stubEnv("JwtSigningKey", jwt_secret);
@@ -163,7 +153,6 @@ describe("RSVP API tests", () => {
   beforeEach(() => {
     ddbMock.reset();
     vi.clearAllMocks();
-    vi.mocked(isRsvpOpen).mockReturnValue(true);
   });
 
   test("POST /profile - Create/Update Profile successfully", async () => {
@@ -239,14 +228,20 @@ describe("RSVP API tests", () => {
   test("Test posting an RSVP (Success with Profile)", async () => {
     const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
 
-    vi.mocked(getRsvpConfig).mockResolvedValue({
-      partitionKey: `CONFIG#${eventId}`,
-      eventId,
-      rsvpLimit: 100,
-      rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
-      rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
-      rsvpCheckInEnabled: false,
-    });
+    ddbMock
+      .on(GetItemCommand, {
+        Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
+      })
+      .resolves({
+        Item: marshall({
+          partitionKey: `CONFIG#${eventId}`,
+          eventId,
+          rsvpLimit: 100,
+          rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
+          rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
+          rsvpCheckInEnabled: false,
+        }),
+      });
     setupMockProfile(true);
 
     ddbMock.on(TransactWriteItemsCommand).resolves({});
@@ -263,12 +258,18 @@ describe("RSVP API tests", () => {
   test("Test posting an RSVP FAILS if Profile is missing", async () => {
     const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
 
-    vi.mocked(getRsvpConfig).mockResolvedValue({
-      partitionKey: `CONFIG#${eventId}`,
-      rsvpLimit: 100,
-      rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
-      rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
-    });
+    ddbMock
+      .on(GetItemCommand, {
+        Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
+      })
+      .resolves({
+        Item: marshall({
+          partitionKey: `CONFIG#${eventId}`,
+          rsvpLimit: 100,
+          rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
+          rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
+        }),
+      });
     setupMockProfile(false);
 
     const response = await app.inject({
@@ -286,8 +287,8 @@ describe("RSVP API tests", () => {
   test("Test posting an RSVP fails if Event Config is missing", async () => {
     const eventId = "Closed Event";
 
-    vi.mocked(getRsvpConfig).mockResolvedValue(null);
-    setupMockProfile(false);
+    // Only config fetch happens first, fails, so profile fetch might happen concurrently but config failure throws first
+    ddbMock.on(GetItemCommand).resolves({});
 
     const response = await app.inject({
       method: "POST",
@@ -302,13 +303,19 @@ describe("RSVP API tests", () => {
     const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
     setupMockProfile(true);
 
-    vi.mocked(getRsvpConfig).mockResolvedValue({
-      partitionKey: `CONFIG#${eventId}`,
-      rsvpLimit: 100,
-      rsvpCount: 10,
-      rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
-      rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
-    });
+    ddbMock
+      .on(GetItemCommand, {
+        Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
+      })
+      .resolves({
+        Item: marshall({
+          partitionKey: `CONFIG#${eventId}`,
+          rsvpLimit: 100,
+          rsvpCount: 10,
+          rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
+          rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
+        }),
+      });
 
     const txError = new TransactionCanceledException({
       message: "Transaction canceled",
@@ -335,13 +342,19 @@ describe("RSVP API tests", () => {
     const eventId = "Popular Event";
     setupMockProfile(true);
 
-    vi.mocked(getRsvpConfig).mockResolvedValue({
-      partitionKey: `CONFIG#${eventId}`,
-      rsvpLimit: 100,
-      rsvpCount: 100,
-      rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
-      rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
-    });
+    ddbMock
+      .on(GetItemCommand, {
+        Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
+      })
+      .resolves({
+        Item: marshall({
+          partitionKey: `CONFIG#${eventId}`,
+          rsvpLimit: 100,
+          rsvpCount: 100,
+          rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
+          rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
+        }),
+      });
 
     const txError = new TransactionCanceledException({
       message: "Transaction canceled",
@@ -362,6 +375,36 @@ describe("RSVP API tests", () => {
     expect(response.statusCode).toBe(409);
     const body = JSON.parse(response.body);
     expect(body.message).toBe("RSVP limit has been reached.");
+  });
+
+  test("Test posting an RSVP fails when RSVP window is closed", async () => {
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
+
+    ddbMock
+      .on(GetItemCommand, {
+        Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
+      })
+      .resolves({
+        Item: marshall({
+          partitionKey: `CONFIG#${eventId}`,
+          eventId,
+          rsvpLimit: 100,
+          rsvpOpenAt: Math.floor(Date.now() / 1000) - 100,
+          rsvpCloseAt: Math.floor(Date.now() / 1000) - 10,
+          rsvpCheckInEnabled: false,
+        }),
+      });
+    setupMockProfile(true);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
+      headers: DEFAULT_HEADERS,
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.message).toBe("RSVPs are not currently open for this event.");
   });
 
   test("Test getting my own RSVPs", async () => {
@@ -435,6 +478,51 @@ describe("RSVP API tests", () => {
     expect(body).toHaveLength(1);
     expect(body[0].userId).toBe("user1@illinois.edu");
     expect(body[0].checkedIn).toBe(true);
+  });
+
+  test("Test getting RSVPs for an event excludes CONFIG items", async () => {
+    const eventId = "EventA";
+    const mockItems = [
+      {
+        partitionKey: `RSVP#${eventId}#user1@illinois.edu`,
+        eventId,
+        userId: "user1@illinois.edu",
+        isPaidMember: true,
+        checkedIn: false,
+        gradYear: 2026,
+        gradMonth: "May",
+        expectedDegree: "Bachelor's",
+        intendedMajor: "CS",
+        interests: [],
+        dietaryRestrictions: [],
+        createdAt: Math.floor(Date.now() / 1000),
+      },
+      {
+        partitionKey: `CONFIG#${eventId}`,
+        eventId,
+        rsvpLimit: 100,
+        rsvpCount: 1,
+        rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
+        rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
+      },
+    ];
+
+    ddbMock.on(QueryCommand).resolves({
+      Items: mockItems.map((item) => marshall(item)),
+    });
+
+    const adminJwt = createJwt();
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/rsvp/event/${eventId}`,
+      headers: { Authorization: `Bearer ${adminJwt}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body).toHaveLength(1);
+    expect(body[0].userId).toBe("user1@illinois.edu");
   });
 
   test("Test withdrawing own RSVP", async () => {
