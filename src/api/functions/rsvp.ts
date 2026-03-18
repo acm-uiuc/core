@@ -1,10 +1,8 @@
-import {
-  BatchGetItemCommand,
-  DynamoDBClient,
-  GetItemCommand,
-} from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { batchGetItemChunked } from "api/utils.js";
 import { genericConfig } from "common/config.js";
+import type { ValidLoggers } from "api/types.js";
 
 export async function getRsvpConfig({
   eventId,
@@ -25,28 +23,24 @@ export async function getRsvpConfig({
 export async function getRsvpConfigs({
   eventIds,
   dynamoClient,
+  logger,
 }: {
   eventIds: string[];
   dynamoClient: DynamoDBClient;
+  logger: ValidLoggers;
 }): Promise<Map<string, Record<string, unknown>>> {
   if (eventIds.length === 0) {
     return new Map();
   }
-  const response = await dynamoClient.send(
-    new BatchGetItemCommand({
-      RequestItems: {
-        [genericConfig.RSVPDynamoTableName]: {
-          Keys: eventIds.map((id) =>
-            marshall({ partitionKey: `CONFIG#${id}` }),
-          ),
-        },
-      },
-    }),
-  );
+  const results = await batchGetItemChunked({
+    keys: eventIds.map((id) => marshall({ partitionKey: `CONFIG#${id}` })),
+    tableName: genericConfig.RSVPDynamoTableName,
+    dynamoClient,
+    logger,
+    processItem: (raw) => unmarshall(raw),
+  });
   const configs = new Map<string, Record<string, unknown>>();
-  for (const raw of response.Responses?.[genericConfig.RSVPDynamoTableName] ??
-    []) {
-    const config = unmarshall(raw);
+  for (const config of results) {
     configs.set(config.partitionKey as string, config);
   }
   return configs;

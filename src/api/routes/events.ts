@@ -361,6 +361,7 @@ const eventsPlugin: FastifyPluginAsyncZodOpenApi = async (
             const configs = await getRsvpConfigs({
               eventIds: rsvpEnabledItems.map((x) => x.id),
               dynamoClient: fastify.dynamoClient,
+              logger: request.log,
             });
             parsedItems = rsvpEnabledItems.filter((item) =>
               isRsvpOpen(configs.get(`CONFIG#${item.id}`) ?? null),
