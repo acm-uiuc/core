@@ -257,10 +257,10 @@ describe("RsvpConfigForm Tests", () => {
     expect(limitInput).not.toHaveValue("-50");
   });
 
-  it("handles null RSVP limit (unlimited)", async () => {
+  it("handles undefined RSVP limit (unlimited)", async () => {
     getRsvpConfigMock.mockResolvedValue({
       ...mockRsvpConfig,
-      rsvpLimit: null,
+      rsvpLimit: undefined,
     });
     updateRsvpConfigMock.mockResolvedValue(undefined);
     const user = userEvent.setup();
@@ -279,7 +279,7 @@ describe("RsvpConfigForm Tests", () => {
       expect(updateRsvpConfigMock).toHaveBeenCalledWith(
         "evt_test_123",
         expect.objectContaining({
-          rsvpLimit: null,
+          rsvpLimit: undefined,
         }),
       );
     });
