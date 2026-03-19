@@ -33,6 +33,7 @@ import {
 } from "common/types/rsvp.js";
 import * as z from "zod/v4";
 import { verifyUiucAccessToken, getUserIdByUin } from "api/functions/uin.js";
+import { getRsvpConfig, isRsvpOpen } from "api/functions/rsvp.js";
 import { checkPaidMembership } from "api/functions/membership.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import { genericConfig } from "common/config.js";
@@ -330,48 +331,54 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const configKey = { partitionKey: `CONFIG#${eventId}` };
       const profileKey = { id: upn };
 
-      const [configResponse, profileResponse] = await Promise.all([
-        fastify.dynamoClient.send(
-          new GetItemCommand({
-            TableName: genericConfig.RSVPDynamoTableName,
-            Key: marshall(configKey),
-          }),
-        ),
-        fastify.dynamoClient.send(
-          new GetItemCommand({
-            TableName: genericConfig.UserInfoTable,
-            Key: marshall(profileKey),
-          }),
-        ),
-      ]);
+      let configItem: Awaited<ReturnType<typeof getRsvpConfig>>;
+      let profileItem: Record<string, unknown> | null;
 
-      const configItem = configResponse.Item
-        ? unmarshall(configResponse.Item)
-        : null;
-      const profileItem = profileResponse.Item
-        ? unmarshall(profileResponse.Item)
-        : null;
+      try {
+        const [profileResponse, resolvedConfig] = await Promise.all([
+          fastify.dynamoClient.send(
+            new GetItemCommand({
+              TableName: genericConfig.UserInfoTable,
+              Key: marshall(profileKey),
+            }),
+          ),
+          getRsvpConfig({ eventId, dynamoClient: fastify.dynamoClient }),
+        ]);
+        configItem = resolvedConfig;
+        profileItem = profileResponse.Item
+          ? unmarshall(profileResponse.Item)
+          : null;
+      } catch (err) {
+        if (err instanceof BaseError) {
+          throw err;
+        }
+        request.log.error(err, "Failed to fetch profile or RSVP config");
+        throw new DatabaseFetchError({
+          message: "Failed to fetch event or profile data.",
+        });
+      }
 
       if (!configItem) {
         throw new NotFoundError({ endpointName: request.url });
       }
 
-      if (!profileItem) {
+      if (
+        !profileItem ||
+        !(
+          profileItem.gradYear &&
+          profileItem.gradMonth &&
+          profileItem.expectedDegree &&
+          profileItem.intendedMajor
+        )
+      ) {
         return reply.status(400).send({
           message: "Profile Required",
         });
       }
 
-      const now = Math.floor(Date.now() / 1000);
-      if (configItem.rsvpOpenAt && now < configItem.rsvpOpenAt) {
-        // 400 error
+      if (!isRsvpOpen(configItem)) {
         throw new ValidationError({
-          message: "RSVPs are not yet open for this event.",
-        });
-      }
-      if (configItem.rsvpCloseAt && now > configItem.rsvpCloseAt) {
-        throw new ValidationError({
-          message: "RSVPs are closed for this event.",
+          message: "RSVPs are not currently open for this event.",
         });
       }
 
@@ -387,7 +394,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
         eventId,
         userId: upn,
         isPaidMember,
-        createdAt: now,
+        createdAt: Math.floor(Date.now() / 1000),
         gradYear: profileItem.gradYear,
         gradMonth: profileItem.gradMonth,
         expectedDegree: profileItem.expectedDegree,
