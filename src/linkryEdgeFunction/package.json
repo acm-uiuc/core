@@ -14,10 +14,10 @@
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.161",
-    "@types/node": "^25.3.5"
+    "@types/node": "^25.5.0"
   },
   "dependencies": {
     "@acm-uiuc/js-shared": "^3.8.1",
-    "@aws-sdk/client-dynamodb": "^3.1007.0"
+    "@aws-sdk/client-dynamodb": "^3.1009.0"
   }
 }
