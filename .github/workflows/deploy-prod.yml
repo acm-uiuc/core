@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - 'main'
-    paths:
-      - 'package.json'
 
 jobs:
   check-version:
@@ -25,7 +23,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          fetch-depth: 2
+          fetch-tags: true
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Check if version changed
@@ -35,8 +33,9 @@ jobs:
           CURRENT_VERSION=$(jq -r '.version' package.json)
 
           # Get previous version
-          git show HEAD~1:package.json > /tmp/old-package.json 2>/dev/null || echo '{"version":"0.0.0"}' > /tmp/old-package.json
-          PREVIOUS_VERSION=$(jq -r '.version' /tmp/old-package.json)
+          LATEST_TAG=$(git tag -l 'v*' --sort=-version:refname | head -n 1)
+          PREVIOUS_VERSION=${LATEST_TAG#v}
+          PREVIOUS_VERSION=${PREVIOUS_VERSION:-0.0.0}
 
           echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "previous=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
