@@ -4,7 +4,7 @@ run-name: PROD deploy - @${{ github.actor }}
 on:
   push:
     branches:
-      - 'main'
+      - 'ashleyl7/test-workflow-branch'
 
 jobs:
   check-version:
@@ -254,7 +254,8 @@ jobs:
           aws-region: us-east-2
 
       - name: Publish to AWS
-        run: make deploy_qa
+        # run: make deploy_qa
+        run: echo "make deploy_qa"
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
@@ -304,7 +305,8 @@ jobs:
           role-session-name: Core_Prod_Deployment_${{ github.run_id }}
           aws-region: us-east-2
       - name: Publish to AWS
-        run: make deploy_prod
+        # run: make deploy_prod
+        run: echo "make deploy_prod"
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: prod
@@ -325,25 +327,26 @@ jobs:
           private-key: ${{ secrets.AUTOMATED_RELEASE_APP_KEY }}
 
       - name: Create Release
-        uses: actions/github-script@v8
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            const version = '${{ needs.check-version.outputs.version }}';
-            const isPrerelease = ${{ needs.check-version.outputs.is-prerelease }};
-            const tagName = `v${version}`;
+        run: echo "Would create release ${{ needs.check-version.outputs.version }}, isPrerelease=${{ needs.check-version.outputs.is-prerelease }}"
+        # uses: actions/github-script@v8
+        # with:
+        #   github-token: ${{ steps.app-token.outputs.token }}
+        #   script: |
+        #     const version = '${{ needs.check-version.outputs.version }}';
+        #     const isPrerelease = ${{ needs.check-version.outputs.is-prerelease }};
+        #     const tagName = `v${version}`;
 
-            const release = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: tagName,
-              name: tagName,
-              target_commitish: context.sha,
-              generate_release_notes: true,
-              prerelease: isPrerelease
-            });
+        #     const release = await github.rest.repos.createRelease({
+        #       owner: context.repo.owner,
+        #       repo: context.repo.repo,
+        #       tag_name: tagName,
+        #       name: tagName,
+        #       target_commitish: context.sha,
+        #       generate_release_notes: true,
+        #       prerelease: isPrerelease
+        #     });
 
-            console.log(`Created ${isPrerelease ? 'prerelease' : 'release'}: ${release.data.html_url}`);
+        #     console.log(`Created ${isPrerelease ? 'prerelease' : 'release'}: ${release.data.html_url}`);
 
   publish-node-client:
     runs-on: ubuntu-latest
@@ -371,14 +374,16 @@ jobs:
       - name: Update NPM to the latest version
         run: npm install -g npm@latest
       - name: Publish TypeScript client
-        run: cd dist/clients/typescript-fetch && npm publish --provenance --access public
+        # run: cd dist/clients/typescript-fetch && npm publish --provenance --access public
+        run: echo "cd dist/clients/typescript-fetch && npm publish --provenance --access public"
 
   notify:
     needs: [deploy-prod, publish-node-client, test-unit, build, test-e2e, make-release]
     runs-on: ubuntu-latest
     if: failure()
     steps:
-      - uses: lacherogwu/failed-jobs-discord-notification-action@v1
-        with:
-          discord_webhook_url: ${{ secrets.DISCORD_NOTIFICATION_WEBHOOK_URL }}
-          needs_json: ${{ toJSON(needs) }}
+      # - uses: lacherogwu/failed-jobs-discord-notification-action@v1
+      #   with:
+      #     discord_webhook_url: ${{ secrets.DISCORD_NOTIFICATION_WEBHOOK_URL }}
+      #     needs_json: ${{ toJSON(needs) }}
+      - run: echo "Would notify"
