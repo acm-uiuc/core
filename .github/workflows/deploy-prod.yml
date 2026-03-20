@@ -217,7 +217,7 @@ jobs:
       contents: read
     needs:
       - build
-    environment: "AWS QA"
+    # environment: "AWS QA"
     steps:
       - uses: actions/checkout@v6
         env:
@@ -279,7 +279,7 @@ jobs:
     needs:
       - test-unit
       - test-e2e
-    environment: "AWS PROD"
+    # environment: "AWS PROD"
     steps:
       - name: Set up Node for testing
         uses: actions/setup-node@v6
