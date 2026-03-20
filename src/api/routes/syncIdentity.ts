@@ -78,7 +78,9 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
               description: "The user has been synced.",
               content: {
                 "application/json": {
-                  schema: z.undefined(),
+                  schema: z.object({
+                    success: z.literal(true),
+                  }),
                 },
               },
             },
@@ -135,7 +137,7 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
             userPrincipalName: `${netId}@acm.illinois.edu`,
           });
         }
-        return reply.status(201).send();
+        return reply.status(201).send({ success: true });
       },
     );
     fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
