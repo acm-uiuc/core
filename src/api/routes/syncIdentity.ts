@@ -78,7 +78,9 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
               description: "The user has been synced.",
               content: {
                 "application/json": {
-                  schema: z.undefined(),
+                  schema: z.object({
+                    success: z.literal(true),
+                  }),
                 },
               },
             },
