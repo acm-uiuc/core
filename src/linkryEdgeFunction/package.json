@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.161",
-    "@types/node": "^25.3.5"
+    "@types/node": "^25.5.0"
   },
   "dependencies": {
     "@acm-uiuc/js-shared": "^3.8.1",

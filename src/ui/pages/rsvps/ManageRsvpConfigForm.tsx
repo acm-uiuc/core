@@ -23,7 +23,7 @@ import * as z from "zod/v4";
 const rsvpConfigSchema = z.object({
   rsvpOpenAt: z.number().min(0).max(9007199254740991),
   rsvpCloseAt: z.number().min(0).max(9007199254740991),
-  rsvpLimit: z.number().min(1).max(20000).nullable(),
+  rsvpLimit: z.number().min(1).max(20000).optional(),
   rsvpCheckInEnabled: z.boolean().default(false),
 });
 
@@ -51,7 +51,7 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
     initialValues: {
       rsvpOpenAt: 0,
       rsvpCloseAt: 0,
-      rsvpLimit: null,
+      rsvpLimit: undefined,
       rsvpCheckInEnabled: false,
     } as RsvpConfigData,
   });
@@ -80,7 +80,7 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
         form.setValues({
           rsvpOpenAt: now,
           rsvpCloseAt: oneWeekLater,
-          rsvpLimit: null,
+          rsvpLimit: undefined,
           rsvpCheckInEnabled: false,
         });
       } else {
@@ -271,7 +271,7 @@ export const RsvpConfigForm: React.FC<RsvpConfigFormProps> = ({
               }
               form.setFieldValue(
                 "rsvpLimit",
-                typeof value === "number" ? value : null,
+                typeof value === "number" ? value : undefined,
               );
             }}
             mb="md"

@@ -377,6 +377,36 @@ describe("RSVP API tests", () => {
     expect(body.message).toBe("RSVP limit has been reached.");
   });
 
+  test("Test posting an RSVP fails when RSVP window is closed", async () => {
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
+
+    ddbMock
+      .on(GetItemCommand, {
+        Key: marshall({ partitionKey: `CONFIG#${eventId}` }),
+      })
+      .resolves({
+        Item: marshall({
+          partitionKey: `CONFIG#${eventId}`,
+          eventId,
+          rsvpLimit: 100,
+          rsvpOpenAt: Math.floor(Date.now() / 1000) - 100,
+          rsvpCloseAt: Math.floor(Date.now() / 1000) - 10,
+          rsvpCheckInEnabled: false,
+        }),
+      });
+    setupMockProfile(true);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/rsvp/event/${encodeURIComponent(eventId)}`,
+      headers: DEFAULT_HEADERS,
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.message).toBe("RSVPs are not currently open for this event.");
+  });
+
   test("Test getting my own RSVPs", async () => {
     const upn = MOCK_UPN;
     const mockRsvps = [
@@ -448,6 +478,51 @@ describe("RSVP API tests", () => {
     expect(body).toHaveLength(1);
     expect(body[0].userId).toBe("user1@illinois.edu");
     expect(body[0].checkedIn).toBe(true);
+  });
+
+  test("Test getting RSVPs for an event excludes CONFIG items", async () => {
+    const eventId = "EventA";
+    const mockItems = [
+      {
+        partitionKey: `RSVP#${eventId}#user1@illinois.edu`,
+        eventId,
+        userId: "user1@illinois.edu",
+        isPaidMember: true,
+        checkedIn: false,
+        gradYear: 2026,
+        gradMonth: "May",
+        expectedDegree: "Bachelor's",
+        intendedMajor: "CS",
+        interests: [],
+        dietaryRestrictions: [],
+        createdAt: Math.floor(Date.now() / 1000),
+      },
+      {
+        partitionKey: `CONFIG#${eventId}`,
+        eventId,
+        rsvpLimit: 100,
+        rsvpCount: 1,
+        rsvpOpenAt: Math.floor(Date.now() / 1000) - 10,
+        rsvpCloseAt: Math.floor(Date.now() / 1000) + 10,
+      },
+    ];
+
+    ddbMock.on(QueryCommand).resolves({
+      Items: mockItems.map((item) => marshall(item)),
+    });
+
+    const adminJwt = createJwt();
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/rsvp/event/${eventId}`,
+      headers: { Authorization: `Bearer ${adminJwt}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body).toHaveLength(1);
+    expect(body[0].userId).toBe("user1@illinois.edu");
   });
 
   test("Test withdrawing own RSVP", async () => {
