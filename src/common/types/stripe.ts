@@ -54,6 +54,7 @@ export type GetInvoiceLinksResponse = z.infer<
 
 export const createInvoicePostResponseSchema = z.object({
   id: z.string().min(1),
+  invoiceId: z.string().min(1),
   link: z.url(),
 });
 
