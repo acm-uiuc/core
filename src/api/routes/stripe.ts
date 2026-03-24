@@ -678,6 +678,10 @@ Please ask the payee to try again, perhaps with a different payment method, or c
             const checkoutSessionId = session.id;
             const paymentIntentId = session.payment_intent?.toString() ?? null;
 
+            const shouldSendReceivedEmail =
+              event.type === "checkout.session.completed" &&
+              session.payment_status === "paid";
+
             const invoiceRecordRes = await fastify.dynamoClient.send(
               new QueryCommand({
                 TableName: genericConfig.StripePaymentsDynamoTableName,
@@ -742,7 +746,7 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               );
 
               let queueId;
-              if (createdBy?.includes("@")) {
+              if (shouldSendReceivedEmail && createdBy?.includes("@")) {
                 const amountFormatted = new Intl.NumberFormat("en-US", {
                   style: "currency",
                   currency: currency.toUpperCase(),
@@ -763,16 +767,18 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                     },
                     payload: {
                       to: getAllUserEmails(createdBy),
-                      subject: `Payment pending for Invoice ${meta.invoiceId}`,
+                      cc: [
+                        notificationRecipients[fastify.runEnvironment]
+                          .Treasurer,
+                      ],
+                      subject: `Payment received for Invoice ${meta.invoiceId}`,
                       content: `
-                      ACM @ UIUC has received intent of ${paymentKind} payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
-
-                      The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
+                      ACM @ UIUC has received ${paymentKind} payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
 
                       ${
                         isFullPaymentForInvoice
-                          ? "If these funds settle successfully, this invoice will be fully paid."
-                          : `If these funds settle successfully, this invoice will still have a remaining balance of ${remainingAfterFormatted}.`
+                          ? "This invoice should now be considered settled."
+                          : `This invoice has not yet been paid in full. Remaining balance: ${remainingAfterFormatted}.`
                       }
 
                       Please contact Officer Board with any questions.
