@@ -338,8 +338,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       items: [{ price: price.id, quantity: 1 }],
       initiator: "invoice-pay",
       allowPromotionCodes: true,
-      successUrl: `${baseUrl}/success?token=${encodeURIComponent(token)}`,
-      returnUrl: `${baseUrl}/cancel?token=${encodeURIComponent(token)}`,
+      successUrl: `${baseUrl}/${encodeURIComponent(token)}?checkout=success`,
+      returnUrl: `${baseUrl}/${encodeURIComponent(token)}?checkout=cancel`,
       metadata: {
         invoice_id: invoiceId,
         acm_org: orgId,
