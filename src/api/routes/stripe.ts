@@ -224,8 +224,53 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         ? `${baseUrl}/api/v1/stripe/pay/${token}`
         : `${baseUrl}/${token}`;
 
+      const linkId = crypto.randomUUID();
+
+      const logStatement = buildAuditLogTransactPut({
+        entry: {
+          module: Modules.STRIPE,
+          actor: request.username,
+          target: `Link ${linkId} | Invoice ${request.body.invoiceId}`,
+          message: "Created invoice payment link",
+        },
+      });
+
+      try {
+        await fastify.dynamoClient.send(
+          new TransactWriteItemsCommand({
+            TransactItems: [
+              ...(logStatement ? [logStatement] : []),
+              {
+                Put: {
+                  TableName: genericConfig.StripeLinksDynamoTableName,
+                  Item: marshall(
+                    {
+                      userId: request.username,
+                      linkId,
+                      active: true,
+                      amount: request.body.invoiceAmountUsd,
+                      createdAt: new Date().toISOString(),
+                      invoiceId: request.body.invoiceId,
+                      url: link,
+                    },
+                    { removeUndefinedValues: true },
+                  ),
+                },
+              },
+            ],
+          }),
+        );
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        request.log.error(e);
+        throw new DatabaseInsertError({
+          message: "Could not write invoice payment link to database.",
+        });
+      }
       return reply.status(201).send({
-        id: request.body.invoiceId,
+        id: linkId,
         link,
       });
     }),
@@ -292,8 +337,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       items: [{ price: price.id, quantity: 1 }],
       initiator: "invoice-pay",
       allowPromotionCodes: true,
-      successUrl: `${baseUrl}/success`,
-      returnUrl: `${baseUrl}/cancel`,
+      successUrl: `${baseUrl}/success?token=${encodeURIComponent(token)}`,
+      returnUrl: `${baseUrl}/cancel?token=${encodeURIComponent(token)}`,
       metadata: {
         invoice_id: invoiceId,
         acm_org: orgId,
@@ -658,6 +703,38 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               session.payment_status === "paid" ||
               event.type === "checkout.session.async_payment_succeeded";
 
+            const invoiceAmountUsd =
+              typeof invoiceRecord?.invoiceAmtUsd === "number"
+                ? invoiceRecord.invoiceAmtUsd
+                : 0;
+
+            const alreadyPaidUsd =
+              typeof invoiceRecord?.paidAmount === "number"
+                ? invoiceRecord.paidAmount
+                : 0;
+
+            const thisPaymentUsd = amountCents / 100;
+
+            const remainingBeforePaymentUsd = Math.max(
+              invoiceAmountUsd - alreadyPaidUsd,
+              0,
+            );
+
+            const isFullPaymentForInvoice =
+              thisPaymentUsd >= remainingBeforePaymentUsd;
+
+            const paymentKind = isFullPaymentForInvoice ? "full" : "partial";
+
+            const remainingAfterPaymentUsd = Math.max(
+              invoiceAmountUsd - alreadyPaidUsd - thisPaymentUsd,
+              0,
+            );
+
+            const remainingAfterFormatted = new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: currency.toUpperCase(),
+            }).format(remainingAfterPaymentUsd);
+
             if (!decrementOwed) {
               request.log.info(
                 `Not recording payment for invoice ${meta.invoiceId} because payment not settled yet (status=${session.payment_status}, event=${event.type}).`,
@@ -685,14 +762,20 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                     },
                     payload: {
                       to: getAllUserEmails(createdBy),
-                      subject: `Payment Pending for Invoice ${meta.invoiceId}`,
+                      subject: `Payment pending for Invoice ${meta.invoiceId}`,
                       content: `
-            ACM @ UIUC has received intent of payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
+                      ACM @ UIUC has received intent of ${paymentKind} payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
 
-            The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
+                      The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
 
-            Please contact Officer Board with any questions.
-                    `,
+                      ${
+                        isFullPaymentForInvoice
+                          ? "If these funds settle successfully, this invoice will be fully paid."
+                          : `If these funds settle successfully, this invoice will still have a remaining balance of ${remainingAfterFormatted}.`
+                      }
+
+                      Please contact Officer Board with any questions.
+                      `,
                       callToActionButton: {
                         name: "View Your Stripe Links",
                         url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
@@ -783,12 +866,16 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                     ],
                     subject: `Payment received for Invoice ${meta.invoiceId}`,
                     content: `
-            ACM @ UIUC has received payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
+                    ACM @ UIUC has received ${paymentKind} payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
 
-            This invoice should now be considered settled.
+                    ${
+                      isFullPaymentForInvoice
+                        ? "This invoice should now be considered settled."
+                        : `This invoice has not yet been paid in full. Remaining balance: ${remainingAfterFormatted}.`
+                    }
 
-            Please contact Officer Board with any questions.
-                  `,
+                    Please contact Officer Board with any questions.
+                    `,
                     callToActionButton: {
                       name: "View Your Stripe Links",
                       url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
