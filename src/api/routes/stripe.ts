@@ -271,6 +271,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       return reply.status(201).send({
         id: linkId,
+        invoiceId: request.body.invoiceId,
         link,
       });
     }),
