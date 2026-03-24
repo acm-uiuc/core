@@ -338,8 +338,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       items: [{ price: price.id, quantity: 1 }],
       initiator: "invoice-pay",
       allowPromotionCodes: true,
-      successUrl: `${baseUrl}/${encodeURIComponent(token)}?checkout=success`,
-      returnUrl: `${baseUrl}/${encodeURIComponent(token)}?checkout=cancel`,
+      successUrl: `${baseUrl}/success?token=${encodeURIComponent(token)}`,
+      returnUrl: `${baseUrl}/cancel?token=${encodeURIComponent(token)}`,
       metadata: {
         invoice_id: invoiceId,
         acm_org: orgId,
@@ -1021,14 +1021,20 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                     },
                     payload: {
                       to: getAllUserEmails(unmarshalledEntry.userId),
-                      subject: `Payment Pending for Invoice ${unmarshalledEntry.invoiceId}`,
+                      subject: `Payment pending for Invoice ${unmarshalledEntry.invoiceId}`,
                       content: `
-ACM @ UIUC has received intent of ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
+                      ACM @ UIUC has received intent of ${paymentKind} payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
 
-The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
+                      The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
 
-Please contact Officer Board with any questions.
-                    `,
+                      ${
+                        isFullPaymentForInvoice
+                          ? "If these funds settle successfully, this invoice will be fully paid."
+                          : `If these funds settle successfully, this invoice will still have a remaining balance of ${remainingAfterFormatted}.`
+                      }
+
+                      Please contact Officer Board with any questions.
+                      `,
                       callToActionButton: {
                         name: "View Your Stripe Links",
                         url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
