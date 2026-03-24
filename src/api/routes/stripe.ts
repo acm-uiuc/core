@@ -1029,18 +1029,18 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                       to: getAllUserEmails(unmarshalledEntry.userId),
                       subject: `Payment pending for Invoice ${unmarshalledEntry.invoiceId}`,
                       content: `
-                      ACM @ UIUC has received intent of ${paymentKind} payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
+                        ACM @ UIUC has received intent of ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${email ?? "unknown"}).
 
-                      The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
+                        The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
 
-                      ${
-                        isFullPaymentForInvoice
-                          ? "If these funds settle successfully, this invoice will be fully paid."
-                          : `If these funds settle successfully, this invoice will still have a remaining balance of ${remainingAfterFormatted}.`
-                      }
+                        ${
+                          paidInFull
+                            ? "If these funds settle successfully, this invoice will be fully paid."
+                            : "If these funds settle successfully, this invoice will still be partially paid."
+                        }
 
-                      Please contact Officer Board with any questions.
-                      `,
+                        Please contact Officer Board with any questions.
+                        `,
                       callToActionButton: {
                         name: "View Your Stripe Links",
                         url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
