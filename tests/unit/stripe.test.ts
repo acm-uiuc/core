@@ -183,7 +183,8 @@ describe("Test Stripe link creation", async () => {
       .set("authorization", `Bearer ${testJwt}`)
       .send(invoicePayload);
     expect(response.statusCode).toBe(201);
-    expect(response.body.id).toBe(invoicePayload.invoiceId);
+    expect(response.body.id).toBeDefined();
+    expect(response.body.invoiceId).toBe(invoicePayload.invoiceId);
     expect(response.body.link).toContain("/");
     expect(ddbMock.calls().length).toBeGreaterThan(0);
   });
