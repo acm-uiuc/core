@@ -18,6 +18,7 @@ interface Config {
 interface PackageJson {
   name?: string;
   version?: string;
+  devDependencies?: Record<string, string>;
 }
 
 function loadPackageJson(): PackageJson {
@@ -75,8 +76,13 @@ function patchPackageJson(): void {
   pkg.author = "ACM @ UIUC Infrastructure Team <infra@acm.illinois.edu>";
   pkg.description = "OpenAPI client for the ACM @ UIUC Core API";
   pkg.homepage = "https://core.acm.illinois.edu/docs";
+  pkg.devDependencies = {
+    ...(pkg.devDependencies || {}),
+    // Keep compiler behavior stable across CI and local builds.
+    typescript: "6.0.2",
+  };
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
-  console.log(`✓ Patched ${pkgPath}`);
+  patchTypescriptConfig(baseDir);
 
   // Add docs/ to .npmignore
   const npmignorePath = path.join(baseDir, ".npmignore");
@@ -92,6 +98,19 @@ function patchPackageJson(): void {
     }
     console.log(`✓ Added ${entry} to ${npmignorePath}`);
   }
+}
+
+function patchTypescriptConfig(baseDir: string): void {
+  const tsconfigPath = path.join(baseDir, "tsconfig.json");
+  if (!fs.existsSync(tsconfigPath)) {
+    return;
+  }
+
+  const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, "utf-8"));
+  tsconfig.compilerOptions = tsconfig.compilerOptions || {};
+  tsconfig.compilerOptions.rootDir = "src";
+  tsconfig.compilerOptions.ignoreDeprecations = "6.0";
+  fs.writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, 2));
 }
 
 function run(cmd: string): void {
