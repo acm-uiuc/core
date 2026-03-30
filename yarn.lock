@@ -2,6 +2,11 @@
 # yarn lockfile v1
 
 
+"@acm-uiuc/js-shared@3.8.3":
+  version "3.8.3"
+  resolved "https://registry.yarnpkg.com/@acm-uiuc/js-shared/-/js-shared-3.8.3.tgz#e353bdf499ed82b5c1a1006dc45044da40f45826"
+  integrity sha512-Pbd13n4Qoj1QLIF3ZmLV/FLWb8C3HLYwTTX0JiCNQxoU+qBoTBjqI4lF7yAIvZh3laEMHNKLbMlwgVJxIs336g==
+
 "@acm-uiuc/js-shared@^3.8.1":
   version "3.8.1"
   resolved "https://registry.yarnpkg.com/@acm-uiuc/js-shared/-/js-shared-3.8.1.tgz#ad6b6e371b18cbfd056f8b1d3d7f24a2991a30d6"
