@@ -389,7 +389,7 @@ describe("Test Stripe link creation", async () => {
     expect(response.body.handled).toBe(true);
 
     const ddbCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
-    expect(ddbCalls.length).toBe(1);
+    expect(ddbCalls.length).toBe(0);
 
     const input = ddbCalls[0].args[0].input;
     const expectedPk = `${mockOrg}#${mockDomain}`;
