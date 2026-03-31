@@ -390,12 +390,6 @@ describe("Test Stripe link creation", async () => {
 
     const ddbCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
     expect(ddbCalls.length).toBe(0);
-
-    const input = ddbCalls[0].args[0].input;
-    const expectedPk = `${mockOrg}#${mockDomain}`;
-
-    const firstUpdate = input.TransactItems?.find((i) => i.Update);
-    expect(firstUpdate?.Update?.Key?.primaryKey.S).toBe(expectedPk);
   });
   afterAll(async () => {
     await app.close();
