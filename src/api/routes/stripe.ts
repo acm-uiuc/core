@@ -338,8 +338,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       items: [{ price: price.id, quantity: 1 }],
       initiator: "invoice-pay",
       allowPromotionCodes: true,
-      successUrl: `${baseUrl}`,
-      returnUrl: `${baseUrl}/cancel?token=${encodeURIComponent(token)}`,
+      successUrl: `${baseUrl}`, // make a success page to redirect to or stripe success page
+      returnUrl: `${baseUrl}/cancel?token=${encodeURIComponent(token)}`, //
       metadata: {
         invoice_id: invoiceId,
         acm_org: orgId,
@@ -678,9 +678,11 @@ Please ask the payee to try again, perhaps with a different payment method, or c
             const checkoutSessionId = session.id;
             const paymentIntentId = session.payment_intent?.toString() ?? null;
 
+            const shouldSendPendingEmail =
+              event.type === "checkout.session.completed";
+
             const shouldSendReceivedEmail =
-              event.type === "checkout.session.completed" &&
-              session.payment_status === "paid";
+              event.type === "checkout.session.async_payment_succeeded";
 
             const invoiceRecordRes = await fastify.dynamoClient.send(
               new QueryCommand({
@@ -705,7 +707,6 @@ Please ask the payee to try again, perhaps with a different payment method, or c
 
             // decrement owed only when actually settled/paid:
             const decrementOwed =
-              session.payment_status === "paid" ||
               event.type === "checkout.session.async_payment_succeeded";
 
             const invoiceAmountUsd =
@@ -740,24 +741,35 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               currency: currency.toUpperCase(),
             }).format(remainingAfterPaymentUsd);
 
+            const amountFormatted = new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: currency.toUpperCase(),
+            }).format(amountCents / 100);
+
+            const payerEmail =
+              meta.email ??
+              session.customer_details?.email ??
+              session.customer_email ??
+              "unknown";
+
+            const overpaidUsd = Math.max(
+              thisPaymentUsd - remainingBeforePaymentUsd,
+              0,
+            );
+
+            const overpaidFormatted = new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: currency.toUpperCase(),
+            }).format(overpaidUsd);
+
             if (!decrementOwed) {
               request.log.info(
                 `Not recording payment for invoice ${meta.invoiceId} because payment not settled yet (status=${session.payment_status}, event=${event.type}).`,
               );
 
               let queueId;
-              if (shouldSendReceivedEmail && createdBy?.includes("@")) {
-                const amountFormatted = new Intl.NumberFormat("en-US", {
-                  style: "currency",
-                  currency: currency.toUpperCase(),
-                }).format(amountCents / 100);
 
-                const payerEmail =
-                  meta.email ??
-                  session.customer_details?.email ??
-                  session.customer_email ??
-                  "unknown";
-
+              if (shouldSendPendingEmail && createdBy?.includes("@")) {
                 const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
                   {
                     function: AvailableSQSFunctions.EmailNotifications,
@@ -767,22 +779,22 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                     },
                     payload: {
                       to: getAllUserEmails(createdBy),
-                      cc: [
-                        notificationRecipients[fastify.runEnvironment]
-                          .Treasurer,
-                      ],
-                      subject: `Payment received for Invoice ${meta.invoiceId}`,
+                      subject: `Payment pending for Invoice ${meta.invoiceId}`,
                       content: `
-                      ACM @ UIUC has received ${paymentKind} payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
+                    ACM @ UIUC has received intent of ${paymentKind} payment for Invoice ${meta.invoiceId} (${amountFormatted} attempted by ${payerEmail}).
 
-                      ${
-                        isFullPaymentForInvoice
-                          ? "This invoice should now be considered settled."
-                          : `This invoice has not yet been paid in full. Remaining balance: ${remainingAfterFormatted}.`
-                      }
+                    The payee used a payment method that does not settle immediately. No services should be performed until the funds settle.
 
-                      Please contact Officer Board with any questions.
-                      `,
+                    ${
+                      overpaidUsd > 0
+                        ? `This payment attempt exceeds the remaining balance by ${overpaidFormatted}. If the funds settle successfully, the invoice will be fully paid and the excess should be treated as an overpayment.`
+                        : isFullPaymentForInvoice
+                          ? "If these funds settle successfully, this invoice will be fully paid."
+                          : `If these funds settle successfully, this invoice will still be partially paid. Remaining balance after settlement would be ${remainingAfterFormatted}.`
+                    }
+
+                    Please contact Officer Board with any questions.
+                    `,
                       callToActionButton: {
                         name: "View Your Stripe Links",
                         url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
@@ -847,7 +859,7 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               throw e;
             }
 
-            if (createdBy?.includes("@")) {
+            if (shouldSendReceivedEmail && createdBy?.includes("@")) {
               const amountFormatted = new Intl.NumberFormat("en-US", {
                 style: "currency",
                 currency: currency.toUpperCase(),
@@ -876,9 +888,11 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                     ACM @ UIUC has received ${paymentKind} payment for Invoice ${meta.invoiceId} (${amountFormatted} paid by ${payerEmail}).
 
                     ${
-                      isFullPaymentForInvoice
-                        ? "This invoice should now be considered settled."
-                        : `This invoice has not yet been paid in full. Remaining balance: ${remainingAfterFormatted}.`
+                      overpaidUsd > 0
+                        ? `This invoice is now settled. This payment exceeded the remaining balance by ${overpaidFormatted}.`
+                        : isFullPaymentForInvoice
+                          ? "This invoice should now be considered settled."
+                          : `This invoice has not yet been paid in full. Remaining balance: ${remainingAfterFormatted}.`
                     }
 
                     Please contact Officer Board with any questions.
@@ -1000,6 +1014,7 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               });
             }
             const paidInFull = paymentAmount === unmarshalledEntry.amount;
+
             const withCurrency = new Intl.NumberFormat("en-US", {
               style: "currency",
               currency: paymentCurrency.toUpperCase(),
@@ -1026,7 +1041,7 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                       reqId: request.id,
                     },
                     payload: {
-                      to: getAllUserEmails(unmarshalledEntry.userId),
+                      to: getAllUserEmails(unmarshalledEntry.userId), // say how much they tried to paid, won't be confirmed until we received full payment - also tell if they overpaid
                       subject: `Payment pending for Invoice ${unmarshalledEntry.invoiceId}`,
                       content: `
                         ACM @ UIUC has received intent of ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${email ?? "unknown"}).
