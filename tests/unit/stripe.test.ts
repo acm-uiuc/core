@@ -403,6 +403,54 @@ describe("Test Stripe link creation", async () => {
     const ddbCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
     expect(ddbCalls.length).toBe(0);
   });
+  test("POST /webhook: Handles payment_intent.partially_funded successfully", async () => {
+    const mockInvoiceId = "ACM-555";
+    const mockOrg = "C01";
+    const mockEmail = "payer@illinois.edu";
+    const mockDomain = "illinois.edu";
+    const mockEventId = "evt_partial_123";
+
+    const StripeMock = await import("stripe");
+    (StripeMock.default.webhooks.constructEvent as any).mockReturnValue({
+      id: mockEventId,
+      type: "payment_intent.partially_funded",
+      data: {
+        object: {
+          id: "pi_partial_test",
+          amount_received: 300,
+          currency: "usd",
+          receipt_email: mockEmail,
+          metadata: {
+            invoice_id: mockInvoiceId,
+            acm_org: mockOrg,
+          },
+        },
+      },
+    });
+
+    ddbMock.on(QueryCommand).resolves({
+      Count: 1,
+      Items: [
+        marshall({
+          primaryKey: `${mockOrg}#${mockDomain}`,
+          sortKey: `CHARGE#${mockInvoiceId}`,
+          createdBy: "not-an-email",
+          invoiceAmtUsd: 6,
+          paidAmount: 0,
+        }),
+      ],
+    });
+
+    await app.ready();
+
+    const response = await supertest(app.server)
+      .post("/api/v1/stripe/webhook")
+      .set("stripe-signature", "t=123,v1=abc")
+      .send({ id: "dummy_event" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.handled).toBe(true);
+  });
   afterAll(async () => {
     await app.close();
   });
