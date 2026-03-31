@@ -62,7 +62,19 @@ vi.mock("stripe", () => {
           ),
         },
       },
-      paymentIntents: { retrieve: vi.fn(), capture: vi.fn(), cancel: vi.fn() },
+      paymentIntents: {
+        retrieve: vi.fn(() =>
+          Promise.resolve({
+            next_action: {
+              display_bank_transfer_instructions: {
+                amount_remaining: 200,
+              },
+            },
+          }),
+        ),
+        capture: vi.fn(),
+        cancel: vi.fn(),
+      },
       paymentMethods: { retrieve: vi.fn() },
       refunds: { create: vi.fn() },
     };
