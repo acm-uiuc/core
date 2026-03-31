@@ -678,6 +678,28 @@ Please ask the payee to try again, perhaps with a different payment method, or c
             const checkoutSessionId = session.id;
             const paymentIntentId = session.payment_intent?.toString() ?? null;
 
+            let pendingAmountCents = amountCents;
+
+            if (
+              event.type === "checkout.session.completed" &&
+              paymentIntentId
+            ) {
+              const stripeClient = new Stripe(
+                fastify.secretConfig.stripe_secret_key as string,
+              );
+
+              const paymentIntent =
+                await stripeClient.paymentIntents.retrieve(paymentIntentId);
+
+              const amountRemaining =
+                paymentIntent.next_action?.display_bank_transfer_instructions
+                  ?.amount_remaining;
+
+              if (typeof amountRemaining === "number") {
+                pendingAmountCents = amountRemaining;
+              }
+            }
+
             const shouldSendPendingEmail =
               event.type === "checkout.session.completed";
 
@@ -719,7 +741,12 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                 ? invoiceRecord.paidAmount
                 : 0;
 
-            const thisPaymentUsd = amountCents / 100;
+            const effectiveAmountCents =
+              event.type === "checkout.session.completed"
+                ? pendingAmountCents
+                : amountCents;
+
+            const thisPaymentUsd = effectiveAmountCents / 100;
 
             const remainingBeforePaymentUsd = Math.max(
               invoiceAmountUsd - alreadyPaidUsd,
@@ -744,7 +771,7 @@ Please ask the payee to try again, perhaps with a different payment method, or c
             const amountFormatted = new Intl.NumberFormat("en-US", {
               style: "currency",
               currency: currency.toUpperCase(),
-            }).format(amountCents / 100);
+            }).format(effectiveAmountCents / 100);
 
             const payerEmail =
               meta.email ??
