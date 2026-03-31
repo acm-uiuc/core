@@ -1218,6 +1218,140 @@ Please contact Officer Board with any questions.`,
           return reply
             .code(200)
             .send({ handled: false, requestId: request.id });
+        case "payment_intent.partially_funded": {
+          const intent = event.data.object as Stripe.PaymentIntent;
+
+          const amountReceived = intent.amount_received ?? 0;
+          const currency = intent.currency ?? "usd";
+          const billingEmail =
+            intent.receipt_email ?? intent.metadata?.billing_email ?? null;
+          const acmOrg = intent.metadata?.acm_org;
+          const invoiceId = intent.metadata?.invoice_id;
+
+          if (!billingEmail || !acmOrg || !invoiceId) {
+            request.log.info(
+              "Skipping partially funded payment intent due to missing metadata/email.",
+            );
+            return reply
+              .code(200)
+              .send({ handled: false, requestId: request.id });
+          }
+
+          if (!billingEmail.includes("@")) {
+            request.log.warn(
+              "Invalid billing email for partially funded payment intent.",
+            );
+            return reply
+              .code(200)
+              .send({ handled: false, requestId: request.id });
+          }
+
+          const domain = billingEmail.split("@").at(-1)!.toLowerCase();
+          const pk = `${acmOrg}#${domain}`;
+
+          const invoiceRecordRes = await fastify.dynamoClient.send(
+            new QueryCommand({
+              TableName: genericConfig.StripePaymentsDynamoTableName,
+              KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+              ExpressionAttributeValues: {
+                ":pk": { S: pk },
+                ":sk": { S: `CHARGE#${invoiceId}` },
+              },
+              ConsistentRead: true,
+            }),
+          );
+
+          const invoiceRecord = invoiceRecordRes.Items?.[0]
+            ? unmarshall(invoiceRecordRes.Items[0])
+            : null;
+
+          const createdBy =
+            typeof invoiceRecord?.createdBy === "string"
+              ? invoiceRecord.createdBy
+              : null;
+
+          const invoiceAmountUsd =
+            typeof invoiceRecord?.invoiceAmtUsd === "number"
+              ? invoiceRecord.invoiceAmtUsd
+              : 0;
+
+          const alreadyPaidUsd =
+            typeof invoiceRecord?.paidAmount === "number"
+              ? invoiceRecord.paidAmount
+              : 0;
+
+          const thisPaymentUsd = amountReceived / 100 - alreadyPaidUsd;
+          const remainingAfterPaymentUsd = Math.max(
+            invoiceAmountUsd - alreadyPaidUsd - thisPaymentUsd,
+            0,
+          );
+
+          if (createdBy?.includes("@")) {
+            const amountFormatted = new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: currency.toUpperCase(),
+            }).format(thisPaymentUsd);
+
+            const remainingAfterFormatted = new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: currency.toUpperCase(),
+            }).format(remainingAfterPaymentUsd);
+
+            const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
+              {
+                function: AvailableSQSFunctions.EmailNotifications,
+                metadata: {
+                  initiator: event.id,
+                  reqId: request.id,
+                },
+                payload: {
+                  to: getAllUserEmails(createdBy),
+                  cc: [
+                    notificationRecipients[fastify.runEnvironment].Treasurer,
+                  ],
+                  subject: `Partial payment received for Invoice ${invoiceId}`,
+                  content: `
+                ACM @ UIUC has received a partial payment for Invoice ${invoiceId} (${amountFormatted} paid by ${billingEmail}).
+
+                This invoice has not yet been paid in full. Remaining balance: ${remainingAfterFormatted}.
+
+                Please contact Officer Board with any questions.
+                `,
+                  callToActionButton: {
+                    name: "View Your Stripe Links",
+                    url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
+                  },
+                },
+              };
+
+            if (!fastify.sqsClient) {
+              fastify.sqsClient = new SQSClient({
+                region: genericConfig.AwsRegion,
+              });
+            }
+
+            const result = await fastify.sqsClient.send(
+              new SendMessageCommand({
+                QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+                MessageBody: JSON.stringify(sqsPayload),
+                MessageGroupId: "invoiceNotification",
+              }),
+            );
+
+            const queueId = result.MessageId || "";
+
+            return reply.status(200).send({
+              handled: true,
+              requestId: request.id,
+              queueId,
+            });
+          }
+
+          return reply.status(200).send({
+            handled: true,
+            requestId: request.id,
+          });
+        }
         case "payment_intent.succeeded": {
           const intent = event.data.object as Stripe.PaymentIntent;
 

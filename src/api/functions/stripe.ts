@@ -225,6 +225,7 @@ export const createCheckoutSessionWithCustomer = async ({
     payment_intent_data: {
       ...(captureMethod && { capture_method: captureMethod }),
       statement_descriptor_suffix: statementDescriptorSuffix,
+      metadata: metadata || {},
     },
     payment_method_options: {
       ...(allowAchPush && {
