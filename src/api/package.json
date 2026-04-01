@@ -46,7 +46,7 @@
     "fastify-plugin": "^5.0.1",
     "fastify-raw-body": "^5.0.0",
     "fastify-zod-openapi": "^5.5.0",
-    "handlebars": "^4.7.8",
+    "handlebars": "^4.7.9",
     "ical-generator": "^10.1.0",
     "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.2",
@@ -58,7 +58,7 @@
     "qrcode": "^1.5.4",
     "redlock-universal": "^0.8.2",
     "sanitize-html": "^2.17.2",
-    "stripe": "^20.3.1",
+    "stripe": "^21.0.1",
     "temporal-polyfill": "~0.3.0",
     "zod": "^4.3.5",
     "zod-validation-error": "^5.0.0"
