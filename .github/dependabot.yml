@@ -11,6 +11,8 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 7
+      exclude:
+        - "@acm-uiuc/js-shared"
     groups:
       production-dependencies:
         dependency-type: "production"
