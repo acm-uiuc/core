@@ -1,13 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import tsconfigPaths from "vite-tsconfig-paths";
 import "dotenv/config";
 import path from "path";
 
 export default defineConfig({
   define: { "process.env": { AWS_REGION: process.env.AWS_REGION } },
-  plugins: [react(), tsconfigPaths()],
+  plugins: [react()],
   resolve: {
+    tsconfigPaths: true,
     preserveSymlinks: true,
     alias: {
       "@ui": path.resolve(__dirname, "./"),
