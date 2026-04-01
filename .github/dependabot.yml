@@ -9,6 +9,12 @@ updates:
     directories: ["src/ui", "src/api", "/"]
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
+      exclude:
+        - "@acm-uiuc/js-shared"
     groups:
       production-dependencies:
         dependency-type: "production"
@@ -24,6 +30,10 @@ updates:
     directories: ["terraform/envs/qa", "terraform/envs/prod"]
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
     groups:
       production-dependencies:
         dependency-type: "production"
@@ -40,6 +50,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
     groups:
       production-dependencies:
         dependency-type: "production"
