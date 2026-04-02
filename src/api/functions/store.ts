@@ -1940,8 +1940,7 @@ export async function refundOrder({
           orderId,
           lineItemId: "ORDER",
         }),
-        UpdateExpression:
-          "SET `#status` = :status, `#refundedAt` = :refundedAt",
+        UpdateExpression: "SET #status = :status, #refundedAt = :refundedAt",
         ConditionExpression: "#status <> :refundedStatus",
         ExpressionAttributeNames: {
           "#status": "status",

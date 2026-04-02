@@ -4160,7 +4160,7 @@ avvio@^9.0.0:
     "@fastify/error" "^4.0.0"
     fastq "^1.17.1"
 
-aws-crt@^1.24.0, aws-crt@^1.30.0:
+aws-crt@^1.24.0, aws-crt@^1.27.3:
   version "1.30.0"
   resolved "https://registry.yarnpkg.com/aws-crt/-/aws-crt-1.30.0.tgz#f81e6fffc00a8a15119579100640d6301d169abe"
   integrity sha512-PSbNf2HdLT5orB91SaAR9cARBRTaYznPJIVWDeNlsr//xlcdqYywPAOJQ6L5nBwZnTDArvk7awt6RpL4SIqWsQ==
@@ -5785,17 +5785,17 @@ fastify-raw-body@^5.0.0:
     raw-body "^3.0.0"
     secure-json-parse "^2.4.0"
 
-fastify-zod-openapi@^5.6.0:
-  version "5.6.0"
-  resolved "https://registry.yarnpkg.com/fastify-zod-openapi/-/fastify-zod-openapi-5.6.0.tgz#b68f035907d1a55f9ae14db94672232cd3c27088"
-  integrity sha512-I84NWaqf2XeqBQWQ+iPuxtK7NiEH/Ds/az22YQRDad+jqcKacAUVg5mtt+qCtiIVlVbh14pcScfEte1s9wanUA==
+fastify-zod-openapi@^5.5.0:
+  version "5.6.1"
+  resolved "https://registry.yarnpkg.com/fastify-zod-openapi/-/fastify-zod-openapi-5.6.1.tgz#6d98ca532c03d8321feaec32c6dda1faab6031da"
+  integrity sha512-K0tzRYEViPuCV3aKu5Zcgqsew8k0OGzEqu0p1+7P+EvNGXGP7MvcyWNVoq31LUadaT0HiUtD+65tM4sKEQz0Qg==
   dependencies:
     "@fastify/error" "^4.0.0"
     fast-json-stringify "^6.0.0"
     fastify-plugin "^5.0.0"
     zod-openapi "^5.4.0"
 
-fastify@^5.8.4:
+fastify@^5.8.1:
   version "5.8.4"
   resolved "https://registry.yarnpkg.com/fastify/-/fastify-5.8.4.tgz#9ad9ebeea57980cf8722b5c44ca27ea9255cf2d5"
   integrity sha512-sa42J1xylbBAYUWALSBoyXKPDUvM3OoNOibIefA+Oha57FryXKKCZarA1iDntOCWp3O35voZLuDg2mdODXtPzQ==
