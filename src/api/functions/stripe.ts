@@ -462,13 +462,26 @@ export const refundOrCancelPaymentIntent = async ({
     logger.info("Payment intent is succeeded, attempting to create refund.", {
       paymentIntentId,
     });
-    await stripe.refunds.create(
-      {
-        payment_intent: paymentIntentId,
-        reason: cancellationReason,
-      },
-      { idempotencyKey: `${idempotencyKey}-refund` },
-    );
+    try {
+      await stripe.refunds.create(
+        {
+          payment_intent: paymentIntentId,
+          reason: cancellationReason,
+        },
+        { idempotencyKey: `${idempotencyKey}-refund` },
+      );
+    } catch (e) {
+      if (
+        e instanceof Stripe.errors.StripeInvalidRequestError &&
+        e.message.includes("You cannot refund a payment for amount=0")
+      ) {
+        logger.info("Payment already fully refunded, skipping.", {
+          paymentIntentId,
+        });
+        return;
+      }
+      throw e;
+    }
   }
 };
 
