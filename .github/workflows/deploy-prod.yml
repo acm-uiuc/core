@@ -422,7 +422,7 @@ jobs:
 
   notify:
     permissions: {}
-    needs: [deploy-prod, publish-node-client, test-unit, build, test-e2e, make-release]
+    needs: [check-version, deploy-prod, publish-node-client, test-unit, build, test-e2e, make-release]
     runs-on: ubuntu-latest
     if: failure()
     steps:
