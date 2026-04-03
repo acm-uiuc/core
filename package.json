@@ -1,6 +1,6 @@
 {
   "name": "infra-core",
-  "version": "4.8.8-beta",
+  "version": "4.8.9-beta",
   "private": true,
   "type": "module",
   "workspaces": [
