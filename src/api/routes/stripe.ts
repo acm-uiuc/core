@@ -119,7 +119,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           createdAt: item.createdAt || null,
         }),
       );
-      reply.status(200).send(parsed);
+      reply.status(404).send(parsed);
     }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
