@@ -1,6 +1,10 @@
 name: Deploy all resources to PROD
 run-name: PROD deploy - @${{ github.actor }}
 
+concurrency:
+  group: prod-release-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   push:
     branches:
