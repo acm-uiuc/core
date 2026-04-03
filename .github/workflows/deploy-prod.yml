@@ -8,6 +8,8 @@ on:
 
 jobs:
   check-version:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       is-prerelease: ${{ steps.version.outputs.prerelease }}
@@ -15,7 +17,7 @@ jobs:
     steps:
       - name: Generate GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.AUTOMATED_RELEASE_APP_ID }}
           private-key: ${{ secrets.AUTOMATED_RELEASE_APP_KEY }}
@@ -53,10 +55,10 @@ jobs:
           fi
 
       - name: Validate version increment
+        env:
+          CURRENT: ${{ steps.version.outputs.current }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
         run: |
-          CURRENT="${{ steps.version.outputs.current }}"
-          PREVIOUS="${{ steps.version.outputs.previous }}"
-
           # Function to compare semver versions
           version_compare() {
             # Strip prerelease suffix for base comparison
@@ -91,11 +93,35 @@ jobs:
               echo "greater"
             elif [[ -n "$v1_pre" && -z "$v2_pre" ]]; then
               echo "lesser"
-            elif [[ "$v1_pre" > "$v2_pre" ]]; then
-              echo "greater"
-            elif [[ "$v1_pre" < "$v2_pre" ]]; then
-              echo "lesser"
+            elif [[ -z "$v1_pre" && -z "$v2_pre" ]]; then
+              echo "equal"
             else
+              # Semver-compliant prerelease comparison (spec §11)
+              IFS='.' read -ra P1 <<< "$v1_pre"
+              IFS='.' read -ra P2 <<< "$v2_pre"
+              local len=${#P1[@]}
+              (( ${#P2[@]} > len )) && len=${#P2[@]}
+              for (( i=0; i<len; i++ )); do
+                local id1="${P1[$i]:-}"
+                local id2="${P2[$i]:-}"
+                # Shorter prerelease is lesser if all prior identifiers equal
+                if [[ -z "$id1" ]]; then echo "lesser"; return; fi
+                if [[ -z "$id2" ]]; then echo "greater"; return; fi
+                local is_num1=false is_num2=false
+                [[ "$id1" =~ ^[0-9]+$ ]] && is_num1=true
+                [[ "$id2" =~ ^[0-9]+$ ]] && is_num2=true
+                if $is_num1 && $is_num2; then
+                  if (( 10#$id1 > 10#$id2 )); then echo "greater"; return; fi
+                  if (( 10#$id1 < 10#$id2 )); then echo "lesser"; return; fi
+                elif $is_num1; then
+                  echo "lesser"; return  # numeric < non-numeric
+                elif $is_num2; then
+                  echo "greater"; return  # non-numeric > numeric
+                else
+                  if [[ "$id1" > "$id2" ]]; then echo "greater"; return; fi
+                  if [[ "$id1" < "$id2" ]]; then echo "lesser"; return; fi
+                fi
+              done
               echo "equal"
             fi
           }
@@ -312,6 +338,8 @@ jobs:
         run: make prod_health_check
 
   make-release:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 30
     name: Make release tag
@@ -326,12 +354,27 @@ jobs:
 
       - name: Create Release
         uses: actions/github-script@v8
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+          IS_PRERELEASE: ${{ needs.check-version.outputs.is-prerelease }}
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            const version = '${{ needs.check-version.outputs.version }}';
-            const isPrerelease = ${{ needs.check-version.outputs.is-prerelease }};
+            const version = process.env.VERSION;
+            const isPrerelease = process.env.IS_PRERELEASE === 'true';
             const tagName = `v${version}`;
+
+            try {
+              const existing = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tagName,
+              });
+              console.log(`Release already exists: ${existing.data.html_url}`);
+              return;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
 
             const release = await github.rest.repos.createRelease({
               owner: context.repo.owner,
@@ -374,6 +417,7 @@ jobs:
         run: cd dist/clients/typescript-fetch && npm publish --provenance --access public
 
   notify:
+    permissions: {}
     needs: [deploy-prod, publish-node-client, test-unit, build, test-e2e, make-release]
     runs-on: ubuntu-latest
     if: failure()
