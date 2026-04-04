@@ -39,7 +39,7 @@ jobs:
           CURRENT_VERSION=$(jq -r '.version' package.json)
 
           # Get previous version
-          LATEST_TAG=$(git tag -l 'v*' --sort=-version:refname | head -n 1)
+          LATEST_TAG=$(git -c 'versionsort.suffix=-' tag -l 'v*' --sort=-version:refname | head -n 1)
           PREVIOUS_VERSION=${LATEST_TAG#v}
           PREVIOUS_VERSION=${PREVIOUS_VERSION:-0.0.0}
 
