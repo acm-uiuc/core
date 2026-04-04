@@ -73,7 +73,7 @@ export async function atomicIncrementCacheCounter(
   if (expiresAt) {
     updateExpressions.unshift("SET #expireAt = :expireAt");
     expressionAttributeNames["#expireAt"] = "expireAt";
-    expressionAttributeValues[":expireAt"] = expiresAt.toString();
+    expressionAttributeValues[":expireAt"] = expiresAt;
   }
 
   const command = new UpdateItemCommand({
