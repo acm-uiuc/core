@@ -21,10 +21,7 @@ export default defineConfig([
   globalIgnores(["**/*.d.ts", "**/vite.config.ts"]),
   {
     extends: [
-      ...compat.extends(
-        "plugin:prettier/recommended",
-        "plugin:@typescript-eslint/recommended",
-      ),
+      ...compat.extends("plugin:prettier/recommended"),
       ...mantine,
     ],
 
@@ -37,7 +34,7 @@ export default defineConfig([
       "import/resolver": {
         typescript: {
           alwaysTryTypes: true,
-          project: ["src/api/tsconfig.json", "src/ui/tsconfig.json"],
+          project: "./tsconfig.json",
         },
       },
     },

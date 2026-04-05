@@ -49,7 +49,10 @@ const generators: Record<string, GeneratorConfig> = {
       importFileExtension: ".js",
       licenseName: "BSD-3-Clause",
     },
-    postHook: patchPackageJson,
+    postHook: () => {
+      patchPackageJson();
+      patchTsConfig();
+    },
   },
   // python: {
   //   additionalProperties: {
@@ -92,6 +95,31 @@ function patchPackageJson(): void {
     }
     console.log(`✓ Added ${entry} to ${npmignorePath}`);
   }
+}
+
+function patchTsConfig(): void {
+  const baseDir = path.join(config.outputDir, "typescript-fetch");
+  const tsconfigPath = path.join(baseDir, "tsconfig.json");
+
+  if (!fs.existsSync(tsconfigPath)) {
+    console.warn(
+      `⚠ tsconfig.json not found at ${tsconfigPath}, skipping patch`,
+    );
+    return;
+  }
+
+  const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, "utf-8"));
+
+  tsconfig.compilerOptions = {
+    ...tsconfig.compilerOptions,
+    moduleResolution: "bundler",
+    module: "ESNext",
+    target: "ES2020",
+    rootDir: "./src",
+  };
+
+  fs.writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, 2));
+  console.log(`✓ Patched ${tsconfigPath}`);
 }
 
 function run(cmd: string): void {
