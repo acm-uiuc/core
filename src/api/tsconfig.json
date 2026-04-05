@@ -4,7 +4,9 @@
     "module": "Node16",
     "rootDir": "../",
     "outDir": "../../dist",
-    "baseUrl": "../"
+    "paths": {
+      "*": ["../*"]
+    }
   },
   "ts-node": {
     "esm": true

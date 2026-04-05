@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "moduleResolution":"bundler",
     "types": [
       "node",
       "@testing-library/jest-dom",
@@ -15,12 +16,10 @@
     ],
     "allowJs": false,
     "skipLibCheck": true,
-    "esModuleInterop": false,
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "Node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -33,6 +32,7 @@
         "../common/*"
       ]
     },
+    "rootDir": "..",
   },
   "include": [
     "./**/*"
