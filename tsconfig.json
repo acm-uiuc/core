@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "src/api" },
+    { "path": "src/ui" },
+    { "path": "src/archival" },
+    { "path": "src/linkryEdgeFunction" },
+    { "path": "tests" }
+  ]
+}
