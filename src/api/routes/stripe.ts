@@ -338,8 +338,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       items: [{ price: price.id, quantity: 1 }],
       initiator: "invoice-pay",
       allowPromotionCodes: true,
-      successUrl: `${baseUrl}`, // make a success page to redirect to or stripe success page
-      returnUrl: `${baseUrl}/cancel?token=${encodeURIComponent(token)}`, //
+      successUrl: `${baseUrl}/stripe/status?token=${encodeURIComponent(token)}`,
+      returnUrl: `${baseUrl}/stripe/cancel?token=${encodeURIComponent(token)}`,
       metadata: {
         invoice_id: invoiceId,
         acm_org: orgId,
@@ -352,6 +352,89 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
     return reply.redirect(checkoutUrl, 302);
   });
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "/status",
+    {
+      schema: withTags(["Stripe"], {
+        summary: "Get public invoice payment status by token.",
+        querystring: z.object({
+          token: z.string().min(1),
+        }),
+        response: {
+          200: {
+            description: "Invoice status retrieved successfully.",
+            content: {
+              "application/json": {
+                schema: z.object({
+                  invoiceId: z.string(),
+                  acmOrg: z.string(),
+                  status: z.enum(["paid", "partial", "pending", "unpaid"]),
+                  invoiceAmountUsd: z.number(),
+                  paidAmountUsd: z.number(),
+                  remainingAmountUsd: z.number(),
+                  lastPaidAt: z.string().nullable(),
+                }),
+              },
+            },
+          },
+        },
+      }),
+    },
+    async (request) => {
+      const { token } = request.query as { token: string };
+
+      const { orgId, emailDomain, invoiceId } = decodeInvoiceToken(token);
+      const pk = `${orgId}#${emailDomain}`;
+
+      const invoiceRes = await fastify.dynamoClient.send(
+        new QueryCommand({
+          TableName: genericConfig.StripePaymentsDynamoTableName,
+          KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+          ExpressionAttributeValues: {
+            ":pk": { S: pk },
+            ":sk": { S: `CHARGE#${invoiceId}` },
+          },
+          ConsistentRead: true,
+        }),
+      );
+
+      if (!invoiceRes.Items?.length) {
+        throw new NotFoundError({ endpointName: request.url });
+      }
+
+      const invoice = unmarshall(invoiceRes.Items[0]) as {
+        invoiceAmtUsd?: number;
+        paidAmount?: number;
+        lastPaidAt?: string;
+      };
+
+      const invoiceAmountUsd =
+        typeof invoice.invoiceAmtUsd === "number" ? invoice.invoiceAmtUsd : 0;
+      const paidAmountUsd =
+        typeof invoice.paidAmount === "number" ? invoice.paidAmount : 0;
+      const remainingAmountUsd = Math.max(invoiceAmountUsd - paidAmountUsd, 0);
+
+      let status: "paid" | "partial" | "pending" | "unpaid" = "unpaid";
+
+      if (paidAmountUsd >= invoiceAmountUsd && invoiceAmountUsd > 0) {
+        status = "paid";
+      } else if (paidAmountUsd > 0) {
+        status = "partial";
+      } else {
+        status = "pending";
+      }
+
+      return {
+        invoiceId,
+        acmOrg: orgId,
+        status,
+        invoiceAmountUsd,
+        paidAmountUsd,
+        remainingAmountUsd,
+        lastPaidAt: invoice.lastPaidAt ?? null,
+      };
+    },
+  );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/paymentLinks/:linkId",
     {

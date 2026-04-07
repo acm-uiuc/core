@@ -31,6 +31,7 @@ import { OrgInfoPage } from "./pages/organization/OrgInfo.page";
 import { ViewStoreItemsPage } from "./pages/store/ViewStoreItems.page";
 import { ViewStorePurchasesPage } from "./pages/store/ViewStorePurchases.page";
 import { ManageRsvpConfigFormPage } from "./pages/rsvps/ManageRsvpConfig.page";
+import { StripePaymentStatus } from "./pages/stripe/StripePaymentStatus.page";
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -221,6 +222,10 @@ const authenticatedRouter = createBrowserRouter([
       {
         path: "/stripe",
         element: <ManageStripeLinksPage />,
+      },
+      {
+        path: "/stripe/status",
+        element: <StripePaymentStatus />,
       },
       {
         path: "/roomRequests",
