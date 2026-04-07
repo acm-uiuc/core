@@ -108,6 +108,10 @@ const profileRouter = createBrowserRouter([
         element: <ViewProfilePage />,
       },
       {
+        path: "/stripe/status",
+        element: <StripePaymentStatus />,
+      },
+      {
         path: "*",
         element: <ProfileRediect />,
       },
