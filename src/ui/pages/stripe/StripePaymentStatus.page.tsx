@@ -13,7 +13,6 @@ import {
 } from "@mantine/core";
 import { IconAlertCircle, IconCheck, IconClock } from "@tabler/icons-react";
 import { useSearchParams } from "react-router-dom";
-import { useApi } from "@ui/util/api";
 
 type StripeStatusResponse = {
   invoiceId: string;
@@ -32,7 +31,6 @@ const formatMoney = (amount: number) =>
   }).format(amount);
 
 export const StripePaymentStatus: React.FC = () => {
-  const api = useApi("core");
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
@@ -49,10 +47,16 @@ export const StripePaymentStatus: React.FC = () => {
       }
 
       try {
-        const response = await api.get("/api/v1/stripe/status", {
-          params: { token },
-        });
-        setData(response.data);
+        const response = await fetch(
+          `/api/v1/stripe/status?token=${encodeURIComponent(token)}`,
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to load invoice status");
+        }
+
+        const json = (await response.json()) as StripeStatusResponse;
+        setData(json);
       } catch (e) {
         setErrored(true);
       } finally {
@@ -61,7 +65,7 @@ export const StripePaymentStatus: React.FC = () => {
     };
 
     void load();
-  }, [api, token]);
+  }, [token]);
 
   const badgeColor =
     data?.status === "paid"

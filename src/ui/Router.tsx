@@ -133,6 +133,10 @@ const unauthenticatedRouter = createBrowserRouter([
         path: "*",
         element: <LoginRedirect />,
       },
+      {
+        path: "/stripe/status",
+        element: <StripePaymentStatus />,
+      },
     ],
   },
 ]);
