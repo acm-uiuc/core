@@ -1,17 +1,28 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Badge,
+  Button,
   Card,
+  Center,
   Container,
+  Divider,
   Group,
   Loader,
+  Paper,
+  SimpleGrid,
   Stack,
   Text,
+  ThemeIcon,
   Title,
-  Alert,
-  Button,
 } from "@mantine/core";
-import { IconAlertCircle, IconCheck, IconClock } from "@tabler/icons-react";
+import {
+  IconAlertCircle,
+  IconArrowLeft,
+  IconCheck,
+  IconClock,
+  IconReceipt2,
+} from "@tabler/icons-react";
 import { useSearchParams } from "react-router-dom";
 
 type StripeStatusResponse = {
@@ -29,6 +40,22 @@ const formatMoney = (amount: number) =>
     style: "currency",
     currency: "USD",
   }).format(amount);
+
+const formatDate = (value: string | null) => {
+  if (!value) {
+    return "Not yet settled";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+};
 
 export const StripePaymentStatus: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -66,91 +93,163 @@ export const StripePaymentStatus: React.FC = () => {
 
     void load();
   }, [token]);
-
-  const badgeColor =
-    data?.status === "paid"
-      ? "teal"
-      : data?.status === "partial"
-        ? "yellow"
-        : data?.status === "pending"
-          ? "blue"
-          : "gray";
-
-  const badgeLabel =
-    data?.status === "paid"
-      ? "Paid"
-      : data?.status === "partial"
-        ? "Partially Paid"
-        : data?.status === "pending"
-          ? "Pending"
-          : "Unpaid";
+  // for deploy comment
+  const statusConfig = useMemo(() => {
+    switch (data?.status) {
+      case "paid":
+        return {
+          color: "teal",
+          label: "Paid",
+          icon: <IconCheck size={18} />,
+          message: "This invoice has been paid successfully.",
+        };
+      case "partial":
+        return {
+          color: "yellow",
+          label: "Partially Paid",
+          icon: <IconClock size={18} />,
+          message:
+            "A payment was recorded, but there is still a remaining balance.",
+        };
+      case "pending":
+        return {
+          color: "blue",
+          label: "Pending",
+          icon: <IconClock size={18} />,
+          message:
+            "Your payment was submitted. Some payment methods, including ACH, may take additional time to settle.",
+        };
+      default:
+        return {
+          color: "gray",
+          label: "Unpaid",
+          icon: <IconReceipt2 size={18} />,
+          message: "This invoice has not been paid yet.",
+        };
+    }
+  }, [data?.status]);
 
   return (
-    <Container size="sm" py="xl">
-      <Card withBorder radius="md" p="xl">
+    <Container size="sm" py={48}>
+      <Paper
+        radius="xl"
+        p="xl"
+        withBorder
+        shadow="md"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(248,249,250,1) 0%, rgba(255,255,255,1) 100%)",
+        }}
+      >
         {loading ? (
-          <Group justify="center" py="xl">
-            <Loader />
-          </Group>
+          <Center py={80}>
+            <Stack align="center" gap="sm">
+              <Loader size="lg" />
+              <Text c="dimmed">Loading invoice status...</Text>
+            </Stack>
+          </Center>
         ) : errored || !data ? (
-          <Alert color="red" icon={<IconAlertCircle size={16} />}>
+          <Alert
+            color="red"
+            icon={<IconAlertCircle size={18} />}
+            radius="md"
+            title="Unable to load invoice status"
+          >
             We could not load this invoice status.
           </Alert>
         ) : (
-          <Stack gap="md">
-            <Group justify="space-between" align="center">
-              <Title order={2}>Payment Status</Title>
-              <Badge color={badgeColor} size="lg">
-                {badgeLabel}
+          <Stack gap="lg">
+            <Group justify="space-between" align="flex-start">
+              <Group gap="md" align="center">
+                <ThemeIcon
+                  size={48}
+                  radius="xl"
+                  color={statusConfig.color}
+                  variant="light"
+                >
+                  {statusConfig.icon}
+                </ThemeIcon>
+                <div>
+                  <Title order={2}>Invoice Payment Status</Title>
+                  <Text c="dimmed">
+                    Review the latest payment information for this invoice.
+                  </Text>
+                </div>
+              </Group>
+
+              <Badge color={statusConfig.color} size="lg" radius="sm">
+                {statusConfig.label}
               </Badge>
             </Group>
 
-            <Text>
-              Invoice <b>{data.invoiceId}</b>
-            </Text>
+            <Alert
+              color={statusConfig.color}
+              icon={statusConfig.icon}
+              radius="md"
+            >
+              {statusConfig.message}
+            </Alert>
 
-            <Text>
-              Organization: <b>{data.acmOrg}</b>
-            </Text>
-
-            <Card withBorder radius="md" p="md">
+            <Card withBorder radius="lg" p="lg">
               <Stack gap="xs">
-                <Text>Total: {formatMoney(data.invoiceAmountUsd)}</Text>
-                <Text>Paid so far: {formatMoney(data.paidAmountUsd)}</Text>
-                <Text>Remaining: {formatMoney(data.remainingAmountUsd)}</Text>
-                <Text>
-                  Last updated: {data.lastPaidAt ?? "Not yet settled"}
-                </Text>
+                <Group justify="space-between">
+                  <Text c="dimmed">Invoice ID</Text>
+                  <Text fw={600}>{data.invoiceId}</Text>
+                </Group>
+                <Divider />
+                <Group justify="space-between">
+                  <Text c="dimmed">Organization</Text>
+                  <Text fw={600}>{data.acmOrg}</Text>
+                </Group>
+                <Divider />
+                <Group justify="space-between">
+                  <Text c="dimmed">Last updated</Text>
+                  <Text fw={600}>{formatDate(data.lastPaidAt)}</Text>
+                </Group>
               </Stack>
             </Card>
 
-            {data.status === "paid" && (
-              <Alert color="teal" icon={<IconCheck size={16} />}>
-                This invoice has been paid successfully.
-              </Alert>
-            )}
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+              <Card withBorder radius="lg" p="lg">
+                <Text size="sm" c="dimmed" mb={6}>
+                  Total
+                </Text>
+                <Title order={3}>{formatMoney(data.invoiceAmountUsd)}</Title>
+              </Card>
 
-            {data.status === "partial" && (
-              <Alert color="yellow" icon={<IconClock size={16} />}>
-                A payment was recorded, but there is still a remaining balance.
-              </Alert>
-            )}
+              <Card withBorder radius="lg" p="lg">
+                <Text size="sm" c="dimmed" mb={6}>
+                  Paid So Far
+                </Text>
+                <Title order={3}>{formatMoney(data.paidAmountUsd)}</Title>
+              </Card>
 
-            {data.status === "pending" && (
-              <Alert color="blue" icon={<IconClock size={16} />}>
-                Your payment was submitted. Some payment methods, including ACH,
-                may take additional time to settle.
-              </Alert>
-            )}
+              <Card withBorder radius="lg" p="lg">
+                <Text size="sm" c="dimmed" mb={6}>
+                  Remaining
+                </Text>
+                <Title order={3}>{formatMoney(data.remainingAmountUsd)}</Title>
+              </Card>
+            </SimpleGrid>
 
-            <Group>
-              <Button component="a" href="/">
+            <Group justify="space-between" mt="sm">
+              <Text size="sm" c="dimmed">
+                Status updates may take a short time to appear after payment
+                completion.
+              </Text>
+
+              <Button
+                component="a"
+                href="/"
+                leftSection={<IconArrowLeft size={16} />}
+                variant="light"
+              >
                 Done
               </Button>
             </Group>
           </Stack>
         )}
-      </Card>
+      </Paper>
     </Container>
   );
 };
