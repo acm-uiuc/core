@@ -15,7 +15,7 @@
     "prettier:write": "prettier --write *.ts **/*.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.1019.0",
+    "@aws-sdk/client-dynamodb": "^3.1022.0",
     "@aws-sdk/client-lambda": "^3.1019.0",
     "@aws-sdk/client-s3": "^3.1019.0",
     "@aws-sdk/client-secrets-manager": "^3.1019.0",
@@ -28,7 +28,7 @@
     "@aws-sdk/signature-v4-crt": "^3.1019.0",
     "@aws-sdk/util-dynamodb": "^3.995.0",
     "@aws/durable-execution-sdk-js": "^1.0.2",
-    "@azure/msal-node": "^5.1.1",
+    "@azure/msal-node": "^5.1.2",
     "@fastify/auth": "^5.0.1",
     "@fastify/aws-lambda": "^6.3.0",
     "@fastify/cors": "^11.0.1",
@@ -40,7 +40,7 @@
     "@touch4it/ical-timezones": "^1.9.0",
     "aws-crt": "^1.27.3",
     "base64-arraybuffer": "^1.0.2",
-    "discord.js": "^14.24.2",
+    "discord.js": "^14.26.0",
     "fastify": "^5.8.1",
     "fastify-ip": "^2.0.0",
     "fastify-plugin": "^5.0.1",
