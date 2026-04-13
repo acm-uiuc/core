@@ -650,7 +650,7 @@ export async function createStoreCheckout({
     })),
     initiator: "acm-store",
     metadata,
-    allowPromotionCodes: false,
+    allowPromotionCodes: true,
     successUrl: successUrl || `${baseUrl}/store/order/${orderId}?success=true`,
     returnUrl: cancelUrl || `${baseUrl}/store/cart?cancelled=true`,
     captureMethod: "manual" as const,
