@@ -12,6 +12,15 @@ import { RequestError } from "@octokit/request-error";
 vi.mock("octokit");
 vi.mock("../../../src/api/utils.js");
 
+// Helper to create an async generator from an array of pages
+function createAsyncIterator<T>(pages: T[]) {
+  return (async function* () {
+    for (const page of pages) {
+      yield page;
+    }
+  })();
+}
+
 describe("createGithubTeam", () => {
   const mockLogger = {
     info: vi.fn(() => {}),
@@ -23,7 +32,7 @@ describe("createGithubTeam", () => {
     auth: {
       appId: 1,
       installationId: 1,
-      privateKey: "abc"
+      privateKey: "abc",
     },
     orgId: "test-org",
     parentTeamId: 123,
@@ -39,8 +48,13 @@ describe("createGithubTeam", () => {
     vi.clearAllMocks();
     mockOctokit = {
       request: vi.fn(() => {}),
+      paginate: {
+        iterator: vi.fn(),
+      },
     };
-    (Octokit as any).mockImplementation(function() { return mockOctokit; });
+    (Octokit as any).mockImplementation(function () {
+      return mockOctokit;
+    });
   });
 
   afterEach(() => {
@@ -49,12 +63,16 @@ describe("createGithubTeam", () => {
 
   it("should return existing team ID if team already exists", async () => {
     const existingTeamId = 456;
-    mockOctokit.request.mockResolvedValueOnce({
-      data: [
-        { name: "Other Team", id: 789 },
-        { name: "Test Team", id: existingTeamId },
-      ],
-    });
+    mockOctokit.paginate.iterator.mockReturnValue(
+      createAsyncIterator([
+        {
+          data: [
+            { name: "Other Team", id: 789 },
+            { name: "Test Team", id: existingTeamId },
+          ],
+        },
+      ])
+    );
 
     const result = await createGithubTeam(defaultInputs);
 
@@ -62,13 +80,15 @@ describe("createGithubTeam", () => {
     expect(mockLogger.info).toHaveBeenCalledWith(
       `Team "Test Team" already exists with id: ${existingTeamId}`
     );
-    expect(mockOctokit.request).toHaveBeenCalledTimes(1);
+    expect(mockOctokit.request).not.toHaveBeenCalled();
   });
 
   it("should create new team", async () => {
     const newTeamId = 999;
     // Mock getting teams (no existing team)
-    mockOctokit.request.mockResolvedValueOnce({ data: [] });
+    mockOctokit.paginate.iterator.mockReturnValue(
+      createAsyncIterator([{ data: [] }])
+    );
 
     // Mock creating team
     mockOctokit.request.mockResolvedValueOnce({
@@ -100,7 +120,9 @@ describe("createGithubTeam", () => {
     const inputsWithoutDescription = { ...defaultInputs };
     delete (inputsWithoutDescription as any).description;
 
-    mockOctokit.request.mockResolvedValueOnce({ data: [] });
+    mockOctokit.paginate.iterator.mockReturnValue(
+      createAsyncIterator([{ data: [] }])
+    );
     mockOctokit.request.mockResolvedValueOnce({
       status: 201,
       data: { id: newTeamId, slug: "test-team" },
@@ -123,7 +145,9 @@ describe("createGithubTeam", () => {
     const inputsWithoutPrivacy = { ...defaultInputs };
     delete (inputsWithoutPrivacy as any).privacy;
 
-    mockOctokit.request.mockResolvedValueOnce({ data: [] });
+    mockOctokit.paginate.iterator.mockReturnValue(
+      createAsyncIterator([{ data: [] }])
+    );
     mockOctokit.request.mockResolvedValueOnce({
       status: 201,
       data: { id: newTeamId, slug: "test-team" },
@@ -142,7 +166,9 @@ describe("createGithubTeam", () => {
   });
 
   it("should throw GithubError if team creation fails with non-201 status", async () => {
-    mockOctokit.request.mockResolvedValueOnce({ data: [] });
+    mockOctokit.paginate.iterator.mockReturnValue(
+      createAsyncIterator([{ data: [] }])
+    );
     mockOctokit.request.mockResolvedValueOnce({
       status: 400,
       data: { message: "Bad request" },
@@ -153,14 +179,24 @@ describe("createGithubTeam", () => {
   });
 
   it("should rethrow BaseError instances", async () => {
-    const baseError = new GithubError({ message: "Failed to create GitHub team." });
-    mockOctokit.request.mockRejectedValueOnce(baseError);
+    const baseError = new GithubError({
+      message: "Failed to create GitHub team.",
+    });
+    mockOctokit.paginate.iterator.mockReturnValue(
+      (async function* () {
+        throw baseError;
+      })()
+    );
 
     await expect(createGithubTeam(defaultInputs)).rejects.toThrow(baseError);
   });
 
   it("should wrap non-BaseError exceptions in GithubError", async () => {
-    mockOctokit.request.mockRejectedValueOnce(new Error("Unknown error"));
+    mockOctokit.paginate.iterator.mockReturnValue(
+      (async function* () {
+        throw new Error("Unknown error");
+      })()
+    );
 
     await expect(createGithubTeam(defaultInputs)).rejects.toThrow(GithubError);
     expect(mockLogger.error).toHaveBeenCalledWith(
@@ -180,7 +216,7 @@ describe("assignIdpGroupsToTeam", () => {
     auth: {
       appId: 1,
       installationId: 1,
-      privateKey: "abc"
+      privateKey: "abc",
     },
     teamId: 123,
     groupsToSync: ["group-1", "group-2"],
@@ -195,8 +231,13 @@ describe("assignIdpGroupsToTeam", () => {
     vi.clearAllMocks();
     mockOctokit = {
       request: vi.fn(() => {}),
+      paginate: {
+        iterator: vi.fn(),
+      },
     };
-    (Octokit as any).mockImplementation(function() { return mockOctokit; });
+    (Octokit as any).mockImplementation(function () {
+      return mockOctokit;
+    });
     (utils.sleep as any).mockResolvedValue(undefined);
   });
 
@@ -349,7 +390,9 @@ describe("assignIdpGroupsToTeam", () => {
   });
 
   it("should rethrow BaseError instances", async () => {
-    const baseError = new GithubError({ message: "Failed to assign IdP groups to team 123" });
+    const baseError = new GithubError({
+      message: "Failed to assign IdP groups to team 123",
+    });
     mockOctokit.request.mockRejectedValueOnce(baseError);
 
     await expect(assignIdpGroupsToTeam(defaultInputs)).rejects.toThrow(
@@ -392,7 +435,9 @@ describe("assignIdpGroupsToTeam", () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(
       expect.stringContaining("Team sync is not available for team 123")
     );
-    expect(mockLogger.warn).toHaveBeenCalledWith("Skipping IdP group assignment");
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      "Skipping IdP group assignment"
+    );
     // Should not attempt to search for groups or patch
     expect(mockOctokit.request).toHaveBeenCalledTimes(1); // Only sync check
   });
