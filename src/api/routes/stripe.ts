@@ -353,7 +353,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       },
     });
 
-    const baseUrl = getInvoiceBaseUrl(request);
+    // const baseUrl = getInvoiceBaseUrl(request);
 
     // const checkoutUrl: string = await createCheckoutSessionWithCustomer({
     //   customerId,
@@ -373,8 +373,9 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     //   allowAchPush: true,
     // });
 
-    const successUrl = `${baseUrl}/status?token=${encodeURIComponent(token)}`;
-    const returnUrl = `${baseUrl}/cancel?token=${encodeURIComponent(token)}`;
+    const apiBase = fastify.environmentConfig.UserFacingUrl;
+    const successUrl = `${apiBase}/api/v1/stripe/status?token=${encodeURIComponent(token)}`;
+    const returnUrl = `${apiBase}/api/v1/stripe/status?token=${encodeURIComponent(token)}`;
 
     const checkoutUrl: string = await createCheckoutSessionWithCustomer({
       customerId,
