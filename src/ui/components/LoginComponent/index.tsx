@@ -37,9 +37,14 @@ export function LoginComponent(props: PaperProps) {
       </Center>
 
       <Alert
-        title={<Title order={5}>Authorized Users Only</Title>}
-        icon={<IconLock />}
-        color="#0053B3"
+        title={
+          <Title order={5} style={{ color: "var(--illinois-blue)" }}>
+            Authorized Users Only
+          </Title>
+        }
+        icon={<IconLock style={{ color: "var(--illinois-blue)" }} />}
+        color="var(--illinois-blue)"
+        style={{ backgroundColor: "rgba(0, 83, 179, 0.1)" }}
       >
         <Text size="sm">
           Unauthorized or improper use or access of this system may result in

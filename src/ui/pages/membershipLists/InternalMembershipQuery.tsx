@@ -110,7 +110,7 @@ const ResultSection = ({
           )}
         </Group>
       </Group>
-      <Collapse in={isOpen}>
+      <Collapse expanded={isOpen}>
         <Box pt="xs" pl="xl">
           {items.map((item, index) => (
             <Code
