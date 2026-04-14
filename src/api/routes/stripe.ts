@@ -88,61 +88,6 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     return fastify.environmentConfig.PaymentBaseUrl;
   };
 
-  const getInvoiceStatusFromToken = async (
-    token: string,
-    requestUrl: string,
-  ) => {
-    const { orgId, emailDomain, invoiceId } = decodeInvoiceToken(token);
-    const pk = `${orgId}#${emailDomain}`;
-
-    const invoiceRes = await fastify.dynamoClient.send(
-      new QueryCommand({
-        TableName: genericConfig.StripePaymentsDynamoTableName,
-        KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
-        ExpressionAttributeValues: {
-          ":pk": { S: pk },
-          ":sk": { S: `CHARGE#${invoiceId}` },
-        },
-        ConsistentRead: true,
-      }),
-    );
-
-    if (!invoiceRes.Items?.length) {
-      throw new NotFoundError({ endpointName: requestUrl });
-    }
-
-    const invoice = unmarshall(invoiceRes.Items[0]) as {
-      invoiceAmtUsd?: number;
-      paidAmount?: number;
-      lastPaidAt?: string;
-    };
-
-    const invoiceAmountUsd =
-      typeof invoice.invoiceAmtUsd === "number" ? invoice.invoiceAmtUsd : 0;
-    const paidAmountUsd =
-      typeof invoice.paidAmount === "number" ? invoice.paidAmount : 0;
-    const remainingAmountUsd = Math.max(invoiceAmountUsd - paidAmountUsd, 0);
-
-    let status: "paid" | "partial" | "pending" | "unpaid" = "unpaid";
-
-    if (paidAmountUsd >= invoiceAmountUsd && invoiceAmountUsd > 0) {
-      status = "paid";
-    } else if (paidAmountUsd > 0) {
-      status = "partial";
-    } else {
-      status = "pending";
-    }
-
-    return {
-      invoiceId,
-      acmOrg: orgId,
-      status,
-      invoiceAmountUsd,
-      paidAmountUsd,
-      remainingAmountUsd,
-      lastPaidAt: invoice.lastPaidAt ?? null,
-    };
-  };
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/paymentLinks",
     {
@@ -341,8 +286,9 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         throw new ValidationError({ message: "Missing invoice token." });
       }
 
-      const status = await getInvoiceStatusFromToken(query.token, request.url);
-      return reply.status(200).send(status);
+      const uiBase = fastify.environmentConfig.UserFacingUrl;
+      const redirectUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(query.token)}`;
+      return reply.redirect(redirectUrl, 302);
     }
 
     if (token === "cancel") {
@@ -427,8 +373,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     //   allowAchPush: true,
     // });
 
-    const successUrl = `${baseUrl}/stripe/status?token=${encodeURIComponent(token)}`;
-    const returnUrl = `${baseUrl}/stripe/cancel?token=${encodeURIComponent(token)}`;
+    const successUrl = `${baseUrl}/status?token=${encodeURIComponent(token)}`;
+    const returnUrl = `${baseUrl}/cancel?token=${encodeURIComponent(token)}`;
 
     const checkoutUrl: string = await createCheckoutSessionWithCustomer({
       customerId,
@@ -478,9 +424,13 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         },
       }),
     },
-    async (request) => {
+    async (request, reply) => {
       const { token } = request.query as { token: string };
-      return await getInvoiceStatusFromToken(token, request.url);
+
+      const uiBase = fastify.environmentConfig.UserFacingUrl;
+      const redirectUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(token)}`;
+
+      return reply.redirect(302, redirectUrl);
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
