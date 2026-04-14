@@ -184,6 +184,7 @@ describe("createGithubTeam", () => {
     });
     mockOctokit.paginate.iterator.mockReturnValue(
       (async function* () {
+        yield { data: [] };
         throw baseError;
       })()
     );
@@ -194,6 +195,7 @@ describe("createGithubTeam", () => {
   it("should wrap non-BaseError exceptions in GithubError", async () => {
     mockOctokit.paginate.iterator.mockReturnValue(
       (async function* () {
+        yield { data: [] };
         throw new Error("Unknown error");
       })()
     );
