@@ -430,7 +430,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const uiBase = fastify.environmentConfig.UserFacingUrl;
       const redirectUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(token)}`;
 
-      return reply.redirect(302, redirectUrl);
+      return reply.redirect(redirectUrl, 302);
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(

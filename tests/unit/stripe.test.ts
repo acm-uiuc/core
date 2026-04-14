@@ -476,7 +476,7 @@ describe("Test Stripe link creation", async () => {
       `/api/v1/stripe/pay/status?token=${encodeURIComponent(realToken)}`,
     );
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(302);
     expect(response.body).toStrictEqual({
       invoiceId: "11",
       acmOrg: "S02",
