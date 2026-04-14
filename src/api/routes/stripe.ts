@@ -332,14 +332,44 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
     const baseUrl = getInvoiceBaseUrl(request);
 
+    // const checkoutUrl: string = await createCheckoutSessionWithCustomer({
+    //   customerId,
+    //   stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
+    //   items: [{ price: price.id, quantity: 1 }],
+    //   initiator: "invoice-pay",
+    //   allowPromotionCodes: true,
+    //   successUrl: `${baseUrl}/stripe/status?token=${encodeURIComponent(token)}`,
+    //   returnUrl: `${baseUrl}/stripe/cancel?token=${encodeURIComponent(token)}`,
+    //   metadata: {
+    //     invoice_id: invoiceId,
+    //     acm_org: orgId,
+    //     pk,
+    //   },
+    //   statementDescriptorSuffix: maxLength("INVOICE", 7),
+    //   delayedSettlementAllowed: true,
+    //   allowAchPush: true,
+    // });
+    const isLocal =
+      baseUrl.includes("localhost") ||
+      baseUrl.includes("127.0.0.1") ||
+      baseUrl.includes("0.0.0.0");
+
+    const successUrl = isLocal
+      ? `${baseUrl}/status?token=${encodeURIComponent(token)}`
+      : `${baseUrl}/status?token=${encodeURIComponent(token)}`;
+
+    const returnUrl = isLocal
+      ? `${baseUrl}/cancel?token=${encodeURIComponent(token)}`
+      : `${baseUrl}/cancel?token=${encodeURIComponent(token)}`;
+
     const checkoutUrl: string = await createCheckoutSessionWithCustomer({
       customerId,
       stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
       items: [{ price: price.id, quantity: 1 }],
       initiator: "invoice-pay",
       allowPromotionCodes: true,
-      successUrl: `${baseUrl}/stripe/status?token=${encodeURIComponent(token)}`,
-      returnUrl: `${baseUrl}/stripe/cancel?token=${encodeURIComponent(token)}`,
+      successUrl,
+      returnUrl,
       metadata: {
         invoice_id: invoiceId,
         acm_org: orgId,
