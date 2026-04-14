@@ -125,13 +125,22 @@ export async function createGithubTeam({
       auth,
     });
     logger.info(`Checking if GitHub team "${name}" exists`);
-    const teamsResponse = await octokit.request("GET /orgs/{org}/teams", {
-      org: orgId,
-    });
+    let existingTeam: { name: string; id: number } | undefined;
+    for await (const response of octokit.paginate.iterator(
+      "GET /orgs/{org}/teams",
+      {
+        org: orgId,
+        per_page: 100,
+      },
+    )) {
+      existingTeam = response.data.find(
+        (team: { name: string; id: number }) => team.name === name,
+      );
 
-    const existingTeam = teamsResponse.data.find(
-      (team: { name: string; id: number }) => team.name === name,
-    );
+      if (existingTeam) {
+        break;
+      }
+    }
 
     if (existingTeam) {
       logger.info(`Team "${name}" already exists with id: ${existingTeam.id}`);
