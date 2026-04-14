@@ -41,6 +41,17 @@ class ResizeObserver {
 
 window.ResizeObserver = ResizeObserver;
 
+Object.defineProperty(document, "fonts", {
+  writable: true,
+  value: {
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    ready: Promise.resolve(),
+    load: vi.fn().mockResolvedValue([]),
+    check: vi.fn().mockReturnValue(true),
+  },
+});
+
 vi.mock("react-router-dom", async () => {
   const actualRouter = await vi.importActual("react-router-dom");
   return {

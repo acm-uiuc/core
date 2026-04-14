@@ -282,17 +282,7 @@ describe("LogRenderer Tests", () => {
     await user.click(screen.getByPlaceholderText("Select service module"));
     await user.click(screen.getByText(ModulesToHumanName[Modules.LINKRY]));
 
-    // Open and set Start Time
-    await user.click(screen.getByRole("button", { name: /Start Time/i }));
-    const [startInput] = await screen.findAllByRole("textbox");
-    await user.type(startInput, "01/10/2023 12:00 AM");
-
-    // Open and set End Time
-    await user.click(screen.getByRole("button", { name: /End Time/i }));
-    const [endInput] = await screen.findAllByRole("textbox");
-    await user.type(endInput, "01/11/2023 11:59 PM");
-
-    // Click Fetch Logs
+    // Click Fetch Logs (component uses default date range: last 24h)
     await user.click(screen.getByRole("button", { name: /Fetch Logs/i }));
 
     // Assert that getLogsMock was called with correct arguments
