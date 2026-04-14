@@ -426,18 +426,9 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     //   delayedSettlementAllowed: true,
     //   allowAchPush: true,
     // });
-    const isLocal =
-      baseUrl.includes("localhost") ||
-      baseUrl.includes("127.0.0.1") ||
-      baseUrl.includes("0.0.0.0");
 
-    const successUrl = isLocal
-      ? `${baseUrl}/status?token=${encodeURIComponent(token)}`
-      : `${baseUrl}/status?token=${encodeURIComponent(token)}`;
-
-    const returnUrl = isLocal
-      ? `${baseUrl}/cancel?token=${encodeURIComponent(token)}`
-      : `${baseUrl}/cancel?token=${encodeURIComponent(token)}`;
+    const successUrl = `${baseUrl}/stripe/status?token=${encodeURIComponent(token)}`;
+    const returnUrl = `${baseUrl}/stripe/cancel?token=${encodeURIComponent(token)}`;
 
     const checkoutUrl: string = await createCheckoutSessionWithCustomer({
       customerId,
