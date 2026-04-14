@@ -16,7 +16,9 @@ describe("Organization Info Tests", () => {
     await expect(page.getByRole("heading")).toContainText(
       "Manage Organization Info",
     );
-    await page.getByRole("textbox", { name: "Select an organization" }).click();
+    await page
+      .getByRole("combobox", { name: "Select an organization" })
+      .click();
     await page.getByText("Infrastructure Committee").click();
     await page.getByRole("textbox", { name: "Description" }).click();
     await page
