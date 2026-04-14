@@ -20,7 +20,7 @@ import supertest from "supertest";
 import { createJwt } from "./utils.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { randomUUID } from "crypto";
-import { encodeInvoiceToken } from "src/common/utils.ts";
+import { encodeInvoiceToken } from "../../src/common/utils.js";
 
 const ddbMock = mockClient(DynamoDBClient);
 const linkId = randomUUID();
