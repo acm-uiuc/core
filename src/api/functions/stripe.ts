@@ -218,7 +218,7 @@ export const createCheckoutSessionWithCustomer = async ({
       : instantSettlementMethods
     ).filter((x) =>
       captureMethod === "manual" ? x !== "crypto" : true,
-    ) as Stripe.Checkout.SessionCreateParams.PaymentMethodType[],
+    ) as CheckoutPaymentMethodType[],
     line_items: items.map((item) => ({
       price: item.price,
       quantity: item.quantity,
