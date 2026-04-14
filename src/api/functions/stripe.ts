@@ -14,6 +14,19 @@ import { genericConfig } from "common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { Organizations, type OrganizationId } from "@acm-uiuc/js-shared";
 
+type CheckoutSessionCreateParams = NonNullable<
+  Parameters<InstanceType<typeof Stripe>["checkout"]["sessions"]["create"]>[0]
+>;
+type CheckoutPaymentMethodType = NonNullable<
+  CheckoutSessionCreateParams["payment_method_types"]
+>[number];
+type CheckoutCustomField = NonNullable<
+  CheckoutSessionCreateParams["custom_fields"]
+>[number];
+type CheckoutCustomText = NonNullable<
+  CheckoutSessionCreateParams["custom_text"]
+>;
+
 export type SupportedPaymentMethods =
   | NonNullable<Stripe.PaymentMethodCreateParams["type"]>
   | "card_present";
@@ -22,10 +35,10 @@ export const instantSettlementMethods = [
   "card",
   "crypto",
   "link",
-] satisfies Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+] satisfies CheckoutPaymentMethodType[];
 export const delayedSettlementMethods = [
   "us_bank_account",
-] satisfies Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+] satisfies CheckoutPaymentMethodType[];
 
 export const allPaymentMethods = [
   ...instantSettlementMethods,
@@ -52,9 +65,9 @@ export type StripeCheckoutSessionCreateParams = {
   initiator: string;
   metadata?: Record<string, string>;
   allowPromotionCodes: boolean;
-  customFields?: Stripe.Checkout.SessionCreateParams.CustomField[];
+  customFields?: CheckoutCustomField[];
   captureMethod?: "automatic" | "manual"; // manual = pre-auth only
-  customText?: Stripe.Checkout.SessionCreateParams.CustomText;
+  customText?: CheckoutCustomText;
   statementDescriptorSuffix: MaxLengthString<7>;
   delayedSettlementAllowed: boolean;
   expiresInSec?: number;
@@ -140,7 +153,7 @@ export const createCheckoutSession = async ({
   expiresInSec,
 }: StripeCheckoutSessionCreateParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
-  const payload: Stripe.Checkout.SessionCreateParams = {
+  const payload: CheckoutSessionCreateParams = {
     success_url: successUrl || "",
     cancel_url: returnUrl || "",
     payment_method_types:
@@ -195,7 +208,7 @@ export const createCheckoutSessionWithCustomer = async ({
   expiresInSec,
 }: StripeCheckoutSessionCreateWithCustomerParams): Promise<string> => {
   const stripe = new Stripe(stripeApiKey);
-  const payload: Stripe.Checkout.SessionCreateParams = {
+  const payload: CheckoutSessionCreateParams = {
     success_url: successUrl || "",
     cancel_url: returnUrl || "",
     payment_method_types: (delayedSettlementAllowed
@@ -782,7 +795,7 @@ export const capturePaymentIntent = async ({
   idempotencyKey: string;
 }): Promise<Stripe.PaymentIntent> => {
   const stripe = new Stripe(stripeApiKey);
-  return await stripe.paymentIntents.capture(paymentIntentId, {
+  return await stripe.paymentIntents.capture(paymentIntentId, undefined, {
     idempotencyKey,
   });
 };

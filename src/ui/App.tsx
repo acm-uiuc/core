@@ -3,6 +3,7 @@ import "@mantine/dropzone/styles.css";
 import "@mantine/notifications/styles.css";
 import "@mantine/dates/styles.css";
 import { MantineProvider } from "@mantine/core";
+import { cssVariablesResolver, theme } from "./theme";
 import { useColorScheme, useLocalStorage } from "@mantine/hooks";
 import { Notifications } from "@mantine/notifications";
 
@@ -24,6 +25,8 @@ export default function App() {
         withGlobalClasses
         withCssVariables
         forceColorScheme={colorScheme}
+        theme={theme}
+        cssVariablesResolver={cssVariablesResolver}
       >
         <Notifications position="top-right" />
         <UserResolverProvider>

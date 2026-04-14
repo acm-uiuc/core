@@ -18,7 +18,7 @@ import {
   List,
 } from "@mantine/core";
 import { DateFormatter, DatePickerInput, DateTimePicker } from "@mantine/dates";
-import { useForm } from "@mantine/form";
+import { useForm, UseFormReturnType } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
@@ -162,7 +162,7 @@ const applyTemplateVariables = (
 
 // EventForm Component - extracted to prevent re-mounting
 interface EventFormProps {
-  form: ReturnType<typeof useForm<EventPostRequest>>;
+  form: UseFormReturnType<EventPostRequest>;
   selectedTemplate: keyof typeof EVENT_TEMPLATES | null;
   isSubmitting: boolean;
   isEditing: boolean;

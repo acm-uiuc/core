@@ -1,5 +1,13 @@
-import { createTheme } from "@mantine/core";
+import { createTheme, CSSVariablesResolver } from "@mantine/core";
 
 export const theme = createTheme({
-  /** Put your mantine theme override here */
+  defaultRadius: "sm",
+});
+
+export const cssVariablesResolver: CSSVariablesResolver = () => ({
+  variables: {
+    "--illinois-blue": "#0053B3",
+  },
+  light: {},
+  dark: {},
 });
