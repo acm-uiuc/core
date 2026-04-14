@@ -105,7 +105,7 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
               const primOrg = getPrimarySuggestedOrg(orgRoles);
               if (primOrg) {
                 setUserPrimaryOrg(primOrg);
-                form.setFieldValue("host", primOrg);
+                form.setFieldValue("acmOrg", primOrg);
               }
             }
           }}
