@@ -477,15 +477,10 @@ describe("Test Stripe link creation", async () => {
     );
 
     expect(response.statusCode).toBe(302);
-    expect(response.body).toStrictEqual({
-      invoiceId: "11",
-      acmOrg: "S02",
-      status: "paid",
-      invoiceAmountUsd: 1,
-      paidAmountUsd: 1,
-      remainingAmountUsd: 0,
-      lastPaidAt: "2026-04-07T20:43:48.098Z",
-    });
+    expect(response.headers.location).toBe(
+      `${app.environmentConfig.UserFacingUrl}/stripe/status?token=${encodeURIComponent(realToken)}`,
+    );
+    expect(response.body).toStrictEqual({});
   });
 
   test("GET /api/v1/stripe/pay/status without query token returns 400", async () => {
