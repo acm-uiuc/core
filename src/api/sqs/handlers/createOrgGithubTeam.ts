@@ -159,7 +159,7 @@ export const createOrgGithubTeamHandler: SQSHandlerFunction<
               Update: {
                 TableName: genericConfig.SigInfoTableName,
                 Key: marshall({
-                  primaryKey: `DEFINE#${orgName}`,
+                  primaryKey: `DEFINE#${orgImmutableId}`,
                   entryId: "0",
                 }),
                 UpdateExpression:
