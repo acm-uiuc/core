@@ -451,6 +451,57 @@ describe("Test Stripe link creation", async () => {
     expect(response.statusCode).toBe(200);
     expect(response.body.handled).toBe(true);
   });
+  test("GET /api/v1/stripe/pay/status returns invoice status from query token", async () => {
+    const realToken = encodeInvoiceToken({
+      orgId: "S02",
+      emailDomain: "illinois.edu",
+      invoiceId: "11",
+    });
+
+    ddbMock.on(QueryCommand).resolvesOnce({
+      Items: [
+        marshall({
+          primaryKey: "S02#illinois.edu",
+          sortKey: "CHARGE#11",
+          invoiceAmtUsd: 1,
+          paidAmount: 1,
+          lastPaidAt: "2026-04-07T20:43:48.098Z",
+        }),
+      ],
+    });
+
+    await app.ready();
+
+    const response = await supertest(app.server).get(
+      `/api/v1/stripe/pay/status?token=${encodeURIComponent(realToken)}`,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toStrictEqual({
+      invoiceId: "11",
+      acmOrg: "S02",
+      status: "paid",
+      invoiceAmountUsd: 1,
+      paidAmountUsd: 1,
+      remainingAmountUsd: 0,
+      lastPaidAt: "2026-04-07T20:43:48.098Z",
+    });
+  });
+
+  test("GET /api/v1/stripe/pay/status without query token returns 400", async () => {
+    await app.ready();
+
+    const response = await supertest(app.server).get(
+      "/api/v1/stripe/pay/status",
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toMatchObject({
+      error: true,
+      name: "ValidationError",
+      id: 104,
+    });
+  });
   afterAll(async () => {
     await app.close();
   });
