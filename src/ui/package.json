@@ -48,7 +48,7 @@
     "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {
-    "@eslint/compat": "^2.0.2",
+    "@eslint/compat": "^2.0.5",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.4.8",
     "@testing-library/react": "^16.3.2",
@@ -68,8 +68,8 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "identity-obj-proxy": "^3.0.0",
-    "jsdom": "^29.0.1",
-    "postcss": "^8.5.3",
+    "jsdom": "^29.0.2",
+    "postcss": "^8.5.9",
     "postcss-preset-mantine": "^1.17.0",
     "postcss-simple-vars": "^7.0.1",
     "prettier": "^3.8.1",
