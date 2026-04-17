@@ -1,19 +1,153 @@
 name: Deploy all resources to PROD
 run-name: PROD deploy - @${{ github.actor }}
 
+concurrency:
+  group: prod-release-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
-  release:
-    types: [created]
-    tags:
-      - 'v*'
+  push:
+    branches:
+      - 'main'
 
 jobs:
+  check-version:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      is-prerelease: ${{ steps.version.outputs.prerelease }}
+      version: ${{ steps.version.outputs.current }}
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.AUTOMATED_RELEASE_APP_ID }}
+          private-key: ${{ secrets.AUTOMATED_RELEASE_APP_KEY }}
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-tags: true
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Check if version changed
+        id: version
+        run: |
+          # Get current version
+          CURRENT_VERSION=$(jq -r '.version' package.json)
+
+          # Get previous version
+          LATEST_TAG=$(git -c 'versionsort.suffix=-' tag -l 'v*' --sort=-version:refname | head -n 1)
+          PREVIOUS_VERSION=${LATEST_TAG#v}
+          PREVIOUS_VERSION=${PREVIOUS_VERSION:-0.0.0}
+
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "previous=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
+
+          if [ "$CURRENT_VERSION" == "$PREVIOUS_VERSION" ]; then
+            echo "No version change detected."
+            exit 1
+          fi
+
+          # Check if prerelease (contains hyphen)
+          if [[ "$CURRENT_VERSION" == *-* ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate version increment
+        env:
+          CURRENT: ${{ steps.version.outputs.current }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        run: |
+          # Function to compare semver versions
+          version_compare() {
+            # Strip prerelease suffix for base comparison
+            local v1_base="${1%%-*}"
+            local v2_base="${2%%-*}"
+            local v1_pre="${1#*-}"
+            local v2_pre="${2#*-}"
+
+            # If no prerelease, set to empty
+            [[ "$v1_base" == "$1" ]] && v1_pre=""
+            [[ "$v2_base" == "$2" ]] && v2_pre=""
+
+            # Compare major.minor.patch
+            IFS='.' read -ra V1 <<< "$v1_base"
+            IFS='.' read -ra V2 <<< "$v2_base"
+
+            for i in 0 1 2; do
+              local n1="${V1[$i]:-0}"
+              local n2="${V2[$i]:-0}"
+              if (( n1 > n2 )); then
+                echo "greater"
+                return
+              elif (( n1 < n2 )); then
+                echo "lesser"
+                return
+              fi
+            done
+
+            # Base versions equal, compare prerelease
+            # No prerelease > prerelease (1.0.0 > 1.0.0-beta)
+            if [[ -z "$v1_pre" && -n "$v2_pre" ]]; then
+              echo "greater"
+            elif [[ -n "$v1_pre" && -z "$v2_pre" ]]; then
+              echo "lesser"
+            elif [[ -z "$v1_pre" && -z "$v2_pre" ]]; then
+              echo "equal"
+            else
+              # Semver-compliant prerelease comparison (spec §11)
+              IFS='.' read -ra P1 <<< "$v1_pre"
+              IFS='.' read -ra P2 <<< "$v2_pre"
+              local len=${#P1[@]}
+              (( ${#P2[@]} > len )) && len=${#P2[@]}
+              for (( i=0; i<len; i++ )); do
+                local id1="${P1[$i]:-}"
+                local id2="${P2[$i]:-}"
+                # Shorter prerelease is lesser if all prior identifiers equal
+                if [[ -z "$id1" ]]; then echo "lesser"; return; fi
+                if [[ -z "$id2" ]]; then echo "greater"; return; fi
+                local is_num1=false is_num2=false
+                [[ "$id1" =~ ^[0-9]+$ ]] && is_num1=true
+                [[ "$id2" =~ ^[0-9]+$ ]] && is_num2=true
+                if $is_num1 && $is_num2; then
+                  if (( 10#$id1 > 10#$id2 )); then echo "greater"; return; fi
+                  if (( 10#$id1 < 10#$id2 )); then echo "lesser"; return; fi
+                elif $is_num1; then
+                  echo "lesser"; return  # numeric < non-numeric
+                elif $is_num2; then
+                  echo "greater"; return  # non-numeric > numeric
+                else
+                  if [[ "$id1" > "$id2" ]]; then echo "greater"; return; fi
+                  if [[ "$id1" < "$id2" ]]; then echo "lesser"; return; fi
+                fi
+              done
+              echo "equal"
+            fi
+          }
+
+          RESULT=$(version_compare "$CURRENT" "$PREVIOUS")
+
+          if [[ "$RESULT" == "lesser" ]]; then
+            echo "::error::Version downgrade detected: $PREVIOUS → $CURRENT"
+            echo "Version must be incremented, not decremented."
+            exit 1
+          fi
+
+          echo "✓ Version increment valid: $PREVIOUS → $CURRENT"
+
   test-unit:
     permissions:
       contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     name: Run Unit Tests
+    needs:
+      - check-version
     steps:
       - uses: actions/checkout@v6
         env:
@@ -47,6 +181,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     name: Build Application
+    needs:
+     - check-version
     steps:
       - uses: actions/checkout@v6
         env:
@@ -66,17 +202,13 @@ jobs:
           restore-keys: |
             yarn-modules-${{ runner.arch }}-${{ runner.os }}-
 
-      - name: Extract version from tag
-        id: get_version
-        run: echo "VITE_BUILD_HASH=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
-
       - name: Run Prod build
         run: make build
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: prod
           RunEnvironment: prod
-          VITE_BUILD_HASH: ${{ env.VITE_BUILD_HASH }}
+          VITE_BUILD_HASH: ${{ needs.check-version.outputs.version }}
 
       - name: Upload Build files
         uses: actions/upload-artifact@v7
@@ -209,6 +341,57 @@ jobs:
       - name: Call the health check script
         run: make prod_health_check
 
+  make-release:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    name: Make release tag
+    needs: [check-version, deploy-prod]
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.AUTOMATED_RELEASE_APP_ID }}
+          private-key: ${{ secrets.AUTOMATED_RELEASE_APP_KEY }}
+
+      - name: Create Release
+        uses: actions/github-script@v8
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+          IS_PRERELEASE: ${{ needs.check-version.outputs.is-prerelease }}
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const version = process.env.VERSION;
+            const isPrerelease = process.env.IS_PRERELEASE === 'true';
+            const tagName = `v${version}`;
+
+            try {
+              const existing = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tagName,
+              });
+              console.log(`Release already exists: ${existing.data.html_url}`);
+              return;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              name: tagName,
+              target_commitish: context.sha,
+              generate_release_notes: true,
+              prerelease: isPrerelease
+            });
+
+            console.log(`Created ${isPrerelease ? 'prerelease' : 'release'}: ${release.data.html_url}`);
+
   publish-node-client:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -217,9 +400,7 @@ jobs:
       id-token: write
       contents: read
     needs:
-      - build
-      - test-unit
-      - test-e2e
+      - make-release
     steps:
       - uses: actions/checkout@v6
       - name: Set up Node
@@ -240,7 +421,8 @@ jobs:
         run: cd dist/clients/typescript-fetch && npm publish --provenance --access public
 
   notify:
-    needs: [deploy-prod, publish-node-client, test-unit, build, test-e2e]
+    permissions: {}
+    needs: [check-version, deploy-prod, publish-node-client, test-unit, build, test-e2e, make-release]
     runs-on: ubuntu-latest
     if: failure()
     steps:
