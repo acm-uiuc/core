@@ -427,11 +427,56 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     async (request, reply) => {
       const { token } = request.query as { token: string };
+      const { orgId, emailDomain, invoiceId } = decodeInvoiceToken(token);
+      const pk = `${orgId}#${emailDomain}`;
 
-      const uiBase = fastify.environmentConfig.UserFacingUrl;
-      const redirectUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(token)}`;
+      const invoiceRes = await fastify.dynamoClient.send(
+        new QueryCommand({
+          TableName: genericConfig.StripePaymentsDynamoTableName,
+          KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+          ExpressionAttributeValues: {
+            ":pk": { S: pk },
+            ":sk": { S: `CHARGE#${invoiceId}` },
+          },
+          ConsistentRead: true,
+        }),
+      );
 
-      return reply.redirect(redirectUrl, 302);
+      if (!invoiceRes.Items?.length) {
+        throw new NotFoundError({ endpointName: request.url });
+      }
+
+      const invoice = unmarshall(invoiceRes.Items[0]) as {
+        invoiceAmtUsd?: number;
+        paidAmount?: number;
+        lastPaidAt?: string | null;
+        pendingPayment?: boolean;
+      };
+
+      const invoiceAmountUsd = invoice.invoiceAmtUsd ?? 0;
+      const paidAmountUsd = invoice.paidAmount ?? 0;
+      const remainingAmountUsd = Math.max(invoiceAmountUsd - paidAmountUsd, 0);
+      const lastPaidAt = invoice.lastPaidAt ?? null;
+
+      let status: "paid" | "partial" | "pending" | "unpaid" = "unpaid";
+
+      if (remainingAmountUsd <= 0 && invoiceAmountUsd > 0) {
+        status = "paid";
+      } else if (paidAmountUsd > 0) {
+        status = "partial";
+      } else if (invoice.pendingPayment) {
+        status = "pending";
+      }
+
+      return reply.status(200).send({
+        invoiceId,
+        acmOrg: orgId,
+        status,
+        invoiceAmountUsd,
+        paidAmountUsd,
+        remainingAmountUsd,
+        lastPaidAt,
+      });
     },
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
