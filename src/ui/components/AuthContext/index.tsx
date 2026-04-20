@@ -268,6 +268,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const activeAccount = accounts[0];
           instance.setActiveAccount(activeAccount);
 
+          // Detect stale AAD session (AADSTS160021) before touching any API.
+          // If the browser-side AAD session is gone but MSAL still has a cached
+          // account, every subsequent silent token request will throw
+          // InteractionRequiredAuthError in a cascade. Clear app state instead
+          // of redirecting to MSAL login (signOutOfApp does not call logoutRedirect).
+          const coreConfig =
+            getRunEnvironmentConfig().ServiceConfiguration.core;
+          if (coreConfig.loginScope) {
+            try {
+              await instance.acquireTokenSilent({
+                account: activeAccount,
+                scopes: [coreConfig.loginScope],
+              });
+            } catch (tokenError) {
+              if (tokenError instanceof InteractionRequiredAuthError) {
+                console.warn(
+                  "Stale AAD session detected on page load — clearing app state without MSAL redirect.",
+                  tokenError,
+                );
+                await signOutOfApp();
+                return;
+              }
+              // Non-interaction errors (network, etc.) are non-fatal — let the
+              // rest of the flow handle them as before.
+            }
+          }
+
           setUserData({
             email: activeAccount.username,
             name: transformCommaSeperatedName(activeAccount.name || ""),
@@ -288,7 +315,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (inProgress === InteractionStatus.None) {
       handleRedirect();
     }
-  }, [inProgress, accounts, instance, handleMsalResponse, fetchOrgRoles]);
+  }, [
+    inProgress,
+    accounts,
+    instance,
+    handleMsalResponse,
+    fetchOrgRoles,
+    signOutOfApp,
+  ]);
 
   const getApiToken = useCallback(
     async (service: ValidServices) => {
