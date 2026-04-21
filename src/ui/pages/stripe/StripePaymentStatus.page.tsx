@@ -239,15 +239,6 @@ export const StripePaymentStatus: React.FC = () => {
                 Status updates may take a short time to appear after payment
                 completion.
               </Text>
-
-              <Button
-                component="a"
-                href="/"
-                leftSection={<IconArrowLeft size={16} />}
-                variant="light"
-              >
-                Done
-              </Button>
             </Group>
           </Stack>
         )}
