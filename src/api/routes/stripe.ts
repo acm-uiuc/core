@@ -373,9 +373,9 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     //   allowAchPush: true,
     // });
 
-    const apiBase = fastify.environmentConfig.UserFacingUrl;
-    const successUrl = `${apiBase}/api/v1/stripe/status?token=${encodeURIComponent(token)}`;
-    const returnUrl = `${apiBase}/api/v1/stripe/status?token=${encodeURIComponent(token)}`;
+    const uiBase = fastify.environmentConfig.UserFacingUrl;
+    const successUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(token)}`;
+    const returnUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(token)}`;
 
     const checkoutUrl: string = await createCheckoutSessionWithCustomer({
       customerId,
