@@ -17,6 +17,7 @@ import {
   SupportedStripePaymentMethod,
   supportedStripePaymentMethods,
   recordInvoicePayment,
+  deactivatePaymentLink,
 } from "api/functions/stripe.js";
 import { getSecretValue } from "api/plugins/auth.js";
 import { genericConfig, notificationRecipients } from "common/config.js";
@@ -997,6 +998,13 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                   session.customer_email ??
                   "unknown",
                 decrementOwed,
+              });
+
+              await deactivatePaymentLink({
+                dynamoClient: fastify.dynamoClient,
+                pk,
+                invoiceId: meta.invoiceId,
+                linkId: event.data.object.payment_link!.toString(),
               });
             } catch (e: unknown) {
               if (
