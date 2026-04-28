@@ -217,15 +217,38 @@ export function NameOptionalUserCard({
 
   const [resolvedUser, setResolvedUser] = useState<UserData | undefined>();
   const { userData } = useAuth();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const isValidEmail = EMAIL_REGEX.test(email);
 
+  // Only request user data when the card is near the viewport (200px pre-fetch margin)
   useEffect(() => {
     if (resolutionDisabled || providedName || !isValidEmail) {
       return;
     }
 
-    requestUser(email);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          requestUser(email);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [email, providedName, isValidEmail, resolutionDisabled, requestUser]);
+
+  // Read from cache whenever it updates (independent of visibility)
+  useEffect(() => {
+    if (resolutionDisabled || providedName || !isValidEmail) {
+      return;
+    }
     const user = resolveUser(email);
     if (user) {
       setResolvedUser(user);
@@ -237,7 +260,6 @@ export function NameOptionalUserCard({
     resolutionDisabled,
     cacheVersion,
     resolveUser,
-    requestUser,
   ]);
 
   if (!isValidEmail) {
@@ -249,7 +271,7 @@ export function NameOptionalUserCard({
   const isCurrentUser = !!userData && userData.email === email;
 
   return (
-    <Group gap="sm" wrap="nowrap">
+    <Group ref={containerRef} gap="sm" wrap="nowrap">
       {isLoading ? (
         <Skeleton circle height={AVATAR_SIZES[size]} />
       ) : (
