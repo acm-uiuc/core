@@ -782,6 +782,51 @@ export const recordInvoicePayment = async ({
   );
 };
 
+export const deactivatePaymentLink = async ({
+  dynamoClient,
+  pk, // `${orgId}#${emailDomain}`
+  invoiceId,
+  linkId,
+}: {
+  dynamoClient: DynamoDBClient;
+  pk: string;
+  invoiceId: string;
+  linkId: string;
+}) => {
+  const deactivateItems: TransactWriteItemsCommand["input"]["TransactItems"] = [
+    {
+      ConditionCheck: {
+        TableName: genericConfig.StripePaymentsDynamoTableName,
+        Key: {
+          primaryKey: { S: pk },
+          sortKey: { S: `CHARGE#${invoiceId}` },
+        },
+        ConditionExpression:
+          "attribute_exists(paidAmount) AND paidAmount = invoiceAmtUsd",
+      },
+      Update: {
+        TableName: genericConfig.StripeLinksDynamoTableName,
+        Key: {
+          linkId: { S: linkId },
+        },
+        ConditionExpression: "#active = :true",
+        UpdateExpression: "SET #active = :false",
+        ExpressionAttributeNames: { "#active": "active" },
+        ExpressionAttributeValues: {
+          ":true": { BOOL: true },
+          ":false": { BOOL: false },
+        },
+      },
+    },
+  ];
+
+  await dynamoClient.send(
+    new TransactWriteItemsCommand({
+      TransactItems: deactivateItems,
+    }),
+  );
+};
+
 /**
  * Capture a pre-authorized payment intent
  */
