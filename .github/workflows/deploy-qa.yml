@@ -74,6 +74,7 @@ jobs:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
           RunEnvironment: dev
+          VITE_BUILD_HASH: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Upload Build files
         uses: actions/upload-artifact@v7

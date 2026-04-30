@@ -3,9 +3,24 @@ import react from "@vitejs/plugin-react";
 import "dotenv/config";
 import path from "path";
 
+const VERSION_PLUGIN = {
+  name: "emit-version-json",
+  apply: "build",
+  generateBundle() {
+    const version = process.env.VITE_BUILD_HASH;
+    if (!version) return;
+
+    this.emitFile({
+      type: "asset",
+      fileName: "version.json",
+      source: JSON.stringify({ version }),
+    });
+  },
+};
+
 export default defineConfig({
   define: { "process.env": { AWS_REGION: process.env.AWS_REGION } },
-  plugins: [react()],
+  plugins: [react(), VERSION_PLUGIN],
   resolve: {
     tsconfigPaths: true,
     preserveSymlinks: true,
