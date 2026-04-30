@@ -1,1 +1,15 @@
-{ "src/**/*.{ts,js,tsx,jsx}": ["yarn run lint --fix", "yarn run prettier:write"] }
+{
+  "**/*.{ts,js,tsx,jsx}": [
+    "eslint --fix",
+    "prettier --write"
+  ],
+  "tests/**/*.ts": [
+    "prettier --write"
+  ],
+  "terraform/**/*.tf": [
+    "terraform fmt"
+  ],
+  "*.{yaml,yml}": [
+    "prettier --write"
+  ]
+}
