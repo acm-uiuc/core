@@ -24,7 +24,6 @@ jobs:
         with:
           terraform_version: 1.12.2
 
-
       - name: Set up Node
         uses: actions/setup-node@v6.4.0
         with:
@@ -38,6 +37,7 @@ jobs:
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
             yarn-modules-${{ runner.arch }}-${{ runner.os }}-
+          save: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run unit testing
         run: make test_unit
@@ -66,6 +66,7 @@ jobs:
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
             yarn-modules-${{ runner.arch }}-${{ runner.os }}-
+          save: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run build
         run: make build
@@ -120,6 +121,7 @@ jobs:
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
             yarn-modules-${{ runner.arch }}-${{ runner.os }}-
+          save: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Download Build files
         uses: actions/download-artifact@v8
