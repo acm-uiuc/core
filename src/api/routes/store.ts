@@ -30,6 +30,7 @@ import {
   createProductRequestSchema,
   listProductsPublicResponseSchema,
   productWithVariantsPublicCountSchema,
+  productWithVariantsSchema,
   modifyProductSchema,
   listProductsAdminResponseSchema,
   ModifyProductRequest,
@@ -236,7 +237,7 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "Product details.",
               content: {
                 "application/json": {
-                  schema: productWithVariantsPublicCountSchema,
+                  schema: productWithVariantsSchema,
                 },
               },
             },
