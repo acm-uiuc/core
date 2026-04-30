@@ -4,6 +4,7 @@ import {
   useEffect,
   useState,
   useRef,
+  useCallback,
   ReactNode,
 } from "react";
 import { Avatar, Group, Text, Skeleton, Badge } from "@mantine/core";
@@ -11,7 +12,6 @@ import { useApi } from "@ui/util/api";
 import { BatchResolveUserInfoResponse } from "@common/types/user";
 import { useAuth } from "../AuthContext";
 
-// Types
 interface UserData {
   email: string;
   name?: string;
@@ -25,34 +25,34 @@ const AVATAR_SIZES = {
   xl: 84,
 } as const;
 
-// Basic email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface UserResolverContextType {
   resolveUser: (email: string) => UserData | undefined;
-  requestUser: (email: string) => void;
+  registerCard: (email: string, element: Element) => void;
+  unregisterCard: (element: Element) => void;
   isResolving: (email: string) => boolean;
   resolutionDisabled: boolean;
   cacheVersion: number;
 }
 
-// Context
 const UserResolverContext = createContext<UserResolverContextType | null>(null);
 
-// Provider Props
 interface UserResolverProviderProps {
   children: ReactNode;
   batchDelay?: number;
   resolutionDisabled?: boolean;
+  /** Number of additional cards to prefetch beyond the one entering the viewport */
+  prefetchAhead?: number;
 }
 
-// Sentinel value to indicate we've checked and there's no name
 const NO_NAME_FOUND = Symbol("NO_NAME_FOUND");
 
 export function UserResolverProvider({
   children,
   batchDelay = 50,
   resolutionDisabled = false,
+  prefetchAhead = 10,
 }: UserResolverProviderProps) {
   const api = useApi("core");
   const [userCache, setUserCache] = useState<
@@ -62,14 +62,25 @@ export function UserResolverProvider({
   const pendingRequests = useRef<Set<string>>(new Set());
   const batchTimeout = useRef<NodeJS.Timeout | null>(null);
 
+  // Refs so observer callback always sees latest values without recreating the observer
+  const userCacheRef = useRef(userCache);
+  userCacheRef.current = userCache;
+  const resolutionDisabledRef = useRef(resolutionDisabled);
+  resolutionDisabledRef.current = resolutionDisabled;
+  const prefetchAheadRef = useRef(prefetchAhead);
+  prefetchAheadRef.current = prefetchAhead;
+
+  // element -> email, and ordered email list matching visual registration order
+  const elementToEmail = useRef<Map<Element, string>>(new Map());
+  const orderedEmails = useRef<string[]>([]);
+  const intersectionObserver = useRef<IntersectionObserver | null>(null);
+  const requestUserRef = useRef<(email: string) => void>(() => {});
+
   const fetchUsers = async (emailsToFetch: string[]) => {
     const response = await api.post<BatchResolveUserInfoResponse>(
       "/api/v1/users/batchResolveInfo",
-      {
-        emails: emailsToFetch,
-      },
+      { emails: emailsToFetch },
     );
-
     const emailToName: Record<string, string | typeof NO_NAME_FOUND> = {};
     for (const email of emailsToFetch) {
       const userData = response.data[email];
@@ -82,7 +93,6 @@ export function UserResolverProvider({
         emailToName[email] = NO_NAME_FOUND;
       }
     }
-
     return emailToName;
   };
 
@@ -90,10 +100,8 @@ export function UserResolverProvider({
     if (pendingRequests.current.size === 0) {
       return;
     }
-
     const emailsToFetch = Array.from(pendingRequests.current);
     pendingRequests.current.clear();
-
     try {
       const results = await fetchUsers(emailsToFetch);
       setUserCache((prev) => {
@@ -114,21 +122,16 @@ export function UserResolverProvider({
   };
 
   const requestUser = (email: string) => {
-    // If resolution is disabled, mark as NO_NAME_FOUND immediately
-    if (resolutionDisabled) {
+    if (resolutionDisabledRef.current) {
       setUserCache((prev) => {
         setCacheVersion((v) => v + 1);
         return { ...prev, [email]: NO_NAME_FOUND };
       });
       return;
     }
-
-    // Skip if already cached (including NO_NAME_FOUND sentinel)
-    if (email in userCache) {
+    if (email in userCacheRef.current) {
       return;
     }
-
-    // Validate email format - if invalid, mark as NO_NAME_FOUND immediately
     if (!EMAIL_REGEX.test(email)) {
       setUserCache((prev) => {
         setCacheVersion((v) => v + 1);
@@ -136,36 +139,91 @@ export function UserResolverProvider({
       });
       return;
     }
-
     pendingRequests.current.add(email);
-
-    // Clear existing timeout and set new one
     if (batchTimeout.current) {
       clearTimeout(batchTimeout.current);
     }
-
-    batchTimeout.current = setTimeout(() => {
-      executeBatch();
-    }, batchDelay);
+    batchTimeout.current = setTimeout(executeBatch, batchDelay);
   };
+  requestUserRef.current = requestUser;
 
-  const isResolving = (email: string): boolean => {
-    return !(email in userCache);
-  };
-
-  const resolveUser = (email: string): UserData | undefined => {
-    const cached = userCache[email];
-    if (!cached || cached === NO_NAME_FOUND) {
-      return undefined;
+  // Lazily create the observer on first registerCard call so it exists before any card's useEffect runs
+  const getOrCreateObserver = useCallback(() => {
+    if (intersectionObserver.current) {
+      return intersectionObserver.current;
     }
-    return { email, name: cached };
-  };
+    intersectionObserver.current = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const email = elementToEmail.current.get(entry.target);
+            if (email) {
+              const idx = orderedEmails.current.indexOf(email);
+              const batch =
+                idx === -1
+                  ? [email]
+                  : orderedEmails.current.slice(
+                      idx,
+                      idx + prefetchAheadRef.current + 1,
+                    );
+              batch.forEach((e) => requestUserRef.current(e));
+              intersectionObserver.current?.unobserve(entry.target);
+            }
+          }
+        }
+      },
+      { rootMargin: "0px" },
+    );
+    return intersectionObserver.current;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      intersectionObserver.current?.disconnect();
+    };
+  }, []);
+
+  const registerCard = useCallback(
+    (email: string, element: Element) => {
+      if (email in userCacheRef.current) {
+        return;
+      }
+      elementToEmail.current.set(element, email);
+      if (!orderedEmails.current.includes(email)) {
+        orderedEmails.current.push(email);
+      }
+      getOrCreateObserver().observe(element);
+    },
+    [getOrCreateObserver],
+  );
+
+  const unregisterCard = useCallback((element: Element) => {
+    elementToEmail.current.delete(element);
+    intersectionObserver.current?.unobserve(element);
+  }, []);
+
+  const resolveUser = useCallback(
+    (email: string): UserData | undefined => {
+      const cached = userCache[email];
+      if (!cached || cached === NO_NAME_FOUND) {
+        return undefined;
+      }
+      return { email, name: cached };
+    },
+    [userCache],
+  );
+
+  const isResolving = useCallback(
+    (email: string): boolean => !(email in userCache),
+    [userCache],
+  );
 
   return (
     <UserResolverContext.Provider
       value={{
         resolveUser,
-        requestUser,
+        registerCard,
+        unregisterCard,
         isResolving,
         resolutionDisabled,
         cacheVersion,
@@ -176,7 +234,6 @@ export function UserResolverProvider({
   );
 }
 
-// Hook
 function useUserResolver() {
   const context = useContext(UserResolverContext);
   if (!context) {
@@ -185,7 +242,6 @@ function useUserResolver() {
   return context;
 }
 
-// Component Props
 interface NameOptionalUserCardProps {
   email: string;
   name?: string;
@@ -194,7 +250,6 @@ interface NameOptionalUserCardProps {
   resolutionDisabled?: boolean;
 }
 
-// Component
 export function NameOptionalUserCard({
   name: providedName,
   email,
@@ -204,7 +259,8 @@ export function NameOptionalUserCard({
 }: NameOptionalUserCardProps) {
   const {
     resolveUser,
-    requestUser,
+    registerCard,
+    unregisterCard,
     isResolving,
     resolutionDisabled: contextResolutionDisabled,
     cacheVersion,
@@ -221,28 +277,27 @@ export function NameOptionalUserCard({
 
   const isValidEmail = EMAIL_REGEX.test(email);
 
-  // Only request user data when the card is near the viewport (200px pre-fetch margin)
+  // Register with the provider's shared observer; it handles in-view + next N prefetch
   useEffect(() => {
-    if (resolutionDisabled || providedName || !isValidEmail) {
+    if (
+      resolutionDisabled ||
+      providedName ||
+      !isValidEmail ||
+      !containerRef.current
+    ) {
       return;
     }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          requestUser(email);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "200px" },
-    );
-
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [email, providedName, isValidEmail, resolutionDisabled, requestUser]);
+    const element = containerRef.current;
+    registerCard(email, element);
+    return () => unregisterCard(element);
+  }, [
+    email,
+    providedName,
+    isValidEmail,
+    resolutionDisabled,
+    registerCard,
+    unregisterCard,
+  ]);
 
   // Read from cache whenever it updates (independent of visibility)
   useEffect(() => {
