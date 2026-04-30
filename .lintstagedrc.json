@@ -3,7 +3,7 @@
     "eslint --fix",
     "prettier --write"
   ],
-  "tests/**/*.ts": [
+  "tests/**/*.test.ts": [
     "prettier --write"
   ],
   "terraform/**/*.tf": [
