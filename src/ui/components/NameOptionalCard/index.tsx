@@ -160,12 +160,12 @@ export function UserResolverProvider({
             if (email) {
               const idx = orderedEmails.current.indexOf(email);
               const batch =
-                idx !== -1
-                  ? orderedEmails.current.slice(
+                idx === -1
+                  ? [email]
+                  : orderedEmails.current.slice(
                       idx,
                       idx + prefetchAheadRef.current + 1,
-                    )
-                  : [email];
+                    );
               batch.forEach((e) => requestUserRef.current(e));
               intersectionObserver.current?.unobserve(entry.target);
             }
