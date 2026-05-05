@@ -25,7 +25,7 @@ import {
   BaseError,
   DatabaseFetchError,
   DatabaseInsertError,
-  InternalServerError,
+  // InternalServerError,
   NotFoundError,
   UnauthorizedError,
   ValidationError,
@@ -1323,7 +1323,8 @@ Please contact Officer Board with any questions.`,
                       module: Modules.STRIPE,
                       actor: eventId,
                       target: `Link ${paymentLinkId} | Invoice ${unmarshalledEntry.invoiceId}`,
-                      message: "Disabled Stripe payment link as payment was made in full.",
+                      message:
+                        "Disabled Stripe payment link as payment was made in full.",
                     },
                   });
 
@@ -1337,7 +1338,8 @@ Please contact Officer Board with any questions.`,
                             userId: { S: unmarshalledEntry.userId },
                             linkId: { S: paymentLinkId },
                           },
-                          UpdateExpression: "SET active = :new_val, expiresAt = :ttl",
+                          UpdateExpression:
+                            "SET active = :new_val, expiresAt = :ttl",
                           ConditionExpression: "active = :old_val",
                           ExpressionAttributeValues: {
                             ":new_val": { BOOL: false },
@@ -1365,7 +1367,9 @@ Please contact Officer Board with any questions.`,
                     });
                   }
 
-                  request.log.debug(`Deactivating Stripe link ${paymentLinkId}`);
+                  request.log.debug(
+                    `Deactivating Stripe link ${paymentLinkId}`,
+                  );
 
                   await deactivateStripeLink({
                     stripeApiKey: secretApiConfig.stripe_secret_key as string,
