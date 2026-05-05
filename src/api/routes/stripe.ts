@@ -347,7 +347,6 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
     const invoiceAmountUsd = invoice.invoiceAmtUsd ?? 0;
     const paidAmountUsd = invoice.paidAmount ?? 0;
-    const pendingAmountUsd = invoice.pendingAmount ?? 0;
 
     // Already fully paid — bounce to status page, don't make another session
     if (invoiceAmountUsd > 0 && paidAmountUsd >= invoiceAmountUsd) {
