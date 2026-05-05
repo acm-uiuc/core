@@ -1130,32 +1130,30 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               });
             }
             const stripeApiKey = fastify.secretConfig.stripe_secret_key;
-            const paymentMethodData = await getPaymentMethodForPaymentIntent({
-              paymentIntentId,
-              stripeApiKey,
-            });
-            const paymentMethodType =
-              paymentMethodData.type.toString() as SupportedStripePaymentMethod;
-            if (
-              !supportedStripePaymentMethods.includes(
-                paymentMethodData.type.toString() as SupportedStripePaymentMethod,
-              )
-            ) {
-              throw new InternalServerError({
-                internalLog: `Unknown payment method type ${paymentMethodData.type}!`,
+            let paymentMethodString: string | null = null;
+
+            try {
+              const paymentMethodData = await getPaymentMethodForPaymentIntent({
+                paymentIntentId,
+                stripeApiKey,
               });
+
+              const paymentMethodType =
+                paymentMethodData.type.toString() as SupportedStripePaymentMethod;
+
+              if (supportedStripePaymentMethods.includes(paymentMethodType)) {
+                paymentMethodString =
+                  getPaymentMethodDescriptionString({
+                    paymentMethod: paymentMethodData,
+                    paymentMethodType,
+                  }) ?? null;
+              }
+            } catch (e) {
+              request.log.warn(
+                { err: e, paymentIntentId },
+                "Could not fetch payment method for Stripe webhook; continuing.",
+              );
             }
-            const paymentMethodDescriptionData =
-              paymentMethodData[paymentMethodType];
-            if (!paymentMethodDescriptionData) {
-              throw new InternalServerError({
-                internalLog: `No payment method data for ${paymentMethodData.type}!`,
-              });
-            }
-            const paymentMethodString = getPaymentMethodDescriptionString({
-              paymentMethod: paymentMethodData,
-              paymentMethodType,
-            });
             const { email, name } = event.data.object.customer_details || {
               email: null,
               name: null,
@@ -1318,57 +1316,69 @@ Please contact Officer Board with any questions.`,
               // If full payment is done, disable the link
               if (paidInFull) {
                 request.log.debug("Paid in full, disabling link.");
-                const logStatement = buildAuditLogTransactPut({
-                  entry: {
-                    module: Modules.STRIPE,
-                    actor: eventId,
-                    target: `Link ${paymentLinkId} | Invoice ${unmarshalledEntry.invoiceId}`,
-                    message:
-                      "Disabled Stripe payment link as payment was made in full.",
-                  },
-                });
-                const dynamoCommand = new TransactWriteItemsCommand({
-                  TransactItems: [
-                    ...(logStatement ? [logStatement] : []),
-                    {
-                      Update: {
-                        TableName: genericConfig.StripeLinksDynamoTableName,
-                        Key: {
-                          userId: { S: unmarshalledEntry.userId },
-                          linkId: { S: paymentLinkId },
-                        },
-                        UpdateExpression:
-                          "SET active = :new_val, expiresAt = :ttl",
-                        ConditionExpression: "active = :old_val",
-                        ExpressionAttributeValues: {
-                          ":new_val": { BOOL: false },
-                          ":old_val": { BOOL: true },
-                          ":ttl": {
-                            N: (
-                              Math.floor(Date.now() / 1000) +
-                              86400 * STRIPE_LINK_RETENTION_DAYS
-                            ).toString(),
+
+                try {
+                  const logStatement = buildAuditLogTransactPut({
+                    entry: {
+                      module: Modules.STRIPE,
+                      actor: eventId,
+                      target: `Link ${paymentLinkId} | Invoice ${unmarshalledEntry.invoiceId}`,
+                      message: "Disabled Stripe payment link as payment was made in full.",
+                    },
+                  });
+
+                  const dynamoCommand = new TransactWriteItemsCommand({
+                    TransactItems: [
+                      ...(logStatement ? [logStatement] : []),
+                      {
+                        Update: {
+                          TableName: genericConfig.StripeLinksDynamoTableName,
+                          Key: {
+                            userId: { S: unmarshalledEntry.userId },
+                            linkId: { S: paymentLinkId },
+                          },
+                          UpdateExpression: "SET active = :new_val, expiresAt = :ttl",
+                          ConditionExpression: "active = :old_val",
+                          ExpressionAttributeValues: {
+                            ":new_val": { BOOL: false },
+                            ":old_val": { BOOL: true },
+                            ":ttl": {
+                              N: (
+                                Math.floor(Date.now() / 1000) +
+                                86400 * STRIPE_LINK_RETENTION_DAYS
+                              ).toString(),
+                            },
                           },
                         },
                       },
-                    },
-                  ],
-                });
-                if (unmarshalledEntry.productId) {
-                  request.log.debug(
-                    `Deactivating Stripe product ${unmarshalledEntry.productId}`,
-                  );
-                  await deactivateStripeProduct({
-                    stripeApiKey: secretApiConfig.stripe_secret_key as string,
-                    productId: unmarshalledEntry.productId,
+                    ],
                   });
+
+                  if (unmarshalledEntry.productId) {
+                    request.log.debug(
+                      `Deactivating Stripe product ${unmarshalledEntry.productId}`,
+                    );
+
+                    await deactivateStripeProduct({
+                      stripeApiKey: secretApiConfig.stripe_secret_key as string,
+                      productId: unmarshalledEntry.productId,
+                    });
+                  }
+
+                  request.log.debug(`Deactivating Stripe link ${paymentLinkId}`);
+
+                  await deactivateStripeLink({
+                    stripeApiKey: secretApiConfig.stripe_secret_key as string,
+                    linkId: paymentLinkId,
+                  });
+
+                  await fastify.dynamoClient.send(dynamoCommand);
+                } catch (e) {
+                  request.log.warn(
+                    { err: e, paymentLinkId },
+                    "Could not deactivate paid Stripe payment link; webhook will still ack.",
+                  );
                 }
-                request.log.debug(`Deactivating Stripe link ${paymentLinkId}`);
-                await deactivateStripeLink({
-                  stripeApiKey: secretApiConfig.stripe_secret_key as string,
-                  linkId: paymentLinkId,
-                });
-                await fastify.dynamoClient.send(dynamoCommand);
               }
             }
 
