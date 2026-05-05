@@ -764,7 +764,7 @@ export const recordInvoicePayment = async ({
             sortKey: { S: `CHARGE#${invoiceId}` },
           },
           UpdateExpression:
-            "SET paidAmount = if_not_exists(paidAmount, :zero) + :dec, lastPaidAt = :now",
+            "SET paidAmount = if_not_exists(paidAmount, :zero) + :dec, lastPaidAt = :now REMOVE pendingPayment, pendingAmount, pendingSince, pendingSessionId",
           ExpressionAttributeValues: {
             ":dec": { N: amountUsd.toString() },
             ":zero": { N: "0" },

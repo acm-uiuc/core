@@ -3,6 +3,7 @@ import {
   ScanCommand,
   TransactWriteItemsCommand,
   PutItemCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
@@ -285,97 +286,100 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       if (!query.token) {
         throw new ValidationError({ message: "Missing invoice token." });
       }
-
       const uiBase = fastify.environmentConfig.UserFacingUrl;
-      const redirectUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(query.token)}`;
-      return reply.redirect(redirectUrl, 302);
+      return reply.redirect(
+        `${uiBase}/stripe/status?token=${encodeURIComponent(query.token)}`,
+        302,
+      );
     }
 
     if (token === "cancel") {
       if (!query.token) {
         throw new ValidationError({ message: "Missing invoice token." });
       }
-
-      return reply.status(200).send({
-        cancelled: true,
-        token: query.token,
-      });
+      return reply.status(200).send({ cancelled: true, token: query.token });
     }
 
     const { orgId, emailDomain, invoiceId } = decodeInvoiceToken(token);
-
     const pk = `${orgId}#${emailDomain}`;
+    const uiBase = fastify.environmentConfig.UserFacingUrl;
+    const statusUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(token)}`;
 
-    // Fetch invoice
-    const invoiceRes = await fastify.dynamoClient.send(
-      new QueryCommand({
-        TableName: genericConfig.StripePaymentsDynamoTableName,
-        KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
-        ExpressionAttributeValues: {
-          ":pk": { S: pk },
-          ":sk": { S: `CHARGE#${invoiceId}` },
-        },
-        ConsistentRead: true,
-      }),
-    );
+    // Fetch invoice (with payment state) and customer in parallel
+    const [invoiceRes, customerRes] = await Promise.all([
+      fastify.dynamoClient.send(
+        new QueryCommand({
+          TableName: genericConfig.StripePaymentsDynamoTableName,
+          KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+          ExpressionAttributeValues: {
+            ":pk": { S: pk },
+            ":sk": { S: `CHARGE#${invoiceId}` },
+          },
+          ConsistentRead: true,
+        }),
+      ),
+      fastify.dynamoClient.send(
+        new QueryCommand({
+          TableName: genericConfig.StripePaymentsDynamoTableName,
+          KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+          ExpressionAttributeValues: {
+            ":pk": { S: pk },
+            ":sk": { S: "CUSTOMER" },
+          },
+          ConsistentRead: true,
+        }),
+      ),
+    ]);
 
     if (!invoiceRes.Items?.length) {
       throw new NotFoundError({ endpointName: request.url });
     }
-
-    // Fetch customer
-    const customerRes = await fastify.dynamoClient.send(
-      new QueryCommand({
-        TableName: genericConfig.StripePaymentsDynamoTableName,
-        KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
-        ExpressionAttributeValues: {
-          ":pk": { S: pk },
-          ":sk": { S: "CUSTOMER" },
-        },
-        ConsistentRead: true,
-      }),
-    );
-
     if (!customerRes.Items?.length) {
       throw new NotFoundError({ endpointName: request.url });
     }
 
-    const customerId = unmarshall(customerRes.Items[0]).stripeCustomerId;
-    const amountUsd = unmarshall(invoiceRes.Items[0]).invoiceAmtUsd;
+    const invoice = unmarshall(invoiceRes.Items[0]) as {
+      invoiceAmtUsd?: number;
+      paidAmount?: number;
+      pendingPayment?: boolean;
+      pendingAmount?: number;
+    };
 
+    const invoiceAmountUsd = invoice.invoiceAmtUsd ?? 0;
+    const paidAmountUsd = invoice.paidAmount ?? 0;
+    const pendingAmountUsd = invoice.pendingAmount ?? 0;
+
+    // Already fully paid — bounce to status page, don't make another session
+    if (invoiceAmountUsd > 0 && paidAmountUsd >= invoiceAmountUsd) {
+      return reply.redirect(statusUrl, 302);
+    }
+
+    // ACH/delayed payment in flight — block duplicate attempts.
+    if (invoice.pendingPayment === true) {
+      return reply.redirect(statusUrl, 302);
+    }
+
+    // Remaining balance excludes amounts already paid
+    const remainingAmountUsd = Math.max(invoiceAmountUsd - paidAmountUsd, 0);
+
+    if (remainingAmountUsd <= 0) {
+      // Defensive — should be caught by the paid check above
+      return reply.redirect(statusUrl, 302);
+    }
+
+    const customerId = unmarshall(customerRes.Items[0]).stripeCustomerId;
     const stripe = new Stripe(fastify.secretConfig.stripe_secret_key as string);
 
+    const isPartial = paidAmountUsd > 0;
     const price = await stripe.prices.create({
-      unit_amount: Math.round(amountUsd * 100),
+      unit_amount: Math.round(remainingAmountUsd * 100),
       currency: "usd",
       product_data: {
-        name: `Invoice ${invoiceId}`,
+        name: isPartial
+          ? `Invoice ${invoiceId} (remaining balance)`
+          : `Invoice ${invoiceId}`,
       },
     });
-
-    // const baseUrl = getInvoiceBaseUrl(request);
-
-    // const checkoutUrl: string = await createCheckoutSessionWithCustomer({
-    //   customerId,
-    //   stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
-    //   items: [{ price: price.id, quantity: 1 }],
-    //   initiator: "invoice-pay",
-    //   allowPromotionCodes: true,
-    //   successUrl: `${baseUrl}/stripe/status?token=${encodeURIComponent(token)}`,
-    //   returnUrl: `${baseUrl}/stripe/cancel?token=${encodeURIComponent(token)}`,
-    //   metadata: {
-    //     invoice_id: invoiceId,
-    //     acm_org: orgId,
-    //     pk,
-    //   },
-    //   statementDescriptorSuffix: maxLength("INVOICE", 7),
-    //   delayedSettlementAllowed: true,
-    //   allowAchPush: true,
-    // });
-
-    const uiBase = fastify.environmentConfig.UserFacingUrl;
-    const successUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(token)}`;
-    const returnUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(token)}`;
 
     const checkoutUrl: string = await createCheckoutSessionWithCustomer({
       customerId,
@@ -383,8 +387,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       items: [{ price: price.id, quantity: 1 }],
       initiator: "invoice-pay",
       allowPromotionCodes: true,
-      successUrl,
-      returnUrl,
+      successUrl: statusUrl,
+      returnUrl: statusUrl,
       metadata: {
         invoice_id: invoiceId,
         acm_org: orgId,
@@ -397,88 +401,6 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
     return reply.redirect(checkoutUrl, 302);
   });
-  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
-    "/status",
-    {
-      schema: withTags(["Stripe"], {
-        summary: "Get public invoice payment status by token.",
-        querystring: z.object({
-          token: z.string().min(1),
-        }),
-        response: {
-          200: {
-            description: "Invoice status retrieved successfully.",
-            content: {
-              "application/json": {
-                schema: z.object({
-                  invoiceId: z.string(),
-                  acmOrg: z.string(),
-                  status: z.enum(["paid", "partial", "pending", "unpaid"]),
-                  invoiceAmountUsd: z.number(),
-                  paidAmountUsd: z.number(),
-                  remainingAmountUsd: z.number(),
-                  lastPaidAt: z.string().nullable(),
-                }),
-              },
-            },
-          },
-        },
-      }),
-    },
-    async (request, reply) => {
-      const { token } = request.query as { token: string };
-      const { orgId, emailDomain, invoiceId } = decodeInvoiceToken(token);
-      const pk = `${orgId}#${emailDomain}`;
-
-      const invoiceRes = await fastify.dynamoClient.send(
-        new QueryCommand({
-          TableName: genericConfig.StripePaymentsDynamoTableName,
-          KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
-          ExpressionAttributeValues: {
-            ":pk": { S: pk },
-            ":sk": { S: `CHARGE#${invoiceId}` },
-          },
-          ConsistentRead: true,
-        }),
-      );
-
-      if (!invoiceRes.Items?.length) {
-        throw new NotFoundError({ endpointName: request.url });
-      }
-
-      const invoice = unmarshall(invoiceRes.Items[0]) as {
-        invoiceAmtUsd?: number;
-        paidAmount?: number;
-        lastPaidAt?: string | null;
-        pendingPayment?: boolean;
-      };
-
-      const invoiceAmountUsd = invoice.invoiceAmtUsd ?? 0;
-      const paidAmountUsd = invoice.paidAmount ?? 0;
-      const remainingAmountUsd = Math.max(invoiceAmountUsd - paidAmountUsd, 0);
-      const lastPaidAt = invoice.lastPaidAt ?? null;
-
-      let status: "paid" | "partial" | "pending" | "unpaid" = "unpaid";
-
-      if (remainingAmountUsd <= 0 && invoiceAmountUsd > 0) {
-        status = "paid";
-      } else if (paidAmountUsd > 0) {
-        status = "partial";
-      } else if (invoice.pendingPayment) {
-        status = "pending";
-      }
-
-      return reply.status(200).send({
-        invoiceId,
-        acmOrg: orgId,
-        status,
-        invoiceAmountUsd,
-        paidAmountUsd,
-        remainingAmountUsd,
-        lastPaidAt,
-      });
-    },
-  );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/paymentLinks/:linkId",
     {
@@ -678,6 +600,91 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       switch (event.type) {
         case "checkout.session.async_payment_failed":
+          const failedSession = event.data.object as Stripe.Checkout.Session;
+          const failedMeta = sessionToInvoiceMeta(failedSession);
+
+          // Token-flow: clear pending flag so the user can retry, notify creator
+          if (failedMeta) {
+            try {
+              await fastify.dynamoClient.send(
+                new UpdateItemCommand({
+                  TableName: genericConfig.StripePaymentsDynamoTableName,
+                  Key: {
+                    primaryKey: { S: failedMeta.pk },
+                    sortKey: { S: `CHARGE#${failedMeta.invoiceId}` },
+                  },
+                  UpdateExpression:
+                    "REMOVE pendingPayment, pendingAmount, pendingSince, pendingSessionId",
+                }),
+              );
+            } catch (e) {
+              request.log.error(
+                { err: e, invoiceId: failedMeta.invoiceId },
+                "Failed to clear pending flag on failed payment.",
+              );
+            }
+
+            const failedInvoiceRes = await fastify.dynamoClient.send(
+              new QueryCommand({
+                TableName: genericConfig.StripePaymentsDynamoTableName,
+                KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+                ExpressionAttributeValues: {
+                  ":pk": { S: failedMeta.pk },
+                  ":sk": { S: `CHARGE#${failedMeta.invoiceId}` },
+                },
+                ConsistentRead: true,
+              }),
+            );
+
+            const failedCreatedBy = failedInvoiceRes.Items?.[0]
+              ? (unmarshall(failedInvoiceRes.Items[0]).createdBy as
+                  | string
+                  | undefined)
+              : undefined;
+
+            let queueId;
+            if (failedCreatedBy?.includes("@")) {
+              const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
+                {
+                  function: AvailableSQSFunctions.EmailNotifications,
+                  metadata: { initiator: event.id, reqId: request.id },
+                  payload: {
+                    to: getAllUserEmails(failedCreatedBy),
+                    subject: `Payment failed for Invoice ${failedMeta.invoiceId}`,
+                    content: `
+The pending payment for Invoice ${failedMeta.invoiceId} has failed to settle.
+
+The payee can retry payment using the original invoice link, or contact Officer Board for help.
+                    `,
+                    callToActionButton: {
+                      name: "View Your Stripe Links",
+                      url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
+                    },
+                  },
+                };
+
+              if (!fastify.sqsClient) {
+                fastify.sqsClient = new SQSClient({
+                  region: genericConfig.AwsRegion,
+                });
+              }
+              const result = await fastify.sqsClient.send(
+                new SendMessageCommand({
+                  QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+                  MessageBody: JSON.stringify(sqsPayload),
+                  MessageGroupId: "invoiceNotification",
+                }),
+              );
+              queueId = result.MessageId || "";
+            }
+
+            return reply.status(200).send({
+              handled: true,
+              requestId: request.id,
+              queueId: queueId || "",
+            });
+          }
+
           if (event.data.object.payment_link) {
             const eventId = event.id;
             const paymentAmount = event.data.object.amount_total;
@@ -727,7 +734,10 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 requestId: request.id,
               });
             }
-            const paidInFull = paymentAmount === unmarshalledEntry.amount;
+            const paidInFull =
+              unmarshalledEntry.amount !== undefined &&
+              paymentAmount >= unmarshalledEntry.amount;
+
             const withCurrency = new Intl.NumberFormat("en-US", {
               style: "currency",
               currency: paymentCurrency.toUpperCase(),
@@ -920,6 +930,31 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               request.log.info(
                 `Not recording payment for invoice ${meta.invoiceId} because payment not settled yet (status=${session.payment_status}, event=${event.type}).`,
               );
+
+              try {
+                await fastify.dynamoClient.send(
+                  new UpdateItemCommand({
+                    TableName: genericConfig.StripePaymentsDynamoTableName,
+                    Key: {
+                      primaryKey: { S: pk },
+                      sortKey: { S: `CHARGE#${meta.invoiceId}` },
+                    },
+                    UpdateExpression:
+                      "SET pendingPayment = :true, pendingAmount = :amt, pendingSince = :now, pendingSessionId = :sid",
+                    ExpressionAttributeValues: {
+                      ":true": { BOOL: true },
+                      ":amt": { N: (effectiveAmountCents / 100).toString() },
+                      ":now": { S: new Date().toISOString() },
+                      ":sid": { S: checkoutSessionId },
+                    },
+                  }),
+                );
+              } catch (e) {
+                request.log.error(
+                  { err: e, invoiceId: meta.invoiceId },
+                  "Failed to mark invoice as pending; webhook will still ack.",
+                );
+              }
 
               let queueId;
 
@@ -1167,7 +1202,9 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                 requestId: request.id,
               });
             }
-            const paidInFull = paymentAmount === unmarshalledEntry.amount;
+            const paidInFull =
+              unmarshalledEntry.amount !== undefined &&
+              paymentAmount >= unmarshalledEntry.amount;
 
             const withCurrency = new Intl.NumberFormat("en-US", {
               style: "currency",
