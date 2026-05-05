@@ -234,6 +234,42 @@ export const StripePaymentStatus: React.FC = () => {
               </Card>
             </SimpleGrid>
 
+            {data.status !== "paid" &&
+              data.status !== "pending" &&
+              data.remainingAmountUsd > 0 && (
+                <Button
+                  size="md"
+                  onClick={async () => {
+                    if (!token) {
+                      return;
+                    }
+                    try {
+                      const res = await fetch(
+                        `/api/v1/stripe/pay/${encodeURIComponent(token)}/checkout`,
+                        { method: "POST" },
+                      );
+                      if (!res.ok) {
+                        throw new Error("Could not start checkout.");
+                      }
+                      const json = (await res.json()) as {
+                        status: "checkout" | "paid" | "pending";
+                        checkoutUrl?: string;
+                        redirectUrl?: string;
+                      };
+                      if (json.status === "checkout" && json.checkoutUrl) {
+                        window.location.href = json.checkoutUrl;
+                      } else if (json.redirectUrl) {
+                        window.location.href = json.redirectUrl;
+                      }
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }}
+                >
+                  Pay {formatMoney(data.remainingAmountUsd)}
+                </Button>
+              )}
+
             <Group justify="space-between" mt="sm">
               <Text size="sm" c="dimmed">
                 Status updates may take a short time to appear after payment

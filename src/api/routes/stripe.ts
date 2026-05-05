@@ -400,6 +400,103 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
 
     return reply.redirect(checkoutUrl, 302);
   });
+  fastify.post("/pay/:token/checkout", async (request, reply) => {
+    const { token } = request.params as { token: string };
+
+    const { orgId, emailDomain, invoiceId } = decodeInvoiceToken(token);
+    const pk = `${orgId}#${emailDomain}`;
+    const uiBase = fastify.environmentConfig.UserFacingUrl;
+    const statusUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(token)}`;
+
+    const [invoiceRes, customerRes] = await Promise.all([
+      fastify.dynamoClient.send(
+        new QueryCommand({
+          TableName: genericConfig.StripePaymentsDynamoTableName,
+          KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+          ExpressionAttributeValues: {
+            ":pk": { S: pk },
+            ":sk": { S: `CHARGE#${invoiceId}` },
+          },
+          ConsistentRead: true,
+        }),
+      ),
+      fastify.dynamoClient.send(
+        new QueryCommand({
+          TableName: genericConfig.StripePaymentsDynamoTableName,
+          KeyConditionExpression: "primaryKey = :pk AND sortKey = :sk",
+          ExpressionAttributeValues: {
+            ":pk": { S: pk },
+            ":sk": { S: "CUSTOMER" },
+          },
+          ConsistentRead: true,
+        }),
+      ),
+    ]);
+
+    if (!invoiceRes.Items?.length || !customerRes.Items?.length) {
+      throw new NotFoundError({ endpointName: request.url });
+    }
+
+    const invoice = unmarshall(invoiceRes.Items[0]) as {
+      invoiceAmtUsd?: number;
+      paidAmount?: number;
+      pendingPayment?: boolean;
+    };
+
+    const invoiceAmountUsd = invoice.invoiceAmtUsd ?? 0;
+    const paidAmountUsd = invoice.paidAmount ?? 0;
+
+    // Already fully paid -> nothing to checkout, send them to status
+    if (invoiceAmountUsd > 0 && paidAmountUsd >= invoiceAmountUsd) {
+      return reply.status(200).send({ status: "paid", redirectUrl: statusUrl });
+    }
+
+    // Pending ACH payment in flight -> block duplicate
+    if (invoice.pendingPayment === true) {
+      return reply
+        .status(200)
+        .send({ status: "pending", redirectUrl: statusUrl });
+    }
+
+    const remainingAmountUsd = Math.max(invoiceAmountUsd - paidAmountUsd, 0);
+    if (remainingAmountUsd <= 0) {
+      return reply.status(200).send({ status: "paid", redirectUrl: statusUrl });
+    }
+
+    const customerId = unmarshall(customerRes.Items[0]).stripeCustomerId;
+    const stripe = new Stripe(fastify.secretConfig.stripe_secret_key as string);
+
+    const isPartial = paidAmountUsd > 0;
+    const price = await stripe.prices.create({
+      unit_amount: Math.round(remainingAmountUsd * 100),
+      currency: "usd",
+      product_data: {
+        name: isPartial
+          ? `Invoice ${invoiceId} (remaining balance)`
+          : `Invoice ${invoiceId}`,
+      },
+    });
+
+    const checkoutUrl: string = await createCheckoutSessionWithCustomer({
+      customerId,
+      stripeApiKey: fastify.secretConfig.stripe_secret_key as string,
+      items: [{ price: price.id, quantity: 1 }],
+      initiator: "invoice-pay",
+      allowPromotionCodes: true,
+      successUrl: statusUrl,
+      returnUrl: statusUrl,
+      metadata: {
+        invoice_id: invoiceId,
+        acm_org: orgId,
+        pk,
+      },
+      statementDescriptorSuffix: maxLength("INVOICE", 7),
+      delayedSettlementAllowed: true,
+      allowAchPush: true,
+    });
+
+    return reply.status(200).send({ status: "checkout", checkoutUrl });
+  });
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
     "/paymentLinks/:linkId",
     {
