@@ -497,6 +497,89 @@ describe("Test Stripe link creation", async () => {
       id: 104,
     });
   });
+  test("POST /api/v1/stripe/pay/:token/checkout returns checkout URL for partial balance", async () => {
+    const realToken = encodeInvoiceToken({
+      orgId: "C01",
+      emailDomain: "illinois.edu",
+      invoiceId: "PARTIAL-1",
+    });
+
+    // First Query = CHARGE row (invoice $100, $40 already paid -> $60 remaining)
+    // Second Query = CUSTOMER row
+    ddbMock
+      .on(QueryCommand)
+      .resolvesOnce({
+        Items: [
+          marshall({
+            primaryKey: "C01#illinois.edu",
+            sortKey: "CHARGE#PARTIAL-1",
+            invoiceAmtUsd: 100,
+            paidAmount: 40,
+          }),
+        ],
+      })
+      .resolvesOnce({
+        Items: [
+          marshall({
+            primaryKey: "C01#illinois.edu",
+            sortKey: "CUSTOMER",
+            stripeCustomerId: "cus_test_partial",
+          }),
+        ],
+      });
+
+    await app.ready();
+
+    const response = await supertest(app.server).post(
+      `/api/v1/stripe/pay/${encodeURIComponent(realToken)}/checkout`,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toEqual({
+      status: "checkout",
+      checkoutUrl: "https://checkout.stripe.com/test",
+    });
+  });
+
+  test("POST /api/v1/stripe/pay/:token/checkout returns paid status when fully settled", async () => {
+    const realToken = encodeInvoiceToken({
+      orgId: "C01",
+      emailDomain: "illinois.edu",
+      invoiceId: "PAID-1",
+    });
+
+    ddbMock
+      .on(QueryCommand)
+      .resolvesOnce({
+        Items: [
+          marshall({
+            primaryKey: "C01#illinois.edu",
+            sortKey: "CHARGE#PAID-1",
+            invoiceAmtUsd: 50,
+            paidAmount: 50,
+          }),
+        ],
+      })
+      .resolvesOnce({
+        Items: [
+          marshall({
+            primaryKey: "C01#illinois.edu",
+            sortKey: "CUSTOMER",
+            stripeCustomerId: "cus_test_paid",
+          }),
+        ],
+      });
+
+    await app.ready();
+
+    const response = await supertest(app.server).post(
+      `/api/v1/stripe/pay/${encodeURIComponent(realToken)}/checkout`,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.status).toBe("paid");
+    expect(response.body.redirectUrl).toContain("/stripe/status");
+  });
   afterAll(async () => {
     await app.close();
   });
