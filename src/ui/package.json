@@ -27,7 +27,7 @@
     "@mantine/notifications": "^9.0.2",
     "@tabler/icons-react": "^3.41.1",
     "@ungap/with-resolvers": "^0.1.0",
-    "axios": "^1.15.0",
+    "axios": "^1.15.2",
     "dayjs": "^1.11.20",
     "dotenv": "^17.4.2",
     "dotenv-cli": "^11.0.0",
