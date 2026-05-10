@@ -4,11 +4,13 @@ import { writeFile, mkdir, rm } from "fs/promises";
 import init from "./server.js"; // Assuming this is your Fastify app initializer
 import { docsHtml, securitySchemes } from "./docs.js";
 import yaml from "yaml";
+import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 
 /**
  * Generates and saves Swagger/OpenAPI specification files.
+ * Also writes LLM-friendly markdown to index.md
  */
-async function createSwaggerFiles() {
+async function createDocsFiles() {
   try {
     const app = await init(false, false, true);
     await app.ready();
@@ -31,9 +33,11 @@ async function createSwaggerFiles() {
     const doc = new yaml.Document();
     doc.contents = realSwaggerConfig;
     const yamlSpec = doc.toString();
+    const markdown = await createMarkdownFromOpenApi(jsonSpec);
     await writeFile(path.join(outputDir, "openapi.json"), jsonSpec);
     await writeFile(path.join(outputDir, "openapi.yaml"), yamlSpec);
     await writeFile(path.join(outputDir, "index.html"), docsHtml);
+    await writeFile(path.join(outputDir, "index.md"), markdown);
 
     console.log(`✅ Swagger files successfully generated in ${outputDir}`);
     await app.close();
@@ -43,4 +47,4 @@ async function createSwaggerFiles() {
   }
 }
 
-createSwaggerFiles();
+createDocsFiles();
