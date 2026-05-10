@@ -145,7 +145,7 @@ jobs:
         with:
           name: build-qa
 
-      - uses: aws-actions/configure-aws-credentials@v6
+      - uses: aws-actions/configure-aws-credentials@v6.1.0
         with:
           role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
           role-session-name: Core_QA_Deployment_${{ github.run_id }}
@@ -196,7 +196,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: build-prod
-      - uses: aws-actions/configure-aws-credentials@v6
+      - uses: aws-actions/configure-aws-credentials@v6.1.0
         with:
           role-to-assume: arn:aws:iam::298118738376:role/GitHubActionsRole
           role-session-name: Core_Prod_Deployment_${{ github.run_id }}
