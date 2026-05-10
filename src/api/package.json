@@ -67,6 +67,7 @@
     "@eslint/js": "^9.33.0",
     "@types/aws-lambda": "^8.10.161",
     "@types/ioredis-mock": "^8.2.7",
+    "@scalar/openapi-to-markdown": "^0.5.14",
     "@types/qrcode": "^1.5.5",
     "@types/sanitize-html": "^2.16.0",
     "ioredis-mock": "^8.9.0",

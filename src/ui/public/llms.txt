@@ -1,0 +1,15 @@
+# ACM @ UIUC Core API
+
+The ACM @ UIUC Core API provides services for managing chapter operations.
+
+Others may call the API with an API key; please contact us to obtain one.
+
+This API also integrates into the ACM website and other suborganization to provide calendar services.
+
+Calendar clients call the iCal endpoints (available through ical.acm.illinois.edu) for calendar services.
+
+## Usage
+
+LLM-friendly API documentation (written in Markdown) can be found at /docs/index.md.
+
+OpenAPI specifications for this API can be found at /docs/openapi.json and /docs/openapi.yaml

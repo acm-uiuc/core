@@ -9,7 +9,7 @@ test("Get OpenAPI JSON", async () => {
 
   const responseDataJson = await response.json();
   expect(responseDataJson).toHaveProperty("openapi");
-  expect(responseDataJson["openapi"]).toEqual("3.1.0");
+  expect(responseDataJson.openapi).toEqual("3.1.0");
 });
 
 test("Get OpenAPI UI", async () => {
@@ -17,4 +17,14 @@ test("Get OpenAPI UI", async () => {
   expect(response.status).toBe(200);
   const contentType = response.headers.get("content-type");
   expect(contentType).toContain("text/html");
+});
+
+test("Get Markdown version of docs", async () => {
+  const response = await fetch(`${baseEndpoint}/docs/index.md`);
+  expect(response.status).toBe(200);
+});
+
+test("Get llms.txt", async () => {
+  const response = await fetch(`${baseEndpoint}/llms.txt`);
+  expect(response.status).toBe(200);
 });
