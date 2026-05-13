@@ -1,2 +1,7 @@
 User-agent: *
 Disallow: /
+Allow: /llms.txt
+Allow: /docs/
+Allow: /docs
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
