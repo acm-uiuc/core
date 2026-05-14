@@ -128,7 +128,7 @@ jobs:
         with:
           name: build
 
-      - uses: aws-actions/configure-aws-credentials@v6.1.0
+      - uses: aws-actions/configure-aws-credentials@v6.1.1
         with:
           role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
           role-session-name: Core_QA_Deployment_${{ github.run_id }}
