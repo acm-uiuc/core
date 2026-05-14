@@ -11,43 +11,56 @@ export enum AvailableSQSFunctions {
   CreateOrgGithubTeam = "createOrgGithubTeam",
   SyncExecCouncil = "syncExecCouncil",
   HandleStorePurchase = "handleStorePurchase",
+  StripeLinkSubscriberCallback = "stripeLinkSubscriberCallback",
 }
+
+export const stripeLinkCallbackEventTypes = [
+  "payment.succeeded",
+  "payment.pending",
+  "payment.failed",
+] as const;
+export type StripeLinkCallbackEventType =
+  (typeof stripeLinkCallbackEventTypes)[number];
 
 const sqsMessageMetadataSchema = z.object({
   reqId: z.string().min(1),
-  initiator: z.string().min(1)
+  initiator: z.string().min(1),
 });
 
 export type SQSMessageMetadata = z.infer<typeof sqsMessageMetadataSchema>;
 
 const baseSchema = z.object({
-  metadata: sqsMessageMetadataSchema
+  metadata: sqsMessageMetadataSchema,
 });
 
 const createSQSSchema = <
   T extends AvailableSQSFunctions,
-  P extends z.ZodType<any>>(
-
-    func: T,
-    payloadSchema: P) =>
-
+  P extends z.ZodTypeAny,
+>(
+  func: T,
+  payloadSchema: P,
+) =>
   baseSchema.extend({
     function: z.literal(func),
-    payload: payloadSchema
+    payload: payloadSchema,
   });
 
 export const sqsPayloadSchemas = {
   [AvailableSQSFunctions.Ping]: createSQSSchema(
     AvailableSQSFunctions.Ping,
-    z.object({})
+    z.object({}),
   ),
   [AvailableSQSFunctions.EmailMembershipPass]: createSQSSchema(
     AvailableSQSFunctions.EmailMembershipPass,
-    z.object({ email: z.email(), firstName: z.optional(z.string().min(1)) })
+    z.object({ email: z.email(), firstName: z.optional(z.string().min(1)) }),
   ),
   [AvailableSQSFunctions.ProvisionNewMember]: createSQSSchema(
     AvailableSQSFunctions.ProvisionNewMember,
-    z.object({ email: z.email(), firstName: z.string().min(1), lastName: z.string().min(1) })
+    z.object({
+      email: z.email(),
+      firstName: z.string().min(1),
+      lastName: z.string().min(1),
+    }),
   ),
   [AvailableSQSFunctions.SendSaleEmail]: createSQSSchema(
     AvailableSQSFunctions.SendSaleEmail,
@@ -55,71 +68,95 @@ export const sqsPayloadSchemas = {
       email: z.email(),
       qrCodeContent: z.string().min(1),
       customText: z.string().optional(),
-      itemsPurchased: z.array(z.object({
-        itemName: z.string().min(1),
-        variantName: z.string().min(1).optional(),
-        quantity: z.number().nonnegative(),
-      })).min(1),
-      isVerifiedIdentity: z.boolean().default(false)
-    })
+      itemsPurchased: z
+        .array(
+          z.object({
+            itemName: z.string().min(1),
+            variantName: z.string().min(1).optional(),
+            quantity: z.number().nonnegative(),
+          }),
+        )
+        .min(1),
+      isVerifiedIdentity: z.boolean().default(false),
+    }),
   ),
   [AvailableSQSFunctions.EmailNotifications]: createSQSSchema(
-    AvailableSQSFunctions.EmailNotifications, z.object({
+    AvailableSQSFunctions.EmailNotifications,
+    z.object({
       to: z.array(z.email()).min(1),
       cc: z.optional(z.array(z.email()).min(1)),
       bcc: z.optional(z.array(z.string().email()).min(1)),
       subject: z.string().min(1),
       content: z.string().min(1),
-      callToActionButton: z.object({
-        name: z.string().min(1),
-        url: z.string().min(1).url()
-      }).optional()
-    })
+      callToActionButton: z
+        .object({
+          name: z.string().min(1),
+          url: z.string().min(1).url(),
+        })
+        .optional(),
+    }),
   ),
   [AvailableSQSFunctions.CreateOrgGithubTeam]: createSQSSchema(
-    AvailableSQSFunctions.CreateOrgGithubTeam, z.object({
+    AvailableSQSFunctions.CreateOrgGithubTeam,
+    z.object({
       orgId: OrgUniqueId,
       githubTeamName: z.string().min(1),
-      githubTeamDescription: z.string().min(1)
-    })
+      githubTeamDescription: z.string().min(1),
+    }),
   ),
   [AvailableSQSFunctions.SyncExecCouncil]: createSQSSchema(
-    AvailableSQSFunctions.SyncExecCouncil, z.object({})
+    AvailableSQSFunctions.SyncExecCouncil,
+    z.object({}),
   ),
   [AvailableSQSFunctions.HandleStorePurchase]: createSQSSchema(
-    AvailableSQSFunctions.HandleStorePurchase, z.object({
+    AvailableSQSFunctions.HandleStorePurchase,
+    z.object({
       orderId: z.string().min(1),
       userId: z.email(),
       paymentIdentifier: z.string().min(1),
       paymentIntentId: z.string().min(1).optional(),
-      isVerifiedIdentity: z.boolean()
-    })
+      isVerifiedIdentity: z.boolean(),
+    }),
   ),
   [AvailableSQSFunctions.SendSaleFailedEmail]: createSQSSchema(
-    AvailableSQSFunctions.SendSaleFailedEmail, z.object({
+    AvailableSQSFunctions.SendSaleFailedEmail,
+    z.object({
       userId: z.email(),
-      failureReason: z.string().min(1)
-    })
-  )
+      failureReason: z.string().min(1),
+    }),
+  ),
+  [AvailableSQSFunctions.StripeLinkSubscriberCallback]: createSQSSchema(
+    AvailableSQSFunctions.StripeLinkSubscriberCallback,
+    z.object({
+      linkId: z.string().min(1),
+      eventType: z.enum(stripeLinkCallbackEventTypes),
+      eventId: z.string().min(1),
+      invoiceId: z.string().min(1),
+      amount: z.number().int().nonnegative(),
+      currency: z.string().min(1),
+      paidInFull: z.boolean(),
+      paymentMethod: z.string().nullable().optional(),
+      payerName: z.string().nullable().optional(),
+      payerEmail: z.string().nullable().optional(),
+      occurredAt: z.iso.datetime(),
+    }),
+  ),
 } as const;
 
 // Add this type helper
-type AllSchemas = {
-  [K in AvailableSQSFunctions]: (typeof sqsPayloadSchemas)[K];
-};
 
 export const sqsPayloadSchema = z.discriminatedUnion(
   "function",
   Object.values(sqsPayloadSchemas) as [
     (typeof sqsPayloadSchemas)[AvailableSQSFunctions],
     (typeof sqsPayloadSchemas)[AvailableSQSFunctions],
-    ...((typeof sqsPayloadSchemas)[AvailableSQSFunctions])[]
-  ]
+    ...(typeof sqsPayloadSchemas)[AvailableSQSFunctions][],
+  ],
 );
 
 export type SQSPayload<T extends AvailableSQSFunctions> = z.infer<
-  (typeof sqsPayloadSchemas)[T]>;
-
+  (typeof sqsPayloadSchemas)[T]
+>;
 
 export type AnySQSPayload = z.infer<typeof sqsPayloadSchema>;
 
@@ -127,7 +164,6 @@ export function parseSQSPayload(json: unknown): AnySQSPayload | z.ZodError {
   const parsed = sqsPayloadSchema.safeParse(json);
   if (parsed.success) {
     return parsed.data;
-  } else {
-    return parsed.error;
   }
+  return parsed.error;
 }

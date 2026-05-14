@@ -11,6 +11,7 @@ import init from "../../src/api/server.js";
 import { mockClient } from "aws-sdk-client-mock";
 import {
   DynamoDBClient,
+  GetItemCommand,
   PutItemCommand,
   QueryCommand,
   ScanCommand,
@@ -34,21 +35,25 @@ const paymentLinkMock = {
 
 vi.mock("stripe", () => {
   return {
-    default: vi.fn(function () {
-      return {
-        products: {
+    // A class, not an arrow: the SDK is invoked as `new Stripe(...)`, and an
+    // arrow function cannot be constructed.
+    default: vi.fn(
+      class {
+        products = {
           create: vi.fn(() => Promise.resolve(productMock)),
           update: vi.fn(() => Promise.resolve({})),
-        },
-        prices: {
+        };
+
+        prices = {
           create: vi.fn(() => Promise.resolve(priceMock)),
-        },
-        paymentLinks: {
+        };
+
+        paymentLinks = {
           create: vi.fn(() => Promise.resolve(paymentLinkMock)),
           update: vi.fn(() => Promise.resolve({})),
-        },
-      };
-    }),
+        };
+      },
+    ),
   };
 });
 
@@ -302,6 +307,225 @@ describe("Test Stripe link creation", async () => {
     expect(response.statusCode).toBe(403);
     expect(ddbMock.calls().length).toEqual(1);
   });
+  const callbackTestUrl = "https://callbacks.example.com/vend";
+  const callbackTestOrigin = "https://callbacks.example.com";
+
+  test("Registering a callback origin succeeds", async () => {
+    ddbMock.on(TransactWriteItemsCommand).resolvesOnce({});
+    await app.ready();
+
+    const response = await supertest(app.server)
+      .post("/api/v1/stripe/paymentLinks/callback")
+      .set("authorization", `Bearer ${createJwt()}`)
+      .send({ callbackUrl: callbackTestUrl, description: "Vending machine" });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body).toMatchObject({
+      origin: callbackTestOrigin,
+      description: "Vending machine",
+      createdBy: "infra-unit-test@acm.illinois.edu",
+    });
+  });
+
+  test("Registering a callback origin requires authentication", async () => {
+    await app.ready();
+    const response = await supertest(app.server)
+      .post("/api/v1/stripe/paymentLinks/callback")
+      .send({ callbackUrl: callbackTestUrl, description: "Vending machine" });
+    expect(response.statusCode).toBe(401);
+  });
+
+  test("Registering a callback origin requires an admin", async () => {
+    await app.ready();
+    const response = await supertest(app.server)
+      .post("/api/v1/stripe/paymentLinks/callback")
+      .set(
+        "authorization",
+        `Bearer ${createJwt(undefined, ["999"], "infra-unit-test-stripeonly@acm.illinois.edu")}`,
+      )
+      .send({ callbackUrl: callbackTestUrl, description: "Vending machine" });
+
+    expect(response.statusCode).toBe(403);
+    expect(ddbMock.calls().length).toEqual(0);
+  });
+
+  test("Listing callback registrations returns registered origins", async () => {
+    ddbMock.on(QueryCommand).resolvesOnce({
+      Count: 1,
+      Items: [
+        marshall({
+          userId: "CALLBACK#",
+          linkId: callbackTestOrigin,
+          description: "Vending machine",
+          createdBy: "infra-unit-test@acm.illinois.edu",
+          createdAt: "2025-02-09T17:11:30.762Z",
+        }),
+      ],
+    });
+    await app.ready();
+
+    const response = await supertest(app.server)
+      .get("/api/v1/stripe/paymentLinks/callback")
+      .set("authorization", `Bearer ${createJwt()}`);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toStrictEqual([
+      {
+        origin: callbackTestOrigin,
+        description: "Vending machine",
+        createdBy: "infra-unit-test@acm.illinois.edu",
+        createdAt: "2025-02-09T17:11:30.762Z",
+      },
+    ]);
+  });
+
+  test("Listing callback registrations requires an admin", async () => {
+    await app.ready();
+    const response = await supertest(app.server)
+      .get("/api/v1/stripe/paymentLinks/callback")
+      .set(
+        "authorization",
+        `Bearer ${createJwt(undefined, ["999"], "infra-unit-test-stripeonly@acm.illinois.edu")}`,
+      );
+
+    expect(response.statusCode).toBe(403);
+    expect(ddbMock.calls().length).toEqual(0);
+  });
+
+  test("Listing payment links excludes callback registrations", async () => {
+    ddbMock.on(ScanCommand).resolvesOnce({ Count: 0, Items: [] });
+    await app.ready();
+
+    const response = await supertest(app.server)
+      .get("/api/v1/stripe/paymentLinks")
+      .set("authorization", `Bearer ${createJwt()}`);
+
+    expect(response.statusCode).toBe(200);
+    expect(ddbMock.commandCalls(ScanCommand)[0].args[0].input).toMatchObject({
+      FilterExpression: "userId <> :callbackPartition",
+      ExpressionAttributeValues: {
+        ":callbackPartition": { S: "CALLBACK#" },
+      },
+    });
+  });
+
+  test("A callback registration cannot be deactivated as a payment link", async () => {
+    ddbMock.on(QueryCommand).resolvesOnce({
+      Items: [marshall({ userId: "CALLBACK#", linkId: callbackTestOrigin })],
+    });
+    await app.ready();
+
+    const response = await supertest(app.server)
+      .delete(
+        `/api/v1/stripe/paymentLinks/${encodeURIComponent(callbackTestOrigin)}`,
+      )
+      .set("authorization", `Bearer ${createJwt()}`)
+      .send();
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  test("Deregistering a callback origin succeeds", async () => {
+    ddbMock.on(TransactWriteItemsCommand).resolvesOnce({});
+    await app.ready();
+
+    const response = await supertest(app.server)
+      .delete(
+        `/api/v1/stripe/paymentLinks/callback/${encodeURIComponent(callbackTestOrigin)}`,
+      )
+      .set("authorization", `Bearer ${createJwt()}`)
+      .send();
+
+    expect(response.statusCode).toBe(204);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand)).toHaveLength(1);
+    // The origin arrives percent-encoded in the path; the key we delete must be
+    // the decoded value, or the conditional delete fails against a real table.
+    const deleted = ddbMock
+      .commandCalls(TransactWriteItemsCommand)[0]
+      .args[0].input.TransactItems?.at(-1)?.Delete;
+    expect(deleted?.Key).toStrictEqual({
+      userId: { S: "CALLBACK#" },
+      linkId: { S: callbackTestOrigin },
+    });
+  });
+
+  test("Deregistering an origin that was never registered is a 404", async () => {
+    const conditionFailure = new Error(
+      "Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]",
+    );
+    conditionFailure.name = "TransactionCanceledException";
+    ddbMock.on(TransactWriteItemsCommand).rejectsOnce(conditionFailure);
+    await app.ready();
+
+    const response = await supertest(app.server)
+      .delete(
+        `/api/v1/stripe/paymentLinks/callback/${encodeURIComponent(callbackTestOrigin)}`,
+      )
+      .set("authorization", `Bearer ${createJwt()}`)
+      .send();
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  test("Deregistering a callback origin requires an admin", async () => {
+    await app.ready();
+    const response = await supertest(app.server)
+      .delete(
+        `/api/v1/stripe/paymentLinks/callback/${encodeURIComponent(callbackTestOrigin)}`,
+      )
+      .set(
+        "authorization",
+        `Bearer ${createJwt(undefined, ["999"], "infra-unit-test-stripeonly@acm.illinois.edu")}`,
+      )
+      .send();
+
+    expect(response.statusCode).toBe(403);
+    expect(ddbMock.calls()).toHaveLength(0);
+  });
+
+  test("Creating a link with an unregistered callbackUrl is rejected", async () => {
+    ddbMock.on(GetItemCommand).resolvesOnce({});
+    await app.ready();
+
+    const response = await supertest(app.server)
+      .post("/api/v1/stripe/paymentLinks")
+      .set("authorization", `Bearer ${createJwt()}`)
+      .send({
+        invoiceId: "ACM102",
+        invoiceAmountUsd: 100,
+        contactName: "Infra User",
+        contactEmail: "testing@acm.illinois.edu",
+        callbackUrl: callbackTestUrl,
+      });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.message).toContain("is not registered");
+    // Rejected before the Stripe link was created, so nothing was written.
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand)).toHaveLength(0);
+  });
+
+  test("Creating a link with a registered callbackUrl returns a signing secret", async () => {
+    ddbMock.on(GetItemCommand).resolvesOnce({
+      Item: marshall({ origin: callbackTestOrigin, createdBy: "someone" }),
+    });
+    ddbMock.on(TransactWriteItemsCommand).resolvesOnce({});
+    await app.ready();
+
+    const response = await supertest(app.server)
+      .post("/api/v1/stripe/paymentLinks")
+      .set("authorization", `Bearer ${createJwt()}`)
+      .send({
+        invoiceId: "ACM102",
+        invoiceAmountUsd: 100,
+        contactName: "Infra User",
+        contactEmail: "testing@acm.illinois.edu",
+        callbackUrl: callbackTestUrl,
+      });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body.signingSecret).toMatch(/^[a-f0-9]{64}$/);
+  });
+
   afterAll(async () => {
     await app.close();
   });

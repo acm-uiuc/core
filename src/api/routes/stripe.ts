@@ -1,4 +1,5 @@
 import {
+  GetItemCommand,
   QueryCommand,
   ScanCommand,
   TransactWriteItemsCommand,
@@ -21,6 +22,7 @@ import { getSecretValue } from "api/plugins/auth.js";
 import { genericConfig, notificationRecipients } from "common/config.js";
 import {
   BaseError,
+  DatabaseDeleteError,
   DatabaseFetchError,
   DatabaseInsertError,
   InternalServerError,
@@ -34,21 +36,30 @@ import {
   invoiceLinkGetResponseSchema,
   invoiceLinkPostRequestSchema,
   invoiceLinkPostResponseSchema,
+  callbackRegistrationGetResponseSchema,
+  callbackRegistrationPostRequestSchema,
+  callbackRegistrationSchema,
 } from "common/types/stripe.js";
 import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import stripe, { Stripe } from "stripe";
 import rawbody from "fastify-raw-body";
-import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import {
+  AvailableSQSFunctions,
+  SQSPayload,
+  StripeLinkCallbackEventType,
+} from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import * as z from "zod/v4";
 import { getAllUserEmails } from "common/utils.js";
 import {
+  STRIPE_CALLBACK_REGISTRATION_PARTITION,
   STRIPE_LINK_RETENTION_DAYS,
   STRIPE_LINK_RETENTION_DAYS_QA,
 } from "common/constants.js";
 import { assertAuthenticated } from "api/authenticated.js";
 import { maxLength } from "common/types/generic.js";
+import { randomBytes } from "crypto";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -56,6 +67,118 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     global: false,
     runFirst: true,
   });
+  const enqueueSubscriberCallback = async ({
+    requestLog,
+    requestId,
+    eventId,
+    eventType,
+    linkId,
+    callbackUrl,
+    invoiceId,
+    amount,
+    currency,
+    paidInFull,
+    paymentMethod,
+    payerName,
+    payerEmail,
+  }: {
+    requestLog: { info: (msg: string) => void };
+    requestId: string;
+    eventId: string;
+    eventType: StripeLinkCallbackEventType;
+    linkId: string;
+    callbackUrl: string | undefined;
+    invoiceId: string;
+    amount: number;
+    currency: string;
+    paidInFull: boolean;
+    paymentMethod: string | null;
+    payerName: string | null;
+    payerEmail: string | null;
+  }) => {
+    if (!callbackUrl) {
+      return;
+    }
+    requestLog.info(
+      `Enqueueing ${eventType} subscriber callback for link ${linkId}`,
+    );
+    const callbackPayload: SQSPayload<AvailableSQSFunctions.StripeLinkSubscriberCallback> =
+      {
+        function: AvailableSQSFunctions.StripeLinkSubscriberCallback,
+        metadata: { initiator: eventId, reqId: requestId },
+        payload: {
+          linkId,
+          eventType,
+          eventId,
+          invoiceId,
+          amount,
+          currency,
+          paidInFull,
+          paymentMethod,
+          payerName,
+          payerEmail,
+          occurredAt: new Date().toISOString(),
+        },
+      };
+    if (!fastify.sqsClient) {
+      fastify.sqsClient = new SQSClient({ region: genericConfig.AwsRegion });
+    }
+    await fastify.sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+        MessageBody: JSON.stringify(callbackPayload),
+        MessageGroupId: "stripeLinkCallback",
+      }),
+    );
+  };
+  const notifyLinkOwner = async ({
+    requestLog,
+    requestId,
+    eventId,
+    userId,
+    subject,
+    content,
+    cc,
+  }: {
+    requestLog: { info: (msg: string) => void };
+    requestId: string;
+    eventId: string;
+    userId: string;
+    subject: string;
+    content: string;
+    cc?: string[];
+  }): Promise<string | undefined> => {
+    // Link owners are usually email addresses, but an API key is not.
+    if (!userId.includes("@")) {
+      return undefined;
+    }
+    requestLog.info(`Sending email to ${userId}...`);
+    const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> = {
+      function: AvailableSQSFunctions.EmailNotifications,
+      metadata: { initiator: eventId, reqId: requestId },
+      payload: {
+        to: getAllUserEmails(userId),
+        ...(cc ? { cc } : {}),
+        subject,
+        content,
+        callToActionButton: {
+          name: "View Your Stripe Links",
+          url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
+        },
+      },
+    };
+    if (!fastify.sqsClient) {
+      fastify.sqsClient = new SQSClient({ region: genericConfig.AwsRegion });
+    }
+    const result = await fastify.sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+        MessageBody: JSON.stringify(sqsPayload),
+        MessageGroupId: "invoiceNotification",
+      }),
+    );
+    return result.MessageId || "";
+  };
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/paymentLinks",
     {
@@ -82,6 +205,11 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       if (request.userRoles?.has(AppRoles.STRIPE_LINK_ADMIN)) {
         dynamoCommand = new ScanCommand({
           TableName: genericConfig.StripeLinksDynamoTableName,
+          // Callback registrations share this table under their own partition.
+          FilterExpression: "userId <> :callbackPartition",
+          ExpressionAttributeValues: {
+            ":callbackPartition": { S: STRIPE_CALLBACK_REGISTRATION_PARTITION },
+          },
         });
       } else {
         dynamoCommand = new QueryCommand({
@@ -117,6 +245,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           invoiceId: item.invoiceId,
           invoiceAmountUsd: item.amount,
           createdAt: item.createdAt || null,
+          callbackUrl: item.callbackUrl || undefined,
         }),
       );
       reply.status(200).send(parsed);
@@ -145,6 +274,23 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
+      if (request.body.callbackUrl) {
+        const { origin } = new URL(request.body.callbackUrl);
+        const registration = await fastify.dynamoClient.send(
+          new GetItemCommand({
+            TableName: genericConfig.StripeLinksDynamoTableName,
+            Key: {
+              userId: { S: STRIPE_CALLBACK_REGISTRATION_PARTITION },
+              linkId: { S: origin },
+            },
+          }),
+        );
+        if (!registration.Item) {
+          throw new ValidationError({
+            message: `Callback origin ${origin} is not registered. Register it with POST /api/v1/stripe/paymentLinks/callback first.`,
+          });
+        }
+      }
       const secretApiConfig = fastify.secretConfig;
       const payload: StripeLinkCreateParams = {
         ...request.body,
@@ -156,12 +302,18 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { url, linkId, priceId, productId } =
         await createStripeLink(payload);
       const invoiceId = request.body.invoiceId;
+      const callbackUrl = request.body.callbackUrl;
+      const signingSecret = callbackUrl
+        ? randomBytes(32).toString("hex")
+        : undefined;
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.STRIPE,
           actor: request.username,
           target: `Link ${linkId} | Invoice ${invoiceId}`,
-          message: "Created Stripe payment link",
+          message: callbackUrl
+            ? "Created Stripe payment link with subscriber callback"
+            : "Created Stripe payment link",
         },
       });
       const dynamoCommand = new TransactWriteItemsCommand({
@@ -181,6 +333,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   amount: request.body.invoiceAmountUsd,
                   active: true,
                   createdAt: new Date().toISOString(),
+                  callbackUrl,
+                  signingSecret,
                 },
                 { removeUndefinedValues: true },
               ),
@@ -206,7 +360,215 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not write Stripe link to database.",
         });
       }
-      reply.status(201).send({ id: linkId, link: url });
+      reply.status(201).send({
+        id: linkId,
+        link: url,
+        ...(signingSecret ? { signingSecret } : {}),
+      });
+    }),
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "/paymentLinks/callback",
+    {
+      schema: withRoles(
+        [AppRoles.STRIPE_LINK_ADMIN],
+        withTags(["Stripe"], {
+          summary: "Get registered Stripe payment link callback URLs.",
+          response: {
+            200: {
+              description: "Callback registrations retrieved successfully.",
+              content: {
+                "application/json": {
+                  schema: callbackRegistrationGetResponseSchema,
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    assertAuthenticated(async (request, reply) => {
+      let result;
+      try {
+        result = await fastify.dynamoClient.send(
+          new QueryCommand({
+            TableName: genericConfig.StripeLinksDynamoTableName,
+            KeyConditionExpression: "userId = :callbackPartition",
+            ExpressionAttributeValues: {
+              ":callbackPartition": {
+                S: STRIPE_CALLBACK_REGISTRATION_PARTITION,
+              },
+            },
+          }),
+        );
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        request.log.error(e);
+        throw new DatabaseFetchError({
+          message: "Could not get callback registrations.",
+        });
+      }
+      const parsed = (result.Items || [])
+        .map((item) => unmarshall(item))
+        .map((item) => ({
+          origin: item.linkId,
+          description: item.description,
+          createdBy: item.createdBy,
+          createdAt: item.createdAt || null,
+        }));
+      reply.status(200).send(parsed);
+    }),
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
+    "/paymentLinks/callback",
+    {
+      schema: withRoles(
+        [AppRoles.LINKS_MANAGER],
+        withTags(["Stripe"], {
+          summary: "Register a callback URL for Stripe payment links.",
+          body: callbackRegistrationPostRequestSchema,
+          response: {
+            201: {
+              description: "Callback URL registered successfully.",
+              content: {
+                "application/json": {
+                  schema: callbackRegistrationSchema,
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    assertAuthenticated(async (request, reply) => {
+      const { callbackUrl, description } = request.body;
+      const { origin } = new URL(callbackUrl);
+      const createdAt = new Date().toISOString();
+      const logStatement = buildAuditLogTransactPut({
+        entry: {
+          module: Modules.STRIPE,
+          actor: request.username,
+          target: origin,
+          message: "Registered payment link callback origin",
+        },
+      });
+      try {
+        await fastify.dynamoClient.send(
+          new TransactWriteItemsCommand({
+            TransactItems: [
+              ...(logStatement ? [logStatement] : []),
+              {
+                Put: {
+                  TableName: genericConfig.StripeLinksDynamoTableName,
+                  Item: marshall({
+                    userId: STRIPE_CALLBACK_REGISTRATION_PARTITION,
+                    linkId: origin,
+                    description,
+                    createdBy: request.username,
+                    createdAt,
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        request.log.error(e);
+        throw new DatabaseInsertError({
+          message: "Could not register callback origin.",
+        });
+      }
+      reply.status(201).send({
+        origin,
+        description,
+        createdBy: request.username,
+        createdAt,
+      });
+    }),
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
+    "/paymentLinks/callback/:origin",
+    {
+      schema: withRoles(
+        [AppRoles.STRIPE_LINK_ADMIN],
+        withTags(["Stripe"], {
+          summary: "Deregister a callback URL for Stripe payment links.",
+          description:
+            "Payment links already created against this origin keep delivering callbacks; only new links are affected.",
+          params: z.object({
+            origin: z.string().min(1).meta({
+              description: "URL-encoded origin to deregister.",
+              example: "https://abc123.lambda-url.us-east-2.on.aws",
+            }),
+          }),
+          response: {
+            204: {
+              description: "Callback origin deregistered successfully.",
+              content: {
+                "application/json": {
+                  schema: z.undefined(),
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    assertAuthenticated(async (request, reply) => {
+      const { origin } = request.params;
+      const logStatement = buildAuditLogTransactPut({
+        entry: {
+          module: Modules.STRIPE,
+          actor: request.username,
+          target: origin,
+          message: "Deregistered payment link callback origin",
+        },
+      });
+      try {
+        await fastify.dynamoClient.send(
+          new TransactWriteItemsCommand({
+            TransactItems: [
+              ...(logStatement ? [logStatement] : []),
+              {
+                Delete: {
+                  TableName: genericConfig.StripeLinksDynamoTableName,
+                  Key: {
+                    userId: { S: STRIPE_CALLBACK_REGISTRATION_PARTITION },
+                    linkId: { S: origin },
+                  },
+                  // Fail rather than report success for an origin that was
+                  // never registered.
+                  ConditionExpression: "attribute_exists(linkId)",
+                },
+              },
+            ],
+          }),
+        );
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        if (
+          e instanceof Error &&
+          e.name === "TransactionCanceledException" &&
+          e.message.includes("ConditionalCheckFailed")
+        ) {
+          throw new NotFoundError({ endpointName: request.url });
+        }
+        request.log.error(e);
+        throw new DatabaseDeleteError({
+          message: "Could not deregister callback origin.",
+        });
+      }
+      return reply.status(204).send();
     }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
@@ -262,7 +624,13 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         amount?: number;
         priceId?: string;
         productId?: string;
+        callbackUrl?: string;
+        signingSecret?: string;
       };
+      if (unmarshalledEntry.userId === STRIPE_CALLBACK_REGISTRATION_PARTITION) {
+        // A callback registration shares this table but is not a payment link.
+        throw new NotFoundError({ endpointName: request.url });
+      }
       if (
         unmarshalledEntry.userId !== request.username &&
         !request.userRoles?.has(AppRoles.STRIPE_LINK_ADMIN)
@@ -417,6 +785,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               amount?: number;
               priceId?: string;
               productId?: string;
+              callbackUrl?: string;
+              signingSecret?: string;
             };
             if (!unmarshalledEntry.userId || !unmarshalledEntry.invoiceId) {
               return reply.status(200).send({
@@ -439,45 +809,33 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               request.log.info(
                 `Failed payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}).`,
               );
-              if (unmarshalledEntry.userId.includes("@")) {
-                request.log.info(
-                  `Sending email to ${unmarshalledEntry.userId}...`,
-                );
-                const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
-                  {
-                    function: AvailableSQSFunctions.EmailNotifications,
-                    metadata: {
-                      initiator: eventId,
-                      reqId: request.id,
-                    },
-                    payload: {
-                      to: getAllUserEmails(unmarshalledEntry.userId),
-                      subject: `Payment Failed for Invoice ${unmarshalledEntry.invoiceId}`,
-                      content: `
+              queueId = await notifyLinkOwner({
+                requestLog: request.log,
+                requestId: request.id,
+                eventId,
+                userId: unmarshalledEntry.userId,
+                subject: `Payment Failed for Invoice ${unmarshalledEntry.invoiceId}`,
+                content: `
 A ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}) <b>has failed.</b>
 
 Please ask the payee to try again, perhaps with a different payment method, or contact Officer Board.
                     `,
-                      callToActionButton: {
-                        name: "View Your Stripe Links",
-                        url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
-                      },
-                    },
-                  };
-                if (!fastify.sqsClient) {
-                  fastify.sqsClient = new SQSClient({
-                    region: genericConfig.AwsRegion,
-                  });
-                }
-                const result = await fastify.sqsClient.send(
-                  new SendMessageCommand({
-                    QueueUrl: fastify.environmentConfig.SqsQueueUrl,
-                    MessageBody: JSON.stringify(sqsPayload),
-                    MessageGroupId: "invoiceNotification",
-                  }),
-                );
-                queueId = result.MessageId || "";
-              }
+              });
+              await enqueueSubscriberCallback({
+                requestLog: request.log,
+                requestId: request.id,
+                eventId,
+                eventType: "payment.failed",
+                linkId: paymentLinkId,
+                callbackUrl: unmarshalledEntry.callbackUrl,
+                invoiceId: unmarshalledEntry.invoiceId,
+                amount: paymentAmount,
+                currency: paymentCurrency,
+                paidInFull,
+                paymentMethod: null,
+                payerName: name,
+                payerEmail: email,
+              });
             }
 
             return reply.status(200).send({
@@ -570,6 +928,8 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               amount?: number;
               priceId?: string;
               productId?: string;
+              callbackUrl?: string;
+              signingSecret?: string;
             };
             if (!unmarshalledEntry.userId || !unmarshalledEntry.invoiceId) {
               return reply.status(200).send({
@@ -592,96 +952,69 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               request.log.info(
                 `Pending payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}). Invoice was tentatively paid ${paidInFull ? "in full." : "partially."}`,
               );
-              if (unmarshalledEntry.userId.includes("@")) {
-                request.log.info(
-                  `Sending email to ${unmarshalledEntry.userId}...`,
-                );
-                const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
-                  {
-                    function: AvailableSQSFunctions.EmailNotifications,
-                    metadata: {
-                      initiator: eventId,
-                      reqId: request.id,
-                    },
-                    payload: {
-                      to: getAllUserEmails(unmarshalledEntry.userId),
-                      subject: `Payment Pending for Invoice ${unmarshalledEntry.invoiceId}`,
-                      content: `
+              queueId = await notifyLinkOwner({
+                requestLog: request.log,
+                requestId: request.id,
+                eventId,
+                userId: unmarshalledEntry.userId,
+                subject: `Payment Pending for Invoice ${unmarshalledEntry.invoiceId}`,
+                content: `
 ACM @ UIUC has received intent of ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
 
 The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
 
 Please contact Officer Board with any questions.
                     `,
-                      callToActionButton: {
-                        name: "View Your Stripe Links",
-                        url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
-                      },
-                    },
-                  };
-                if (!fastify.sqsClient) {
-                  fastify.sqsClient = new SQSClient({
-                    region: genericConfig.AwsRegion,
-                  });
-                }
-                const result = await fastify.sqsClient.send(
-                  new SendMessageCommand({
-                    QueueUrl: fastify.environmentConfig.SqsQueueUrl,
-                    MessageBody: JSON.stringify(sqsPayload),
-                    MessageGroupId: "invoiceNotification",
-                  }),
-                );
-                queueId = result.MessageId || "";
-              }
+              });
+              await enqueueSubscriberCallback({
+                requestLog: request.log,
+                requestId: request.id,
+                eventId,
+                eventType: "payment.pending",
+                linkId: paymentLinkId,
+                callbackUrl: unmarshalledEntry.callbackUrl,
+                invoiceId: unmarshalledEntry.invoiceId,
+                amount: paymentAmount,
+                currency: paymentCurrency,
+                paidInFull,
+                paymentMethod: paymentMethodString ?? null,
+                payerName: name,
+                payerEmail: email,
+              });
             } else {
               request.log.info(
                 `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}). Invoice was paid ${paidInFull ? "in full." : "partially."}`,
               );
-              if (unmarshalledEntry.userId.includes("@")) {
-                request.log.info(
-                  `Sending email to ${unmarshalledEntry.userId}...`,
-                );
-                const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> =
-                  {
-                    function: AvailableSQSFunctions.EmailNotifications,
-                    metadata: {
-                      initiator: eventId,
-                      reqId: request.id,
-                    },
-                    payload: {
-                      to: getAllUserEmails(unmarshalledEntry.userId),
-                      cc: [
-                        notificationRecipients[fastify.runEnvironment]
-                          .Treasurer,
-                      ],
-                      subject: `Payment received for Invoice ${unmarshalledEntry.invoiceId}`,
-                      content: `
+              queueId = await notifyLinkOwner({
+                requestLog: request.log,
+                requestId: request.id,
+                eventId,
+                userId: unmarshalledEntry.userId,
+                cc: [notificationRecipients[fastify.runEnvironment].Treasurer],
+                subject: `Payment received for Invoice ${unmarshalledEntry.invoiceId}`,
+                content: `
 ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
 
 ${paymentMethodString ? `\nPayment method: ${paymentMethodString}.\n` : ""}
 
 ${paidInFull ? "\nThis invoice should now be considered settled.\n" : ""}
 Please contact Officer Board with any questions.`,
-                      callToActionButton: {
-                        name: "View Your Stripe Links",
-                        url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
-                      },
-                    },
-                  };
-                if (!fastify.sqsClient) {
-                  fastify.sqsClient = new SQSClient({
-                    region: genericConfig.AwsRegion,
-                  });
-                }
-                const result = await fastify.sqsClient.send(
-                  new SendMessageCommand({
-                    QueueUrl: fastify.environmentConfig.SqsQueueUrl,
-                    MessageBody: JSON.stringify(sqsPayload),
-                    MessageGroupId: "invoiceNotification",
-                  }),
-                );
-                queueId = result.MessageId || "";
-              }
+              });
+              await enqueueSubscriberCallback({
+                requestLog: request.log,
+                requestId: request.id,
+                eventId,
+                eventType: "payment.succeeded",
+                linkId: paymentLinkId,
+                callbackUrl: unmarshalledEntry.callbackUrl,
+                invoiceId: unmarshalledEntry.invoiceId,
+                amount: paymentAmount,
+                currency: paymentCurrency,
+                paidInFull,
+                paymentMethod: paymentMethodString ?? null,
+                payerName: name,
+                payerEmail: email,
+              });
               // If full payment is done, disable the link
               if (paidInFull) {
                 request.log.debug("Paid in full, disabling link.");
