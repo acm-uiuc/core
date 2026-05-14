@@ -229,7 +229,7 @@ export class PendingProvisioningError extends BaseError<"PendingProvisioningErro
       id: 113,
       message: message || "Pending provisioning for this resource",
       httpStatusCode: 400,
-    })
+    });
   }
 }
 
@@ -409,6 +409,21 @@ export class OrderNotFoundError extends BaseError<"OrderNotFoundError"> {
       id: 123,
       message: message || "Order not found.",
       httpStatusCode: 404,
+    });
+  }
+}
+
+export class MemberBannedError extends BaseError<"MemberBannedError"> {
+  constructor({ bannedUntil }: { bannedUntil?: number }) {
+    const message =
+      bannedUntil && bannedUntil < Number.MAX_SAFE_INTEGER
+        ? `Your account has been suspended until ${new Date(bannedUntil).toISOString()}.`
+        : "Your account has been permanently suspended.";
+    super({
+      name: "MemberBannedError",
+      id: 124,
+      message,
+      httpStatusCode: 403,
     });
   }
 }

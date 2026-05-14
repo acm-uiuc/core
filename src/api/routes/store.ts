@@ -157,6 +157,8 @@ const storeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           await verifyUiucAccessToken({
             accessToken,
             logger: request.log,
+            dynamoClient: fastify.dynamoClient,
+            redisClient: fastify.redisClient,
           })
         ).userPrincipalName;
         isVerifiedIdentity = true;

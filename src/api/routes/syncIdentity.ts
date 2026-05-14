@@ -93,6 +93,8 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
         const { givenName, surname, netId } = await verifyUiucAccessToken({
           accessToken,
           logger: request.log,
+          dynamoClient: fastify.dynamoClient,
+          redisClient: fastify.redisClient,
         });
         await syncFullProfile({
           firstName: givenName,
@@ -171,6 +173,8 @@ const syncIdentityPlugin: FastifyPluginAsync = async (fastify, _options) => {
         const { netId } = await verifyUiucAccessToken({
           accessToken,
           logger: request.log,
+          dynamoClient: fastify.dynamoClient,
+          redisClient: fastify.redisClient,
         });
         const userIdentity = await getUserIdentity({
           netId,

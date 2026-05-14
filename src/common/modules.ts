@@ -12,7 +12,7 @@ export enum Modules {
   EXTERNAL_MEMBERSHIP = "externalMembership",
   ORG_INFO = "orgInfo",
   STORE = "store",
-  CERTIFICATE_ISSUER = "certificateIssuer"
+  CERTIFICATE_ISSUER = "certificateIssuer",
 }
 
 export const ModulesToHumanName: Record<Modules, string> = {
@@ -20,7 +20,7 @@ export const ModulesToHumanName: Record<Modules, string> = {
   [Modules.EVENTS]: "Events",
   [Modules.STRIPE]: "Stripe Integration",
   [Modules.EMAIL_NOTIFICATION]: "Email Notifications",
-  [Modules.PROVISION_NEW_MEMBER]: "Member Provisioning",
+  [Modules.PROVISION_NEW_MEMBER]: "Member Management",
   [Modules.MOBILE_WALLET]: "Mobile Wallet",
   [Modules.LINKRY]: "Link Shortener",
   [Modules.AUDIT_LOG]: "Audit Log",

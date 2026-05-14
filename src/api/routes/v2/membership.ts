@@ -77,6 +77,8 @@ const membershipV2Plugin: FastifyPluginAsync = async (fastify, _options) => {
         const verifiedData = await verifyUiucAccessToken({
           accessToken,
           logger: request.log,
+          dynamoClient: fastify.dynamoClient,
+          redisClient: fastify.redisClient,
         });
         const {
           netId,

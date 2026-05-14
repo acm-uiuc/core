@@ -977,3 +977,81 @@ export async function setGroupMembershipRule(
     });
   }
 }
+
+/**
+ * Disables a user's account in Entra ID and revokes all active sign-in sessions.
+ * If session revocation fails, the error is logged but not thrown, since the
+ * account has already been disabled successfully.
+ * @param token - Entra ID token authorized to perform this action.
+ * @param email - The email of the user to disable.
+ * @param logger - Logger instance for reporting non-fatal errors.
+ * @throws {EntraFetchError} If disabling the user account fails.
+ * @returns {Promise<void>}
+ */
+export async function disableUserAccount(
+  token: string,
+  email: string,
+  logger: ValidLoggers,
+): Promise<void> {
+  const userId = await resolveEmailToOid(token, email);
+  try {
+    const disableUrl = `https://graph.microsoft.com/v1.0/users/${userId}`;
+    const disableResponse = await fetch(disableUrl, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        accountEnabled: false,
+      }),
+    });
+
+    if (!disableResponse.ok) {
+      const errorData = (await disableResponse.json()) as {
+        error?: { message?: string };
+      };
+      throw new EntraFetchError({
+        message: errorData?.error?.message ?? disableResponse.statusText,
+        email,
+      });
+    }
+  } catch (error) {
+    if (error instanceof EntraFetchError) {
+      throw error;
+    }
+
+    throw new EntraFetchError({
+      message: error instanceof Error ? error.message : String(error),
+      email,
+    });
+  }
+
+  try {
+    const revokeUrl = `https://graph.microsoft.com/v1.0/users/${userId}/revokeSignInSessions`;
+    const revokeResponse = await fetch(revokeUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!revokeResponse.ok) {
+      const errorData = (await revokeResponse.json()) as {
+        error?: { message?: string };
+      };
+      logger.error(
+        `Failed to revoke sign-in sessions for ${email} after disabling account: ${
+          errorData?.error?.message ?? revokeResponse.statusText
+        }`,
+      );
+    }
+  } catch (error) {
+    logger.error(
+      `Failed to revoke sign-in sessions for ${email} after disabling account: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+}

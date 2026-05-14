@@ -88,6 +88,8 @@ const membershipPlugin: FastifyPluginAsync = async (fastify, _options) => {
         const { netId, givenName, surname } = await verifyUiucAccessToken({
           accessToken,
           logger: request.log,
+          dynamoClient: fastify.dynamoClient,
+          redisClient: fastify.redisClient,
         });
         const { dynamoClient, redisClient } = fastify;
         const isPaidMember = await checkMemberOfAnyList({

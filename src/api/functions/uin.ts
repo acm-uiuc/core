@@ -5,7 +5,8 @@ import {
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { ValidLoggers } from "api/types.js";
+import { type Redis, ValidLoggers } from "api/types.js";
+import { checkUserBan } from "./membership.js";
 import { retryDynamoTransactionWithBackoff } from "api/utils.js";
 import { genericConfig } from "common/config.js";
 import {
@@ -39,9 +40,13 @@ export const graphApiExpectedResponseSchema = z.object({
 export const verifyUiucAccessToken = async ({
   accessToken,
   logger,
+  dynamoClient,
+  redisClient,
 }: {
   accessToken: string | string[] | undefined;
   logger: FastifyBaseLogger;
+  dynamoClient?: DynamoDBClient;
+  redisClient?: Redis;
 }) => {
   if (!accessToken) {
     throw new UnauthenticatedError({
@@ -88,6 +93,9 @@ export const verifyUiucAccessToken = async ({
     );
     const netId = data.userPrincipalName.replace("@illinois.edu", "");
     logger.info(`Authenticated UIUC tenant user ${data.userPrincipalName}.`);
+    if (dynamoClient && redisClient) {
+      await checkUserBan({ netId, dynamoClient, redisClient, logger });
+    }
     return { ...data, netId };
   } catch (error) {
     if (error instanceof BaseError) {

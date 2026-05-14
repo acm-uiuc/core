@@ -2,6 +2,7 @@ import { BatchGetItemCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { ValidLoggers } from "api/types.js";
 import { genericConfig } from "common/config.js";
+import { MemberBannedError } from "common/errors/index.js";
 
 export interface UserIdentity {
   id: string;
@@ -11,18 +12,22 @@ export interface UserIdentity {
   lastName?: string;
   stripeCustomerId?: string;
   updatedAt?: string;
+  // If the user is banned, the epoch time in seconds until when they are banned.
+  bannedUntil?: number;
 }
 
 export interface GetUserIdentityInputs {
   netId: string;
   dynamoClient: DynamoDBClient;
   logger: ValidLoggers;
+  enforceUserBan?: boolean;
 }
 
 export async function getUserIdentity({
   netId,
   dynamoClient,
   logger,
+  enforceUserBan = true,
 }: GetUserIdentityInputs): Promise<UserIdentity | null> {
   const userId = `${netId}@illinois.edu`;
   const uinKey = `UIN#${netId}@illinois.edu`;
@@ -53,6 +58,14 @@ export async function getUserIdentity({
 
     if (uinItem) {
       userIdentity.uin = unmarshall(uinItem).uin;
+    }
+
+    if (
+      enforceUserBan &&
+      userIdentity.bannedUntil &&
+      userIdentity.bannedUntil > Date.now()
+    ) {
+      throw new MemberBannedError({ bannedUntil: userIdentity.bannedUntil });
     }
 
     return userIdentity;

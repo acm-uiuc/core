@@ -78,6 +78,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
+        dynamoClient: fastify.dynamoClient,
+        redisClient: fastify.redisClient,
       });
 
       const {
@@ -162,6 +164,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
+        dynamoClient: fastify.dynamoClient,
+        redisClient: fastify.redisClient,
       });
 
       const getCommand = new GetItemCommand({
@@ -248,6 +252,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
+        dynamoClient: fastify.dynamoClient,
+        redisClient: fastify.redisClient,
       });
 
       const key = { id: upn };
@@ -326,6 +332,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { netId, userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
+        dynamoClient: fastify.dynamoClient,
+        redisClient: fastify.redisClient,
       });
 
       const configKey = { partitionKey: `CONFIG#${eventId}` };
@@ -738,6 +746,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
+        dynamoClient: fastify.dynamoClient,
+        redisClient: fastify.redisClient,
       });
 
       const command = new QueryCommand({
@@ -827,6 +837,8 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { userPrincipalName: upn } = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
+        dynamoClient: fastify.dynamoClient,
+        redisClient: fastify.redisClient,
       });
       const rsvpPartitionKey = `RSVP#${request.params.eventId}#${upn}`;
       const rsvpConfigKey = `CONFIG#${request.params.eventId}`;

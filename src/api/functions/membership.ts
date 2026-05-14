@@ -2,32 +2,99 @@ import {
   BatchWriteItemCommand,
   ConditionalCheckFailedException,
   DynamoDBClient,
+  GetItemCommand,
   QueryCommand,
+  TransactWriteItemsCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { genericConfig } from "common/config.js";
 import {
   addToTenant,
+  disableUserAccount,
   isUserInGroup,
   modifyGroup,
   patchUserProfile,
   resolveEmailToOid,
 } from "./entraId.js";
-import { EntraGroupError, ValidationError } from "common/errors/index.js";
+import {
+  EntraGroupError,
+  MemberBannedError,
+  ValidationError,
+} from "common/errors/index.js";
 import { EntraGroupActions } from "common/types/iam.js";
 import { pollUntilNoError } from "./general.js";
 import Redis from "ioredis";
 import { getKey, setKey } from "./redisCache.js";
 import { FastifyBaseLogger } from "fastify";
-import { createAuditLogEntry } from "./auditLog.js";
+import { buildAuditLogTransactPut, createAuditLogEntry } from "./auditLog.js";
 import { Modules } from "common/modules.js";
 import { ValidLoggers } from "api/types.js";
 
 export const MEMBER_CACHE_SECONDS = 43200; // 12 hours
+export const BAN_CACHE_SECONDS = 300; // 5 minutes max; shorter for expiring bans
 
 export function getMembershipCacheKey(netId: string, list: string) {
   return `membership:${netId}:${list}`;
+}
+
+export function getBanCacheKey(netId: string): string {
+  return `ban:${netId}`;
+}
+
+export async function checkUserBan({
+  netId,
+  dynamoClient,
+  redisClient,
+  logger,
+}: {
+  netId: string;
+  dynamoClient: DynamoDBClient;
+  redisClient: Redis.Redis;
+  logger: ValidLoggers;
+}): Promise<void> {
+  const cacheKey = getBanCacheKey(netId);
+
+  const cached = await getKey<{ bannedUntil: number }>({
+    redisClient,
+    key: cacheKey,
+    logger,
+  });
+
+  if (cached !== null) {
+    if (cached.bannedUntil > 0 && cached.bannedUntil > Date.now()) {
+      throw new MemberBannedError({ bannedUntil: cached.bannedUntil });
+    }
+    return;
+  }
+
+  const { Item } = await dynamoClient.send(
+    new GetItemCommand({
+      TableName: genericConfig.UserInfoTable,
+      Key: { id: { S: `${netId}@illinois.edu` } },
+      ProjectionExpression: "bannedUntil",
+    }),
+  );
+
+  const bannedUntil = Item?.bannedUntil?.N ? Number(Item.bannedUntil.N) : 0;
+  const now = Date.now();
+  const isBanned = bannedUntil > now;
+
+  const ttl = isBanned
+    ? Math.min(BAN_CACHE_SECONDS, Math.ceil((bannedUntil - now) / 1000))
+    : BAN_CACHE_SECONDS;
+
+  await setKey({
+    redisClient,
+    key: cacheKey,
+    data: JSON.stringify({ bannedUntil }),
+    expiresIn: ttl,
+    logger,
+  });
+
+  if (isBanned) {
+    throw new MemberBannedError({ bannedUntil });
+  }
 }
 
 export async function patchExternalMemberList({
@@ -357,6 +424,7 @@ async function checkPaidMembershipFromEntra(
 export async function setPaidMembershipInTable(
   netId: string,
   dynamoClient: DynamoDBClient,
+  isMember?: boolean,
 ): Promise<{ updated: boolean }> {
   const email = `${netId}@illinois.edu`;
   try {
@@ -377,7 +445,7 @@ export async function setPaidMembershipInTable(
         },
         ExpressionAttributeValues: {
           ":netId": { S: netId },
-          ":isPaidMember": { BOOL: true },
+          ":isPaidMember": { BOOL: isMember || true },
           ":updatedAt": { S: new Date().toISOString() },
         },
       }),
@@ -492,4 +560,107 @@ export async function checkPaidMembership({
   }
 
   return isMemberInDB;
+}
+
+type RevokePaidMembershipInput = {
+  netId: string;
+  dynamoClient: DynamoDBClient;
+  entraToken: string;
+  paidMemberGroup: string;
+  auditLogData: { actor: string; requestId: string };
+};
+
+/**
+ * Revoke a user's paid membership.
+ */
+export async function revokePaidMembership({
+  netId,
+  dynamoClient,
+  entraToken,
+  paidMemberGroup,
+  auditLogData: { actor, requestId },
+}: RevokePaidMembershipInput): Promise<undefined> {
+  const email = `${netId}@illinois.edu`;
+  await setPaidMembershipInTable(netId, dynamoClient, false);
+  await createAuditLogEntry({
+    dynamoClient,
+    entry: {
+      module: Modules.PROVISION_NEW_MEMBER,
+      target: email,
+      actor,
+      message: "Revoked target's paid membership.",
+      requestId,
+    },
+  });
+  const inEntra = await checkPaidMembershipFromEntra(
+    netId,
+    entraToken,
+    paidMemberGroup,
+  );
+  if (inEntra) {
+    await modifyGroup(
+      entraToken,
+      email,
+      paidMemberGroup,
+      EntraGroupActions.REMOVE,
+      dynamoClient,
+    );
+  }
+}
+
+type BanMemberInput = RevokePaidMembershipInput & {
+  bannedUntil: number;
+  logger: ValidLoggers;
+};
+
+/**
+ * Ban a user from ACM services.
+ */
+export async function banMember({
+  netId,
+  dynamoClient,
+  entraToken,
+  paidMemberGroup,
+  auditLogData,
+  bannedUntil,
+  logger,
+}: BanMemberInput): Promise<undefined> {
+  const userId = `${netId}@illinois.edu`;
+  await revokePaidMembership({
+    netId,
+    dynamoClient,
+    entraToken,
+    paidMemberGroup,
+    auditLogData,
+  });
+  const banMessage =
+    bannedUntil === Number.MAX_SAFE_INTEGER
+      ? "Permanently banned target from ACM services."
+      : `Banned target from ACM services until ${new Date(bannedUntil).toISOString()}.`;
+  const transactItems = [
+    {
+      Update: {
+        TableName: genericConfig.UserInfoTable,
+        Key: { id: { S: userId } },
+        UpdateExpression: "SET #bannedUntil = :bannedUntil",
+        ExpressionAttributeNames: { "#bannedUntil": "bannedUntil" },
+        ExpressionAttributeValues: {
+          ":bannedUntil": { N: String(bannedUntil) },
+        },
+      },
+    },
+    buildAuditLogTransactPut({
+      entry: {
+        module: Modules.PROVISION_NEW_MEMBER,
+        actor: auditLogData.actor,
+        target: userId,
+        requestId: auditLogData.requestId,
+        message: banMessage,
+      },
+    }),
+  ].filter((x) => x !== null);
+  await dynamoClient.send(
+    new TransactWriteItemsCommand({ TransactItems: transactItems }),
+  );
+  await disableUserAccount(entraToken, userId, logger);
 }

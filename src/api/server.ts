@@ -35,6 +35,7 @@ import fastifyAuthPlugin, { getSecretValue } from "./plugins/auth.js";
 import errorHandlerPlugin from "./plugins/errorHandler.js";
 import authorizeFromSchemaPlugin from "./plugins/authorizeFromSchema.js";
 import evaluatePoliciesPlugin from "./plugins/evaluatePolicies.js";
+import banCheckPlugin from "./plugins/banCheck.js";
 /** END INTERNAL PLUGINS */
 
 /** BEGIN ROUTES */
@@ -270,6 +271,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
   await app.register(fastifyAuthPlugin);
   await app.register(FastifyAuthProvider);
   await app.register(authorizeFromSchemaPlugin);
+  await app.register(banCheckPlugin);
 
   await app.register(evaluatePoliciesPlugin);
   if (!runEnvironments.includes(process.env.RunEnvironment as RunEnvironment)) {

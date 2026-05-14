@@ -1,6 +1,5 @@
 import { OrganizationId } from "@acm-uiuc/js-shared";
 
-/* eslint-disable import/prefer-default-export */
 export const runEnvironments = ["dev", "prod"] as const;
 export type RunEnvironment = (typeof runEnvironments)[number];
 export const META_ROLE_PREFIX = "__metaRole:";
@@ -26,6 +25,7 @@ export enum BaseRoles {
   VIEW_INTERNAL_MEMBERSHIP_LIST = "view:internalMembershipList",
   VIEW_EXTERNAL_MEMBERSHIP_LIST = "view:externalMembershipList",
   MANAGE_EXTERNAL_MEMBERSHIP_LIST = "manage:externalMembershipList",
+  MANAGE_INTERNAL_MEMBERSHIP_LIST = "manage:internalMembershipList",
   ALL_ORG_MANAGER = "manage:orgDefinitions",
   VIEW_USER_INFO = "view:userInfo",
   STORE_MANAGER = "manage:store",
@@ -76,4 +76,6 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.VIEW_USER_INFO]: "User Information Viewer",
   [AppRoles.STORE_MANAGER]: "Store Manager",
   [AppRoles.STORE_FULFILLMENT]: "Store Fulfillment",
+  [AppRoles.MANAGE_INTERNAL_MEMBERSHIP_LIST]:
+    "[DANGEROUS] Internal Membership List Manager",
 };

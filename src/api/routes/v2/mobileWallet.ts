@@ -44,6 +44,8 @@ const mobileWalletV2Route: FastifyPluginAsync = async (fastify, _options) => {
       const verifiedData = await verifyUiucAccessToken({
         accessToken,
         logger: request.log,
+        dynamoClient: fastify.dynamoClient,
+        redisClient: fastify.redisClient,
       });
       const {
         userPrincipalName: upn,
