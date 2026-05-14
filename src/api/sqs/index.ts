@@ -22,6 +22,7 @@ import {
   syncExecCouncilHandler,
   processStorePurchaseHandler,
   sendSaleFailedHandler,
+  stripeLinkSubscriberCallbackHandler,
 } from "./handlers/index.js";
 import { ValidationError } from "../../common/errors/index.js";
 import { RunEnvironment } from "../../common/roles.js";
@@ -47,6 +48,8 @@ const handlers: SQSFunctionPayloadTypes = {
   [AvailableSQSFunctions.SyncExecCouncil]: syncExecCouncilHandler,
   [AvailableSQSFunctions.HandleStorePurchase]: processStorePurchaseHandler,
   [AvailableSQSFunctions.SendSaleFailedEmail]: sendSaleFailedHandler,
+  [AvailableSQSFunctions.StripeLinkSubscriberCallback]:
+    stripeLinkSubscriberCallbackHandler,
 };
 export const runEnvironment = process.env.RunEnvironment as RunEnvironment;
 export const currentEnvironmentConfig = environmentConfig[runEnvironment];
