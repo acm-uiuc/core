@@ -139,6 +139,16 @@ export const ViewRoomRequest: React.FC = () => {
     );
     return response.data;
   };
+  const editRoomRequest = async (
+    payload: RoomRequestFormValues,
+  ): Promise<{ id: string }> => {
+    const response = await api.patch(
+      `/api/v1/roomRequests/${semesterId}/${requestId}`,
+      payload,
+    );
+    await updateData();
+    return response.data;
+  };
   const updateData = async () => {
     const response = await api.get(
       `/api/v1/roomRequests/${semesterId}/${requestId}`,
@@ -283,7 +293,16 @@ export const ViewRoomRequest: React.FC = () => {
       {!data && <FullScreenLoader />}
       <Grid ml="xl">
         <Grid.Col span={8}>
-          {data && <NewRoomRequest viewOnly initialValues={data?.data} />}
+          {data &&
+            (data.updates[data.updates.length - 1].status ===
+            RoomRequestStatus.CREATED ? (
+              <NewRoomRequest
+                initialValues={data.data}
+                editRoomRequest={editRoomRequest}
+              />
+            ) : (
+              <NewRoomRequest viewOnly initialValues={data.data} />
+            ))}
           <AuthGuard
             resourceDef={{
               service: "core",

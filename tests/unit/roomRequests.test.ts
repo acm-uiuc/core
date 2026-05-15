@@ -3,9 +3,7 @@ import init from "../../src/api/server.js";
 import { mockClient } from "aws-sdk-client-mock";
 import {
   DynamoDBClient,
-  PutItemCommand,
   QueryCommand,
-  ScanCommand,
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import supertest from "supertest";
@@ -437,7 +435,7 @@ describe("Test Room Request Creation", async () => {
     const sent = sqsMock.commandCalls(SendMessageCommand)[0].args[0]
       .input as SendMessageCommand["input"];
 
-    expect(sent.QueueUrl).toBe(environmentConfig["dev"].SqsQueueUrl);
+    expect(sent.QueueUrl).toBe(environmentConfig.dev.SqsQueueUrl);
     expect(JSON.parse(sent.MessageBody as string)).toMatchObject({
       function: AvailableSQSFunctions.EmailNotifications,
       payload: {
@@ -677,5 +675,158 @@ describe("Test Room Request Creation", async () => {
       .send(invalidContentTypeBody);
 
     expect(response.statusCode).toBe(400);
+  });
+
+  describe("PATCH /api/v1/roomRequests/:semesterId/:requestId", () => {
+    const editRequestId = "test-edit-request-id";
+    const editSemesterId = "sp25";
+    const makePatchUrl = (
+      semester = editSemesterId,
+      requestId = editRequestId,
+    ) => `/api/v1/roomRequests/${semester}/${requestId}`;
+
+    const validEditBody = {
+      host: "C01",
+      title: "Updated Title",
+      theme: "Athletics",
+      semester: editSemesterId,
+      description:
+        "This is a valid description with at least ten words easily.",
+      eventStart: "2025-04-24T18:00:30.679Z",
+      eventEnd: "2025-04-24T19:00:30.679Z",
+      isRecurring: false,
+      setupNeeded: false,
+      hostingMinors: false,
+      locationType: "virtual",
+      foodOrDrink: false,
+      crafting: false,
+      onCampusPartners: null,
+      offCampusPartners: null,
+      nonIllinoisSpeaker: null,
+      nonIllinoisAttendees: null,
+      requestsSccsRoom: false,
+    };
+
+    const existingItem = {
+      userId: "infra-unit-test@acm.illinois.edu",
+      "userId#requestId": `infra-unit-test@acm.illinois.edu#${editRequestId}`,
+      semesterId: editSemesterId,
+      requestId: editRequestId,
+      expiresAt: 1234567890,
+    };
+
+    test("Unauthenticated access is rejected", async () => {
+      await app.ready();
+      const response = await supertest(app.server)
+        .patch(makePatchUrl())
+        .send(validEditBody);
+      expect(response.statusCode).toBe(401);
+    });
+
+    test("Validation failure: missing required fields", async () => {
+      const testJwt = createJwt();
+      await app.ready();
+      const response = await supertest(app.server)
+        .patch(makePatchUrl())
+        .set("authorization", `Bearer ${testJwt}`)
+        .send({});
+      expect(response.statusCode).toBe(400);
+    });
+
+    test("Validation failure: body semester does not match URL", async () => {
+      const testJwt = createJwt();
+      ddbMock.rejects();
+      await app.ready();
+      const mismatchedBody = { ...validEditBody, semester: "fa25" };
+      const response = await supertest(app.server)
+        .patch(makePatchUrl("sp25", editRequestId))
+        .set("authorization", `Bearer ${testJwt}`)
+        .send(mismatchedBody);
+      expect(response.statusCode).toBe(400);
+      expect(response.body.message).toContain("Semester");
+      expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(0);
+    });
+
+    const mockExistenceAndStatus = (status: RoomRequestStatus) => {
+      ddbMock.on(QueryCommand).callsFake((input) => {
+        if (input.TableName === genericConfig.RoomRequestsTableName) {
+          return {
+            Count: 1,
+            Items: [marshall(existingItem)],
+          };
+        }
+        if (input.TableName === genericConfig.RoomRequestsStatusTableName) {
+          return {
+            Count: 1,
+            Items: [marshall({ status })],
+          };
+        }
+        return { Count: 0, Items: [] };
+      });
+    };
+
+    test("Returns 404 when room request does not exist", async () => {
+      const testJwt = createJwt();
+      ddbMock.on(QueryCommand).resolves({ Count: 0, Items: [] });
+      await app.ready();
+      const response = await supertest(app.server)
+        .patch(makePatchUrl())
+        .set("authorization", `Bearer ${testJwt}`)
+        .send(validEditBody);
+      expect(response.statusCode).toBe(404);
+      expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(0);
+    });
+
+    test("Rejects update when latest status is not CREATED", async () => {
+      const testJwt = createJwt();
+      mockExistenceAndStatus(RoomRequestStatus.APPROVED);
+      await app.ready();
+      const response = await supertest(app.server)
+        .patch(makePatchUrl())
+        .set("authorization", `Bearer ${testJwt}`)
+        .send(validEditBody);
+      expect(response.statusCode).toBe(409);
+      expect(response.body.message).toContain("created");
+      expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(0);
+    });
+
+    test("Admin can edit any user's request when in CREATED state", async () => {
+      const testJwt = createJwt();
+      mockExistenceAndStatus(RoomRequestStatus.CREATED);
+      ddbMock.on(TransactWriteItemsCommand).resolves({});
+      await app.ready();
+      const response = await supertest(app.server)
+        .patch(makePatchUrl())
+        .set("authorization", `Bearer ${testJwt}`)
+        .send(validEditBody);
+      expect(response.statusCode).toBe(200);
+      expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(1);
+    });
+
+    test("Successfully updates room request when in CREATED state", async () => {
+      const testJwt = createJwt();
+      mockExistenceAndStatus(RoomRequestStatus.CREATED);
+      ddbMock.on(TransactWriteItemsCommand).callsFake((input) => {
+        expect(input.TransactItems).toHaveLength(2);
+        const tableNames = input.TransactItems.map(
+          (item: Record<string, any>) => Object.values(item)[0].TableName,
+        );
+        expect(tableNames).toEqual(
+          expect.arrayContaining([
+            genericConfig.RoomRequestsTableName,
+            genericConfig.AuditLogTable,
+          ]),
+        );
+        return { $metadata: { httpStatusCode: 200 } };
+      });
+      await app.ready();
+      const response = await supertest(app.server)
+        .patch(makePatchUrl())
+        .set("authorization", `Bearer ${testJwt}`)
+        .send(validEditBody);
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toEqual({ id: editRequestId });
+      expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(1);
+    });
   });
 });

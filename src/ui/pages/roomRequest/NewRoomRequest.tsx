@@ -171,6 +171,7 @@ interface NewRoomRequestProps {
   createRoomRequest?: (
     payload: RoomRequestFormValues,
   ) => Promise<RoomRequestPostResponse>;
+  editRoomRequest?: (payload: RoomRequestFormValues) => Promise<{ id: string }>;
   initialValues?: RoomRequestGetResponse["data"];
   viewOnly?: boolean;
 }
@@ -197,9 +198,11 @@ const unixToDate = (unix: number | undefined): Date | undefined => {
 
 const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   createRoomRequest,
+  editRoomRequest,
   initialValues,
   viewOnly,
 }) => {
+  const isEditMode = !!editRoomRequest && !!initialValues;
   const [active, setActive] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userPrimaryOrg, setUserPrimaryOrg] = useState<string | null>(null);
@@ -414,7 +417,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     });
 
     try {
-      if (!createRoomRequest) {
+      if (!createRoomRequest && !editRoomRequest) {
         return;
       }
       setIsSubmitting(true);
@@ -434,13 +437,31 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         setIsSubmitting(false);
         return;
       }
-      const response = await createRoomRequest(values);
-      navigate(`/roomRequests/${values.semester}/${response.id}`);
-    } catch (e) {
+      if (isEditMode) {
+        await editRoomRequest!(values);
+        notifications.show({
+          title: "Room request updated!",
+          message: "Your changes have been saved.",
+        });
+        setIsSubmitting(false);
+      } else {
+        const response = await createRoomRequest!(values);
+        navigate(`/roomRequests/${values.semester}/${response.id}`);
+      }
+    } catch (e: any) {
+      const serverMessage = e?.response?.data?.message;
+      const serverName = e?.response?.data?.name;
+      const message = serverMessage
+        ? serverName
+          ? `(${serverName}) ${serverMessage}`
+          : serverMessage
+        : "Please try again or contact support.";
       notifications.show({
         color: "red",
-        title: "Failed to submit room request",
-        message: "Please try again or contact support.",
+        title: isEditMode
+          ? "Failed to update room request"
+          : "Failed to submit room request",
+        message,
       });
       setIsSubmitting(false);
       throw e;
@@ -880,7 +901,9 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         </Stepper.Step>
         {!viewOnly && (
           <Stepper.Completed>
-            Click the Submit button to submit the following room request:
+            {isEditMode
+              ? "Click the Update button to save the following changes:"
+              : "Click the Submit button to submit the following room request:"}
             <Code block mt="xl">
               {JSON.stringify(
                 {
@@ -915,8 +938,10 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             {isSubmitting ? (
               <>
                 <Loader size={16} color="white" />
-                Submitting...
+                {isEditMode ? "Updating..." : "Submitting..."}
               </>
+            ) : isEditMode ? (
+              "Update"
             ) : (
               "Submit"
             )}

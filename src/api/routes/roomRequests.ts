@@ -17,7 +17,9 @@ import {
   DatabaseInsertError,
   InternalServerError,
   NotFoundError,
+  ResourceConflictError,
   UnauthorizedError,
+  ValidationError,
 } from "common/errors/index.js";
 import {
   GetItemCommand,
@@ -524,6 +526,180 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       request.log.info(
         `Queued room reservation email to SQS with message ID ${result.MessageId}`,
       );
+    }),
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().patch(
+    "/:semesterId/:requestId",
+    {
+      schema: withRoles(
+        [AppRoles.ROOM_REQUEST_CREATE],
+        withTags(["Room Requests"], {
+          summary:
+            "Edit a room request. Only allowed while the request is in the created status.",
+          params: z.object({
+            requestId: z.string().min(1).meta({
+              description: "Room request ID.",
+              example: "6667e095-8b04-4877-b361-f636f459ba42",
+            }),
+            semesterId,
+          }),
+          body: roomRequestSchema,
+          response: {
+            200: {
+              description: "The room request was updated.",
+              content: {
+                "application/json": {
+                  schema: z.object({
+                    id: z.string(),
+                  }),
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    assertAuthenticated(async (request, reply) => {
+      const requestId = request.params.requestId;
+      const semesterId = request.params.semesterId;
+      if (request.body.semester !== semesterId) {
+        throw new ValidationError({
+          message:
+            "Semester in body must match the semester in the URL. To move the request to a different semester, delete and recreate it.",
+        });
+      }
+      const isSuperuser = request.userRoles?.has(AppRoles.ROOM_REQUEST_ADMIN);
+      let existing: {
+        userId: string;
+        "userId#requestId": string;
+        expiresAt: number;
+      };
+      if (isSuperuser) {
+        const existingResp = await fastify.dynamoClient.send(
+          new QueryCommand({
+            TableName: genericConfig.RoomRequestsTableName,
+            IndexName: "RequestIdIndex",
+            KeyConditionExpression: "requestId = :requestId",
+            FilterExpression: "semesterId = :semesterId",
+            ExpressionAttributeValues: {
+              ":requestId": { S: requestId },
+              ":semesterId": { S: semesterId },
+            },
+            Limit: 1,
+          }),
+        );
+        if (!existingResp.Items || existingResp.Count !== 1) {
+          throw new NotFoundError({ endpointName: request.url });
+        }
+        existing = unmarshall(existingResp.Items[0]) as typeof existing;
+      } else {
+        const existingResp = await fastify.dynamoClient.send(
+          new GetItemCommand({
+            TableName: genericConfig.RoomRequestsTableName,
+            Key: marshall({
+              semesterId,
+              "userId#requestId": `${request.username}#${requestId}`,
+            }),
+          }),
+        );
+        if (!existingResp.Item) {
+          throw new NotFoundError({ endpointName: request.url });
+        }
+        existing = unmarshall(existingResp.Item) as typeof existing;
+        const userOrgRoles = await getUserOrgRoles({
+          username: request.username,
+          dynamoClient: fastify.dynamoClient,
+          logger: request.log,
+        });
+        const leadRoles = userOrgRoles
+          .filter((x) => x.role === "LEAD")
+          .map((x) => x.org);
+        if (!leadRoles.includes(request.body.host)) {
+          throw new UnauthorizedError({
+            message:
+              "User is not authorized to edit room request for this organization.",
+          });
+        }
+      }
+      const statusResp = await fastify.dynamoClient.send(
+        new QueryCommand({
+          TableName: genericConfig.RoomRequestsStatusTableName,
+          KeyConditionExpression: "requestId = :requestId",
+          ExpressionAttributeValues: {
+            ":requestId": { S: requestId },
+          },
+          ProjectionExpression: "#status",
+          ExpressionAttributeNames: {
+            "#status": "status",
+          },
+          ScanIndexForward: false,
+          Limit: 1,
+        }),
+      );
+      if (!statusResp.Items || statusResp.Items.length === 0) {
+        throw new DatabaseFetchError({
+          message: "Could not determine current status of room request.",
+        });
+      }
+      const latestStatus = unmarshall(statusResp.Items[0]).status;
+      if (latestStatus !== RoomRequestStatus.CREATED) {
+        throw new ResourceConflictError({
+          message:
+            "Room request can only be edited while in the created state.",
+        });
+      }
+      const updatedBody = {
+        ...request.body,
+        eventStart: request.body.eventStart.toISOString(),
+        eventEnd: request.body.eventEnd.toISOString(),
+        ...(request.body.recurrenceEndDate
+          ? { recurrenceEndDate: request.body.recurrenceEndDate.toISOString() }
+          : {}),
+        requestId,
+        userId: existing.userId,
+        "userId#requestId": existing["userId#requestId"],
+        semesterId,
+        expiresAt: existing.expiresAt,
+      };
+      const logStatement = buildAuditLogTransactPut({
+        entry: {
+          module: Modules.ROOM_RESERVATIONS,
+          actor: request.username,
+          target: `${semesterId}/${requestId}`,
+          requestId: request.id,
+          message: "Edited room reservation request.",
+        },
+      });
+      try {
+        await fastify.dynamoClient.send(
+          new TransactWriteItemsCommand({
+            TransactItems: [
+              {
+                Put: {
+                  TableName: genericConfig.RoomRequestsTableName,
+                  Item: marshall(updatedBody, { removeUndefinedValues: true }),
+                  ConditionExpression:
+                    "attribute_exists(semesterId) AND attribute_exists(#userIdRequestId)",
+                  ExpressionAttributeNames: {
+                    "#userIdRequestId": "userId#requestId",
+                  },
+                },
+              },
+              ...(logStatement ? [logStatement] : []),
+            ],
+          }),
+        );
+      } catch (e) {
+        if (e instanceof BaseError) {
+          throw e;
+        }
+        request.log.error(e);
+        throw new DatabaseInsertError({
+          message: "Could not update room request.",
+        });
+      }
+      return reply.status(200).send({ id: requestId });
     }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
