@@ -614,6 +614,7 @@ export const ViewRoomRequest: React.FC = () => {
                       : `var(--mantine-color-${bulletColor}-filled)`;
                   return (
                     <Timeline.Item
+                      key={x.createdAt}
                       bullet={getStatusIcon(x.status)}
                       color={lineColor}
                       styles={{
