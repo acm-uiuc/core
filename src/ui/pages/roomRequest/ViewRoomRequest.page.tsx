@@ -174,7 +174,7 @@ export const ViewRoomRequest: React.FC = () => {
     side: "old" | "new",
   ): string =>
     Object.keys(diff)
-      .sort()
+      .sort((a, b) => a.localeCompare(b))
       .map((key) => {
         const label = FIELD_LABELS[key] ?? key;
         const value = formatDiffValue(diff[key][side]);
