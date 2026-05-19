@@ -503,7 +503,7 @@ describe("Test Room Request Creation", async () => {
     });
 
     ddbMock.on(TransactWriteItemsCommand).callsFake((input) => {
-      expect(input.TransactItems).toHaveLength(2);
+      expect(input.TransactItems).toHaveLength(3);
 
       const tableNames = input.TransactItems.map(
         (item: Record<string, any>) => Object.values(item)[0].TableName,
@@ -512,6 +512,7 @@ describe("Test Room Request Creation", async () => {
       expect(tableNames).toEqual(
         expect.arrayContaining([
           genericConfig.RoomRequestsStatusTableName,
+          genericConfig.RoomRequestsTableName,
           genericConfig.AuditLogTable,
         ]),
       );
@@ -705,6 +706,7 @@ describe("Test Room Request Creation", async () => {
       nonIllinoisSpeaker: null,
       nonIllinoisAttendees: null,
       requestsSccsRoom: false,
+      reason: "Because I wanted to.",
     };
 
     const existingItem = {
@@ -733,17 +735,17 @@ describe("Test Room Request Creation", async () => {
       expect(response.statusCode).toBe(400);
     });
 
-    test("Validation failure: body semester does not match URL", async () => {
+    test("Validation failure: missing reason", async () => {
       const testJwt = createJwt();
       ddbMock.rejects();
       await app.ready();
-      const mismatchedBody = { ...validEditBody, semester: "fa25" };
+      const { reason: _omit, ...bodyWithoutReason } = validEditBody;
       const response = await supertest(app.server)
         .patch(makePatchUrl("sp25", editRequestId))
         .set("authorization", `Bearer ${testJwt}`)
-        .send(mismatchedBody);
+        .send(bodyWithoutReason);
       expect(response.statusCode).toBe(400);
-      expect(response.body.message).toContain("Semester");
+      expect(response.body.message).toContain("reason");
       expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(0);
     });
 
@@ -786,7 +788,9 @@ describe("Test Room Request Creation", async () => {
         .set("authorization", `Bearer ${testJwt}`)
         .send(validEditBody);
       expect(response.statusCode).toBe(409);
-      expect(response.body.message).toContain("created");
+      expect(response.body.message).toContain(
+        'Room request cannot be edited while in the "Approved" state.',
+      );
       expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(0);
     });
 
@@ -807,13 +811,14 @@ describe("Test Room Request Creation", async () => {
       const testJwt = createJwt();
       mockExistenceAndStatus(RoomRequestStatus.CREATED);
       ddbMock.on(TransactWriteItemsCommand).callsFake((input) => {
-        expect(input.TransactItems).toHaveLength(2);
+        expect(input.TransactItems).toHaveLength(3);
         const tableNames = input.TransactItems.map(
           (item: Record<string, any>) => Object.values(item)[0].TableName,
         );
         expect(tableNames).toEqual(
           expect.arrayContaining([
             genericConfig.RoomRequestsTableName,
+            genericConfig.RoomRequestsStatusTableName,
             genericConfig.AuditLogTable,
           ]),
         );

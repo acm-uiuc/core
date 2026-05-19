@@ -639,7 +639,7 @@ export const ViewRoomRequest: React.FC = () => {
                       )}
                       {x.status === RoomRequestStatus.EDITED && x.diff && (
                         <Button
-                          size="compact-xs"
+                          size="xs"
                           variant="light"
                           mt={4}
                           onClick={() =>
@@ -656,7 +656,7 @@ export const ViewRoomRequest: React.FC = () => {
                       )}
                       {x.attachmentFilename && (
                         <Button
-                          size="compact-xs"
+                          size="xs"
                           variant="light"
                           mt={4}
                           leftSection={
