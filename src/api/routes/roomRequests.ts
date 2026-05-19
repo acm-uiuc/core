@@ -5,7 +5,10 @@ import {
 } from "fastify";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import {
+  editableRoomRequestStatuses,
   formatStatus,
+  isEditableRoomRequestStatus,
+  roomRequestEditSchema,
   roomRequestSchema,
   RoomRequestStatus,
   roomRequestStatusUpdateRequest,
@@ -52,6 +55,37 @@ import { HeadObjectCommand, NotFound, S3Client } from "@aws-sdk/client-s3";
 import { assertAuthenticated } from "api/authenticated.js";
 import { Organizations } from "@acm-uiuc/js-shared";
 import { getUserOrgRoles } from "api/functions/organizations.js";
+
+async function assertCanManageRoomRequest({
+  fastify,
+  request,
+  host,
+}: {
+  fastify: FastifyInstance;
+  request: FastifyRequest;
+  host: string;
+}): Promise<void> {
+  if (request.userRoles?.has(AppRoles.ROOM_REQUEST_ADMIN)) {
+    return;
+  }
+  if (!request.username) {
+    throw new UnauthorizedError({ message: "User is not authenticated." });
+  }
+  const userOrgRoles = await getUserOrgRoles({
+    username: request.username,
+    dynamoClient: fastify.dynamoClient,
+    logger: request.log,
+  });
+  const leadRoles = userOrgRoles
+    .filter((x) => x.role === "LEAD")
+    .map((x) => x.org);
+  if (!leadRoles.includes(host as (typeof leadRoles)[number])) {
+    throw new UnauthorizedError({
+      message:
+        "User is not authorized to manage room requests for this organization.",
+    });
+  }
+}
 
 async function verifyRoomRequestAccess(
   fastify: FastifyInstance,
@@ -220,11 +254,26 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: `Changed status to "${formatStatus(request.body.status)}".`,
         },
       });
+      const updateMainCurrentStatus = {
+        Update: {
+          TableName: genericConfig.RoomRequestsTableName,
+          Key: marshall({
+            semesterId,
+            "userId#requestId": `${originalRequestor}#${requestId}`,
+          }),
+          UpdateExpression: "SET #currentStatus = :status",
+          ExpressionAttributeNames: { "#currentStatus": "currentStatus" },
+          ExpressionAttributeValues: marshall({
+            ":status": request.body.status,
+          }),
+        },
+      };
       try {
         await fastify.dynamoClient.send(
           new TransactWriteItemsCommand({
             TransactItems: [
               { Put: itemPut },
+              updateMainCurrentStatus,
               ...(logStatement ? [logStatement] : []),
             ],
           }),
@@ -299,8 +348,11 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
     assertAuthenticated(async (request, reply) => {
       const semesterId = request.params.semesterId;
+      const selectedFields = request.query.select.map((f) =>
+        f === "status" ? "currentStatus" : f,
+      );
       const { ProjectionExpression, ExpressionAttributeNames } =
-        generateProjectionParams({ userFields: request.query.select });
+        generateProjectionParams({ userFields: selectedFields });
       let command: QueryCommand;
       if (
         request.userRoles?.has(AppRoles.ROOM_REQUEST_ADMIN) ||
@@ -337,52 +389,45 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not get room requests.",
         });
       }
-      const items = response.Items.map((x) => {
-        if (!request.query.select.includes("status")) {
-          return unmarshall(x);
-        }
-        const item = unmarshall(x) as {
-          host: string;
-          title: string;
-          requestId: string;
-          status: string;
-        };
-        const statusPromise = fastify.dynamoClient.send(
-          new QueryCommand({
-            TableName: genericConfig.RoomRequestsStatusTableName,
-            KeyConditionExpression: "requestId = :requestId",
-            ExpressionAttributeValues: {
-              ":requestId": { S: item.requestId },
-            },
-            ProjectionExpression: "#status",
-            ExpressionAttributeNames: {
-              "#status": "status",
-            },
-            ScanIndexForward: false,
-            Limit: 1,
-          }),
-        );
-
-        return statusPromise.then((statusResponse) => {
-          if (
-            !statusResponse ||
-            !statusResponse.Items ||
-            statusResponse.Items.length === 0
-          ) {
-            return "unknown";
+      const wantsStatus = request.query.select.includes("status");
+      const items = await Promise.all(
+        response.Items.map(async (x) => {
+          const item = unmarshall(x);
+          if (!wantsStatus) {
+            return item;
           }
-          const statuses = statusResponse.Items.map((s) => unmarshall(s));
-          const latestStatus = statuses.length > 0 ? statuses[0].status : null;
-          return {
-            ...item,
-            status: latestStatus,
-          };
-        });
-      });
+          if (item.currentStatus) {
+            item.status = item.currentStatus;
+            delete item.currentStatus;
+            return item;
+          }
+          // Backfill fallback: for legacy rows without currentStatus,
+          // query the status history table for the latest status.
+          const statusResponse = await fastify.dynamoClient.send(
+            new QueryCommand({
+              TableName: genericConfig.RoomRequestsStatusTableName,
+              KeyConditionExpression: "requestId = :requestId",
+              ExpressionAttributeValues: {
+                ":requestId": { S: item.requestId },
+              },
+              ProjectionExpression: "#status",
+              ExpressionAttributeNames: {
+                "#status": "status",
+              },
+              ScanIndexForward: false,
+              Limit: 1,
+            }),
+          );
+          const latest =
+            statusResponse.Items && statusResponse.Items.length > 0
+              ? unmarshall(statusResponse.Items[0]).status
+              : "unknown";
+          item.status = latest;
+          return item;
+        }),
+      );
 
-      const itemsWithStatus = await Promise.all(items);
-
-      return reply.status(200).send(itemsWithStatus);
+      return reply.status(200).send(items);
     }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
@@ -398,23 +443,11 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     assertAuthenticated(async (request, reply) => {
-      const isSuperuser = request.userRoles?.has(AppRoles.ROOM_REQUEST_ADMIN);
-      if (!isSuperuser) {
-        const userOrgRoles = await getUserOrgRoles({
-          username: request.username,
-          dynamoClient: fastify.dynamoClient,
-          logger: request.log,
-        });
-        const leadRoles = userOrgRoles
-          .filter((x) => x.role === "LEAD")
-          .map((x) => x.org);
-        if (!leadRoles.includes(request.body.host)) {
-          throw new UnauthorizedError({
-            message:
-              "User is not authorized to create room request for this organization.",
-          });
-        }
-      }
+      await assertCanManageRoomRequest({
+        fastify,
+        request,
+        host: request.body.host,
+      });
       const requestId = request.id;
       const body = {
         ...request.body,
@@ -427,6 +460,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
         userId: request.username,
         "userId#requestId": `${request.username}#${requestId}`,
         semesterId: request.body.semester,
+        currentStatus: RoomRequestStatus.CREATED,
         expiresAt:
           Math.floor(Date.now() / 1000) +
           86400 *
@@ -543,7 +577,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
             }),
             semesterId,
           }),
-          body: roomRequestSchema,
+          body: roomRequestEditSchema,
           response: {
             200: {
               description: "The room request was updated.",
@@ -563,17 +597,23 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     assertAuthenticated(async (request, reply) => {
       const requestId = request.params.requestId;
       const semesterId = request.params.semesterId;
-      if (request.body.semester !== semesterId) {
+      const body = request.body as z.infer<typeof roomRequestEditSchema>;
+      const { reason, ...updates } = body;
+      const updateEntries = Object.entries(updates).filter(
+        ([, v]) => v !== undefined,
+      );
+      if (updateEntries.length === 0) {
         throw new ValidationError({
-          message:
-            "Semester in body must match the semester in the URL. To move the request to a different semester, delete and recreate it.",
+          message: "At least one field must be provided to update.",
         });
       }
       const isSuperuser = request.userRoles?.has(AppRoles.ROOM_REQUEST_ADMIN);
       let existing: {
         userId: string;
         "userId#requestId": string;
+        host: string;
         expiresAt: number;
+        currentStatus?: RoomRequestStatus;
       };
       if (isSuperuser) {
         const existingResp = await fastify.dynamoClient.send(
@@ -607,85 +647,144 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
           throw new NotFoundError({ endpointName: request.url });
         }
         existing = unmarshall(existingResp.Item) as typeof existing;
-        const userOrgRoles = await getUserOrgRoles({
-          username: request.username,
-          dynamoClient: fastify.dynamoClient,
-          logger: request.log,
+        const effectiveHost = (updates.host ?? existing.host) as string;
+        await assertCanManageRoomRequest({
+          fastify,
+          request,
+          host: effectiveHost,
         });
-        const leadRoles = userOrgRoles
-          .filter((x) => x.role === "LEAD")
-          .map((x) => x.org);
-        if (!leadRoles.includes(request.body.host)) {
-          throw new UnauthorizedError({
-            message:
-              "User is not authorized to edit room request for this organization.",
+      }
+      let effectiveStatus: RoomRequestStatus | undefined =
+        existing.currentStatus;
+      if (!effectiveStatus) {
+        // Legacy fallback for rows without denormalized currentStatus:
+        // walk the status history newest-first and ignore EDITED entries.
+        const statusResp = await fastify.dynamoClient.send(
+          new QueryCommand({
+            TableName: genericConfig.RoomRequestsStatusTableName,
+            KeyConditionExpression: "requestId = :requestId",
+            FilterExpression: "#status <> :edited",
+            ExpressionAttributeValues: {
+              ":requestId": { S: requestId },
+              ":edited": { S: RoomRequestStatus.EDITED },
+            },
+            ProjectionExpression: "#status",
+            ExpressionAttributeNames: {
+              "#status": "status",
+            },
+            ScanIndexForward: false,
+          }),
+        );
+        if (!statusResp.Items || statusResp.Items.length === 0) {
+          request.log.error(
+            { roomRequest: requestId },
+            "No status response items found.",
+          );
+          throw new DatabaseFetchError({
+            message: "Could not determine current status of room request.",
           });
         }
+        effectiveStatus = unmarshall(statusResp.Items[0]).status;
       }
-      const statusResp = await fastify.dynamoClient.send(
-        new QueryCommand({
-          TableName: genericConfig.RoomRequestsStatusTableName,
-          KeyConditionExpression: "requestId = :requestId",
-          ExpressionAttributeValues: {
-            ":requestId": { S: requestId },
-          },
-          ProjectionExpression: "#status",
-          ExpressionAttributeNames: {
-            "#status": "status",
-          },
-          ScanIndexForward: false,
-          Limit: 1,
-        }),
-      );
-      if (!statusResp.Items || statusResp.Items.length === 0) {
-        throw new DatabaseFetchError({
-          message: "Could not determine current status of room request.",
-        });
-      }
-      const latestStatus = unmarshall(statusResp.Items[0]).status;
-      if (latestStatus !== RoomRequestStatus.CREATED) {
+      if (!isEditableRoomRequestStatus(effectiveStatus)) {
         throw new ResourceConflictError({
-          message:
-            "Room request can only be edited while in the created state.",
+          message: `Room request cannot be edited while in the "${formatStatus(effectiveStatus as RoomRequestStatus)}" state.`,
         });
       }
-      const updatedBody = {
-        ...request.body,
-        eventStart: request.body.eventStart.toISOString(),
-        eventEnd: request.body.eventEnd.toISOString(),
-        ...(request.body.recurrenceEndDate
-          ? { recurrenceEndDate: request.body.recurrenceEndDate.toISOString() }
-          : {}),
-        requestId,
-        userId: existing.userId,
-        "userId#requestId": existing["userId#requestId"],
-        semesterId,
-        expiresAt: existing.expiresAt,
+      const normalizedUpdates: Record<string, unknown> = {};
+      for (const [key, value] of updateEntries) {
+        if (value instanceof Date) {
+          normalizedUpdates[key] = value.toISOString();
+        } else {
+          normalizedUpdates[key] = value;
+        }
+      }
+      const updateExprAttrNames: Record<string, string> = {
+        "#userIdRequestId": "userId#requestId",
+        "#currentStatus": "currentStatus",
       };
+      const updateExprAttrValues: Record<string, unknown> = {};
+      editableRoomRequestStatuses.forEach((status, i) => {
+        updateExprAttrValues[`:editable${i}`] = status;
+      });
+      const editableConditionList = editableRoomRequestStatuses
+        .map((_, i) => `:editable${i}`)
+        .join(", ");
+      const setParts: string[] = [];
+      let idx = 0;
+      for (const [key, value] of Object.entries(normalizedUpdates)) {
+        const nameKey = `#u${idx}`;
+        const valKey = `:u${idx}`;
+        updateExprAttrNames[nameKey] = key;
+        updateExprAttrValues[valKey] = value;
+        setParts.push(`${nameKey} = ${valKey}`);
+        idx++;
+      }
+      const changedFields = Object.keys(normalizedUpdates);
+      const existingRecord = existing as unknown as Record<string, unknown>;
+      const diff: Record<string, { old: unknown; new: unknown }> = {};
+      for (const [key, value] of Object.entries(normalizedUpdates)) {
+        const oldValue = existingRecord[key];
+        if (
+          JSON.stringify(oldValue ?? null) !== JSON.stringify(value ?? null)
+        ) {
+          diff[key] = { old: oldValue ?? null, new: value };
+        }
+      }
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.ROOM_RESERVATIONS,
           actor: request.username,
           target: `${semesterId}/${requestId}`,
           requestId: request.id,
-          message: "Edited room reservation request.",
+          message: `Edited room reservation request. Changed fields: ${changedFields.join(", ")}.`,
         },
       });
+      const createdAt = new Date().toISOString();
+      const editedStatusPut = {
+        Put: {
+          TableName: genericConfig.RoomRequestsStatusTableName,
+          Item: marshall(
+            {
+              requestId,
+              semesterId,
+              "createdAt#status": `${createdAt}#${RoomRequestStatus.EDITED}`,
+              createdBy: request.username,
+              status: RoomRequestStatus.EDITED,
+              expiresAt:
+                Math.floor(Date.now() / 1000) +
+                86400 *
+                  (fastify.runEnvironment === "prod"
+                    ? ROOM_RESERVATION_RETENTION_DAYS
+                    : ROOM_RESERVATION_RETENTION_DAYS_QA),
+              notes: reason,
+              diff:
+                Object.keys(diff).length > 0 ? JSON.stringify(diff) : undefined,
+            },
+            { removeUndefinedValues: true },
+          ),
+        },
+      };
       try {
         await fastify.dynamoClient.send(
           new TransactWriteItemsCommand({
             TransactItems: [
               {
-                Put: {
+                Update: {
                   TableName: genericConfig.RoomRequestsTableName,
-                  Item: marshall(updatedBody, { removeUndefinedValues: true }),
-                  ConditionExpression:
-                    "attribute_exists(semesterId) AND attribute_exists(#userIdRequestId)",
-                  ExpressionAttributeNames: {
-                    "#userIdRequestId": "userId#requestId",
-                  },
+                  Key: marshall({
+                    semesterId,
+                    "userId#requestId": existing["userId#requestId"],
+                  }),
+                  UpdateExpression: `SET ${setParts.join(", ")}`,
+                  ConditionExpression: `attribute_exists(semesterId) AND attribute_exists(#userIdRequestId) AND (attribute_not_exists(#currentStatus) OR #currentStatus IN (${editableConditionList}))`,
+                  ExpressionAttributeNames: updateExprAttrNames,
+                  ExpressionAttributeValues: marshall(updateExprAttrValues, {
+                    removeUndefinedValues: true,
+                  }),
                 },
               },
+              editedStatusPut,
               ...(logStatement ? [logStatement] : []),
             ],
           }),
@@ -743,17 +842,26 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
                 ":requestId": { S: requestId },
               },
               ProjectionExpression:
-                "#createdAt,#notes,#createdBy,#attachmentS3key",
+                "#createdAt,#notes,#createdBy,#attachmentS3key,#diff",
               ExpressionAttributeNames: {
                 "#createdBy": "createdBy",
                 "#createdAt": "createdAt#status",
                 "#notes": "notes",
                 "#attachmentS3key": "attachmentS3key",
+                "#diff": "diff",
               },
             }),
           );
           const updates = statusesResponse.Items?.map((x) => {
             const unmarshalled = unmarshall(x);
+            let parsedDiff: unknown = undefined;
+            if (typeof unmarshalled.diff === "string") {
+              try {
+                parsedDiff = JSON.parse(unmarshalled.diff);
+              } catch {
+                parsedDiff = undefined;
+              }
+            }
             return {
               createdBy: unmarshalled.createdBy,
               createdAt: unmarshalled["createdAt#status"].split("#")[0],
@@ -762,6 +870,7 @@ const roomRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
               attachmentFilename: unmarshalled.attachmentS3key
                 ? (unmarshalled.attachmentS3key as string).split("/").at(-1)
                 : undefined,
+              diff: parsedDiff,
             };
           });
           if (!resp.Items || resp.Count !== 1) {
