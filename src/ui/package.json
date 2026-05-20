@@ -37,6 +37,7 @@
     "pdfjs-dist": "^5.7.284",
     "pluralize": "^8.0.0",
     "react": "^19.2.6",
+    "react-diff-viewer-continued": "^4.2.2",
     "react-dom": "^19.2.6",
     "react-easy-crop": "^5.5.7",
     "react-pdf": "^10.4.1",
