@@ -4,12 +4,13 @@ import {
   IconCircleCheck,
   IconCircleDashedCheck,
   IconExclamationCircle,
+  IconPencil,
   IconProgressCheck,
   IconQuestionMark,
 } from "@tabler/icons-react";
 
 export const getStatusIcon = (status: RoomRequestStatus) => {
-  const commonProps = { size: 20 };
+  const commonProps = { size: 14 };
   switch (status) {
     case RoomRequestStatus.APPROVED:
       return <IconCircleCheck {...commonProps} />;
@@ -20,6 +21,8 @@ export const getStatusIcon = (status: RoomRequestStatus) => {
       return <IconProgressCheck {...commonProps} />;
     case RoomRequestStatus.MORE_INFORMATION_NEEDED:
       return <IconQuestionMark {...commonProps} />;
+    case RoomRequestStatus.EDITED:
+      return <IconPencil {...commonProps} />;
     default:
       return <IconCircleDashedCheck {...commonProps} />;
   }
@@ -36,6 +39,9 @@ export const getStatusColor = (status: RoomRequestStatus) => {
       return "orange";
     case RoomRequestStatus.MORE_INFORMATION_NEEDED:
       return "yellow";
+    case RoomRequestStatus.CREATED:
+    case RoomRequestStatus.EDITED:
+      return "blue";
     default:
       return "black";
   }
