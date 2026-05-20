@@ -1,6 +1,11 @@
 import * as z from "zod/v4";
-import { illinoisSemesterId, OrgUniqueId } from "./generic.js"
-export const validMimeTypes = ['application/pdf', 'image/jpeg', 'image/heic', 'image/png']
+import { illinoisSemesterId, OrgUniqueId } from "./generic.js";
+export const validMimeTypes = [
+  "application/pdf",
+  "image/jpeg",
+  "image/heic",
+  "image/png",
+];
 export const maxAttachmentSizeBytes = 1e7; // 10MB
 
 export const eventThemeOptions = [
@@ -12,14 +17,15 @@ export const eventThemeOptions = [
   "Learning",
   "Service",
   "Social",
-  "Spirituality"]
+  "Spirituality",
+];
 
 export function getPreviousSemesters() {
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1;
 
-  let semesters: { value: string; label: string; }[] = [];
+  const semesters: { value: string; label: string }[] = [];
   let currentSemester = "";
 
   if (currentMonth >= 1 && currentMonth <= 5) {
@@ -31,28 +37,28 @@ export function getPreviousSemesters() {
   if (currentSemester === "Spring") {
     semesters.push({
       value: `fa${(currentYear - 1).toString().slice(-2)}`,
-      label: `Fall ${currentYear - 1}`
+      label: `Fall ${currentYear - 1}`,
     });
     semesters.push({
       value: `sp${(currentYear - 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear - 1}`
+      label: `Spring ${currentYear - 1}`,
     });
     semesters.push({
       value: `fa${(currentYear - 2).toString().slice(-2)}`,
-      label: `Fall ${currentYear - 2}`
+      label: `Fall ${currentYear - 2}`,
     });
   } else if (currentSemester === "Fall") {
     semesters.push({
       value: `sp${currentYear.toString().slice(-2)}`,
-      label: `Spring ${currentYear}`
+      label: `Spring ${currentYear}`,
     });
     semesters.push({
       value: `fa${(currentYear - 1).toString().slice(-2)}`,
-      label: `Fall ${currentYear - 1}`
+      label: `Fall ${currentYear - 1}`,
     });
     semesters.push({
       value: `sp${(currentYear - 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear - 1}`
+      label: `Spring ${currentYear - 1}`,
     });
   }
 
@@ -64,7 +70,7 @@ export function getSemesters() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1;
 
-  let semesters: { value: string; label: string; }[] = [];
+  const semesters: { value: string; label: string }[] = [];
   let currentSemester = "";
 
   if (currentMonth >= 1 && currentMonth <= 5) {
@@ -76,28 +82,28 @@ export function getSemesters() {
   if (currentSemester === "Spring") {
     semesters.push({
       value: `sp${currentYear.toString().slice(-2)}`,
-      label: `Spring ${currentYear}`
+      label: `Spring ${currentYear}`,
     });
     semesters.push({
       value: `fa${currentYear.toString().slice(-2)}`,
-      label: `Fall ${currentYear}`
+      label: `Fall ${currentYear}`,
     });
     semesters.push({
       value: `sp${(currentYear + 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear + 1}`
+      label: `Spring ${currentYear + 1}`,
     });
   } else if (currentSemester === "Fall") {
     semesters.push({
       value: `fa${currentYear.toString().slice(-2)}`,
-      label: `Fall ${currentYear}`
+      label: `Fall ${currentYear}`,
     });
     semesters.push({
       value: `sp${(currentYear + 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear + 1}`
+      label: `Spring ${currentYear + 1}`,
     });
     semesters.push({
       value: `fa${(currentYear + 1).toString().slice(-2)}`,
-      label: `Fall ${currentYear + 1}`
+      label: `Fall ${currentYear + 1}`,
     });
   }
 
@@ -110,20 +116,21 @@ export const spaceTypeOptions = [
   { value: "bif", label: "Business Instructional Facility (BIF)" },
   {
     value: "campus_rec",
-    label: "Campus Rec (ARC, CRCE, Ice Arena, Illini Grove) *"
+    label: "Campus Rec (ARC, CRCE, Ice Arena, Illini Grove) *",
   },
   { value: "illini_union", label: "Illini Union *" },
-  { value: "stock_pavilion", label: "Stock Pavilion" }];
-
+  { value: "stock_pavilion", label: "Stock Pavilion" },
+];
 
 export const specificRoomSetupRooms = [
   "illini_union",
   "campus_performance",
-  "campus_rec"];
-
+  "campus_rec",
+];
 
 export enum RoomRequestStatus {
   CREATED = "created",
+  EDITED = "edited",
   MORE_INFORMATION_NEEDED = "more_information_needed",
   REJECTED_BY_ACM = "rejected_by_acm",
   SUBMITTED = "submitted",
@@ -134,65 +141,114 @@ export enum RoomRequestStatus {
 export const roomRequestStatusAttachmentInfo = z.object({
   filename: z.string().min(1).max(100),
   fileSizeBytes: z.number().min(1).max(maxAttachmentSizeBytes),
-  contentType: z.enum(validMimeTypes)
-})
-
-export const roomRequestStatusUpdateRequest = z.object({
-  status: z.enum(RoomRequestStatus),
-  attachmentInfo: z.optional(roomRequestStatusAttachmentInfo),
-  notes: z.string().min(1).max(1000)
+  contentType: z.enum(validMimeTypes),
 });
 
-export const roomRequestStatusUpdate = roomRequestStatusUpdateRequest.extend({
+export const manualRoomRequestStatuses = [
+  RoomRequestStatus.MORE_INFORMATION_NEEDED,
+  RoomRequestStatus.REJECTED_BY_ACM,
+  RoomRequestStatus.SUBMITTED,
+  RoomRequestStatus.APPROVED,
+  RoomRequestStatus.REJECTED_BY_UIUC,
+] as const;
+
+export const editableRoomRequestStatuses = [
+  RoomRequestStatus.CREATED,
+  RoomRequestStatus.MORE_INFORMATION_NEEDED,
+  RoomRequestStatus.REJECTED_BY_ACM,
+  RoomRequestStatus.REJECTED_BY_UIUC,
+] as const;
+
+export const isEditableRoomRequestStatus = (
+  status: RoomRequestStatus | undefined,
+): boolean =>
+  !!status &&
+  (editableRoomRequestStatuses as readonly string[]).includes(status);
+
+export const roomRequestStatusUpdateRequest = z.object({
+  status: z.enum(manualRoomRequestStatuses),
+  attachmentInfo: z.optional(roomRequestStatusAttachmentInfo),
+  notes: z.string().min(1).max(1000),
+});
+
+export const roomRequestEditDiff = z.record(
+  z.string(),
+  z.object({ old: z.unknown(), new: z.unknown() }),
+);
+export type RoomRequestEditDiff = z.infer<typeof roomRequestEditDiff>;
+
+export const roomRequestStatusUpdate = z.object({
+  status: z.enum(RoomRequestStatus),
+  attachmentInfo: z.optional(roomRequestStatusAttachmentInfo),
+  notes: z.string().min(1).max(1000),
   createdAt: z.iso.datetime(),
   createdBy: z.email(),
-  attachmentFilename: z.optional(z.string())
+  attachmentFilename: z.optional(z.string()),
+  diff: z.optional(roomRequestEditDiff),
 });
 
 export const roomRequestPostResponse = z.object({
   id: z.string().uuid(),
-  status: z.literal(RoomRequestStatus.CREATED)
+  status: z.literal(RoomRequestStatus.CREATED),
 });
 
 export const roomRequestBaseSchema = z.object({
   host: OrgUniqueId,
   title: z.string().min(2, "Title must have at least 2 characters"),
-  semester: illinoisSemesterId
+  semester: illinoisSemesterId,
 });
 export const roomRequestDataSchema = roomRequestBaseSchema.extend({
-  eventStart: z.coerce.date({
-    error: (issue) => issue.input === undefined ? "Event start date and time is required" : "Event start must be a valid date and time"
-  }).transform((date) => {
-    const d = new Date(date);
-    d.setSeconds(0, 0);
-    return d;
-  }),
-  eventEnd: z.coerce.date({
-    error: (issue) => issue.input === undefined ? "Event end date and time is required" : "Event end must be a valid date and time"
-  }).transform((date) => {
-    const d = new Date(date);
-    d.setSeconds(0, 0);
-    return d;
-  }),
+  eventStart: z.coerce
+    .date({
+      error: (issue) =>
+        issue.input === undefined
+          ? "Event start date and time is required"
+          : "Event start must be a valid date and time",
+    })
+    .transform((date) => {
+      const d = new Date(date);
+      d.setSeconds(0, 0);
+      return d;
+    }),
+  eventEnd: z.coerce
+    .date({
+      error: (issue) =>
+        issue.input === undefined
+          ? "Event end date and time is required"
+          : "Event end must be a valid date and time",
+    })
+    .transform((date) => {
+      const d = new Date(date);
+      d.setSeconds(0, 0);
+      return d;
+    }),
   theme: z.enum(eventThemeOptions, {
-    error: (issue) => issue.input === undefined ? "Event theme must be provided" : "Event theme is invalid"
+    error: (issue) =>
+      issue.input === undefined
+        ? "Event theme must be provided"
+        : "Event theme is invalid",
   }),
-  description: z.
-    string().
-    min(10, "Description must have at least 10 words").
-    max(1000, "Description cannot exceed 1000 characters").
-    refine((val) => val.split(/\s+/).filter(Boolean).length >= 10, {
-      message: "Description must have at least 10 words"
+  description: z
+    .string()
+    .min(10, "Description must have at least 10 words")
+    .max(1000, "Description cannot exceed 1000 characters")
+    .refine((val) => val.split(/\s+/).filter(Boolean).length >= 10, {
+      message: "Description must have at least 10 words",
     }),
   // Recurring event fields
   isRecurring: z.boolean().default(false),
   recurrencePattern: z.enum(["weekly", "biweekly", "monthly"]).optional(),
-  recurrenceEndDate: z.coerce.date().optional().transform((date) => {
-    if (!date) { return date; }
-    const d = new Date(date);
-    d.setSeconds(0, 0);
-    return d;
-  }),
+  recurrenceEndDate: z.coerce
+    .date()
+    .optional()
+    .transform((date) => {
+      if (!date) {
+        return date;
+      }
+      const d = new Date(date);
+      d.setSeconds(0, 0);
+      return d;
+    }),
   // Setup time fields
   setupNeeded: z.boolean().default(false),
   setupMinutesBefore: z.number().min(5).max(60).optional(),
@@ -211,29 +267,31 @@ export const roomRequestDataSchema = roomRequestBaseSchema.extend({
   nonIllinoisAttendees: z.number().min(1).nullable(),
   foodOrDrink: z.boolean(),
   crafting: z.boolean(),
-  comments: z.string().optional()
+  comments: z.string().optional(),
 });
 
-export const roomRequestSchema = roomRequestDataSchema.
-  refine(
+export const roomRequestSchema = roomRequestDataSchema
+  .refine(
     (data) => {
       return data.eventEnd > data.eventStart;
     },
     {
       message: "End date/time must be after start date/time",
-      path: ["eventEnd"]
-    }
-  ).
-  refine(
+      path: ["eventEnd"],
+    },
+  )
+  .refine(
     (data) => {
-      return data.eventEnd.getTime() - data.eventStart.getTime() >= 30 * 60 * 1000;
+      return (
+        data.eventEnd.getTime() - data.eventStart.getTime() >= 30 * 60 * 1000
+      );
     },
     {
       message: "Event must be at least 30 minutes long",
-      path: ["eventEnd"]
-    }
-  ).
-  refine(
+      path: ["eventEnd"],
+    },
+  )
+  .refine(
     (data) => {
       // If recurrence is enabled, recurrence pattern must be provided
       if (data.isRecurring) {
@@ -243,10 +301,10 @@ export const roomRequestSchema = roomRequestDataSchema.
     },
     {
       message: "Please select a recurrence pattern",
-      path: ["recurrencePattern"]
-    }
-  ).
-  refine(
+      path: ["recurrencePattern"],
+    },
+  )
+  .refine(
     (data) => {
       // If recurrence is enabled, end date must be provided
       if (data.isRecurring) {
@@ -256,10 +314,10 @@ export const roomRequestSchema = roomRequestDataSchema.
     },
     {
       message: "Please select an end date for the recurring event",
-      path: ["recurrenceEndDate"]
-    }
-  ).
-  refine(
+      path: ["recurrenceEndDate"],
+    },
+  )
+  .refine(
     (data) => {
       if (data.isRecurring && data.recurrenceEndDate && data.eventStart) {
         const endDateWithTime = new Date(data.recurrenceEndDate);
@@ -270,10 +328,10 @@ export const roomRequestSchema = roomRequestDataSchema.
     },
     {
       message: "End date must be on or after the event start date",
-      path: ["recurrenceEndDate"]
-    }
-  ).
-  refine(
+      path: ["recurrenceEndDate"],
+    },
+  )
+  .refine(
     (data) => {
       // If setup is needed, setupMinutesBefore must be provided
       if (data.setupNeeded) {
@@ -284,25 +342,31 @@ export const roomRequestSchema = roomRequestDataSchema.
     {
       message:
         "Please specify how many minutes before the event you need for setup",
-      path: ["setupMinutesBefore"]
-    }
-  ).
-  refine(
+      path: ["setupMinutesBefore"],
+    },
+  )
+  .refine(
     (data) => {
-      if (data.setupDetails === undefined && specificRoomSetupRooms.includes(data.spaceType || "")) {
+      if (
+        data.setupDetails === undefined &&
+        specificRoomSetupRooms.includes(data.spaceType || "")
+      ) {
         return false;
       }
-      if (data.setupDetails && !specificRoomSetupRooms.includes(data.spaceType || "")) {
+      if (
+        data.setupDetails &&
+        !specificRoomSetupRooms.includes(data.spaceType || "")
+      ) {
         return false;
       }
       return true;
     },
     {
       message: "Invalid setup details response.",
-      path: ["setupDetails"]
-    }
-  ).
-  refine(
+      path: ["setupDetails"],
+    },
+  )
+  .refine(
     (data) => {
       const isPhysical =
         data.locationType === "in-person" || data.locationType === "both";
@@ -311,10 +375,11 @@ export const roomRequestSchema = roomRequestDataSchema.
     {
       message: "Please specify whether you are requesting an SCCS room",
       path: ["requestsSccsRoom"],
-    }
-  ).
-  superRefine((data, ctx) => {
-    const isPhysicalLocation = data.locationType === "in-person" || data.locationType === "both";
+    },
+  )
+  .superRefine((data, ctx) => {
+    const isPhysicalLocation =
+      data.locationType === "in-person" || data.locationType === "both";
 
     // Conditional physical location fields
     if (isPhysicalLocation) {
@@ -322,7 +387,7 @@ export const roomRequestSchema = roomRequestDataSchema.
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please select a space type",
-          path: ["spaceType"]
+          path: ["spaceType"],
         });
       }
 
@@ -330,32 +395,41 @@ export const roomRequestSchema = roomRequestDataSchema.
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please provide details about the room location",
-          path: ["specificRoom"]
+          path: ["specificRoom"],
         });
       }
 
-      if (data.estimatedAttendees === null || data.estimatedAttendees === undefined || data.estimatedAttendees <= 0) {
+      if (
+        data.estimatedAttendees === null ||
+        data.estimatedAttendees === undefined ||
+        data.estimatedAttendees <= 0
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please provide an estimated number of attendees",
-          path: ["estimatedAttendees"]
+          path: ["estimatedAttendees"],
         });
       }
 
-      if (data.seatsNeeded === null || data.seatsNeeded === undefined || data.seatsNeeded <= 0) {
+      if (
+        data.seatsNeeded === null ||
+        data.seatsNeeded === undefined ||
+        data.seatsNeeded <= 0
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Please specify how many seats you need",
-          path: ["seatsNeeded"]
+          path: ["seatsNeeded"],
         });
       } else if (
         data.estimatedAttendees &&
-        data.seatsNeeded < data.estimatedAttendees) {
+        data.seatsNeeded < data.estimatedAttendees
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message:
             "Number of seats must be greater than or equal to number of attendees",
-          path: ["seatsNeeded"]
+          path: ["seatsNeeded"],
         });
       }
     }
@@ -365,7 +439,7 @@ export const roomRequestSchema = roomRequestDataSchema.
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Please provide details about on-campus partners",
-        path: ["onCampusPartners"]
+        path: ["onCampusPartners"],
       });
     }
 
@@ -373,7 +447,7 @@ export const roomRequestSchema = roomRequestDataSchema.
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Please provide details about off-campus partners",
-        path: ["offCampusPartners"]
+        path: ["offCampusPartners"],
       });
     }
 
@@ -381,7 +455,7 @@ export const roomRequestSchema = roomRequestDataSchema.
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Please provide details about non-UIUC speakers",
-        path: ["nonIllinoisSpeaker"]
+        path: ["nonIllinoisSpeaker"],
       });
     }
 
@@ -389,37 +463,52 @@ export const roomRequestSchema = roomRequestDataSchema.
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Percentage must be greater than 0",
-        path: ["nonIllinoisAttendees"]
+        path: ["nonIllinoisAttendees"],
       });
     }
 
     // Setup details logic
-    if (data.setupDetails === undefined && specificRoomSetupRooms.includes(data.spaceType || "")) {
+    if (
+      data.setupDetails === undefined &&
+      specificRoomSetupRooms.includes(data.spaceType || "")
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Invalid setup details response.",
-        path: ["setupDetails"]
+        path: ["setupDetails"],
       });
     }
 
-    if (data.setupDetails && !specificRoomSetupRooms.includes(data.spaceType || "")) {
+    if (
+      data.setupDetails &&
+      !specificRoomSetupRooms.includes(data.spaceType || "")
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Invalid setup details response.",
-        path: ["setupDetails"]
+        path: ["setupDetails"],
       });
     }
   });
 
-
 export type RoomRequestFormValues = z.infer<typeof roomRequestSchema>;
 
+export const roomRequestEditSchema = roomRequestDataSchema
+  .omit({ semester: true })
+  .partial()
+  .extend({
+    reason: z.string().min(1, "Please provide a reason for the edit").max(500),
+  });
+export type RoomRequestEditValues = z.infer<typeof roomRequestEditSchema>;
+
 export const roomRequestCompatShim = {
-  requestsSccsRoom: z.boolean().optional()
-}
+  requestsSccsRoom: z.boolean().optional(),
+};
 export const roomRequestGetResponse = z.object({
-  data: roomRequestDataSchema.extend(roomRequestCompatShim),
-  updates: z.array(roomRequestStatusUpdate)
+  data: roomRequestDataSchema.extend(roomRequestCompatShim).extend({
+    currentStatus: z.optional(z.enum(RoomRequestStatus)),
+  }),
+  updates: z.array(roomRequestStatusUpdate),
 });
 
 export type RoomRequestPostResponse = z.infer<typeof roomRequestPostResponse>;
@@ -429,14 +518,14 @@ export type RoomRequestStatusUpdate = z.infer<typeof roomRequestStatusUpdate>;
 export type RoomRequestGetResponse = z.infer<typeof roomRequestGetResponse>;
 
 export type RoomRequestStatusUpdatePostBody = z.infer<
-  typeof roomRequestStatusUpdateRequest>;
-
+  typeof roomRequestStatusUpdateRequest
+>;
 
 export const roomGetResponse = z.array(
   roomRequestDataSchema.extend(roomRequestCompatShim).extend({
     requestId: z.uuid(),
-    status: z.enum(RoomRequestStatus)
-  })
+    status: z.enum(RoomRequestStatus),
+  }),
 );
 
 export type RoomRequestGetAllResponse = z.infer<typeof roomGetResponse>;
@@ -459,12 +548,12 @@ export function capitalizeFirstLetter(string: string) {
 
 export const formatStatus = (status: RoomRequestStatus) => {
   if (status === RoomRequestStatus.SUBMITTED) {
-    return 'Submitted to UIUC';
+    return "Submitted to UIUC";
   }
-  return capitalizeFirstLetter(status).
-    replaceAll('_', ' ').
-    replaceAll('uiuc', 'UIUC').
-    replaceAll('acm', 'ACM');
+  return capitalizeFirstLetter(status)
+    .replaceAll("_", " ")
+    .replaceAll("uiuc", "UIUC")
+    .replaceAll("acm", "ACM");
 };
 
 const SEMESTER_DATE_CONFIG = {
@@ -485,13 +574,17 @@ const SEMESTER_DATE_CONFIG = {
 export const getSemesterDateRange = (
   semester: string | undefined,
 ): { start: Date; end: Date } | null => {
-  if (!semester || semester.length < 4) return null;
+  if (!semester || semester.length < 4) {
+    return null;
+  }
 
   const prefix = semester.slice(0, 2).toLowerCase();
   const yearSuffix = semester.slice(2);
 
   // Validate year suffix is numeric
-  if (!/^\d{2}$/.test(yearSuffix)) return null;
+  if (!/^\d{2}$/.test(yearSuffix)) {
+    return null;
+  }
 
   const year = 2000 + parseInt(yearSuffix, 10);
 

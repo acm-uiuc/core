@@ -16,6 +16,7 @@ import {
   Loader,
   Checkbox,
   Alert,
+  Tooltip,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { DateInput } from "@mantine/dates";
@@ -31,6 +32,7 @@ import {
   RoomRequestGetResponse,
   roomRequestCompatShim,
   roomRequestDataSchema,
+  RoomRequestEditValues,
 } from "@common/types/roomRequest";
 import { useNavigate } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
@@ -167,13 +169,29 @@ const YesNoField: React.FC<YesNoFieldProps> = ({
   );
 };
 
-interface NewRoomRequestProps {
-  createRoomRequest?: (
-    payload: RoomRequestFormValues,
-  ) => Promise<RoomRequestPostResponse>;
-  initialValues?: RoomRequestGetResponse["data"];
-  viewOnly?: boolean;
-}
+type NewRoomRequestProps =
+  | {
+      viewOnly: true;
+      initialValues: RoomRequestGetResponse["data"];
+      createRoomRequest?: never;
+      editRoomRequest?: never;
+    }
+  | {
+      viewOnly?: false;
+      createRoomRequest: (
+        payload: RoomRequestFormValues,
+      ) => Promise<RoomRequestPostResponse>;
+      editRoomRequest?: never;
+      initialValues?: never;
+    }
+  | {
+      viewOnly?: false;
+      editRoomRequest: (
+        payload: RoomRequestEditValues,
+      ) => Promise<{ id: string }>;
+      initialValues: RoomRequestGetResponse["data"];
+      createRoomRequest?: never;
+    };
 
 const recurrencePatternOptions = [
   { value: "weekly", label: "Weekly" },
@@ -197,11 +215,14 @@ const unixToDate = (unix: number | undefined): Date | undefined => {
 
 const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
   createRoomRequest,
+  editRoomRequest,
   initialValues,
   viewOnly,
 }) => {
+  const isEditMode = !!editRoomRequest && !!initialValues;
   const [active, setActive] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editReason, setEditReason] = useState("");
   const [userPrimaryOrg, setUserPrimaryOrg] = useState<string | null>(null);
   const numSteps = 4;
   const navigate = useNavigate();
@@ -414,33 +435,97 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     });
 
     try {
-      if (!createRoomRequest) {
-        return;
-      }
       setIsSubmitting(true);
-      let values;
-      try {
-        values = await roomRequestSchema.parseAsync(apiFormValues);
-      } catch (e) {
-        let message = "Check the browser console for more details.";
-        if (e instanceof ZodError) {
-          message = fromError(e).toString();
+      if (isEditMode) {
+        if (!editRoomRequest) {
+          throw new Error("editRoomRequest must be provided in edit mode.");
         }
-        notifications.show({
-          title: "Submission failed to validate",
-          message,
-          color: "red",
+        if (!editReason.trim()) {
+          notifications.show({
+            title: "Reason required",
+            message: "Please provide a reason for the edit.",
+            color: "red",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        const dirtyPayload: Record<string, unknown> = {};
+        for (const key of Object.keys(form.values) as Array<
+          keyof typeof form.values
+        >) {
+          if (!form.isDirty(key as string)) {
+            continue;
+          }
+          const value = form.values[key];
+          if (
+            key === "eventStart" ||
+            key === "eventEnd" ||
+            key === "recurrenceEndDate"
+          ) {
+            dirtyPayload[key] =
+              typeof value === "number" ? unixToDate(value) : value;
+          } else {
+            dirtyPayload[key] = value;
+          }
+        }
+        if (Object.keys(dirtyPayload).length === 0) {
+          notifications.show({
+            title: "No changes to save",
+            message: "Modify a field before submitting.",
+            color: "yellow",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        await editRoomRequest({
+          ...(dirtyPayload as Partial<RoomRequestEditValues>),
+          reason: editReason.trim(),
         });
+        notifications.show({
+          title: "Room request updated!",
+          message: "Your changes have been saved.",
+        });
+        form.resetDirty();
+        setEditReason("");
+        setActive(0);
         setIsSubmitting(false);
-        return;
+      } else {
+        if (!createRoomRequest) {
+          throw new Error("createRoomRequest must be provided in create mode.");
+        }
+        let values;
+        try {
+          values = await roomRequestSchema.parseAsync(apiFormValues);
+        } catch (e) {
+          let message = "Check the browser console for more details.";
+          if (e instanceof ZodError) {
+            message = fromError(e).toString();
+          }
+          notifications.show({
+            title: "Submission failed to validate",
+            message,
+            color: "red",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        const response = await createRoomRequest(values);
+        navigate(`/roomRequests/${values.semester}/${response.id}`);
       }
-      const response = await createRoomRequest(values);
-      navigate(`/roomRequests/${values.semester}/${response.id}`);
-    } catch (e) {
+    } catch (e: any) {
+      const serverMessage = e?.response?.data?.message;
+      const serverName = e?.response?.data?.name;
+      const message = serverMessage
+        ? serverName
+          ? `(${serverName}) ${serverMessage}`
+          : serverMessage
+        : "Please try again or contact support.";
       notifications.show({
         color: "red",
-        title: "Failed to submit room request",
-        message: "Please try again or contact support.",
+        title: isEditMode
+          ? "Failed to update room request"
+          : "Failed to submit room request",
+        message,
       });
       setIsSubmitting(false);
       throw e;
@@ -477,7 +562,8 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
             label="Semester"
             placeholder="Select event semester"
             withAsterisk
-            searchable
+            searchable={!isEditMode}
+            disabled={isEditMode}
             data={semesterOptions}
             {...form.getInputProps("semester")}
           />
@@ -489,7 +575,7 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
               form.setFieldValue("host", org !== null ? org : undefined)
             }
             onOrgsLoaded={(orgs) => {
-              if (!viewOnly && orgs.length > 0) {
+              if (!viewOnly && orgs.length > 0 && !form.values.host) {
                 const primOrg = getPrimarySuggestedOrg(orgRoles);
                 if (primOrg) {
                   setUserPrimaryOrg(primOrg);
@@ -880,21 +966,55 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
         </Stepper.Step>
         {!viewOnly && (
           <Stepper.Completed>
-            Click the Submit button to submit the following room request:
+            {isEditMode
+              ? "Click the Update button to save the following changes:"
+              : "Click the Submit button to submit the following room request:"}
             <Code block mt="xl">
               {JSON.stringify(
-                {
-                  ...form.values,
-                  eventStart: formatChicagoTime(form.values.eventStart),
-                  eventEnd: formatChicagoTime(form.values.eventEnd),
-                  recurrenceEndDate: formatChicagoTime(
-                    form.values.recurrenceEndDate,
-                  ),
-                },
+                isEditMode
+                  ? Object.fromEntries(
+                      (
+                        Object.keys(form.values) as Array<
+                          keyof typeof form.values
+                        >
+                      )
+                        .filter((k) => form.isDirty(k as string))
+                        .map((k) => {
+                          const value = form.values[k];
+                          if (
+                            k === "eventStart" ||
+                            k === "eventEnd" ||
+                            k === "recurrenceEndDate"
+                          ) {
+                            return [k, formatChicagoTime(value as number)];
+                          }
+                          return [k, value];
+                        }),
+                    )
+                  : {
+                      ...form.values,
+                      eventStart: formatChicagoTime(form.values.eventStart),
+                      eventEnd: formatChicagoTime(form.values.eventEnd),
+                      recurrenceEndDate: formatChicagoTime(
+                        form.values.recurrenceEndDate,
+                      ),
+                    },
                 null,
                 2,
               )}
             </Code>
+            {isEditMode && (
+              <Textarea
+                mt="md"
+                label="Reason for edit"
+                description="This message will be shown in the request's history."
+                withAsterisk
+                placeholder="Briefly describe what you changed and why."
+                maxLength={500}
+                value={editReason}
+                onChange={(e) => setEditReason(e.currentTarget.value)}
+              />
+            )}
           </Stepper.Completed>
         )}
       </Stepper>
@@ -905,18 +1025,34 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
           </Button>
         )}
         {active !== numSteps &&
-          (viewOnly && active === numSteps - 1 ? null : (
-            <Button onClick={nextStep}>
-              {active === numSteps - 1 ? "Review" : "Next"}
-            </Button>
-          ))}
+          (viewOnly && active === numSteps - 1
+            ? null
+            : (() => {
+                const isReviewStep = active === numSteps - 1;
+                const blockReview =
+                  isReviewStep && isEditMode && !form.isDirty();
+                const button = (
+                  <Button onClick={nextStep} disabled={blockReview}>
+                    {isReviewStep ? "Review" : "Next"}
+                  </Button>
+                );
+                return blockReview ? (
+                  <Tooltip label="Modify a field before reviewing your changes.">
+                    <span>{button}</span>
+                  </Tooltip>
+                ) : (
+                  button
+                );
+              })())}
         {active === numSteps && !viewOnly && (
           <Button onClick={handleSubmit} disabled={isSubmitting} color="green">
             {isSubmitting ? (
               <>
                 <Loader size={16} color="white" />
-                Submitting...
+                {isEditMode ? "Updating..." : "Submitting..."}
               </>
+            ) : isEditMode ? (
+              "Update"
             ) : (
               "Submit"
             )}
