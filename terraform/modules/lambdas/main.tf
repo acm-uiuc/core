@@ -303,7 +303,9 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-carts/index/*",
           "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-limits",
           "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events-rsvp",
-          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events-rsvp/index/*"
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events-rsvp/index/*",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-payments",
+          "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-stripe-payments/index/*",
         ]
       },
       {
