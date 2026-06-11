@@ -47,7 +47,7 @@
     "fastify-raw-body": "^5.0.0",
     "fastify-zod-openapi": "^5.5.0",
     "handlebars": "^4.7.9",
-    "ical-generator": "^10.2.0",
+    "ical-generator": "^11.0.0",
     "ioredis": "^5.11.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^4.0.1",
