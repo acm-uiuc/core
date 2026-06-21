@@ -41,7 +41,6 @@ variable "LinkryPublicDomains" {
   type        = set(string)
   description = "Linky Public Hosts"
 }
-
 variable "CoreCertificateArn" {
   type        = string
   description = "Core ACM ARN"
