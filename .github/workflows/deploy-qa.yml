@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 15
     name: Run Unit Tests
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         env:
           HUSKY: "0"
 
@@ -31,7 +31,7 @@ jobs:
           cache: "yarn"
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v5.0.5
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
@@ -49,7 +49,7 @@ jobs:
     timeout-minutes: 15
     name: Build Application
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         env:
           HUSKY: "0"
 
@@ -60,7 +60,7 @@ jobs:
           cache: "yarn"
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v5.0.5
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
@@ -99,7 +99,7 @@ jobs:
       - test
       - build
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         env:
           HUSKY: "0"
 
@@ -115,7 +115,7 @@ jobs:
           terraform_version: 1.12.2
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v5.0.5
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
