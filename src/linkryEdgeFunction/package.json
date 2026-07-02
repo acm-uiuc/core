@@ -13,8 +13,8 @@
     "prettier:write": "prettier --write *.ts **/*.ts"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.161",
-    "@types/node": "^25.7.0"
+    "@types/aws-lambda": "^8.10.162",
+    "@types/node": "^26.0.1"
   },
   "dependencies": {
     "@acm-uiuc/js-shared": "^3.8.3",
