@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 15
     name: Run Unit Tests
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         env:
           HUSKY: "0"
 
@@ -31,7 +31,7 @@ jobs:
           terraform_version: 1.12.2
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
@@ -48,7 +48,7 @@ jobs:
     timeout-minutes: 15
     name: Build Application
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         env:
           HUSKY: "0"
 
@@ -59,7 +59,7 @@ jobs:
           cache: "yarn"
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-prod
@@ -117,7 +117,7 @@ jobs:
       - build
     environment: "AWS QA"
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         env:
           HUSKY: "0"
 
@@ -133,7 +133,7 @@ jobs:
           terraform_version: 1.12.2
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
@@ -188,7 +188,7 @@ jobs:
         with:
           terraform_version: 1.12.2
 
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         env:
           HUSKY: "0"
 
@@ -221,12 +221,12 @@ jobs:
       - test-unit
       - test-e2e
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - name: Set up Node
         uses: actions/setup-node@v6.4.0
         with:
           node-version: 24.x
-      - uses: actions/setup-java@v5.2.0
+      - uses: actions/setup-java@v5.4.0
         with:
           distribution: 'adopt'
           java-version: '25'
