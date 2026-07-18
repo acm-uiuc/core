@@ -176,14 +176,18 @@ export async function resolveEmailToOid(
   email: string,
 ): Promise<string> {
   const safeEmail = email.toLowerCase().replace(/\s/g, "");
+  // OData escapes single quotes inside string literals by doubling them.
+  const odataEmail = safeEmail.replaceAll("'", "''");
+  const filter = `mail eq '${odataEmail}' or otherMails/any(x:x eq '${odataEmail}')`;
 
-  const url = `https://graph.microsoft.com/v1.0/users?$filter=mail eq '${safeEmail}'`;
+  const url = `https://graph.microsoft.com/v1.0/users?$filter=${encodeURIComponent(filter)}&$count=true`;
 
   const response = await fetch(url, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      ConsistencyLevel: "eventual",
     },
   });
 
