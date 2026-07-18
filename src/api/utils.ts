@@ -7,6 +7,7 @@ import {
 } from "@aws-sdk/client-ssm";
 import {
   type AttributeValue,
+  type ConditionalCheckFailedException,
   BatchGetItemCommand,
   DynamoDBClient,
 } from "@aws-sdk/client-dynamodb";
@@ -74,6 +75,18 @@ export function logOnRetry(op: string, logger: ValidLoggers) {
     logger.error(error);
   };
 }
+/**
+ * Identifies a DynamoDB ConditionalCheckFailedException by its name property.
+ * `instanceof` cannot be used for AWS SDK exceptions: the production bundle is
+ * minified without keepNames, which breaks both the prototype chain and the
+ * class-name fallback that the SDK's Symbol.hasInstance relies on.
+ */
+export function isConditionalCheckFailed(
+  err: unknown,
+): err is ConditionalCheckFailedException {
+  return err instanceof Error && err.name === "ConditionalCheckFailedException";
+}
+
 export async function retryDynamoTransactionWithBackoff<T>(
   operation: () => Promise<T>,
   logger: ValidLoggers,
