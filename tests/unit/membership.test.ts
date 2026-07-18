@@ -7,8 +7,8 @@ import {
   BatchGetItemCommand,
   BatchWriteItemCommand,
   DynamoDBClient,
-  QueryCommand,
   ScanCommand,
+  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../src/common/config.js";
 import { marshall } from "@aws-sdk/util-dynamodb";
@@ -191,6 +191,7 @@ describe("Test membership routes", async () => {
     const adminJwt = createJwt();
     ddbMock.on(BatchWriteItemCommand).callsFake((command) => {
       if (
+        // eslint-disable-next-line no-constant-condition
         (command.RequestItems = {
           [genericConfig.ExternalMembershipTableName]: [
             {
@@ -218,7 +219,7 @@ describe("Test membership routes", async () => {
         new Error("Table not mocked or not called correctly"),
       );
     });
-    let response = await app.inject({
+    const response = await app.inject({
       method: "PATCH",
       url: "/api/v1/membership/externalList/acmUnitTesting",
       headers: {
@@ -257,6 +258,28 @@ describe("Test membership routes", async () => {
       members: ["valid"],
       notMembers: ["invalid"],
     });
+  });
+  test("setPaidMembershipInTable treats a failed conditional check as already-paid", async () => {
+    // A plain Error with only the name set mirrors what the SDK delivers in the
+    // minified production bundle, where instanceof checks on SDK exception
+    // classes fail. Do not construct ConditionalCheckFailedException here: that
+    // would pass an instanceof check and hide the bundling regression.
+    ddbMock.on(UpdateItemCommand).rejects(
+      Object.assign(new Error("The conditional request failed"), {
+        name: "ConditionalCheckFailedException",
+      }),
+    );
+    const result = await setPaidMembershipInTable(
+      "darioa2",
+      new DynamoDBClient({}),
+    );
+    expect(result).toEqual({ updated: false });
+  });
+  test("setPaidMembershipInTable rethrows non-conditional errors", async () => {
+    ddbMock.on(UpdateItemCommand).rejects(new Error("network failure"));
+    await expect(
+      setPaidMembershipInTable("darioa2", new DynamoDBClient({})),
+    ).rejects.toThrow("network failure");
   });
   afterEach(async () => {
     ddbMock.reset();

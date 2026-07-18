@@ -1,6 +1,5 @@
 import {
   BatchWriteItemCommand,
-  ConditionalCheckFailedException,
   DynamoDBClient,
   QueryCommand,
   UpdateItemCommand,
@@ -23,6 +22,7 @@ import { FastifyBaseLogger } from "fastify";
 import { createAuditLogEntry } from "./auditLog.js";
 import { Modules } from "common/modules.js";
 import { ValidLoggers } from "api/types.js";
+import { isConditionalCheckFailed } from "api/utils.js";
 
 export const MEMBER_CACHE_SECONDS = 43200; // 12 hours
 
@@ -384,7 +384,7 @@ export async function setPaidMembershipInTable(
     );
     return { updated: true };
   } catch (error: unknown) {
-    if (error instanceof ConditionalCheckFailedException) {
+    if (isConditionalCheckFailed(error)) {
       return { updated: false };
     }
     throw error;
