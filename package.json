@@ -75,7 +75,7 @@
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.5",
     "node-ical": "^0.26.1",
-    "postcss": "^8.5.15",
+    "postcss": "^8.5.18",
     "postcss-preset-mantine": "^1.17.0",
     "postcss-simple-vars": "^7.0.1",
     "prettier": "^3.8.3",
