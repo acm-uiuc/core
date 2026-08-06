@@ -15,7 +15,7 @@
     "prettier:write": "prettier --write *.ts **/*.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.1093.0",
+    "@aws-sdk/client-dynamodb": "^3.1098.0",
     "@aws-sdk/client-lambda": "^3.1055.0",
     "@aws-sdk/client-s3": "^3.1055.0",
     "@aws-sdk/client-secrets-manager": "^3.1055.0",
@@ -47,7 +47,7 @@
     "fastify-raw-body": "^5.0.0",
     "fastify-zod-openapi": "^5.5.0",
     "handlebars": "^4.7.9",
-    "ical-generator": "^11.0.0",
+    "ical-generator": "^11.1.0",
     "ioredis": "^5.11.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^4.0.1",
@@ -59,7 +59,7 @@
     "redlock-universal": "^0.8.2",
     "sanitize-html": "^2.17.4",
     "stripe": "^22.2.0",
-    "temporal-polyfill": "~1.0.1",
+    "temporal-polyfill": "~1.0.2",
     "zod": "^4.4.3",
     "zod-validation-error": "^5.0.0"
   },
