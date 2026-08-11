@@ -39,7 +39,11 @@ import { FastifyPluginAsync } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import stripe, { Stripe } from "stripe";
 import rawbody from "fastify-raw-body";
-import { AvailableSQSFunctions, SQSPayload } from "common/types/sqsMessage.js";
+import {
+  AvailableSQSFunctions,
+  SQSPayload,
+  StripeLinkCallbackEventType,
+} from "common/types/sqsMessage.js";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import * as z from "zod/v4";
 import { getAllUserEmails } from "common/utils.js";
@@ -49,6 +53,7 @@ import {
 } from "common/constants.js";
 import { assertAuthenticated } from "api/authenticated.js";
 import { maxLength } from "common/types/generic.js";
+import { randomBytes } from "crypto";
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -56,6 +61,70 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     global: false,
     runFirst: true,
   });
+  const enqueueSubscriberCallback = async ({
+    requestLog,
+    requestId,
+    eventId,
+    eventType,
+    linkId,
+    callbackUrl,
+    invoiceId,
+    amount,
+    currency,
+    paidInFull,
+    paymentMethod,
+    payerName,
+    payerEmail,
+  }: {
+    requestLog: { info: (msg: string) => void };
+    requestId: string;
+    eventId: string;
+    eventType: StripeLinkCallbackEventType;
+    linkId: string;
+    callbackUrl: string | undefined;
+    invoiceId: string;
+    amount: number;
+    currency: string;
+    paidInFull: boolean;
+    paymentMethod: string | null;
+    payerName: string | null;
+    payerEmail: string | null;
+  }) => {
+    if (!callbackUrl) {
+      return;
+    }
+    requestLog.info(
+      `Enqueueing ${eventType} subscriber callback for link ${linkId}`,
+    );
+    const callbackPayload: SQSPayload<AvailableSQSFunctions.StripeLinkSubscriberCallback> =
+      {
+        function: AvailableSQSFunctions.StripeLinkSubscriberCallback,
+        metadata: { initiator: eventId, reqId: requestId },
+        payload: {
+          linkId,
+          eventType,
+          eventId,
+          invoiceId,
+          amount,
+          currency,
+          paidInFull,
+          paymentMethod,
+          payerName,
+          payerEmail,
+          occurredAt: new Date().toISOString(),
+        },
+      };
+    if (!fastify.sqsClient) {
+      fastify.sqsClient = new SQSClient({ region: genericConfig.AwsRegion });
+    }
+    await fastify.sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: fastify.environmentConfig.SqsQueueUrl,
+        MessageBody: JSON.stringify(callbackPayload),
+        MessageGroupId: "stripeLinkCallback",
+      }),
+    );
+  };
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/paymentLinks",
     {
@@ -117,6 +186,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           invoiceId: item.invoiceId,
           invoiceAmountUsd: item.amount,
           createdAt: item.createdAt || null,
+          callbackUrl: item.callbackUrl || undefined,
         }),
       );
       reply.status(200).send(parsed);
@@ -156,12 +226,18 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const { url, linkId, priceId, productId } =
         await createStripeLink(payload);
       const invoiceId = request.body.invoiceId;
+      const callbackUrl = request.body.callbackUrl;
+      const signingSecret = callbackUrl
+        ? randomBytes(32).toString("hex")
+        : undefined;
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.STRIPE,
           actor: request.username,
           target: `Link ${linkId} | Invoice ${invoiceId}`,
-          message: "Created Stripe payment link",
+          message: callbackUrl
+            ? "Created Stripe payment link with subscriber callback"
+            : "Created Stripe payment link",
         },
       });
       const dynamoCommand = new TransactWriteItemsCommand({
@@ -181,6 +257,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
                   amount: request.body.invoiceAmountUsd,
                   active: true,
                   createdAt: new Date().toISOString(),
+                  callbackUrl,
+                  signingSecret,
                 },
                 { removeUndefinedValues: true },
               ),
@@ -206,7 +284,11 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           message: "Could not write Stripe link to database.",
         });
       }
-      reply.status(201).send({ id: linkId, link: url });
+      reply.status(201).send({
+        id: linkId,
+        link: url,
+        ...(signingSecret ? { signingSecret } : {}),
+      });
     }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().delete(
@@ -262,6 +344,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         amount?: number;
         priceId?: string;
         productId?: string;
+        callbackUrl?: string;
+        signingSecret?: string;
       };
       if (
         unmarshalledEntry.userId !== request.username &&
@@ -417,6 +501,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
               amount?: number;
               priceId?: string;
               productId?: string;
+              callbackUrl?: string;
+              signingSecret?: string;
             };
             if (!unmarshalledEntry.userId || !unmarshalledEntry.invoiceId) {
               return reply.status(200).send({
@@ -478,6 +564,21 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                 );
                 queueId = result.MessageId || "";
               }
+              await enqueueSubscriberCallback({
+                requestLog: request.log,
+                requestId: request.id,
+                eventId,
+                eventType: "payment.failed",
+                linkId: paymentLinkId,
+                callbackUrl: unmarshalledEntry.callbackUrl,
+                invoiceId: unmarshalledEntry.invoiceId,
+                amount: paymentAmount,
+                currency: paymentCurrency,
+                paidInFull,
+                paymentMethod: null,
+                payerName: name,
+                payerEmail: email,
+              });
             }
 
             return reply.status(200).send({
@@ -570,6 +671,8 @@ Please ask the payee to try again, perhaps with a different payment method, or c
               amount?: number;
               priceId?: string;
               productId?: string;
+              callbackUrl?: string;
+              signingSecret?: string;
             };
             if (!unmarshalledEntry.userId || !unmarshalledEntry.invoiceId) {
               return reply.status(200).send({
@@ -633,6 +736,21 @@ Please contact Officer Board with any questions.
                 );
                 queueId = result.MessageId || "";
               }
+              await enqueueSubscriberCallback({
+                requestLog: request.log,
+                requestId: request.id,
+                eventId,
+                eventType: "payment.pending",
+                linkId: paymentLinkId,
+                callbackUrl: unmarshalledEntry.callbackUrl,
+                invoiceId: unmarshalledEntry.invoiceId,
+                amount: paymentAmount,
+                currency: paymentCurrency,
+                paidInFull,
+                paymentMethod: paymentMethodString ?? null,
+                payerName: name,
+                payerEmail: email,
+              });
             } else {
               request.log.info(
                 `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}). Invoice was paid ${paidInFull ? "in full." : "partially."}`,
@@ -682,6 +800,21 @@ Please contact Officer Board with any questions.`,
                 );
                 queueId = result.MessageId || "";
               }
+              await enqueueSubscriberCallback({
+                requestLog: request.log,
+                requestId: request.id,
+                eventId,
+                eventType: "payment.succeeded",
+                linkId: paymentLinkId,
+                callbackUrl: unmarshalledEntry.callbackUrl,
+                invoiceId: unmarshalledEntry.invoiceId,
+                amount: paymentAmount,
+                currency: paymentCurrency,
+                paidInFull,
+                paymentMethod: paymentMethodString ?? null,
+                payerName: name,
+                payerEmail: email,
+              });
               // If full payment is done, disable the link
               if (paidInFull) {
                 request.log.debug("Paid in full, disabling link.");
