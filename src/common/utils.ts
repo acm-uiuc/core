@@ -77,9 +77,64 @@ export const getAllUserEmails = (username?: string) => {
  */
 export function getNetIdFromEmail(email: string): string {
   const normalizedEmail = email.toLowerCase();
-  if (!normalizedEmail.endsWith("@illinois.edu") && !normalizedEmail.endsWith("@acm.illinois.edu")) {
-    throw new ValidationError({ message: "Email cannot be converted to NetID by simple replacment." })
+  if (
+    !normalizedEmail.endsWith("@illinois.edu") &&
+    !normalizedEmail.endsWith("@acm.illinois.edu")
+  ) {
+    throw new ValidationError({
+      message: "Email cannot be converted to NetID by simple replacment.",
+    });
   }
   const [netId] = normalizedEmail.split("@");
   return netId.toLowerCase();
+}
+
+/**
+ * Encodes an invoice payment token in the format:
+ * Base64URL(orgId#emailDomain#invoiceId)
+ */
+export function encodeInvoiceToken({
+  orgId,
+  emailDomain,
+  linkId,
+  invoiceId,
+}: {
+  orgId: string;
+  emailDomain: string;
+  linkId: string;
+  invoiceId: string;
+}): string {
+  return Buffer.from(
+    `${orgId}#${emailDomain}#${linkId}#${invoiceId}`,
+    "utf8",
+  ).toString("base64url");
+}
+
+/**
+ * Decodes and validates an invoice payment token.
+ */
+export function decodeInvoiceToken(token: string): {
+  orgId: string;
+  emailDomain: string;
+  linkId: string;
+  invoiceId: string;
+} {
+  let decoded: string;
+
+  try {
+    decoded = Buffer.from(token, "base64url").toString("utf8");
+  } catch {
+    throw new ValidationError({ message: "Invalid invoice token encoding." });
+  }
+
+  const parts = decoded.split("#");
+  const orgId = parts[0];
+  const emailDomain = parts[1];
+  const linkId = parts[2];
+  const invoiceId = parts.slice(3).join("#"); // keep remainder
+
+  if (!orgId || !emailDomain || !linkId || !invoiceId) {
+    throw new ValidationError({ message: "Malformed invoice token." });
+  }
+  return { orgId, emailDomain, linkId, invoiceId };
 }
