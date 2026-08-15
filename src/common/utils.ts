@@ -77,13 +77,17 @@ export const getAllUserEmails = (username?: string) => {
  */
 export function getNetIdFromEmail(email: string): string {
   const normalizedEmail = email.toLowerCase();
-  if (!normalizedEmail.endsWith("@illinois.edu") && !normalizedEmail.endsWith("@acm.illinois.edu")) {
-    throw new ValidationError({ message: "Email cannot be converted to NetID by simple replacment." })
+  if (
+    !normalizedEmail.endsWith("@illinois.edu") &&
+    !normalizedEmail.endsWith("@acm.illinois.edu")
+  ) {
+    throw new ValidationError({
+      message: "Email cannot be converted to NetID by simple replacment.",
+    });
   }
   const [netId] = normalizedEmail.split("@");
   return netId.toLowerCase();
 }
-
 
 /**
  * Encodes an invoice payment token in the format:
@@ -92,14 +96,16 @@ export function getNetIdFromEmail(email: string): string {
 export function encodeInvoiceToken({
   orgId,
   emailDomain,
+  linkId,
   invoiceId,
 }: {
   orgId: string;
   emailDomain: string;
+  linkId: string;
   invoiceId: string;
 }): string {
   return Buffer.from(
-    `${orgId}#${emailDomain}#${invoiceId}`,
+    `${orgId}#${emailDomain}#${linkId}#${invoiceId}`,
     "utf8",
   ).toString("base64url");
 }
@@ -110,6 +116,7 @@ export function encodeInvoiceToken({
 export function decodeInvoiceToken(token: string): {
   orgId: string;
   emailDomain: string;
+  linkId: string;
   invoiceId: string;
 } {
   let decoded: string;
@@ -123,10 +130,11 @@ export function decodeInvoiceToken(token: string): {
   const parts = decoded.split("#");
   const orgId = parts[0];
   const emailDomain = parts[1];
-  const invoiceId = parts.slice(2).join("#"); // keep remainder
+  const linkId = parts[2];
+  const invoiceId = parts.slice(3).join("#"); // keep remainder
 
-  if (!orgId || !emailDomain || !invoiceId) {
+  if (!orgId || !emailDomain || !linkId || !invoiceId) {
     throw new ValidationError({ message: "Malformed invoice token." });
   }
-  return { orgId, emailDomain, invoiceId };
+  return { orgId, emailDomain, linkId, invoiceId };
 }

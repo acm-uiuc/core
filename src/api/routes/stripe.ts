@@ -209,9 +209,12 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         });
       }
 
+      const linkId = crypto.randomUUID();
+
       const token = encodeInvoiceToken({
         orgId: request.body.acmOrg,
         emailDomain,
+        linkId,
         invoiceId: request.body.invoiceId,
       });
 
@@ -225,8 +228,6 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       const link = isLocal
         ? `${baseUrl}/api/v1/stripe/pay/${token}`
         : `${baseUrl}/${token}`;
-
-      const linkId = crypto.randomUUID();
 
       const logStatement = buildAuditLogTransactPut({
         entry: {
@@ -300,7 +301,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       return reply.status(200).send({ cancelled: true, token: query.token });
     }
 
-    const { orgId, emailDomain, invoiceId } = decodeInvoiceToken(token);
+    const { orgId, emailDomain, linkId, invoiceId } = decodeInvoiceToken(token);
     const pk = `${orgId}#${emailDomain}`;
     const uiBase = fastify.environmentConfig.UserFacingUrl;
     const statusUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(token)}`;
@@ -390,6 +391,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       returnUrl: statusUrl,
       metadata: {
         invoice_id: invoiceId,
+        link_id: linkId,
         acm_org: orgId,
         pk,
       },
@@ -403,7 +405,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   fastify.post("/pay/:token/checkout", async (request, reply) => {
     const { token } = request.params as { token: string };
 
-    const { orgId, emailDomain, invoiceId } = decodeInvoiceToken(token);
+    const { orgId, emailDomain, linkId, invoiceId } = decodeInvoiceToken(token);
     const pk = `${orgId}#${emailDomain}`;
     const uiBase = fastify.environmentConfig.UserFacingUrl;
     const statusUrl = `${uiBase}/stripe/status?token=${encodeURIComponent(token)}`;
@@ -487,6 +489,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       returnUrl: statusUrl,
       metadata: {
         invoice_id: invoiceId,
+        link_id: linkId,
         acm_org: orgId,
         pk,
       },
@@ -640,17 +643,18 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         )) || {};
       const sessionToInvoiceMeta = (session: Stripe.Checkout.Session) => {
         const invoiceId = session.metadata?.invoice_id;
+        const linkId = session.metadata?.link_id;
         const acmOrg = session.metadata?.acm_org;
         const pk = session.metadata?.pk;
 
-        if (!invoiceId || !acmOrg) {
+        if (!invoiceId || !acmOrg || !linkId) {
           return null;
         }
 
         if (pk) {
           const email =
             session.customer_details?.email ?? session.customer_email ?? null;
-          return { invoiceId, acmOrg, pk, email };
+          return { invoiceId, linkId, acmOrg, pk, email };
         }
 
         const email =
@@ -660,7 +664,7 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }
 
         const domain = email.split("@").at(-1)!.toLowerCase();
-        return { invoiceId, acmOrg, pk: `${acmOrg}#${domain}`, email };
+        return { invoiceId, linkId, acmOrg, pk: `${acmOrg}#${domain}`, email };
       };
       try {
         const sig = request.headers["stripe-signature"];
@@ -1129,6 +1133,84 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                   "unknown",
                 decrementOwed,
               });
+
+              if (isFullPaymentForInvoice && !overpaidUsd) {
+                const paymentLinkId = meta.linkId;
+
+                try {
+                  const response = await fastify.dynamoClient.send(
+                    new QueryCommand({
+                      TableName: genericConfig.StripeLinksDynamoTableName,
+                      IndexName: "LinkIdIndex",
+                      KeyConditionExpression: "linkId = :linkId",
+                      ExpressionAttributeValues: {
+                        ":linkId": { S: paymentLinkId },
+                      },
+                    }),
+                  );
+
+                  if (response?.Items?.length === 1) {
+                    const unmarshalledEntry = unmarshall(response.Items[0]) as {
+                      userId: string;
+                      invoiceId: string;
+                    };
+
+                    const logStatement = buildAuditLogTransactPut({
+                      entry: {
+                        module: Modules.STRIPE,
+                        actor: event.id,
+                        target: `Link ${paymentLinkId} | Invoice ${meta.invoiceId}`,
+                        message:
+                          "Disabled Stripe payment link as payment was made in full.",
+                      },
+                    });
+
+                    await fastify.dynamoClient.send(
+                      new TransactWriteItemsCommand({
+                        TransactItems: [
+                          ...(logStatement ? [logStatement] : []),
+                          {
+                            Update: {
+                              TableName:
+                                genericConfig.StripeLinksDynamoTableName,
+                              Key: {
+                                userId: { S: unmarshalledEntry.userId },
+                                linkId: { S: paymentLinkId },
+                              },
+                              UpdateExpression:
+                                "SET active = :new_val, expiresAt = :ttl",
+                              ConditionExpression: "active = :old_val",
+                              ExpressionAttributeValues: {
+                                ":new_val": { BOOL: false },
+                                ":old_val": { BOOL: true },
+                                ":ttl": {
+                                  N: (
+                                    Math.floor(Date.now() / 1000) +
+                                    86400 * STRIPE_LINK_RETENTION_DAYS
+                                  ).toString(),
+                                },
+                              },
+                            },
+                          },
+                        ],
+                      }),
+                    );
+                    request.log.debug(
+                      `Deactivated Stripe link ${paymentLinkId}`,
+                    );
+                  } else {
+                    request.log.warn(
+                      { paymentLinkId },
+                      "Could not find payment link to deactivate after full payment.",
+                    );
+                  }
+                } catch (e) {
+                  request.log.warn(
+                    { err: e, paymentLinkId },
+                    "Could not deactivate paid Stripe payment link; webhook will still ack.",
+                  );
+                }
+              }
             } catch (e: unknown) {
               if (
                 (e as { name?: string })?.name ===
