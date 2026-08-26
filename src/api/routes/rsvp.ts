@@ -890,11 +890,27 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
               description: "The previously-created event ID in the events API.",
             }),
           }),
-          body: z.object({
-            uin: z.string().min(1).meta({
-              description: "The UIN of the attendee to check in.",
+          body: z
+            .union([
+              z.object({
+                uin: z.string().min(1).meta({
+                  description: "The UIN of the attendee to check in.",
+                }),
+              }),
+              z.object({
+                netId: z
+                  .string()
+                  .min(1)
+                  .regex(/^[a-zA-Z0-9-]+$/, "NetID must be alphanumeric.")
+                  .meta({
+                    description: "The NetID of the attendee to check in.",
+                  }),
+              }),
+            ])
+            .meta({
+              description:
+                "Identify the attendee by either UIN or NetID. If both are provided, the UIN is used.",
             }),
-          }),
           response: {
             200: {
               description: "Successfully checked in RSVP",
@@ -926,10 +942,15 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
       onRequest: fastify.authorizeFromSchema,
     },
     async (request, reply) => {
-      const { id: userEmail } = await getUserIdByUin({
-        dynamoClient: fastify.dynamoClient,
-        uin: request.body.uin,
-      });
+      const userEmail =
+        "netId" in request.body
+          ? `${request.body.netId.toLowerCase()}@illinois.edu`
+          : (
+              await getUserIdByUin({
+                dynamoClient: fastify.dynamoClient,
+                uin: request.body.uin,
+              })
+            ).id;
 
       const rsvpPartitionKey = `RSVP#${request.params.eventId}#${userEmail}`;
 
