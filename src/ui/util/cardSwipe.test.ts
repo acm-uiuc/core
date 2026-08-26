@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseICardSwipe } from "./cardSwipe";
 
 describe("parseICardSwipe", () => {
-  it("extracts the UIN and ignores the final four digits before the caret", () => {
+  it("extracts the UIN and ignores the final three digits before the caret", () => {
     const swipe =
       "%B6397%B6397123456789999^CARDHOLDER/UNIVERSITY^2908120?;6397123456789999=29081207767?";
 
