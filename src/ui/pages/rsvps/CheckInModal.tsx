@@ -17,6 +17,7 @@ import {
   IconCheck,
 } from "@tabler/icons-react";
 import { AxiosError } from "axios";
+import { parseICardSwipe } from "@ui/util/cardSwipe";
 
 interface CheckInModalProps {
   opened: boolean;
@@ -80,7 +81,15 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
   ): { userId: string; type: string } | null => {
     let inputType = "Manual UIN Entry";
 
-    if (input.startsWith("ACMCARD")) {
+    if (input.startsWith("%B6397")) {
+      inputType = "ACM Card Swipe";
+      const uin = parseICardSwipe(input);
+      if (!uin) {
+        setError("Invalid card swipe. Please try again.");
+        return null;
+      }
+      input = uin;
+    } else if (input.startsWith("ACMCARD")) {
       inputType = "ACM Card Swipe"; // Set the type if a swipe is detected
       const uinMatch = input.match(/^ACMCARD\d{4}(\d{9})/);
 
