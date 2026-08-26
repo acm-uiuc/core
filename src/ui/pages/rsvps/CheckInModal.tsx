@@ -25,7 +25,7 @@ interface CheckInModalProps {
   eventId: string;
   checkInAttendee: (
     eventId: string,
-    userId: string,
+    identifier: { uin: string } | { netId: string },
   ) => Promise<{ upn: string; dietaryRestrictions: string[] }>;
 }
 
@@ -78,7 +78,11 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
   const parseInput = (
     input: string,
-  ): { userId: string; type: string } | null => {
+  ): {
+    userId: string;
+    identifier: { uin: string } | { netId: string };
+    type: string;
+  } | null => {
     let inputType = "Manual UIN Entry";
 
     if (input.startsWith("%B6397")) {
@@ -104,15 +108,30 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
     if (/^\d{9}$/.test(input)) {
       return {
         userId: input,
+        identifier: { uin: input },
         type: inputType, // Use the variable instead of the hardcoded string
       };
     }
 
-    setError("Invalid input format. Enter a 9-digit UIN");
+    // A NetID may be pasted as a full email; the API only wants the local part.
+    const netId = input.replace(/@illinois\.edu$/i, "").toLowerCase();
+    if (/^[a-z0-9-]+$/.test(netId) && /[a-z]/.test(netId)) {
+      return {
+        userId: netId,
+        identifier: { netId },
+        type: "Manual NetID Entry",
+      };
+    }
+
+    setError("Invalid input format. Enter a 9-digit UIN or a NetID.");
     return null;
   };
 
-  const handleCheckIn = async (userId: string, type: string) => {
+  const handleCheckIn = async (
+    userId: string,
+    identifier: { uin: string } | { netId: string },
+    type: string,
+  ) => {
     // Cooldown check
     const now = Date.now();
     if (now - lastCheckInTime.current < checkInCooldownMs) {
@@ -124,7 +143,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
     setError("");
 
     try {
-      const result = await checkInAttendee(eventId, userId);
+      const result = await checkInAttendee(eventId, identifier);
 
       const checkInData = {
         userId,
@@ -169,7 +188,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
       return;
     }
 
-    await handleCheckIn(parsed.userId, parsed.type);
+    await handleCheckIn(parsed.userId, parsed.identifier, parsed.type);
 
     // Refocus input for next scan
     setTimeout(() => {
@@ -189,6 +208,8 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
         return "violet";
       case "Manual UIN Entry":
         return "blue";
+      case "Manual NetID Entry":
+        return "teal";
       default:
         return "gray";
     }
@@ -211,15 +232,15 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
                 Card Swiper Ready
               </Text>
               <Text size="xs" c="dimmed">
-                Swipe any iCard or enter UIN manually
+                Swipe any iCard or enter a UIN/NetID manually
               </Text>
             </Stack>
           </Group>
         </Paper>
 
         <TextInput
-          label="Swipe iCard or Enter UIN"
-          placeholder="Swipe card or type UIN"
+          label="Swipe iCard or Enter UIN/NetID"
+          placeholder="Swipe card or type a UIN or NetID"
           value={manualInput}
           onChange={(e) => setManualInput(e.currentTarget.value)}
           onKeyDown={handleKeyDown}
@@ -335,7 +356,7 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
         <Paper p="sm" withBorder bg="gray.0">
           <Text size="xs" c="dimmed" ta="center">
-            Swipe Student Card or Enter UIN
+            Swipe Student Card or Enter UIN/NetID
           </Text>
         </Paper>
       </Stack>
