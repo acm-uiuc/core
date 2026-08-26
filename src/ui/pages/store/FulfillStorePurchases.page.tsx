@@ -22,6 +22,7 @@ import { useSearchParams } from "react-router-dom";
 import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
+import { parseICardSwipe } from "@ui/util/cardSwipe";
 import { AppRoles } from "@common/roles";
 
 export interface PurchaseData {
@@ -648,8 +649,17 @@ const FulfillStorePurchasesInternal: React.FC<
 
       let inp = inputValue;
 
-      // Check if input is from ACM card swiper
-      if (inp.startsWith("ACMCARD")) {
+      // Check if input is from a card swiper
+      if (inp.startsWith("%B6397")) {
+        const uin = parseICardSwipe(inp);
+        if (!uin) {
+          setError("Invalid card swipe. Please try again.");
+          setIsLoading(false);
+          setShowModal(true);
+          return;
+        }
+        inp = uin;
+      } else if (inp.startsWith("ACMCARD")) {
         const uinMatch = inp.match(/^ACMCARD(\d{4})(\d{9})/);
         if (!uinMatch) {
           setError("Invalid card swipe. Please try again.");
