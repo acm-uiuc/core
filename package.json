@@ -2,14 +2,13 @@
   "name": "infra-core",
   "version": "4.11.0",
   "private": true,
-  "type": "module",
   "workspaces": [
     "src/api",
     "src/ui",
     "src/archival",
     "src/linkryEdgeFunction"
   ],
-  "packageManager": "yarn@1.22.22",
+  "type": "module",
   "scripts": {
     "postinstall": "npm run setup",
     "setup": "git config blame.ignoreRevsFile .git-blame-ignore-revs",
@@ -17,9 +16,9 @@
     "postbuild": "node src/api/createLambdaPackage.js && yarn lockfile-manage",
     "dev": "cross-env DISABLE_AUDIT_LOG=true concurrently --names 'api,ui' 'yarn workspace infra-core-api run dev' 'yarn workspace infra-core-ui run dev'",
     "lockfile-manage": "cp src/api/package.lambda.json dist/lambda/package.json && cp src/api/package.lambda.json dist/sqsConsumer/package.json && cp yarn.lock dist/lambda/ && cp yarn.lock dist/sqsConsumer/",
-    "prettier": "yarn workspaces run prettier && prettier --check tests/**/*.ts",
-    "prettier:write": "yarn workspaces run prettier:write && prettier --write tests/**/*.ts",
-    "lint": "yarn workspaces run lint",
+    "format": "yarn workspaces run format && oxfmt --check \"tests/**/*.ts\"",
+    "format:write": "yarn workspaces run format:write && oxfmt --write \"tests/**/*.ts\"",
+    "lint": "oxlint src",
     "prepare": "node .husky/install.mjs || true",
     "typecheck": "yarn workspaces run typecheck",
     "test:unit": "cross-env RunEnvironment='dev' concurrently --names 'api,ui' 'yarn run test:unit-api' 'yarn workspace infra-core-ui run test:unit'",
@@ -34,13 +33,7 @@
   "dependencies": {
     "@acm-uiuc/js-shared": "^3.8.3"
   },
-  "engines": {
-    "node": ">=24.0.0 <25.0.0"
-  },
   "devDependencies": {
-    "@eslint/compat": "^2.1.0",
-    "@eslint/eslintrc": "^3.3.5",
-    "@eslint/js": "^9.33.0",
     "@openapitools/openapi-generator-cli": "^2.34.0",
     "@playwright/test": "^1.60.0",
     "@smithy/types": "^4.13.0",
@@ -50,47 +43,40 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/supertest": "^7.2.0",
-    "@typescript-eslint/eslint-plugin": "^8.60.0",
-    "@typescript-eslint/parser": "^8.60.0",
     "@vitest/coverage-istanbul": "^4.1.7",
     "@vitest/ui": "^4.1.7",
     "aws-sdk-client-mock": "^4.1.0",
     "concurrently": "^9.1.2",
     "cross-env": "^10.0.0",
     "esbuild": "^0.28.1",
-    "eslint": "^9.33.0",
-    "eslint-config-airbnb": "^19.0.4",
-    "eslint-config-airbnb-typescript": "^18.0.0",
-    "eslint-config-esnext": "^4.1.0",
-    "eslint-config-mantine": "^4.0.3",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-import-resolver-typescript": "^4.3.4",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-jsx-a11y": "^6.9.0",
-    "eslint-plugin-prettier": "^5.5.5",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-import-resolver-typescript": "4.3.4",
+    "eslint-plugin-import": "2.29.1",
+    "eslint-plugin-react": "7.37.5",
     "husky": "^9.1.4",
     "identity-obj-proxy": "^3.0.0",
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.5",
     "node-ical": "^0.26.1",
+    "oxfmt": "0.65.0",
+    "oxlint": "1.80.0",
     "postcss": "^8.5.18",
     "postcss-preset-mantine": "^1.17.0",
     "postcss-simple-vars": "^7.0.1",
-    "prettier": "^3.8.3",
     "prop-types": "^15.8.1",
     "stylelint": "^17.12.0",
     "stylelint-config-standard-scss": "^17.0.0",
     "supertest": "^7.2.2",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.0",
     "vitest": "^4.1.7",
     "yarn-upgrade-all": "^0.8.1"
   },
   "resolutions": {
-    "pdfjs-dist": "^4.8.69",
-    "form-data": "^4.0.4"
-  }
+    "form-data": "^4.0.4",
+    "pdfjs-dist": "^4.8.69"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25.0.0"
+  },
+  "packageManager": "yarn@1.22.22"
 }

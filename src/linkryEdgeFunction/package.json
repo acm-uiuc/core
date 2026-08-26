@@ -2,22 +2,22 @@
   "name": "infra-core-linkry-edge",
   "version": "1.0.0",
   "description": "Handles edge redirects",
+  "license": "BSD-3-Clause",
+  "author": "ACM@UIUC",
   "type": "module",
   "main": "index.js",
-  "author": "ACM@UIUC",
-  "license": "BSD-3-Clause",
   "scripts": {
     "build": "tsc && node build.js",
-    "prettier": "prettier --check *.ts **/*.ts",
-    "lint": "eslint . --ext .ts --cache",
-    "prettier:write": "prettier --write *.ts **/*.ts"
-  },
-  "devDependencies": {
-    "@types/aws-lambda": "^8.10.161",
-    "@types/node": "^25.7.0"
+    "format": "oxfmt --check \"*.ts\" \"**/*.ts\"",
+    "lint": "oxlint .",
+    "format:write": "oxfmt --write \"*.ts\" \"**/*.ts\""
   },
   "dependencies": {
     "@acm-uiuc/js-shared": "^3.8.3",
     "@aws-sdk/client-dynamodb": "^3.1093.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.161",
+    "@types/node": "^25.7.0"
   }
 }

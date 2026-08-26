@@ -1,10 +1,10 @@
 {
-    "recommendations": [
-        "editorconfig.editorconfig",
-        "rvest.vs-code-prettier-eslint",
-        "eamodio.gitlens",
-        "ms-vscode.makefile-tools",
-        "amazonwebservices.aws-toolkit-vscode",
-        "hashicorp.terraform"
-    ]
+  "recommendations": [
+    "editorconfig.editorconfig",
+    "oxc.oxc-vscode",
+    "eamodio.gitlens",
+    "ms-vscode.makefile-tools",
+    "amazonwebservices.aws-toolkit-vscode",
+    "hashicorp.terraform"
+  ]
 }

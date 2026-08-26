@@ -1,0 +1,56 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "import/extensions": "off",
+    "max-classes-per-file": "off",
+    "func-names": "off",
+    "no-case-declarations": "off",
+    "curly": "error",
+    "dot-notation": "error",
+    "no-console": "warn",
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "typescript/no-explicit-any": "error",
+    "typescript/explicit-module-boundary-types": "off"
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "node": true
+  },
+  "globals": {
+    "awslambda": "readonly"
+  },
+  "ignorePatterns": ["**/*.d.ts", "**/vite.config.ts"],
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.testdata.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off"
+      }
+    },
+    {
+      "files": ["src/ui/**/*"],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "no-unused-vars": "off",
+        "no-console": [
+          "error",
+          {
+            "allow": ["warn", "error"]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -2,20 +2,21 @@
   "name": "infra-core-api",
   "version": "1.0.0",
   "description": "ACM@UIUC Infra - Sample AWS Lambda in Node",
-  "main": "index.js",
-  "author": "ACM@UIUC",
   "license": "BSD-3-Clause",
+  "author": "ACM@UIUC",
   "type": "module",
+  "main": "index.js",
   "scripts": {
     "build": "tsc && node build.js",
     "dev": "cross-env DISABLE_AUDIT_LOG=true cross-env LOG_LEVEL=debug concurrently --names 'esbuild,server' 'node esbuild.config.js --watch' 'cd ../../dist_devel && nodemon index.js'",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --ext .ts --cache",
-    "prettier": "prettier --check *.ts **/*.ts",
-    "prettier:write": "prettier --write *.ts **/*.ts"
+    "lint": "oxlint .",
+    "format": "oxfmt --check \"*.ts\" \"**/*.ts\"",
+    "format:write": "oxfmt --write \"*.ts\" \"**/*.ts\""
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1093.0",
+    "@aws-sdk/client-kms": "^3.1055.0",
     "@aws-sdk/client-lambda": "^3.1055.0",
     "@aws-sdk/client-s3": "^3.1055.0",
     "@aws-sdk/client-secrets-manager": "^3.1055.0",
@@ -23,7 +24,6 @@
     "@aws-sdk/client-sqs": "^3.1055.0",
     "@aws-sdk/client-ssm": "^3.1055.0",
     "@aws-sdk/client-sts": "^3.1055.0",
-    "@aws-sdk/client-kms": "^3.1055.0",
     "@aws-sdk/s3-request-presigner": "^3.1055.0",
     "@aws-sdk/signature-v4-crt": "^3.1055.0",
     "@aws-sdk/util-dynamodb": "^3.996.7",
@@ -64,10 +64,9 @@
     "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.33.0",
+    "@scalar/openapi-to-markdown": "^0.5.20",
     "@types/aws-lambda": "^8.10.161",
     "@types/ioredis-mock": "^8.2.7",
-    "@scalar/openapi-to-markdown": "^0.5.20",
     "@types/qrcode": "^1.5.5",
     "@types/sanitize-html": "^2.16.0",
     "ioredis-mock": "^8.9.0",
