@@ -90,11 +90,12 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
 
   const checkInAttendee = async (
     eventId: string,
-    userId: string,
+    identifier: { uin: string } | { netId: string },
   ): Promise<{ upn: string; dietaryRestrictions: string[] }> => {
-    const response = await api.post(`/api/v1/rsvp/checkIn/event/${eventId}`, {
-      uin: userId,
-    });
+    const response = await api.post(
+      `/api/v1/rsvp/checkIn/event/${eventId}`,
+      identifier,
+    );
     return response.data;
   };
 

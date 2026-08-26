@@ -4,8 +4,6 @@ import {
   QueryCommand,
   TransactWriteItemsCommand,
   GetItemCommand,
-  PutItemCommand,
-  DeleteItemCommand,
   UpdateItemCommand,
   TransactionCanceledException,
 } from "@aws-sdk/client-dynamodb";
@@ -27,15 +25,6 @@ const DEFAULT_HEADERS = {
 
 const MOCK_UPN = "jd3@illinois.edu";
 
-class TransactionError extends Error {
-  name = "TransactionCanceledException";
-  CancellationReasons: { Code: string }[];
-  constructor(reasons: { Code: string }[]) {
-    super("Transaction canceled");
-    this.CancellationReasons = reasons;
-  }
-}
-
 vi.mock("../../src/api/functions/uin.js", async () => {
   const actual = await vi.importActual("../../src/api/functions/uin.js");
   return {
@@ -43,13 +32,7 @@ vi.mock("../../src/api/functions/uin.js", async () => {
     verifyUiucAccessToken: vi
       .fn()
       .mockImplementation(
-        async ({
-          token,
-          logger,
-        }: {
-          token: string;
-          logger: FastifyBaseLogger;
-        }) => {
+        async (_params: { token: string; logger: FastifyBaseLogger }) => {
           return {
             userPrincipalName: MOCK_UPN,
             givenName: "John",
@@ -64,8 +47,6 @@ vi.mock("../../src/api/functions/uin.js", async () => {
       .mockImplementation(
         async ({
           uin,
-          logger,
-          dynamoClient,
         }: {
           uin: string;
           logger: FastifyBaseLogger;
@@ -77,11 +58,7 @@ vi.mock("../../src/api/functions/uin.js", async () => {
           return { id: "missing_user1@illinois.edu" };
         },
       ),
-    getUserUin: vi
-      .fn()
-      .mockImplementation(
-        async ({ uiucAccessToken: accessToken }) => "123456789",
-      ),
+    getUserUin: vi.fn().mockImplementation(async () => "123456789"),
   };
 });
 
@@ -94,9 +71,6 @@ vi.mock("../../src/api/functions/membership.js", async () => {
       .mockImplementation(
         async ({
           netId,
-          redisClient,
-          dynamoClient,
-          logger,
         }: {
           netId: string;
           redisClient: Redis;
@@ -113,7 +87,7 @@ vi.mock("../../src/api/functions/membership.js", async () => {
 });
 
 const ddbMock = mockClient(DynamoDBClient);
-const jwt_secret = secretObject["jwt_key"];
+const jwt_secret = secretObject.jwt_key;
 vi.stubEnv("JwtSigningKey", jwt_secret);
 
 const app = await init();
@@ -171,7 +145,6 @@ describe("RSVP API tests", () => {
         dietaryRestrictions: ["Vegan"],
       },
     });
-    console.log(response);
     expect(response.statusCode).toBe(201);
     expect(ddbMock.calls()).toHaveLength(1);
   });
@@ -656,6 +629,43 @@ describe("RSVP API tests", () => {
     expect(response.statusCode).toBe(200);
   });
 
+  test("Test Manager checking in a user by NetID (Success)", async () => {
+    ddbMock.on(UpdateItemCommand).resolves({});
+
+    const adminJwt = createJwt();
+    const eventId = "337a1915-f4c6-435e-ba27-bf21882300d3";
+
+    ddbMock
+      .on(GetItemCommand, {
+        TableName: genericConfig.UserInfoTable,
+      })
+      .resolves({
+        Item: marshall({
+          id: "jd3@illinois.edu",
+          dietaryRestrictions: ["Vegetarian"],
+        }),
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/rsvp/checkIn/event/${encodeURIComponent(eventId)}`,
+      headers: {
+        Authorization: `Bearer ${adminJwt}`,
+      },
+      payload: {
+        netId: "JD3",
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.upn).toBe("jd3@illinois.edu");
+    expect(body.dietaryRestrictions).toEqual(["Vegetarian"]);
+    const updateCall = ddbMock.commandCalls(UpdateItemCommand)[0];
+    expect(updateCall.args[0].input.Key).toEqual({
+      partitionKey: { S: `RSVP#${eventId}#jd3@illinois.edu` },
+    });
+  });
+
   test("Test Manager checking in a user (RSVP Not Found)", async () => {
     const error = new Error("ConditionalCheckFailedException");
     error.name = "ConditionalCheckFailedException";
@@ -675,8 +685,6 @@ describe("RSVP API tests", () => {
         uin: targetUserId,
       },
     });
-
-    console.log(response.body);
 
     expect(response.statusCode).toBe(400);
   });
