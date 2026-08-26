@@ -83,7 +83,12 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
     if (input.startsWith("%B6397")) {
       inputType = "ACM Card Swipe";
-      input = parseICardSwipe(input) ?? input;
+      const uin = parseICardSwipe(input);
+      if (!uin) {
+        setError("Invalid card swipe. Please try again.");
+        return null;
+      }
+      input = uin;
     } else if (input.startsWith("ACMCARD")) {
       inputType = "ACM Card Swipe"; // Set the type if a swipe is detected
       const uinMatch = input.match(/^ACMCARD\d{4}(\d{9})/);
