@@ -7,7 +7,7 @@ describe("Policy Evalulator Tests", async () => {
     const mockRequest = {
       url: "/api/v1/healthz",
       query: {
-        list: "noone"
+        list: "noone",
       },
       log: {
         info: vi.fn(),
@@ -17,74 +17,76 @@ describe("Policy Evalulator Tests", async () => {
     } as unknown as FastifyRequest;
     const response = await evaluateAllRequestPolicies(mockRequest);
     expect(response).toBe(true);
-  })
+  });
   test("Policy evalulation skips POST routes.", async () => {
     const mockRequest = {
       url: "/api/v1/membership",
       query: {
-        list: "built"
+        list: "built",
       },
       method: "POST",
       log: {
         info: vi.fn(),
       },
       username: "test@acm.illinois.edu",
-      policyRestrictions: [{
-        "name": "MembershipListQueryPolicy",
-        "params": {
-          "list": [
-            "noone"
-          ]
-        }
-      }],
+      policyRestrictions: [
+        {
+          name: "MembershipListQueryPolicy",
+          params: {
+            list: ["noone"],
+          },
+        },
+      ],
     } as unknown as FastifyRequest;
     const response = await evaluateAllRequestPolicies(mockRequest);
     expect(response).toBe(true);
-  })
+  });
   test("Policy evalulation denies membership query for the wrong list.", async () => {
     const mockRequest = {
       url: "/api/v1/membership/sm14",
       query: {
-        list: "built"
+        list: "built",
       },
       method: "GET",
       log: {
         info: vi.fn(),
       },
       username: "test@acm.illinois.edu",
-      policyRestrictions: [{
-        "name": "MembershipListQueryPolicy",
-        "params": {
-          "list": [
-            "noone"
-          ]
-        }
-      }],
+      policyRestrictions: [
+        {
+          name: "MembershipListQueryPolicy",
+          params: {
+            list: ["noone"],
+          },
+        },
+      ],
     } as unknown as FastifyRequest;
     const response = await evaluateAllRequestPolicies(mockRequest);
-    expect(response).toBe(`Denied by policy "MembershipListQueryPolicy". You are not authorized to view this list.`)
-  })
+    expect(response).toBe(
+      `Denied by policy "MembershipListQueryPolicy". You are not authorized to view this list.`,
+    );
+  });
   test("Policy evalulation allows correct list.", async () => {
     const mockRequest = {
       url: "/api/v1/membership/sm14",
       query: {
-        list: "noone"
+        list: "noone",
       },
       method: "GET",
       log: {
         info: vi.fn(),
       },
       username: "test@acm.illinois.edu",
-      policyRestrictions: [{
-        "name": "MembershipListQueryPolicy",
-        "params": {
-          "list": [
-            "noone"
-          ]
-        }
-      }],
+      policyRestrictions: [
+        {
+          name: "MembershipListQueryPolicy",
+          params: {
+            list: ["noone"],
+          },
+        },
+      ],
     } as unknown as FastifyRequest;
     const response = await evaluateAllRequestPolicies(mockRequest);
     expect(response).toBe(true);
-  })
-})
+  });
+});

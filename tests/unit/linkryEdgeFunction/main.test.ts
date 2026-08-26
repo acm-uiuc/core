@@ -49,7 +49,7 @@ describe("CloudFront Lambda@Edge Handler", () => {
     if (!result || typeof result !== "object" || !("status" in result)) {
       throw new Error("Expected CloudFrontResultResponse");
     }
-  };
+  }
 
   describe("Empty path handling", () => {
     it("should redirect to DEFAULT_URL when path is empty", async () => {
