@@ -31,6 +31,7 @@ import { OrgInfoPage } from "./pages/organization/OrgInfo.page";
 import { ViewStoreItemsPage } from "./pages/store/ViewStoreItems.page";
 import { ViewStorePurchasesPage } from "./pages/store/ViewStorePurchases.page";
 import { ManageRsvpConfigFormPage } from "./pages/rsvps/ManageRsvpConfig.page";
+import { ScanRsvpCheckInPage } from "./pages/rsvps/ScanRsvpCheckIn.page";
 
 const ProfileRediect: React.FC = () => {
   const location = useLocation();
@@ -177,6 +178,10 @@ const authenticatedRouter = createBrowserRouter([
       {
         path: "/events/rsvp/:eventId",
         element: <ManageRsvpConfigFormPage />,
+      },
+      {
+        path: "/rsvp/scan",
+        element: <ScanRsvpCheckInPage />,
       },
       {
         path: "/linkry",

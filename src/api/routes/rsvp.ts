@@ -882,7 +882,7 @@ const rsvpRoutes: FastifyPluginAsync = async (fastify, _options) => {
     "/checkIn/event/:eventId",
     {
       schema: withRoles(
-        [AppRoles.RSVP_MANAGER],
+        [AppRoles.RSVP_MANAGER, AppRoles.RSVP_SCANNER],
         withTags(["RSVP"], {
           summary: "Check in an RSVP for an event.",
           params: z.object({
