@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { capitalizeFirstLetter, getUpcomingEvents, test } from "./base.js";
+import { test } from "./base.js";
 import { describe } from "node:test";
 
 describe("Docs tests", () => {
@@ -27,8 +27,9 @@ describe("Docs tests", () => {
     expect(
       page.getByRole("heading", { name: "ACM @ UIUC Core API" }),
     ).toBeDefined();
+    // Scalar renders sidebar operations as links, not buttons.
     await page
-      .getByRole("button", { name: "Retrieve calendar events with" })
+      .getByRole("link", { name: "Retrieve calendar events with" })
       .click();
     await page
       .getByRole("button", { name: "Test Request (get /api/v1/events)" })
