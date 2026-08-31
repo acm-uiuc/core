@@ -4,11 +4,10 @@ run-name: PROD deploy - @${{ github.actor }}
 on:
   release:
     types: [created]
-    tags:
-      - 'v*'
 
 jobs:
   test-unit:
+    if: startsWith(github.event.release.tag_name, 'v')
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -42,6 +41,7 @@ jobs:
         run: make test_unit
 
   build:
+    if: startsWith(github.event.release.tag_name, 'v')
     permissions:
       contents: read
     runs-on: ubuntu-24.04-arm
@@ -104,6 +104,7 @@ jobs:
             dist_ui/
 
   test-e2e:
+    if: startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     name: Run E2E testing
@@ -164,6 +165,7 @@ jobs:
         run: make test_e2e
 
   deploy-prod:
+    if: startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     name: Deploy to Prod and Run Health Check
@@ -210,6 +212,7 @@ jobs:
         run: make prod_health_check
 
   publish-node-client:
+    if: startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     name: Publish TypeScript client
@@ -242,7 +245,7 @@ jobs:
   notify:
     needs: [deploy-prod, publish-node-client, test-unit, build, test-e2e]
     runs-on: ubuntu-latest
-    if: failure()
+    if: startsWith(github.event.release.tag_name, 'v') && failure()
     steps:
       - uses: lacherogwu/failed-jobs-discord-notification-action@v1
         with:

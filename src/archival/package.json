@@ -8,9 +8,9 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc && node build.js",
-    "format": "oxfmt --check \"*.ts\" \"**/*.ts\"",
+    "format": "oxfmt --check \"*.ts\" \"*/*.ts\"",
     "lint": "oxlint .",
-    "format:write": "oxfmt --write \"*.ts\" \"**/*.ts\""
+    "format:write": "oxfmt --write \"*.ts\" \"*/*.ts\""
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1093.0",

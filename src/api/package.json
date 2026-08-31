@@ -11,8 +11,8 @@
     "dev": "cross-env DISABLE_AUDIT_LOG=true cross-env LOG_LEVEL=debug concurrently --names 'esbuild,server' 'node esbuild.config.js --watch' 'cd ../../dist_devel && nodemon index.js'",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint .",
-    "format": "oxfmt --check \"*.ts\" \"**/*.ts\"",
-    "format:write": "oxfmt --write \"*.ts\" \"**/*.ts\""
+    "format": "oxfmt --check \"*.ts\" \"*/*.ts\"",
+    "format:write": "oxfmt --write \"*.ts\" \"*/*.ts\""
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1093.0",
