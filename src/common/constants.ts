@@ -1,3 +1,6 @@
+// Callback registrations share the Stripe links table. This partition key can
+// never collide with a real userId, which is always an email address.
+export const STRIPE_CALLBACK_REGISTRATION_PARTITION = "CALLBACK#";
 export const STRIPE_LINK_RETENTION_DAYS = 90; // this number of days after the link is deactivated.
 export const STRIPE_LINK_RETENTION_DAYS_QA = 0; // this number of days after the link is deactivated in QA.
 export const AUDIT_LOG_RETENTION_DAYS = 365;

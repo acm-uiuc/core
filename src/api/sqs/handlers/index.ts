@@ -7,3 +7,4 @@ export { emailNotificationsHandler } from "./emailNotifications.js";
 export { createOrgGithubTeamHandler } from "./createOrgGithubTeam.js";
 export { syncExecCouncilHandler } from "./syncExecCouncil.js";
 export { processStorePurchaseHandler } from "./handleStorePurchase.js";
+export { stripeLinkSubscriberCallbackHandler } from "./stripeLinkSubscriberCallbackHandler.js";
