@@ -22,6 +22,7 @@ import {
   IconKey,
   IconUser,
   IconInfoCircle,
+  IconQrcode,
   IconShoppingBag,
   IconMailBolt,
 } from "@tabler/icons-react";
@@ -50,6 +51,13 @@ export const navItems = [
     icon: IconCalendar,
     description: null,
     validRoles: [AppRoles.EVENTS_MANAGER],
+  },
+  {
+    link: "/rsvp/scan",
+    name: "RSVP Check-In",
+    icon: IconQrcode,
+    description: null,
+    validRoles: [AppRoles.RSVP_MANAGER, AppRoles.RSVP_SCANNER],
   },
   {
     link: "/store",

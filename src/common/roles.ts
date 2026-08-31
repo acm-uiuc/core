@@ -1,6 +1,5 @@
 import { OrganizationId } from "@acm-uiuc/js-shared";
 
-/* eslint-disable import/prefer-default-export */
 export const runEnvironments = ["dev", "prod"] as const;
 export type RunEnvironment = (typeof runEnvironments)[number];
 export const META_ROLE_PREFIX = "__metaRole:";
@@ -9,6 +8,7 @@ export enum BaseRoles {
   EVENTS_MANAGER = "manage:events",
   RSVP_MANAGER = "manage:rsvps",
   RSVP_VIEWER = "view:rsvps",
+  RSVP_SCANNER = "scan:rsvps",
   TICKETS_SCANNER = "scan:tickets",
   TICKETS_MANAGER = "manage:tickets",
   IAM_ADMIN = "admin:iam",
@@ -53,6 +53,7 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.EVENTS_MANAGER]: "Events Manager",
   [AppRoles.RSVP_MANAGER]: "RSVPs Manager",
   [AppRoles.RSVP_VIEWER]: "RSVPs Viewer",
+  [AppRoles.RSVP_SCANNER]: "RSVPs Scanner",
   [AppRoles.TICKETS_SCANNER]: "Tickets Scanner",
   [AppRoles.TICKETS_MANAGER]: "Tickets Manager",
   [AppRoles.IAM_ADMIN]: "IAM Admin",

@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Container, Title, Button, Group, Accordion } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconArrowLeft, IconQrcode } from "@tabler/icons-react";
+import { IconArrowLeft, IconQrcode, IconCamera } from "@tabler/icons-react";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { useApi } from "@ui/util/api";
 import { AppRoles } from "@common/roles.js";
@@ -116,13 +116,22 @@ export const ManageRsvpConfigFormPage: React.FC = () => {
         <Group justify="space-between" align="center" mb="md">
           <Title order={1}>Manage RSVP Configuration</Title>
           {hasRsvpConfig && checkInEnabled && (
-            <Button
-              leftSection={<IconQrcode size={16} />}
-              onClick={() => setCheckInModalOpened(true)}
-              color="green"
-            >
-              Check-In Attendees
-            </Button>
+            <Group gap="xs">
+              <Button
+                leftSection={<IconQrcode size={16} />}
+                onClick={() => setCheckInModalOpened(true)}
+                color="green"
+              >
+                Check-In Attendees
+              </Button>
+              <Button
+                leftSection={<IconCamera size={16} />}
+                onClick={() => navigate(`/rsvp/scan?eventId=${eventId}`)}
+                variant="light"
+              >
+                Scan QR Codes
+              </Button>
+            </Group>
           )}
         </Group>
 
