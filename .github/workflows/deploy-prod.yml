@@ -15,12 +15,12 @@ jobs:
     timeout-minutes: 15
     name: Run Unit Tests
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
         env:
           HUSKY: "0"
 
       - name: Set up Node
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 24.x
           cache: "yarn"
@@ -31,7 +31,7 @@ jobs:
           terraform_version: 1.12.2
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
@@ -48,18 +48,18 @@ jobs:
     timeout-minutes: 15
     name: Build Application
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
         env:
           HUSKY: "0"
 
       - name: Set up Node
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 24.x
           cache: "yarn"
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-prod
@@ -117,12 +117,12 @@ jobs:
       - build
     environment: "AWS QA"
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
         env:
           HUSKY: "0"
 
       - name: Set up Node for testing
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 24.x
           cache: "yarn"
@@ -133,7 +133,7 @@ jobs:
           terraform_version: 1.12.2
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
@@ -145,7 +145,7 @@ jobs:
         with:
           name: build-qa
 
-      - uses: aws-actions/configure-aws-credentials@v6.2.0
+      - uses: aws-actions/configure-aws-credentials@v6.2.3
         with:
           role-to-assume: arn:aws:iam::427040638965:role/GitHubActionsRole
           role-session-name: Core_QA_Deployment_${{ github.run_id }}
@@ -179,7 +179,7 @@ jobs:
     environment: "AWS PROD"
     steps:
       - name: Set up Node for testing
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 24.x
 
@@ -188,7 +188,7 @@ jobs:
         with:
           terraform_version: 1.12.2
 
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
         env:
           HUSKY: "0"
 
@@ -196,7 +196,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: build-prod
-      - uses: aws-actions/configure-aws-credentials@v6.2.0
+      - uses: aws-actions/configure-aws-credentials@v6.2.3
         with:
           role-to-assume: arn:aws:iam::298118738376:role/GitHubActionsRole
           role-session-name: Core_Prod_Deployment_${{ github.run_id }}
@@ -221,12 +221,12 @@ jobs:
       - test-unit
       - test-e2e
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.1
       - name: Set up Node
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 24.x
-      - uses: actions/setup-java@v5.2.0
+      - uses: actions/setup-java@v6.0.0
         with:
           distribution: 'adopt'
           java-version: '25'
