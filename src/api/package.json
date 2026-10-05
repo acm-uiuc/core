@@ -41,7 +41,7 @@
     "aws-crt": "^1.31.0",
     "base64-arraybuffer": "^1.0.2",
     "discord.js": "^14.26.4",
-    "fastify": "^5.12.1",
+    "fastify": "^5.12.5",
     "fastify-ip": "^2.0.0",
     "fastify-plugin": "^6.0.0",
     "fastify-raw-body": "^5.0.0",
