@@ -20,7 +20,9 @@ describe("Docs tests", () => {
   });
   test("A user can make API requests using the API documentation site", async ({
     page,
+    becomeUser,
   }) => {
+    await becomeUser(page);
     await page.goto(
       process.env.E2E_TEST_HOST || "https://core.aws.qa.acmuiuc.org/docs",
     );
