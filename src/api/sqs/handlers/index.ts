@@ -6,5 +6,6 @@ export { sendSaleFailedHandler } from "./sendSaleFailedHandler.js";
 export { emailNotificationsHandler } from "./emailNotifications.js";
 export { createOrgGithubTeamHandler } from "./createOrgGithubTeam.js";
 export { syncExecCouncilHandler } from "./syncExecCouncil.js";
+export { syncCloudflareMemberHandler } from "./syncCloudflareMember.js";
 export { processStorePurchaseHandler } from "./handleStorePurchase.js";
 export { stripeLinkSubscriberCallbackHandler } from "./stripeLinkSubscriberCallbackHandler.js";

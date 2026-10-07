@@ -129,6 +129,7 @@ jobs:
         env:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: prod
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TERRAFORM_API_TOKEN }}
       - name: Call the health check script
         run: make prod_health_check
 
