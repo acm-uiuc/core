@@ -41,13 +41,20 @@ replay the Entra mutation. Existing accepted/pending members and already-absent
 removals are idempotent. Rejected invitations require operator intervention.
 Development/QA does not enqueue these jobs.
 
+Production invitations default to **Workers Platform (Read-only)**, using ACM
+member-role ID `e58cefd75d7adae0b761796c28815e5c`. This is platform-wide read
+access, including R2 and domain/DNS visibility, not Workers-only access; it
+does not grant edits or deployments. Existing accepted/pending members retain
+their assigned roles; an add job does not reconcile or downgrade those roles.
+
 Before production deployment:
 
-1. Commit the real nonsecret `CloudflareAccountId` (account ID),
-   `CloudflareInfraTeamGroupId` (Entra group UUID), and `CloudflareMemberRoleIds`
-   (non-empty set of Cloudflare account member-role IDs, not token permission IDs)
-   as variable defaults in `terraform/envs/prod/variables.tf`, matching the
-   existing production AWS configuration.
+1. Commit the real nonsecret `CloudflareInfraTeamGroupId` (Entra group UUID)
+   as a variable default in `terraform/envs/prod/variables.tf`, matching the
+   existing production AWS configuration. `CloudflareAccountId` and
+   `CloudflareMemberRoleIds` already default to ACM's account and its
+   **Workers Platform (Read-only)** member role, respectively. Member-role IDs
+   are distinct from API-token permission IDs.
 2. Create a target-account bootstrap API token with **Account API Tokens Write**
    (dashboard: **Account API Tokens: Edit**). Its owner needs API Token
    Provisioning capability or Super Administrator status and authority to grant

@@ -83,6 +83,7 @@ variable "CloudflareAccountId" {
 variable "CloudflareInfraTeamGroupId" {
   type        = string
   description = "Production Entra InfraTeamMember group ID."
+  default     = "940e4f9e-6891-4e28-9e29-148798495cdb"
 
   validation {
     condition     = can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", var.CloudflareInfraTeamGroupId))
@@ -93,6 +94,7 @@ variable "CloudflareInfraTeamGroupId" {
 variable "CloudflareMemberRoleIds" {
   type        = set(string)
   description = "Cloudflare account member roles assigned to InfraTeamMember invitations."
+  default     = ["e58cefd75d7adae0b761796c28815e5c"] # Workers Platform (Read-only)
 
   validation {
     condition     = length(var.CloudflareMemberRoleIds) > 0 && alltrue([for role_id in var.CloudflareMemberRoleIds : can(regex("^[0-9a-fA-F]{32}$", role_id))])
