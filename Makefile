@@ -96,7 +96,7 @@ test_unit: install
 	terraform -chdir=terraform/envs/prod init -reconfigure -backend=false -upgrade
 	terraform -chdir=terraform/envs/prod fmt -check
 	terraform -chdir=terraform/envs/prod validate
-	yarn prettier
+	yarn format
 	yarn test:unit
 
 test_e2e: install

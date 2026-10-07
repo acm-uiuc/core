@@ -18,7 +18,7 @@ describe("Policy Evalulator Tests", async () => {
     } as unknown as FastifyRequest;
     const response = await evaluateAllRequestPolicies(mockRequest);
     expect(response).toBe(true);
-  })
+  });
   test("Policy evalulation skips GET routes.", async () => {
     const mockRequest = {
       url: "/api/v1/events/123",
@@ -31,18 +31,18 @@ describe("Policy Evalulator Tests", async () => {
         info: vi.fn(),
       },
       username: "test@acm.illinois.edu",
-      policyRestrictions: [{
-        "name": "EventsHostRestrictionPolicy",
-        "params": {
-          "host": [
-            "NONE"
-          ]
-        }
-      }],
+      policyRestrictions: [
+        {
+          name: "EventsHostRestrictionPolicy",
+          params: {
+            host: ["NONE"],
+          },
+        },
+      ],
     } as unknown as FastifyRequest;
     const response = await evaluateAllRequestPolicies(mockRequest);
     expect(response).toBe(true);
-  })
+  });
   test("Policy evalulation does not permit featured events even for the correct host.", async () => {
     const mockRequest = {
       url: "/api/v1/events",
@@ -55,18 +55,20 @@ describe("Policy Evalulator Tests", async () => {
         info: vi.fn(),
       },
       username: "test@acm.illinois.edu",
-      policyRestrictions: [{
-        "name": "EventsHostRestrictionPolicy",
-        "params": {
-          "host": [
-            "ACM"
-          ]
-        }
-      }],
+      policyRestrictions: [
+        {
+          name: "EventsHostRestrictionPolicy",
+          params: {
+            host: ["ACM"],
+          },
+        },
+      ],
     } as unknown as FastifyRequest;
     const response = await evaluateAllRequestPolicies(mockRequest);
-    expect(response).toBe(`Denied by policy "EventsHostRestrictionPolicy". Event must not be featured.`)
-  })
+    expect(response).toBe(
+      `Denied by policy "EventsHostRestrictionPolicy". Event must not be featured.`,
+    );
+  });
   test("Policy evalulation denies incorrect host.", async () => {
     const mockRequest = {
       url: "/api/v1/events",
@@ -79,18 +81,20 @@ describe("Policy Evalulator Tests", async () => {
         info: vi.fn(),
       },
       username: "test@acm.illinois.edu",
-      policyRestrictions: [{
-        "name": "EventsHostRestrictionPolicy",
-        "params": {
-          "host": [
-            "Infrastructure Committee"
-          ]
-        }
-      }],
+      policyRestrictions: [
+        {
+          name: "EventsHostRestrictionPolicy",
+          params: {
+            host: ["Infrastructure Committee"],
+          },
+        },
+      ],
     } as unknown as FastifyRequest;
     const response = await evaluateAllRequestPolicies(mockRequest);
-    expect(response).toBe(`Denied by policy "EventsHostRestrictionPolicy". Host must be one of: Infrastructure Committee.`);
-  })
+    expect(response).toBe(
+      `Denied by policy "EventsHostRestrictionPolicy". Host must be one of: Infrastructure Committee.`,
+    );
+  });
   test("Policy evalulation permits correct host non-featured requests.", async () => {
     const mockRequest = {
       url: "/api/v1/events",
@@ -103,16 +107,16 @@ describe("Policy Evalulator Tests", async () => {
         info: vi.fn(),
       },
       username: "test@acm.illinois.edu",
-      policyRestrictions: [{
-        "name": "EventsHostRestrictionPolicy",
-        "params": {
-          "host": [
-            "ACM"
-          ]
-        }
-      }],
+      policyRestrictions: [
+        {
+          name: "EventsHostRestrictionPolicy",
+          params: {
+            host: ["ACM"],
+          },
+        },
+      ],
     } as unknown as FastifyRequest;
     const response = await evaluateAllRequestPolicies(mockRequest);
     expect(response).toBe(true);
-  })
-})
+  });
+});

@@ -16,7 +16,7 @@ const createMockLogger = () => ({
 
 // Helper to create a successful Turnstile response
 const createSuccessResponse = (
-  overrides: Partial<CloudflareTurnstileResponse> = {}
+  overrides: Partial<CloudflareTurnstileResponse> = {},
 ): CloudflareTurnstileResponse => ({
   success: true,
   challenge_ts: new Date().toISOString(),
@@ -29,7 +29,7 @@ const createSuccessResponse = (
 
 // Helper to create a failed Turnstile response
 const createFailureResponse = (
-  errorCodes: string[] = ["invalid-input-response"]
+  errorCodes: string[] = ["invalid-input-response"],
 ): CloudflareTurnstileResponse => ({
   success: false,
   challenge_ts: "",
@@ -56,7 +56,7 @@ describe("verifyTurnstileToken", () => {
   });
 
   const createDefaultInputs = (
-    overrides: Partial<VerifyTurnstileTokenInputs> = {}
+    overrides: Partial<VerifyTurnstileTokenInputs> = {},
   ): VerifyTurnstileTokenInputs => ({
     turnstileSecret: "test-secret",
     clientToken: "valid-token",
@@ -70,10 +70,10 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs({ clientToken: undefined });
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Invalid Turnstile token format."
+        "Invalid Turnstile token format.",
       );
     });
 
@@ -81,7 +81,7 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs({ clientToken: "" });
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
     });
 
@@ -91,10 +91,10 @@ describe("verifyTurnstileToken", () => {
       });
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Invalid Turnstile token format."
+        "Invalid Turnstile token format.",
       );
     });
 
@@ -102,9 +102,11 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs({ clientToken: "a".repeat(2049) });
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
-      expect(mockLogger.error).toHaveBeenCalledWith("Turnstile token too long.");
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        "Turnstile token too long.",
+      );
     });
 
     it("should accept clientToken exactly 2048 characters", async () => {
@@ -126,7 +128,7 @@ describe("verifyTurnstileToken", () => {
       });
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
     });
 
@@ -154,17 +156,21 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs();
 
       await expect(verifyTurnstileToken(inputs)).resolves.toBeUndefined();
-      expect(mockLogger.debug).toHaveBeenCalledWith("Accepted turnstile token.");
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        "Accepted turnstile token.",
+      );
     });
 
     it("should send correct form data to Cloudflare", async () => {
       let capturedFormData: FormData | undefined;
-      global.fetch = vi.fn().mockImplementation((_url: string, options: RequestInit) => {
-        capturedFormData = options.body as FormData;
-        return Promise.resolve({
-          json: () => Promise.resolve(createSuccessResponse()),
+      global.fetch = vi
+        .fn()
+        .mockImplementation((_url: string, options: RequestInit) => {
+          capturedFormData = options.body as FormData;
+          return Promise.resolve({
+            json: () => Promise.resolve(createSuccessResponse()),
+          });
         });
-      });
 
       const inputs = createDefaultInputs({
         remoteIp: "192.168.1.1",
@@ -176,7 +182,7 @@ describe("verifyTurnstileToken", () => {
         "https://challenges.cloudflare.com/turnstile/v0/siteverify",
         expect.objectContaining({
           method: "POST",
-        })
+        }),
       );
       expect(capturedFormData).toBeDefined();
       expect(capturedFormData!.get("secret")).toBe("test-secret");
@@ -187,12 +193,14 @@ describe("verifyTurnstileToken", () => {
 
     it("should not include remoteip when not provided", async () => {
       let capturedFormData: FormData | undefined;
-      global.fetch = vi.fn().mockImplementation((_url: string, options: RequestInit) => {
-        capturedFormData = options.body as FormData;
-        return Promise.resolve({
-          json: () => Promise.resolve(createSuccessResponse()),
+      global.fetch = vi
+        .fn()
+        .mockImplementation((_url: string, options: RequestInit) => {
+          capturedFormData = options.body as FormData;
+          return Promise.resolve({
+            json: () => Promise.resolve(createSuccessResponse()),
+          });
         });
-      });
 
       const inputs = createDefaultInputs();
 
@@ -213,11 +221,11 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs();
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
       expect(mockLogger.error).toHaveBeenCalledWith(
         "Turnstile validation failed",
-        ["invalid-input-response"]
+        ["invalid-input-response"],
       );
     });
 
@@ -230,11 +238,11 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs();
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
       expect(mockLogger.error).toHaveBeenCalledWith(
         "Turnstile validation failed",
-        errorCodes
+        errorCodes,
       );
     });
   });
@@ -249,26 +257,25 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs({ expectedAction: "login" });
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Action mismatch: expected login but got signup"
+        "Action mismatch: expected login but got signup",
       );
     });
 
     it("should throw ValidationError when action is empty but expected", async () => {
       global.fetch = vi.fn().mockResolvedValue({
-        json: () =>
-          Promise.resolve(createSuccessResponse({ action: "" })),
+        json: () => Promise.resolve(createSuccessResponse({ action: "" })),
       });
 
       const inputs = createDefaultInputs({ expectedAction: "login" });
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Action mismatch: expected login but got "
+        "Action mismatch: expected login but got ",
       );
     });
 
@@ -292,33 +299,34 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs({ expectedHostname: "example.com" });
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Hostname mismatch: expected example.com but got malicious.com"
+        "Hostname mismatch: expected example.com but got malicious.com",
       );
     });
 
     it("should throw ValidationError when hostname is empty but expected", async () => {
       global.fetch = vi.fn().mockResolvedValue({
-        json: () =>
-          Promise.resolve(createSuccessResponse({ hostname: "" })),
+        json: () => Promise.resolve(createSuccessResponse({ hostname: "" })),
       });
 
       const inputs = createDefaultInputs({ expectedHostname: "example.com" });
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Hostname mismatch: expected example.com but got "
+        "Hostname mismatch: expected example.com but got ",
       );
     });
 
     it("should succeed when expectedHostname is not provided", async () => {
       global.fetch = vi.fn().mockResolvedValue({
         json: () =>
-          Promise.resolve(createSuccessResponse({ hostname: "any-hostname.com" })),
+          Promise.resolve(
+            createSuccessResponse({ hostname: "any-hostname.com" }),
+          ),
       });
 
       const inputs = createDefaultInputs({ expectedHostname: undefined });
@@ -330,7 +338,7 @@ describe("verifyTurnstileToken", () => {
       global.fetch = vi.fn().mockResolvedValue({
         json: () =>
           Promise.resolve(
-            createSuccessResponse({ action: "login", hostname: "example.com" })
+            createSuccessResponse({ action: "login", hostname: "example.com" }),
           ),
       });
 
@@ -346,7 +354,10 @@ describe("verifyTurnstileToken", () => {
       global.fetch = vi.fn().mockResolvedValue({
         json: () =>
           Promise.resolve(
-            createSuccessResponse({ action: "wrong-action", hostname: "wrong-hostname.com" })
+            createSuccessResponse({
+              action: "wrong-action",
+              hostname: "wrong-hostname.com",
+            }),
           ),
       });
 
@@ -356,11 +367,11 @@ describe("verifyTurnstileToken", () => {
       });
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
       // Should log action mismatch first (assuming action is checked before hostname)
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Action mismatch: expected login but got wrong-action"
+        "Action mismatch: expected login but got wrong-action",
       );
     });
   });
@@ -391,7 +402,7 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs();
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "Invalid Turnstile token."
+        "Invalid Turnstile token.",
       );
     });
 
@@ -401,11 +412,11 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs();
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "An error occurred validating the Turnstile token."
+        "An error occurred validating the Turnstile token.",
       );
       expect(mockLogger.error).toHaveBeenCalledWith(
         "Turnstile validation error:",
-        expect.any(Error)
+        expect.any(Error),
       );
     });
 
@@ -415,7 +426,7 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs();
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "An error occurred validating the Turnstile token."
+        "An error occurred validating the Turnstile token.",
       );
     });
 
@@ -427,7 +438,7 @@ describe("verifyTurnstileToken", () => {
       const inputs = createDefaultInputs();
 
       await expect(verifyTurnstileToken(inputs)).rejects.toThrow(
-        "An error occurred validating the Turnstile token."
+        "An error occurred validating the Turnstile token.",
       );
     });
   });
