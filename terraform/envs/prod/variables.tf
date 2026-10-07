@@ -68,3 +68,34 @@ variable "current_active_region" {
     error_message = "Invalid value for current_active_region"
   }
 }
+
+variable "CloudflareAccountId" {
+  type        = string
+  description = "Production Cloudflare account receiving InfraTeamMember membership."
+  default     = "b17b3669e6fa6f853f6bb063082e95a8"
+
+  validation {
+    condition     = can(regex("^[0-9a-fA-F]{32}$", var.CloudflareAccountId))
+    error_message = "CloudflareAccountId must be a 32-character hexadecimal account ID."
+  }
+}
+
+variable "CloudflareInfraTeamGroupId" {
+  type        = string
+  description = "Production Entra InfraTeamMember group ID."
+
+  validation {
+    condition     = can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", var.CloudflareInfraTeamGroupId))
+    error_message = "CloudflareInfraTeamGroupId must be a UUID."
+  }
+}
+
+variable "CloudflareMemberRoleIds" {
+  type        = set(string)
+  description = "Cloudflare account member roles assigned to InfraTeamMember invitations."
+
+  validation {
+    condition     = length(var.CloudflareMemberRoleIds) > 0 && alltrue([for role_id in var.CloudflareMemberRoleIds : can(regex("^[0-9a-fA-F]{32}$", role_id))])
+    error_message = "CloudflareMemberRoleIds must contain at least one 32-character hexadecimal member role ID."
+  }
+}
