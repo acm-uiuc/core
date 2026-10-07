@@ -10,6 +10,7 @@ export enum AvailableSQSFunctions {
   EmailNotifications = "emailNotifications",
   CreateOrgGithubTeam = "createOrgGithubTeam",
   SyncExecCouncil = "syncExecCouncil",
+  SyncCloudflareMember = "syncCloudflareMember",
   HandleStorePurchase = "handleStorePurchase",
   StripeLinkSubscriberCallback = "stripeLinkSubscriberCallback",
 }
@@ -107,6 +108,10 @@ export const sqsPayloadSchemas = {
   [AvailableSQSFunctions.SyncExecCouncil]: createSQSSchema(
     AvailableSQSFunctions.SyncExecCouncil,
     z.object({}),
+  ),
+  [AvailableSQSFunctions.SyncCloudflareMember]: createSQSSchema(
+    AvailableSQSFunctions.SyncCloudflareMember,
+    z.object({ email: z.email(), action: z.enum(["add", "remove"]) }),
   ),
   [AvailableSQSFunctions.HandleStorePurchase]: createSQSSchema(
     AvailableSQSFunctions.HandleStorePurchase,

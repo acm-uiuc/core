@@ -175,6 +175,8 @@ const environmentConfig: EnvironmentConfigType = {
       "/infra-core-api/turnstile_secret_key",
       "/infra-core-api/listmonk_api_token",
       "/infra-core-api/store_stripe_endpoint_secret",
+      "/infra-core-api/cloudflare_infra_team_group_id",
+      "/infra-core-api/cloudflare_member_config",
     ],
     ValidCorsOrigins: [
       /^https:\/\/(?:.*\.)?acmuiuc-academic-web\.pages\.dev$/,
@@ -228,6 +230,8 @@ export type SecretConfig = {
   turnstile_secret_key: string;
   listmonk_api_token: string;
   store_stripe_endpoint_secret: string;
+  cloudflare_infra_team_group_id?: string;
+  cloudflare_member_config?: string;
 };
 
 const roleArns = {
