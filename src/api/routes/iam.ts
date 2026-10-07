@@ -45,7 +45,10 @@ import { Modules } from "common/modules.js";
 import { groupId, withRoles, withTags } from "api/components/index.js";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import * as z from "zod/v4";
-import { AvailableSQSFunctions } from "common/types/sqsMessage.js";
+import {
+  AvailableSQSFunctions,
+  type AnySQSPayload,
+} from "common/types/sqsMessage.js";
 import { SendMessageBatchCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { randomUUID } from "crypto";
 import { getKey, setKey } from "api/functions/redisCache.js";
@@ -489,7 +492,7 @@ const iamRoutes: FastifyPluginAsync = async (fastify, _options) => {
           }
         }
       }
-      const sqsAddedPayloads = addedEmails
+      const sqsAddedPayloads: AnySQSPayload[] = addedEmails
         .filter((x) => !!x)
         .map((x) => {
           return {
@@ -511,7 +514,7 @@ No action is required from you at this time.
             },
           };
         });
-      const sqsRemovedPayloads = removedEmails
+      const sqsRemovedPayloads: AnySQSPayload[] = removedEmails
         .filter((x) => !!x)
         .map((x) => {
           return {
@@ -533,6 +536,25 @@ No action is required from you at this time.
             },
           };
         });
+      if (
+        fastify.runEnvironment === "prod" &&
+        groupId === fastify.secretConfig.cloudflare_infra_team_group_id
+      ) {
+        for (const email of addedEmails) {
+          sqsAddedPayloads.push({
+            function: AvailableSQSFunctions.SyncCloudflareMember,
+            metadata: { initiator: request.username, reqId: request.id },
+            payload: { email, action: "add" },
+          });
+        }
+        for (const email of removedEmails) {
+          sqsRemovedPayloads.push({
+            function: AvailableSQSFunctions.SyncCloudflareMember,
+            metadata: { initiator: request.username, reqId: request.id },
+            payload: { email, action: "remove" },
+          });
+        }
+      }
       if (!fastify.sqsClient) {
         fastify.sqsClient = new SQSClient({
           region: genericConfig.AwsRegion,

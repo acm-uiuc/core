@@ -20,6 +20,7 @@ import {
   emailNotificationsHandler,
   createOrgGithubTeamHandler,
   syncExecCouncilHandler,
+  syncCloudflareMemberHandler,
   processStorePurchaseHandler,
   sendSaleFailedHandler,
   stripeLinkSubscriberCallbackHandler,
@@ -46,6 +47,7 @@ const handlers: SQSFunctionPayloadTypes = {
   [AvailableSQSFunctions.EmailNotifications]: emailNotificationsHandler,
   [AvailableSQSFunctions.CreateOrgGithubTeam]: createOrgGithubTeamHandler,
   [AvailableSQSFunctions.SyncExecCouncil]: syncExecCouncilHandler,
+  [AvailableSQSFunctions.SyncCloudflareMember]: syncCloudflareMemberHandler,
   [AvailableSQSFunctions.HandleStorePurchase]: processStorePurchaseHandler,
   [AvailableSQSFunctions.SendSaleFailedEmail]: sendSaleFailedHandler,
   [AvailableSQSFunctions.StripeLinkSubscriberCallback]:
@@ -65,7 +67,7 @@ export const handler = middy()
       async (record, _index) => {
         const sourceQueue = record.eventSourceARN.split(":").slice(-1)[0];
         try {
-          let parsedBody = parseSQSPayload(record.body);
+          let parsedBody = parseSQSPayload(JSON.parse(record.body));
           if (parsedBody instanceof z.ZodError) {
             logger.error(
               { sqsMessageId: record.messageId },

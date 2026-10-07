@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "6.44.0"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "5.27.0"
+    }
   }
 
   required_version = ">= 1.2"
@@ -15,6 +19,8 @@ terraform {
     use_lockfile = true
   }
 }
+
+provider "cloudflare" {}
 
 
 provider "aws" {
@@ -43,6 +49,42 @@ locals {
   }
   DynamoReplicationRegions = toset(["us-west-2"])
   deployment_env           = "prod"
+}
+
+data "cloudflare_account_api_token_permission_groups_list" "account_settings_write" {
+  account_id = var.CloudflareAccountId
+  name       = "Account%20Settings%20Write"
+  scope      = "com.cloudflare.api.account"
+}
+
+resource "cloudflare_account_token" "infra_core_member_sync" {
+  account_id = var.CloudflareAccountId
+  name       = "infra-core-api member sync"
+  policies = [{
+    effect            = "allow"
+    permission_groups = [{ id = one(data.cloudflare_account_api_token_permission_groups_list.account_settings_write.result).id }]
+    resources         = jsonencode({ "com.cloudflare.api.account.${var.CloudflareAccountId}" = "*" })
+  }]
+}
+
+resource "aws_ssm_parameter" "cloudflare_infra_team_group_id" {
+  for_each = toset(["us-east-2", "us-west-2"])
+  region   = each.value
+  name     = "/infra-core-api/cloudflare_infra_team_group_id"
+  type     = "String"
+  value    = var.CloudflareInfraTeamGroupId
+}
+
+resource "aws_ssm_parameter" "cloudflare_member_config" {
+  for_each = toset(["us-east-2", "us-west-2"])
+  region   = each.value
+  name     = "/infra-core-api/cloudflare_member_config"
+  type     = "SecureString"
+  value = jsonencode({
+    account_id = var.CloudflareAccountId
+    api_token  = cloudflare_account_token.infra_core_member_sync.value
+    role_ids   = sort(tolist(var.CloudflareMemberRoleIds))
+  })
 }
 
 module "sqs_queues" {
@@ -94,6 +136,7 @@ module "archival" {
 }
 
 module "lambdas" {
+  depends_on                       = [aws_ssm_parameter.cloudflare_infra_team_group_id, aws_ssm_parameter.cloudflare_member_config]
   region                           = "us-east-2"
   source                           = "../../modules/lambdas"
   ProjectId                        = var.ProjectId
@@ -147,6 +190,7 @@ resource "aws_lambda_event_source_mapping" "queue_consumer" {
 // Multi-Region Failover: us-west-2
 
 module "lambdas_usw2" {
+  depends_on                       = [aws_ssm_parameter.cloudflare_infra_team_group_id, aws_ssm_parameter.cloudflare_member_config]
   region                           = "us-west-2"
   source                           = "../../modules/lambdas"
   ProjectId                        = var.ProjectId
