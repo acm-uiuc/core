@@ -26,6 +26,27 @@ describe("SQS Message Parsing Tests", () => {
     };
     expect(parseSQSPayload(payload)).toBeInstanceOf(ZodError);
   });
+  test.each(["add", "remove"])("Cloudflare %s payload parses", (action) => {
+    const job = {
+      function: "syncCloudflareMember",
+      metadata: { reqId: "request-123", initiator: "operator@illinois.edu" },
+      payload: { email: "member@illinois.edu", action },
+    };
+    expect(parseSQSPayload(job)).toStrictEqual(job);
+  });
+
+  test.each([
+    { email: "member@illinois.edu", action: "update" },
+    { email: "not-an-email", action: "add" },
+  ])("Cloudflare payload rejects $email / $action", (payload) => {
+    expect(
+      parseSQSPayload({
+        function: "syncCloudflareMember",
+        metadata: { reqId: "request-123", initiator: "operator@illinois.edu" },
+        payload,
+      }),
+    ).toBeInstanceOf(ZodError);
+  });
   test("Stripe link subscriber callback message parses correctly", () => {
     const payload = {
       metadata: {
