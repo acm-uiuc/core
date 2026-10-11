@@ -67,7 +67,7 @@ export const handler = middy()
       async (record, _index) => {
         const sourceQueue = record.eventSourceARN.split(":").slice(-1)[0];
         try {
-          let parsedBody = parseSQSPayload(JSON.parse(record.body));
+          let parsedBody = parseSQSPayload(record.body);
           if (parsedBody instanceof z.ZodError) {
             logger.error(
               { sqsMessageId: record.messageId },
