@@ -1,41 +1,88 @@
 import {
   Box,
   Button,
-  Card,
-  Divider,
-  Text,
-  TextInput,
-  NumberInput,
-  Switch,
-  Title,
-  Modal,
-  Anchor,
   CopyButton,
   Group,
   Loader,
+  Modal,
+  NumberInput,
+  Select,
+  Switch,
+  Text,
+  TextInput,
+  Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { notifications } from "@mantine/notifications";
-import { IconAlertCircle } from "@tabler/icons-react";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   PostInvoiceLinkRequest,
   PostInvoiceLinkResponse,
+  RampFund,
+  RampFundsResponse,
 } from "@common/types/stripe";
-import FullScreenLoader from "@ui/components/AuthContext/LoadingScreen";
+import { generateErrorMessage } from "@ui/util/api";
 
 interface StripeCreateLinkPanelProps {
   createLink: (
     payload: PostInvoiceLinkRequest,
   ) => Promise<PostInvoiceLinkResponse>;
+  getRampFunds: () => Promise<RampFundsResponse>;
 }
+
+type FundsState =
+  | { status: "loading" }
+  | { status: "connected"; funds: RampFund[] }
+  | { status: "not_linked" }
+  | { status: "unavailable" };
 
 export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
   createLink,
+  getRampFunds,
 }) => {
   const [modalOpened, setModalOpened] = useState(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [returnedLink, setReturnedLink] = useState<string | null>(null);
+  const [fundsState, setFundsState] = useState<FundsState>({
+    status: "loading",
+  });
+  const [selectedFundId, setSelectedFundId] = useState<string | null>(null);
+
+  const requestGeneration = useRef(0);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  const loadRampFunds = async () => {
+    const generation = ++requestGeneration.current;
+    setFundsState({ status: "loading" });
+    try {
+      const response = await getRampFunds();
+      if (!isMounted.current || generation !== requestGeneration.current) {
+        return;
+      }
+      if (response.status === "connected") {
+        setFundsState({ status: "connected", funds: response.funds });
+      } else if (response.status === "not_linked") {
+        setFundsState({ status: "not_linked" });
+      } else {
+        setFundsState({ status: "unavailable" });
+      }
+    } catch {
+      if (!isMounted.current || generation !== requestGeneration.current) {
+        return;
+      }
+      setFundsState({ status: "unavailable" });
+    }
+  };
+
+  useEffect(() => {
+    loadRampFunds();
+  }, []);
 
   const form = useForm({
     initialValues: {
@@ -59,24 +106,43 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
     },
   });
 
+  const selectedFund =
+    fundsState.status === "connected"
+      ? (fundsState.funds.find((fund) => fund.id === selectedFundId) ?? null)
+      : null;
+
+  const selectedFundInvalid = selectedFundId !== null && selectedFund === null;
+
+  const selectDisabled =
+    fundsState.status !== "connected" && selectedFundId === null;
+
+  const fundOptions =
+    fundsState.status === "connected"
+      ? fundsState.funds.map((fund) => ({
+          value: fund.id,
+          label: fund.displayName,
+        }))
+      : [];
+
   const handleSubmit = async (values: typeof form.values) => {
+    if (isLoading || selectedFundInvalid) {
+      return;
+    }
     try {
       setIsLoading(true);
-      const response = await createLink(values);
+      const payload: PostInvoiceLinkRequest = {
+        ...values,
+        ...(selectedFund ? { rampFundId: selectedFund.id } : {}),
+      };
+      const response = await createLink(payload);
       setReturnedLink(response.link);
+      setSelectedFundId(null);
       setIsLoading(false);
       setModalOpened(true);
       form.reset();
     } catch (e) {
       setIsLoading(false);
-      notifications.show({
-        title: "Error",
-        message:
-          "Failed to create payment link. Please try again or contact support.",
-        color: "red",
-        icon: <IconAlertCircle size={16} />,
-      });
-      console.error(e);
+      await generateErrorMessage(e, "creating a payment link");
     }
   };
 
@@ -123,7 +189,68 @@ export const StripeCreateLinkPanel: React.FC<StripeCreateLinkPanelProps> = ({
           {...form.getInputProps("achPaymentsEnabled")}
         />
 
-        <Button type="submit" fullWidth mt="md" disabled={isLoading}>
+        <Box mt="lg">
+          <Group justify="space-between" mb={6}>
+            <Text
+              component="label"
+              htmlFor="ramp-fund-select"
+              size="sm"
+              fw={500}
+            >
+              Ramp fund (optional)
+            </Text>
+            <Button variant="subtle" size="compact-xs" onClick={loadRampFunds}>
+              Refresh
+            </Button>
+          </Group>
+          <Select
+            id="ramp-fund-select"
+            aria-label="Ramp fund"
+            placeholder="Search for a Ramp fund"
+            description="Net proceeds increase a non-repeating spending limit, not a banking balance."
+            searchable
+            clearable
+            clearButtonProps={{ "aria-label": "Clear Ramp fund" }}
+            data={fundOptions}
+            value={selectedFundId}
+            onChange={(value) => setSelectedFundId(value)}
+            disabled={selectDisabled}
+            nothingFoundMessage="No matching funds"
+            error={
+              selectedFundInvalid
+                ? "This fund is no longer eligible. Clear or choose a different fund."
+                : undefined
+            }
+          />
+          {fundsState.status === "loading" && (
+            <Text size="sm" c="dimmed" mt={4}>
+              Loading Ramp funds…
+            </Text>
+          )}
+          {fundsState.status === "not_linked" && (
+            <Text size="sm" c="dimmed" mt={4}>
+              No Ramp account is linked to your ACM identity.
+            </Text>
+          )}
+          {fundsState.status === "connected" &&
+            fundsState.funds.length === 0 && (
+              <Text size="sm" c="dimmed" mt={4}>
+                No eligible Ramp funds are available.
+              </Text>
+            )}
+          {fundsState.status === "unavailable" && (
+            <Text size="sm" c="red" mt={4}>
+              Ramp is currently unavailable.
+            </Text>
+          )}
+        </Box>
+
+        <Button
+          type="submit"
+          fullWidth
+          mt="md"
+          disabled={isLoading || selectedFundInvalid}
+        >
           {isLoading ? "Creating..." : "Create Link"}{" "}
           {isLoading && <Loader color="blue" size="sm" ml="sm" />}
         </Button>
