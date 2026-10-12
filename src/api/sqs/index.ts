@@ -24,6 +24,7 @@ import {
   processStorePurchaseHandler,
   sendSaleFailedHandler,
   stripeLinkSubscriberCallbackHandler,
+  processStripeLinkSettlementHandler,
 } from "./handlers/index.js";
 import { ValidationError } from "../../common/errors/index.js";
 import { RunEnvironment } from "../../common/roles.js";
@@ -33,10 +34,18 @@ export type SQSFunctionPayloadTypes = {
   [K in keyof typeof sqsPayloadSchemas]: SQSHandlerFunction<K>;
 };
 
+/**
+ * The subset of the Lambda context that a handler may use. Passing this
+ * narrow shape (rather than the whole Context) keeps handlers independent of
+ * Lambda internals while still exposing the actual remaining execution time.
+ */
+export type SQSHandlerContext = Pick<Context, "getRemainingTimeInMillis">;
+
 export type SQSHandlerFunction<T extends AvailableSQSFunctions> = (
   payload: z.infer<(typeof sqsPayloadSchemas)[T]>["payload"],
   metadata: SQSMessageMetadata,
   logger: pino.Logger,
+  context?: SQSHandlerContext,
 ) => Promise<object | void>;
 
 const handlers: SQSFunctionPayloadTypes = {
@@ -52,6 +61,8 @@ const handlers: SQSFunctionPayloadTypes = {
   [AvailableSQSFunctions.SendSaleFailedEmail]: sendSaleFailedHandler,
   [AvailableSQSFunctions.StripeLinkSubscriberCallback]:
     stripeLinkSubscriberCallbackHandler,
+  [AvailableSQSFunctions.ProcessStripeLinkSettlement]:
+    processStripeLinkSettlementHandler,
 };
 export const runEnvironment = process.env.RunEnvironment as RunEnvironment;
 export const currentEnvironmentConfig = environmentConfig[runEnvironment];
@@ -62,12 +73,15 @@ const restrictedQueues: Record<string, AvailableSQSFunctions[]> = {
 export const handler = middy()
   .use(eventNormalizerMiddleware())
   .use(sqsPartialBatchFailure())
-  .handler((event: unknown, _context: Context, { signal: _signal }) => {
+  .handler((event: unknown, context: Context, { signal: _signal }) => {
+    const handlerContext: SQSHandlerContext = {
+      getRemainingTimeInMillis: context.getRemainingTimeInMillis.bind(context),
+    };
     const recordsPromises = (event as SQSEvent).Records.map(
       async (record, _index) => {
         const sourceQueue = record.eventSourceARN.split(":").slice(-1)[0];
         try {
-          let parsedBody = parseSQSPayload(JSON.parse(record.body));
+          let parsedBody = parseSQSPayload(record.body);
           if (parsedBody instanceof z.ZodError) {
             logger.error(
               { sqsMessageId: record.messageId },
@@ -100,6 +114,7 @@ export const handler = middy()
             parsedBody.payload,
             parsedBody.metadata,
             childLogger,
+            handlerContext,
           );
           childLogger.info(`Finished handler for ${parsedBody.function}.`);
           return result;
