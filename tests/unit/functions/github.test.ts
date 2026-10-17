@@ -71,14 +71,14 @@ describe("createGithubTeam", () => {
             { name: "Test Team", id: existingTeamId },
           ],
         },
-      ])
+      ]),
     );
 
     const result = await createGithubTeam(defaultInputs);
 
     expect(result).toStrictEqual({ updated: false, id: existingTeamId });
     expect(mockLogger.info).toHaveBeenCalledWith(
-      `Team "Test Team" already exists with id: ${existingTeamId}`
+      `Team "Test Team" already exists with id: ${existingTeamId}`,
     );
     expect(mockOctokit.request).not.toHaveBeenCalled();
   });
@@ -87,7 +87,7 @@ describe("createGithubTeam", () => {
     const newTeamId = 999;
     // Mock getting teams (no existing team)
     mockOctokit.paginate.iterator.mockReturnValue(
-      createAsyncIterator([{ data: [] }])
+      createAsyncIterator([{ data: [] }]),
     );
 
     // Mock creating team
@@ -111,7 +111,7 @@ describe("createGithubTeam", () => {
       parent_team_id: 123,
     });
     expect(mockLogger.info).toHaveBeenCalledWith(
-      "Created Github Team with slug test-team"
+      "Created Github Team with slug test-team",
     );
   });
 
@@ -121,7 +121,7 @@ describe("createGithubTeam", () => {
     delete (inputsWithoutDescription as any).description;
 
     mockOctokit.paginate.iterator.mockReturnValue(
-      createAsyncIterator([{ data: [] }])
+      createAsyncIterator([{ data: [] }]),
     );
     mockOctokit.request.mockResolvedValueOnce({
       status: 201,
@@ -136,7 +136,7 @@ describe("createGithubTeam", () => {
       "POST /orgs/{org}/teams",
       expect.objectContaining({
         description: "[Managed by Core API]",
-      })
+      }),
     );
   });
 
@@ -146,7 +146,7 @@ describe("createGithubTeam", () => {
     delete (inputsWithoutPrivacy as any).privacy;
 
     mockOctokit.paginate.iterator.mockReturnValue(
-      createAsyncIterator([{ data: [] }])
+      createAsyncIterator([{ data: [] }]),
     );
     mockOctokit.request.mockResolvedValueOnce({
       status: 201,
@@ -161,13 +161,13 @@ describe("createGithubTeam", () => {
       "POST /orgs/{org}/teams",
       expect.objectContaining({
         privacy: "closed",
-      })
+      }),
     );
   });
 
   it("should throw GithubError if team creation fails with non-201 status", async () => {
     mockOctokit.paginate.iterator.mockReturnValue(
-      createAsyncIterator([{ data: [] }])
+      createAsyncIterator([{ data: [] }]),
     );
     mockOctokit.request.mockResolvedValueOnce({
       status: 400,
@@ -186,7 +186,7 @@ describe("createGithubTeam", () => {
       (async function* () {
         yield { data: [] };
         throw baseError;
-      })()
+      })(),
     );
 
     await expect(createGithubTeam(defaultInputs)).rejects.toThrow(baseError);
@@ -197,12 +197,12 @@ describe("createGithubTeam", () => {
       (async function* () {
         yield { data: [] };
         throw new Error("Unknown error");
-      })()
+      })(),
     );
 
     await expect(createGithubTeam(defaultInputs)).rejects.toThrow(GithubError);
     expect(mockLogger.error).toHaveBeenCalledWith(
-      "Failed to create GitHub team."
+      "Failed to create GitHub team.",
     );
   });
 });
@@ -307,10 +307,10 @@ describe("assignIdpGroupsToTeam", () => {
         headers: {
           "X-GitHub-Api-Version": "2022-11-28",
         },
-      }
+      },
     );
     expect(mockLogger.info).toHaveBeenCalledWith(
-      "Successfully mapped IdP groups to team 123"
+      "Successfully mapped IdP groups to team 123",
     );
   });
 
@@ -338,7 +338,7 @@ describe("assignIdpGroupsToTeam", () => {
     expect(utils.sleep).toHaveBeenCalledTimes(1);
     expect(mockLogger.error).toHaveBeenCalledWith(
       expect.stringContaining("Error searching for IdP group"),
-      expect.any(Error)
+      expect.any(Error),
     );
   });
 
@@ -350,10 +350,10 @@ describe("assignIdpGroupsToTeam", () => {
     mockOctokit.request.mockResolvedValue({ data: { groups: [] } });
 
     await expect(assignIdpGroupsToTeam(defaultInputs)).rejects.toThrow(
-      GithubError
+      GithubError,
     );
     expect(mockLogger.error).toHaveBeenCalledWith(
-      "Failed to find IdP group with ID group-1 after 5 retries"
+      "Failed to find IdP group with ID group-1 after 5 retries",
     );
     expect(mockOctokit.request).toHaveBeenCalledTimes(6); // 1 for sync check + 5 retries for first group
   });
@@ -387,7 +387,7 @@ describe("assignIdpGroupsToTeam", () => {
             group_description: "",
           },
         ],
-      })
+      }),
     );
   });
 
@@ -398,7 +398,7 @@ describe("assignIdpGroupsToTeam", () => {
     mockOctokit.request.mockRejectedValueOnce(baseError);
 
     await expect(assignIdpGroupsToTeam(defaultInputs)).rejects.toThrow(
-      baseError
+      baseError,
     );
   });
 
@@ -416,11 +416,11 @@ describe("assignIdpGroupsToTeam", () => {
       .mockRejectedValueOnce(new Error("Unknown error"));
 
     await expect(assignIdpGroupsToTeam(defaultInputs)).rejects.toThrow(
-      GithubError
+      GithubError,
     );
     expect(mockLogger.error).toHaveBeenCalledWith(
       expect.anything(),
-      "Failed to assign IdP groups to team 123"
+      "Failed to assign IdP groups to team 123",
     );
   });
 
@@ -429,16 +429,16 @@ describe("assignIdpGroupsToTeam", () => {
     mockOctokit.request.mockRejectedValueOnce(
       new RequestError("Not Found", 404, {
         request: { method: "GET", url: "/", headers: {} },
-      })
+      }),
     );
 
     await assignIdpGroupsToTeam(defaultInputs);
 
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("Team sync is not available for team 123")
+      expect.stringContaining("Team sync is not available for team 123"),
     );
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      "Skipping IdP group assignment"
+      "Skipping IdP group assignment",
     );
     // Should not attempt to search for groups or patch
     expect(mockOctokit.request).toHaveBeenCalledTimes(1); // Only sync check
@@ -463,7 +463,7 @@ describe("assignIdpGroupsToTeam", () => {
     mockOctokit.request.mockRejectedValueOnce(
       new RequestError("Not Found", 404, {
         request: { method: "PATCH", url: "/", headers: {} },
-      })
+      }),
     );
 
     await assignIdpGroupsToTeam({
@@ -472,7 +472,7 @@ describe("assignIdpGroupsToTeam", () => {
     });
 
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      "Team sync endpoint not available for team 123. IdP groups were not assigned."
+      "Team sync endpoint not available for team 123. IdP groups were not assigned.",
     );
   });
 });

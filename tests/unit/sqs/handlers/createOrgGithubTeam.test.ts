@@ -23,7 +23,7 @@ vi.mock(import("../../../../src/api/utils.js"), async (importOriginal) => {
   return {
     ...mod,
     retryDynamoTransactionWithBackoff: vi.fn((operation) => operation()),
-  }
+  };
 });
 
 vi.mock("ioredis", () => import("ioredis-mock"));
@@ -267,7 +267,8 @@ describe("createOrgGithubTeamHandler", () => {
       expect(hasAuditLog).toBe(true);
 
       const hasUpdate = input.TransactItems.some(
-        (item: any) => item.Update?.TableName === genericConfig.SigInfoTableName,
+        (item: any) =>
+          item.Update?.TableName === genericConfig.SigInfoTableName,
       );
       expect(hasUpdate).toBe(true);
 

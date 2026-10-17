@@ -31,16 +31,22 @@ jobs:
           cache: "yarn"
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
             yarn-modules-${{ runner.arch }}-${{ runner.os }}-
-          save: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run unit testing
         run: make test_unit
+
+      - name: Save Yarn Cache
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v5
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
 
   build:
     permissions:
@@ -60,13 +66,12 @@ jobs:
           cache: "yarn"
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
             yarn-modules-${{ runner.arch }}-${{ runner.os }}-
-          save: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run build
         run: make build
@@ -74,6 +79,13 @@ jobs:
           HUSKY: "0"
           VITE_RUN_ENVIRONMENT: dev
           RunEnvironment: dev
+
+      - name: Save Yarn Cache
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v5
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
 
       - name: Upload Build files
         uses: actions/upload-artifact@v7
@@ -115,13 +127,12 @@ jobs:
           terraform_version: 1.12.2
 
       - name: Restore Yarn Cache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: node_modules
           key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev
           restore-keys: |
             yarn-modules-${{ runner.arch }}-${{ runner.os }}-
-          save: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Download Build files
         uses: actions/download-artifact@v8
@@ -145,3 +156,10 @@ jobs:
 
       - name: Run live integration testing
         run: make test_live_integration
+
+      - name: Save Yarn Cache
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v5
+        with:
+          path: node_modules
+          key: yarn-modules-${{ runner.arch }}-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}-dev

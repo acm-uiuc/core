@@ -249,10 +249,12 @@ const NewRoomRequest: React.FC<NewRoomRequestProps> = ({
     : undefined;
 
   type InterimRoomRequestFormValues = {
-    [K in keyof Omit<
-      RoomRequestFormValues,
-      "eventStart" | "eventEnd" | "recurrenceEndDate" | "requestsSccsRoom"
-    >]: RoomRequestFormValues[K] extends any
+    [
+      K in keyof Omit<
+        RoomRequestFormValues,
+        "eventStart" | "eventEnd" | "recurrenceEndDate" | "requestsSccsRoom"
+      >
+    ]: RoomRequestFormValues[K] extends any
       ? RoomRequestFormValues[K] | undefined
       : RoomRequestFormValues[K];
   } & {
