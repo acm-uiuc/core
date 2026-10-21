@@ -23,6 +23,7 @@ import { ViewProfilePage } from "./pages/profile/ViewProfile.page";
 import { ManageStripeLinksPage } from "./pages/stripe/ViewLinks.page";
 import { ManageRoomRequestsPage } from "./pages/roomRequest/RoomRequestLanding.page";
 import { ViewRoomRequest } from "./pages/roomRequest/ViewRoomRequest.page";
+import { ManageFundingRequestsPage } from "./pages/fundingRequest/FundingRequestLanding.page";
 import { ViewLogsPage } from "./pages/logs/ViewLogs.page";
 import { TermsOfService } from "./pages/tos/TermsOfService.page";
 import { ManageApiKeysPage } from "./pages/apiKeys/ManageKeys.page";
@@ -234,6 +235,10 @@ const authenticatedRouter = createBrowserRouter([
       {
         path: "/roomRequests/:semesterId/:requestId",
         element: <ViewRoomRequest />,
+      },      
+      {
+        path: "/fundingRequests",
+        element: <ManageFundingRequestsPage />,
       },
       {
         path: "/logs",
