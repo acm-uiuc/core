@@ -235,7 +235,7 @@ const authenticatedRouter = createBrowserRouter([
       {
         path: "/roomRequests/:semesterId/:requestId",
         element: <ViewRoomRequest />,
-      },      
+      },
       {
         path: "/fundingRequests",
         element: <ManageFundingRequestsPage />,
