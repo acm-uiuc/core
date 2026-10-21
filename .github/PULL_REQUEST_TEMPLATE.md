@@ -25,3 +25,4 @@ If you re-test your PR after significant changes, please add a comment to the PR
 # AI
 - [ ] I have disclosed the level of AI assistance used (i.e. none, specific portions, majority of implementation).
 
+<!-- After finishing your PR, add an Infra chair as reviewer (and probably let them know on Discord too -->
