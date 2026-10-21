@@ -11,7 +11,7 @@
 
 # Testing
 <!-- You can check markdown checkboxes by putting an `x` between the brackets, e.g., `- [x]` -->
-- [ ] Tested locally - ish
+- [ ] Tested locally
 - [ ] Added unit tests
 - [ ] Tested in PR build
 - [ ] Not tested/no unit tests added (explain why below)
