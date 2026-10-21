@@ -12,7 +12,7 @@
 - [ ] Tested locally - ish
 - [ ] Added unit tests
 - [ ] Tested in PR build
-- [ ] Not tested/no unit tests aded (explain why below)
+- [ ] Not tested/no unit tests added (explain why below)
 
 
 - Share how you tested your changes.
