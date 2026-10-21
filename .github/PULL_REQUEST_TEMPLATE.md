@@ -8,6 +8,12 @@
 - If applicable, include screenshots and/or videos.
 
 # Testing
+<!-- You can check markdown checkboxes by putting an `x` between the brackets, e.g., `- [x]` -->
+- [ ] Tested locally - ish
+- [ ] Added unit tests
+- [ ] Tested in PR build
+- [ ] Not tested/no unit tests aded (explain why below)
+
 
 - Share how you tested your changes.
 - If you're fixing a bug, explain how to reproduce the original issue.
@@ -18,3 +24,4 @@ If you re-test your PR after significant changes, please add a comment to the PR
 
 # AI
 - [ ] I have disclosed the level of AI assistance used (i.e. none, specific portions, majority of implementation).
+
