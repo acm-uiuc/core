@@ -168,6 +168,12 @@ resource "aws_iam_policy" "sqs_policy" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "ContinueStripeLinkSettlements",
+        Effect   = "Allow",
+        Action   = ["sqs:SendMessage"],
+        Resource = ["arn:aws:sqs:${var.region}:${data.aws_caller_identity.current.account_id}:${var.ProjectId}-sqs"]
+      },
+      {
         Sid      = "SendMembershipEmails",
         Effect   = "Allow",
         Action   = ["ses:SendEmail", "ses:SendRawEmail"],
@@ -304,6 +310,22 @@ resource "aws_iam_policy" "shared_iam_policy" {
           "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-store-limits",
           "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events-rsvp",
           "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/infra-core-api-events-rsvp/index/*"
+        ]
+      },
+      {
+        Sid    = "StripeFinancialPrimaryRegion",
+        Effect = "Allow",
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:ConditionCheckItem",
+          "dynamodb:TransactWriteItems"
+        ],
+        Resource = [
+          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/${var.ProjectId}-stripe-payments",
+          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/${var.ProjectId}-stripe-links",
+          "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/${var.ProjectId}-audit-log"
         ]
       },
       {

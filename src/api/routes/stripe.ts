@@ -1,9 +1,11 @@
 import {
+  DynamoDBClient,
   GetItemCommand,
   QueryCommand,
   ScanCommand,
   TransactWriteItemsCommand,
   PutItemCommand,
+  TransactWriteItem,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { withRoles, withTags } from "api/components/index.js";
@@ -14,10 +16,25 @@ import {
   deactivateStripeProduct,
   getPaymentMethodDescriptionString,
   getPaymentMethodForPaymentIntent,
+  getStripeAccountIdentity,
   StripeLinkCreateParams,
   SupportedStripePaymentMethod,
   supportedStripePaymentMethods,
+  deactivatePaidStripeLink,
+  enqueueSubscriberCallback,
+  notifyLinkOwner,
 } from "api/functions/stripe.js";
+import {
+  listEligibleRampFunds,
+  resolveRampIdentity,
+  validateRampTarget,
+} from "api/functions/ramp/client.js";
+import {
+  enqueueStripeLinkSettlement,
+  getStripeLinkRoute,
+  recordStripeLinkPayment,
+} from "api/functions/ramp/records.js";
+import { processStripeLinkSettlement } from "api/functions/ramp/settlement.js";
 import { getSecretValue } from "api/plugins/auth.js";
 import { genericConfig, notificationRecipients } from "common/config.js";
 import {
@@ -27,6 +44,8 @@ import {
   DatabaseInsertError,
   InternalServerError,
   NotFoundError,
+  ResourceConflictError,
+  ServiceUnavailableError,
   UnauthorizedError,
   ValidationError,
 } from "common/errors/index.js";
@@ -39,27 +58,95 @@ import {
   callbackRegistrationGetResponseSchema,
   callbackRegistrationPostRequestSchema,
   callbackRegistrationSchema,
+  rampFundsResponseSchema,
+  RampTarget,
 } from "common/types/stripe.js";
-import { FastifyPluginAsync } from "fastify";
+import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { FastifyZodOpenApiTypeProvider } from "fastify-zod-openapi";
 import stripe, { Stripe } from "stripe";
 import rawbody from "fastify-raw-body";
-import {
-  AvailableSQSFunctions,
-  SQSPayload,
-  StripeLinkCallbackEventType,
-} from "common/types/sqsMessage.js";
-import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { SQSClient } from "@aws-sdk/client-sqs";
 import * as z from "zod/v4";
-import { getAllUserEmails } from "common/utils.js";
 import {
   STRIPE_CALLBACK_REGISTRATION_PARTITION,
   STRIPE_LINK_RETENTION_DAYS,
   STRIPE_LINK_RETENTION_DAYS_QA,
 } from "common/constants.js";
 import { assertAuthenticated } from "api/authenticated.js";
+import { isConditionalCheckFailed } from "api/utils.js";
 import { maxLength } from "common/types/generic.js";
 import { randomBytes } from "crypto";
+
+// Targeted link/audit/route creation and settlement must share the primary
+// region (DynamoDB transactions cannot span regions) and avoid blind retries.
+const settlementDynamoClient = new DynamoDBClient({
+  region: "us-east-2",
+  maxAttempts: 1,
+});
+
+const formatCurrency = (amount: number, currency: string): string =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+  })
+    .formatToParts(amount / 100)
+    .map((val) => val.value)
+    .join("");
+
+const remoteDeadlineFor = (request: FastifyRequest): number => {
+  const now = Date.now();
+  const remaining = request.awsLambda?.context.getRemainingTimeInMillis?.();
+  return Math.min(
+    now + 12_000,
+    remaining === undefined ? now + 12_000 : now + remaining - 5_000,
+  );
+};
+
+const stripeRequestOptions = (deadline: number): Stripe.RequestOptions => {
+  const timeout = deadline - Date.now();
+  if (timeout <= 0) {
+    throw new Error("Stripe remote deadline exhausted.");
+  }
+  return { timeout, maxNetworkRetries: 0 };
+};
+
+const resolvePaymentMethodString = async ({
+  stripeClient,
+  stripeApiKey,
+  paymentIntentId,
+  deadline,
+}: {
+  stripeClient: Stripe;
+  stripeApiKey: string;
+  paymentIntentId: string;
+  deadline: number;
+}): Promise<string | null> => {
+  const paymentMethodData = await getPaymentMethodForPaymentIntent({
+    paymentIntentId,
+    stripeApiKey,
+    stripeClient,
+    requestOptions: stripeRequestOptions(deadline),
+  });
+  const paymentMethodType =
+    paymentMethodData.type as SupportedStripePaymentMethod;
+  if (!supportedStripePaymentMethods.includes(paymentMethodType)) {
+    throw new InternalServerError({
+      internalLog: `Unknown payment method type ${paymentMethodData.type}!`,
+    });
+  }
+  const paymentMethodDescriptionData = paymentMethodData[paymentMethodType];
+  if (!paymentMethodDescriptionData) {
+    throw new InternalServerError({
+      internalLog: `No payment method data for ${paymentMethodData.type}!`,
+    });
+  }
+  return (
+    getPaymentMethodDescriptionString({
+      paymentMethod: paymentMethodData,
+      paymentMethodType,
+    }) ?? null
+  );
+};
 
 const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
   await fastify.register(rawbody, {
@@ -67,117 +154,11 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
     global: false,
     runFirst: true,
   });
-  const enqueueSubscriberCallback = async ({
-    requestLog,
-    requestId,
-    eventId,
-    eventType,
-    linkId,
-    callbackUrl,
-    invoiceId,
-    amount,
-    currency,
-    paidInFull,
-    paymentMethod,
-    payerName,
-    payerEmail,
-  }: {
-    requestLog: { info: (msg: string) => void };
-    requestId: string;
-    eventId: string;
-    eventType: StripeLinkCallbackEventType;
-    linkId: string;
-    callbackUrl: string | undefined;
-    invoiceId: string;
-    amount: number;
-    currency: string;
-    paidInFull: boolean;
-    paymentMethod: string | null;
-    payerName: string | null;
-    payerEmail: string | null;
-  }) => {
-    if (!callbackUrl) {
-      return;
-    }
-    requestLog.info(
-      `Enqueueing ${eventType} subscriber callback for link ${linkId}`,
-    );
-    const callbackPayload: SQSPayload<AvailableSQSFunctions.StripeLinkSubscriberCallback> =
-      {
-        function: AvailableSQSFunctions.StripeLinkSubscriberCallback,
-        metadata: { initiator: eventId, reqId: requestId },
-        payload: {
-          linkId,
-          eventType,
-          eventId,
-          invoiceId,
-          amount,
-          currency,
-          paidInFull,
-          paymentMethod,
-          payerName,
-          payerEmail,
-          occurredAt: new Date().toISOString(),
-        },
-      };
+  const getSqsClient = (): SQSClient => {
     if (!fastify.sqsClient) {
       fastify.sqsClient = new SQSClient({ region: genericConfig.AwsRegion });
     }
-    await fastify.sqsClient.send(
-      new SendMessageCommand({
-        QueueUrl: fastify.environmentConfig.SqsQueueUrl,
-        MessageBody: JSON.stringify(callbackPayload),
-        MessageGroupId: "stripeLinkCallback",
-      }),
-    );
-  };
-  const notifyLinkOwner = async ({
-    requestLog,
-    requestId,
-    eventId,
-    userId,
-    subject,
-    content,
-    cc,
-  }: {
-    requestLog: { info: (msg: string) => void };
-    requestId: string;
-    eventId: string;
-    userId: string;
-    subject: string;
-    content: string;
-    cc?: string[];
-  }): Promise<string | undefined> => {
-    // Link owners are usually email addresses, but an API key is not.
-    if (!userId.includes("@")) {
-      return undefined;
-    }
-    requestLog.info(`Sending email to ${userId}...`);
-    const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> = {
-      function: AvailableSQSFunctions.EmailNotifications,
-      metadata: { initiator: eventId, reqId: requestId },
-      payload: {
-        to: getAllUserEmails(userId),
-        ...(cc ? { cc } : {}),
-        subject,
-        content,
-        callToActionButton: {
-          name: "View Your Stripe Links",
-          url: `${fastify.environmentConfig.UserFacingUrl}/stripe`,
-        },
-      },
-    };
-    if (!fastify.sqsClient) {
-      fastify.sqsClient = new SQSClient({ region: genericConfig.AwsRegion });
-    }
-    const result = await fastify.sqsClient.send(
-      new SendMessageCommand({
-        QueueUrl: fastify.environmentConfig.SqsQueueUrl,
-        MessageBody: JSON.stringify(sqsPayload),
-        MessageGroupId: "invoiceNotification",
-      }),
-    );
-    return result.MessageId || "";
+    return fastify.sqsClient;
   };
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "/paymentLinks",
@@ -246,9 +227,62 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
           invoiceAmountUsd: item.amount,
           createdAt: item.createdAt || null,
           callbackUrl: item.callbackUrl || undefined,
+          rampFund: item.rampFund || undefined,
         }),
       );
       reply.status(200).send(parsed);
+    }),
+  );
+  fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
+    "/rampFunds",
+    {
+      schema: withRoles(
+        [AppRoles.STRIPE_LINK_CREATOR],
+        withTags(["Stripe"], {
+          summary: "List Ramp funds eligible as invoice payment destinations.",
+          response: {
+            200: {
+              description: "Eligible Ramp funds retrieved.",
+              content: {
+                "application/json": {
+                  schema: rampFundsResponseSchema,
+                },
+              },
+            },
+          },
+        }),
+      ),
+      onRequest: fastify.authorizeFromSchema,
+    },
+    assertAuthenticated(async (request, reply) => {
+      const secretConfig = fastify.secretConfig;
+      const context = {
+        secretConfig,
+        environmentConfig: fastify.environmentConfig,
+        dynamoClient: fastify.dynamoClient,
+        deadline: remoteDeadlineFor(request),
+      };
+      try {
+        const identity = await resolveRampIdentity({
+          context,
+          tokenPayload: request.tokenPayload,
+        });
+        if (!identity) {
+          reply.status(200).send({ status: "not_linked", funds: [] });
+          return;
+        }
+        const funds = await listEligibleRampFunds({ context, identity });
+        reply.status(200).send({ status: "connected", funds });
+      } catch (error) {
+        if (
+          error instanceof ServiceUnavailableError &&
+          (!secretConfig.ramp_client_id || !secretConfig.ramp_client_secret)
+        ) {
+          reply.status(200).send({ status: "unavailable", funds: [] });
+          return;
+        }
+        throw error;
+      }
     }),
   );
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().post(
@@ -292,20 +326,119 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         }
       }
       const secretApiConfig = fastify.secretConfig;
+      const remoteDeadline = remoteDeadlineFor(request);
+
+      let rampTarget: RampTarget | undefined;
+      let rampFund: { id: string; displayName: string } | undefined;
+
+      if (request.body.rampFundId) {
+        if (!request.tokenPayload) {
+          throw new UnauthorizedError({
+            message:
+              "Ramp fund selection requires an Entra-authenticated user.",
+          });
+        }
+        const context = {
+          secretConfig: secretApiConfig,
+          environmentConfig: fastify.environmentConfig,
+          dynamoClient: fastify.dynamoClient,
+          deadline: remoteDeadline,
+        };
+        const identity = await resolveRampIdentity({
+          context,
+          tokenPayload: request.tokenPayload,
+        });
+        if (!identity) {
+          throw new UnauthorizedError({
+            message: "No Ramp account is linked for this user.",
+          });
+        }
+        const funds = await listEligibleRampFunds({ context, identity });
+        const selected = funds.find(
+          (fund) => fund.id === request.body.rampFundId,
+        );
+        if (!selected) {
+          throw new ValidationError({
+            message: "The selected Ramp fund is no longer available.",
+          });
+        }
+        const pinnedTarget: RampTarget = {
+          namespace: identity.namespace,
+          businessId: identity.businessId,
+          fundId: selected.id,
+          fundName: selected.displayName,
+          rampUserId: identity.rampUserId,
+          creatorTenantId: identity.creatorTenantId,
+          creatorObjectId: identity.creatorObjectId,
+        };
+        const validation = await validateRampTarget({
+          context,
+          target: pinnedTarget,
+        });
+        if (validation.status === "access_revoked") {
+          throw new UnauthorizedError({
+            message: "You no longer have permission to manage this Ramp fund.",
+          });
+        }
+        if (validation.status !== "eligible") {
+          throw new ValidationError({
+            message:
+              "The selected Ramp fund is no longer an eligible destination.",
+          });
+        }
+        rampTarget = { ...pinnedTarget, fundName: validation.displayName };
+        rampFund = { id: selected.id, displayName: validation.displayName };
+      }
+
+      const stripeClient = rampTarget
+        ? new Stripe(secretApiConfig.stripe_secret_key as string, {
+            maxNetworkRetries: 0,
+          })
+        : undefined;
       const payload: StripeLinkCreateParams = {
         ...request.body,
         createdBy: request.username,
         stripeApiKey: secretApiConfig.stripe_secret_key as string,
         statementDescriptorSuffix: maxLength("INVOICE", 7),
         delayedSettlementAllowed: true,
+        ...(stripeClient ? { stripeClient, deadline: remoteDeadline } : {}),
       };
       const { url, linkId, priceId, productId } =
         await createStripeLink(payload);
+
+      let livemode = fastify.runEnvironment === "prod";
+      let stripeAccountId: string | undefined;
+      if (rampTarget) {
+        const retrievedLink = await stripeClient!.paymentLinks.retrieve(
+          linkId,
+          undefined,
+          stripeRequestOptions(remoteDeadline),
+        );
+        livemode = retrievedLink.livemode;
+        if (livemode !== (fastify.runEnvironment === "prod")) {
+          await deactivateStripeLink({
+            stripeApiKey: secretApiConfig.stripe_secret_key as string,
+            linkId,
+          });
+          throw new ResourceConflictError({
+            message:
+              "Stripe payment link mode does not match this environment.",
+          });
+        }
+        stripeAccountId = await getStripeAccountIdentity({
+          stripeClient: stripeClient!,
+          stripeApiKey: secretApiConfig.stripe_secret_key as string,
+          dynamoClient: fastify.dynamoClient,
+          deadline: remoteDeadline,
+        });
+      }
+
       const invoiceId = request.body.invoiceId;
       const callbackUrl = request.body.callbackUrl;
       const signingSecret = callbackUrl
         ? randomBytes(32).toString("hex")
         : undefined;
+      const createdAt = new Date().toISOString();
       const logStatement = buildAuditLogTransactPut({
         entry: {
           module: Modules.STRIPE,
@@ -316,35 +449,90 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
             : "Created Stripe payment link",
         },
       });
-      const dynamoCommand = new TransactWriteItemsCommand({
-        TransactItems: [
-          ...(logStatement ? [logStatement] : []),
-          {
-            Put: {
-              TableName: genericConfig.StripeLinksDynamoTableName,
-              Item: marshall(
-                {
-                  userId: request.username,
-                  linkId,
-                  priceId,
-                  productId,
-                  invoiceId,
-                  url,
-                  amount: request.body.invoiceAmountUsd,
-                  active: true,
-                  createdAt: new Date().toISOString(),
-                  callbackUrl,
-                  signingSecret,
-                },
-                { removeUndefinedValues: true },
-              ),
-            },
+      const linkItem = marshall(
+        {
+          userId: request.username,
+          linkId,
+          priceId,
+          productId,
+          invoiceId,
+          url,
+          amount: request.body.invoiceAmountUsd,
+          active: true,
+          createdAt,
+          callbackUrl,
+          signingSecret,
+          ...(rampFund ? { rampFund } : {}),
+        },
+        { removeUndefinedValues: true },
+      );
+      const transactItems: TransactWriteItem[] = [
+        ...(logStatement ? [logStatement] : []),
+        {
+          Put: {
+            TableName: genericConfig.StripeLinksDynamoTableName,
+            Item: linkItem,
           },
-        ],
+        },
+      ];
+      if (rampTarget) {
+        transactItems.push({
+          Put: {
+            TableName: genericConfig.StripePaymentsDynamoTableName,
+            Item: marshall(
+              {
+                primaryKey: "STRIPE_LINK_ROUTE",
+                sortKey: linkId,
+                linkId,
+                userId: request.username,
+                invoiceId,
+                amount: request.body.invoiceAmountUsd,
+                ...(priceId ? { priceId } : {}),
+                ...(productId ? { productId } : {}),
+                url,
+                createdAt,
+                ...(callbackUrl ? { callbackUrl } : {}),
+                ...(signingSecret ? { signingSecret } : {}),
+                target: rampTarget,
+                stripeAccountId: stripeAccountId as string,
+                livemode,
+              },
+              { removeUndefinedValues: true },
+            ),
+            ConditionExpression:
+              "attribute_not_exists(primaryKey) AND attribute_not_exists(sortKey)",
+          },
+        });
+      }
+      const dynamoCommand = new TransactWriteItemsCommand({
+        TransactItems: transactItems,
       });
+      const dynamoClientForWrite = rampTarget
+        ? settlementDynamoClient
+        : fastify.dynamoClient;
       try {
-        await fastify.dynamoClient.send(dynamoCommand);
+        await dynamoClientForWrite.send(dynamoCommand);
       } catch (e) {
+        if (
+          rampTarget &&
+          !isConditionalCheckFailed(e) &&
+          !(e instanceof Error && e.name === "TransactionCanceledException")
+        ) {
+          // Ambiguous transaction response: strong-read the immutable route
+          // instead of blindly rolling back or overwriting.
+          const committed = await getStripeLinkRoute({
+            dynamoClient: settlementDynamoClient,
+            linkId,
+          });
+          if (committed) {
+            reply.status(201).send({
+              id: linkId,
+              link: url,
+              ...(signingSecret ? { signingSecret } : {}),
+            });
+            return;
+          }
+        }
         await deactivateStripeLink({
           stripeApiKey: secretApiConfig.stripe_secret_key as string,
           linkId,
@@ -713,11 +901,8 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       if (!request.rawBody) {
         throw new ValidationError({ message: "Could not get raw body." });
       }
-      const secretApiConfig =
-        (await getSecretValue(
-          fastify.secretsManagerClient,
-          genericConfig.ConfigSecretName,
-        )) || {};
+      await fastify.refreshSecretConfig();
+      const secretApiConfig = fastify.secretConfig;
       try {
         const sig = request.headers["stripe-signature"];
         if (!sig || typeof sig !== "string") {
@@ -731,7 +916,10 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
         event = stripe.webhooks.constructEvent(
           request.rawBody,
           sig,
-          secretApiConfig.stripe_links_endpoint_secret as string,
+          (fastify.runEnvironment === "dev" && !request.awsLambda
+            ? process.env.STRIPE_LINKS_ENDPOINT_SECRET
+            : undefined) ||
+            (secretApiConfig.stripe_links_endpoint_secret as string),
         );
       } catch (err: unknown) {
         if (err instanceof BaseError) {
@@ -743,118 +931,44 @@ const stripeRoutes: FastifyPluginAsync = async (fastify, _options) => {
       }
       switch (event.type) {
         case "checkout.session.async_payment_failed":
-          if (event.data.object.payment_link) {
-            const eventId = event.id;
-            const paymentAmount = event.data.object.amount_total;
-            const paymentCurrency = event.data.object.currency;
-            const { email, name } = event.data.object.customer_details || {
-              email: null,
-              name: null,
-            };
-            const paymentLinkId = event.data.object.payment_link.toString();
-            if (!paymentLinkId || !paymentCurrency || !paymentAmount) {
-              request.log.info("Missing required fields.");
-              return reply
-                .code(200)
-                .send({ handled: false, requestId: request.id });
-            }
-            const response = await fastify.dynamoClient.send(
-              new QueryCommand({
-                TableName: genericConfig.StripeLinksDynamoTableName,
-                IndexName: "LinkIdIndex",
-                KeyConditionExpression: "linkId = :linkId",
-                ExpressionAttributeValues: {
-                  ":linkId": { S: paymentLinkId },
-                },
-              }),
-            );
-            if (!response) {
-              throw new DatabaseFetchError({
-                message: "Could not check for payment link in table.",
-              });
-            }
-            if (!response.Items || response.Items?.length !== 1) {
-              return reply.status(200).send({
-                handled: false,
-                requestId: request.id,
-              });
-            }
-            const unmarshalledEntry = unmarshall(response.Items[0]) as {
-              userId: string;
-              invoiceId: string;
-              amount?: number;
-              priceId?: string;
-              productId?: string;
-              callbackUrl?: string;
-              signingSecret?: string;
-            };
-            if (!unmarshalledEntry.userId || !unmarshalledEntry.invoiceId) {
-              return reply.status(200).send({
-                handled: false,
-                requestId: request.id,
-              });
-            }
-            const paidInFull = paymentAmount === unmarshalledEntry.amount;
-            const withCurrency = new Intl.NumberFormat("en-US", {
-              style: "currency",
-              currency: paymentCurrency.toUpperCase(),
-            })
-              .formatToParts(paymentAmount / 100)
-              .map((val) => val.value)
-              .join("");
-
-            // Notify link owner of failed payment
-            let queueId;
-            if (event.data.object.payment_status === "unpaid") {
-              request.log.info(
-                `Failed payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}).`,
-              );
-              queueId = await notifyLinkOwner({
-                requestLog: request.log,
-                requestId: request.id,
-                eventId,
-                userId: unmarshalledEntry.userId,
-                subject: `Payment Failed for Invoice ${unmarshalledEntry.invoiceId}`,
-                content: `
-A ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}) <b>has failed.</b>
-
-Please ask the payee to try again, perhaps with a different payment method, or contact Officer Board.
-                    `,
-              });
-              await enqueueSubscriberCallback({
-                requestLog: request.log,
-                requestId: request.id,
-                eventId,
-                eventType: "payment.failed",
-                linkId: paymentLinkId,
-                callbackUrl: unmarshalledEntry.callbackUrl,
-                invoiceId: unmarshalledEntry.invoiceId,
-                amount: paymentAmount,
-                currency: paymentCurrency,
-                paidInFull,
-                paymentMethod: null,
-                payerName: name,
-                payerEmail: email,
-              });
-            }
-
-            return reply.status(200).send({
-              handled: true,
-              requestId: request.id,
-              queueId: queueId || "",
-            });
-          }
-          return reply
-            .code(200)
-            .send({ handled: false, requestId: request.id });
         case "checkout.session.async_payment_succeeded":
-        case "checkout.session.completed":
-          if (event.data.object.payment_link) {
-            const eventId = event.id;
-            const paymentAmount = event.data.object.amount_total;
-            const paymentCurrency = event.data.object.currency;
-            const paymentIntentId =
-              event.data.object.payment_intent?.toString();
+        case "checkout.session.completed": {
+          const session = event.data.object as Stripe.Checkout.Session;
+          const paymentLinkId = session.payment_link?.toString();
+          if (!paymentLinkId) {
+            return reply
+              .code(200)
+              .send({ handled: false, requestId: request.id });
+          }
+          const isFailed =
+            event.type === "checkout.session.async_payment_failed";
+          const isPaid = !isFailed && session.payment_status === "paid";
+          const paymentAmount = session.amount_total;
+          const paymentCurrency = session.currency;
+          if (!paymentCurrency || !paymentAmount) {
+            request.log.info("Missing required fields.");
+            return reply
+              .code(200)
+              .send({ handled: false, requestId: request.id });
+          }
+          const { email, name } = session.customer_details || {
+            email: null,
+            name: null,
+          };
+          const paymentIntentId = session.payment_intent?.toString();
+          const eventId = event.id;
+          const occurredAt = new Date(event.created * 1000).toISOString();
+          const remoteDeadline = remoteDeadlineFor(request);
+          const sqsClient = getSqsClient();
+          const environmentConfig = fastify.environmentConfig;
+
+          const route = await getStripeLinkRoute({
+            dynamoClient: settlementDynamoClient,
+            linkId: paymentLinkId,
+            deadline: remoteDeadline,
+          });
+
+          if (route && isPaid) {
             if (!paymentIntentId) {
               request.log.warn(
                 "Could not find payment intent ID in webhook payload!",
@@ -863,44 +977,82 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                 message: "No payment intent ID found.",
               });
             }
-            const stripeApiKey = fastify.secretConfig.stripe_secret_key;
-            const paymentMethodData = await getPaymentMethodForPaymentIntent({
-              paymentIntentId,
-              stripeApiKey,
+            const stripeClient = new Stripe(
+              secretApiConfig.stripe_secret_key as string,
+              { maxNetworkRetries: 0 },
+            );
+            const stripeAccountId = await getStripeAccountIdentity({
+              stripeClient,
+              stripeApiKey: secretApiConfig.stripe_secret_key as string,
+              dynamoClient: fastify.dynamoClient,
+              deadline: remoteDeadline,
             });
-            const paymentMethodType =
-              paymentMethodData.type.toString() as SupportedStripePaymentMethod;
-            if (
-              !supportedStripePaymentMethods.includes(
-                paymentMethodData.type.toString() as SupportedStripePaymentMethod,
-              )
-            ) {
-              throw new InternalServerError({
-                internalLog: `Unknown payment method type ${paymentMethodData.type}!`,
+            if (event.account && event.account !== stripeAccountId) {
+              throw new ResourceConflictError({
+                message:
+                  "Stripe webhook account does not match this integration.",
               });
             }
-            const paymentMethodDescriptionData =
-              paymentMethodData[paymentMethodType];
-            if (!paymentMethodDescriptionData) {
+            const key = await recordStripeLinkPayment({
+              dynamoClient: settlementDynamoClient,
+              stripeClient,
+              secretConfig: secretApiConfig,
+              session,
+              eventId,
+              occurredAt,
+              stripeAccountId,
+              livemode: event.livemode,
+              deadline: remoteDeadline,
+            });
+            if (!key) {
               throw new InternalServerError({
-                internalLog: `No payment method data for ${paymentMethodData.type}!`,
+                message:
+                  "Targeted settlement routing disappeared during payment recording.",
               });
             }
-            const paymentMethodString = getPaymentMethodDescriptionString({
-              paymentMethod: paymentMethodData,
-              paymentMethodType,
+            const metadata = { initiator: eventId, reqId: request.id };
+            await enqueueStripeLinkSettlement({
+              sqsClient,
+              environmentConfig,
+              key,
+              metadata,
+              deadline: remoteDeadline,
             });
-            const { email, name } = event.data.object.customer_details || {
-              email: null,
-              name: null,
-            };
-            const paymentLinkId = event.data.object.payment_link.toString();
-            if (!paymentLinkId || !paymentCurrency || !paymentAmount) {
-              request.log.info("Missing required fields.");
-              return reply
-                .code(200)
-                .send({ handled: false, requestId: request.id });
-            }
+            await processStripeLinkSettlement({
+              dynamoClient: settlementDynamoClient,
+              sqsClient,
+              stripeClient,
+              secretConfig: secretApiConfig,
+              environmentConfig,
+              runEnvironment: fastify.runEnvironment,
+              key,
+              metadata,
+              logger: request.log,
+              remainingTimeInMillis: request.awsLambda
+                ? request.awsLambda.context.getRemainingTimeInMillis.bind(
+                    request.awsLambda.context,
+                  )
+                : undefined,
+              remoteDeadline,
+            });
+            return reply.status(200).send({
+              handled: true,
+              requestId: request.id,
+            });
+          }
+
+          let entry: {
+            userId: string;
+            invoiceId: string;
+            amount?: number;
+            priceId?: string;
+            productId?: string;
+            callbackUrl?: string;
+            signingSecret?: string;
+          };
+          if (route) {
+            entry = route;
+          } else {
             const response = await fastify.dynamoClient.send(
               new QueryCommand({
                 TableName: genericConfig.StripeLinksDynamoTableName,
@@ -911,176 +1063,192 @@ Please ask the payee to try again, perhaps with a different payment method, or c
                 },
               }),
             );
-            if (!response) {
-              throw new DatabaseFetchError({
-                message: "Could not check for payment link in table.",
-              });
-            }
-            if (!response.Items || response.Items?.length !== 1) {
-              return reply.status(200).send({
+            if (!response || !response.Items || response.Items.length !== 1) {
+              return reply.status(isPaid ? 503 : 200).send({
                 handled: false,
                 requestId: request.id,
               });
             }
-            const unmarshalledEntry = unmarshall(response.Items[0]) as {
-              userId: string;
-              invoiceId: string;
-              amount?: number;
-              priceId?: string;
-              productId?: string;
-              callbackUrl?: string;
-              signingSecret?: string;
-            };
-            if (!unmarshalledEntry.userId || !unmarshalledEntry.invoiceId) {
-              return reply.status(200).send({
-                handled: false,
-                requestId: request.id,
-              });
-            }
-            const paidInFull = paymentAmount === unmarshalledEntry.amount;
-            const withCurrency = new Intl.NumberFormat("en-US", {
-              style: "currency",
-              currency: paymentCurrency.toUpperCase(),
-            })
-              .formatToParts(paymentAmount / 100)
-              .map((val) => val.value)
-              .join("");
+            entry = unmarshall(response.Items[0]) as typeof entry;
+          }
+          if (!entry.userId || !entry.invoiceId) {
+            return reply.status(200).send({
+              handled: false,
+              requestId: request.id,
+            });
+          }
+          const paidInFull = paymentAmount === entry.amount;
+          const withCurrency = formatCurrency(paymentAmount, paymentCurrency);
+          const stripeApiKey = secretApiConfig.stripe_secret_key as string;
+          let queueId;
 
-            // Notify link owner of payment
-            let queueId;
-            if (event.data.object.payment_status === "unpaid") {
-              request.log.info(
-                `Pending payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}). Invoice was tentatively paid ${paidInFull ? "in full." : "partially."}`,
-              );
-              queueId = await notifyLinkOwner({
-                requestLog: request.log,
-                requestId: request.id,
-                eventId,
-                userId: unmarshalledEntry.userId,
-                subject: `Payment Pending for Invoice ${unmarshalledEntry.invoiceId}`,
-                content: `
-ACM @ UIUC has received intent of ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
+          if (isFailed) {
+            request.log.info(
+              `Failed payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${entry.invoiceId}).`,
+            );
+            queueId = await notifyLinkOwner({
+              sqsClient,
+              environmentConfig,
+              requestLog: request.log,
+              requestId: request.id,
+              eventId,
+              userId: entry.userId,
+              subject: `Payment Failed for Invoice ${entry.invoiceId}`,
+              content: `
+A ${paidInFull ? "full" : "partial"} payment for Invoice ${entry.invoiceId} (${withCurrency} paid by ${name}, ${email}) <b>has failed.</b>
 
-The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
-
-Please contact Officer Board with any questions.
+Please ask the payee to try again, perhaps with a different payment method, or contact Officer Board.
                     `,
-              });
-              await enqueueSubscriberCallback({
-                requestLog: request.log,
-                requestId: request.id,
-                eventId,
-                eventType: "payment.pending",
-                linkId: paymentLinkId,
-                callbackUrl: unmarshalledEntry.callbackUrl,
-                invoiceId: unmarshalledEntry.invoiceId,
-                amount: paymentAmount,
-                currency: paymentCurrency,
-                paidInFull,
-                paymentMethod: paymentMethodString ?? null,
-                payerName: name,
-                payerEmail: email,
-              });
-            } else {
-              request.log.info(
-                `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${unmarshalledEntry.invoiceId}). Invoice was paid ${paidInFull ? "in full." : "partially."}`,
-              );
-              queueId = await notifyLinkOwner({
-                requestLog: request.log,
-                requestId: request.id,
-                eventId,
-                userId: unmarshalledEntry.userId,
-                cc: [notificationRecipients[fastify.runEnvironment].Treasurer],
-                subject: `Payment received for Invoice ${unmarshalledEntry.invoiceId}`,
-                content: `
-ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${unmarshalledEntry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
-
-${paymentMethodString ? `\nPayment method: ${paymentMethodString}.\n` : ""}
-
-${paidInFull ? "\nThis invoice should now be considered settled.\n" : ""}
-Please contact Officer Board with any questions.`,
-              });
-              await enqueueSubscriberCallback({
-                requestLog: request.log,
-                requestId: request.id,
-                eventId,
-                eventType: "payment.succeeded",
-                linkId: paymentLinkId,
-                callbackUrl: unmarshalledEntry.callbackUrl,
-                invoiceId: unmarshalledEntry.invoiceId,
-                amount: paymentAmount,
-                currency: paymentCurrency,
-                paidInFull,
-                paymentMethod: paymentMethodString ?? null,
-                payerName: name,
-                payerEmail: email,
-              });
-              // If full payment is done, disable the link
-              if (paidInFull) {
-                request.log.debug("Paid in full, disabling link.");
-                const logStatement = buildAuditLogTransactPut({
-                  entry: {
-                    module: Modules.STRIPE,
-                    actor: eventId,
-                    target: `Link ${paymentLinkId} | Invoice ${unmarshalledEntry.invoiceId}`,
-                    message:
-                      "Disabled Stripe payment link as payment was made in full.",
-                  },
-                });
-                const dynamoCommand = new TransactWriteItemsCommand({
-                  TransactItems: [
-                    ...(logStatement ? [logStatement] : []),
-                    {
-                      Update: {
-                        TableName: genericConfig.StripeLinksDynamoTableName,
-                        Key: {
-                          userId: { S: unmarshalledEntry.userId },
-                          linkId: { S: paymentLinkId },
-                        },
-                        UpdateExpression:
-                          "SET active = :new_val, expiresAt = :ttl",
-                        ConditionExpression: "active = :old_val",
-                        ExpressionAttributeValues: {
-                          ":new_val": { BOOL: false },
-                          ":old_val": { BOOL: true },
-                          ":ttl": {
-                            N: (
-                              Math.floor(Date.now() / 1000) +
-                              86400 * STRIPE_LINK_RETENTION_DAYS
-                            ).toString(),
-                          },
-                        },
-                      },
-                    },
-                  ],
-                });
-                if (unmarshalledEntry.productId) {
-                  request.log.debug(
-                    `Deactivating Stripe product ${unmarshalledEntry.productId}`,
-                  );
-                  await deactivateStripeProduct({
-                    stripeApiKey: secretApiConfig.stripe_secret_key as string,
-                    productId: unmarshalledEntry.productId,
-                  });
-                }
-                request.log.debug(`Deactivating Stripe link ${paymentLinkId}`);
-                await deactivateStripeLink({
-                  stripeApiKey: secretApiConfig.stripe_secret_key as string,
-                  linkId: paymentLinkId,
-                });
-                await fastify.dynamoClient.send(dynamoCommand);
-              }
-            }
-
+              deadline: remoteDeadline,
+            });
+            await enqueueSubscriberCallback({
+              sqsClient,
+              environmentConfig,
+              requestLog: request.log,
+              requestId: request.id,
+              eventId,
+              eventType: "payment.failed",
+              linkId: paymentLinkId,
+              callbackUrl: entry.callbackUrl,
+              invoiceId: entry.invoiceId,
+              amount: paymentAmount,
+              currency: paymentCurrency,
+              paidInFull,
+              paymentMethod: null,
+              payerName: name,
+              payerEmail: email,
+              occurredAt,
+              deadline: remoteDeadline,
+            });
             return reply.status(200).send({
               handled: true,
               requestId: request.id,
               queueId: queueId || "",
             });
           }
-          return reply
-            .code(200)
-            .send({ handled: false, requestId: request.id });
+
+          if (!paymentIntentId) {
+            request.log.warn(
+              "Could not find payment intent ID in webhook payload!",
+            );
+            throw new ValidationError({
+              message: "No payment intent ID found.",
+            });
+          }
+          const stripeClient = new Stripe(stripeApiKey, {
+            maxNetworkRetries: 0,
+          });
+          const paymentMethodString = await resolvePaymentMethodString({
+            stripeClient,
+            stripeApiKey,
+            paymentIntentId,
+            deadline: remoteDeadline,
+          });
+
+          if (isPaid) {
+            request.log.info(
+              `Registered payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${entry.invoiceId}). Invoice was paid ${paidInFull ? "in full." : "partially."}`,
+            );
+            queueId = await notifyLinkOwner({
+              sqsClient,
+              environmentConfig,
+              requestLog: request.log,
+              requestId: request.id,
+              eventId,
+              userId: entry.userId,
+              cc: [notificationRecipients[fastify.runEnvironment].Treasurer],
+              subject: `Payment received for Invoice ${entry.invoiceId}`,
+              content: `
+ACM @ UIUC has received ${paidInFull ? "full" : "partial"} payment for Invoice ${entry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
+
+${paymentMethodString ? `\nPayment method: ${paymentMethodString}.\n` : ""}
+
+${paidInFull ? "\nThis invoice should now be considered settled.\n" : ""}
+Please contact Officer Board with any questions.`,
+              deadline: remoteDeadline,
+            });
+            await enqueueSubscriberCallback({
+              sqsClient,
+              environmentConfig,
+              requestLog: request.log,
+              requestId: request.id,
+              eventId,
+              eventType: "payment.succeeded",
+              linkId: paymentLinkId,
+              callbackUrl: entry.callbackUrl,
+              invoiceId: entry.invoiceId,
+              amount: paymentAmount,
+              currency: paymentCurrency,
+              paidInFull,
+              paymentMethod: paymentMethodString ?? null,
+              payerName: name,
+              payerEmail: email,
+              occurredAt,
+              deadline: remoteDeadline,
+            });
+            if (paidInFull) {
+              request.log.debug("Paid in full, disabling link.");
+              await deactivatePaidStripeLink({
+                dynamoClient: fastify.dynamoClient,
+                stripeClient,
+                entry: {
+                  userId: entry.userId,
+                  linkId: paymentLinkId,
+                  invoiceId: entry.invoiceId,
+                  productId: entry.productId,
+                },
+                eventId,
+                requestLog: request.log,
+                deadline: remoteDeadline,
+              });
+            }
+          } else {
+            request.log.info(
+              `Pending payment of ${withCurrency} by ${name} (${email}) for payment link ${paymentLinkId} invoice ID ${entry.invoiceId}). Invoice was tentatively paid ${paidInFull ? "in full." : "partially."}`,
+            );
+            queueId = await notifyLinkOwner({
+              sqsClient,
+              environmentConfig,
+              requestLog: request.log,
+              requestId: request.id,
+              eventId,
+              userId: entry.userId,
+              subject: `Payment Pending for Invoice ${entry.invoiceId}`,
+              content: `
+ACM @ UIUC has received intent of ${paidInFull ? "full" : "partial"} payment for Invoice ${entry.invoiceId} (${withCurrency} paid by ${name}, ${email}).
+
+The payee has used a payment method which does not settle funds immediately. Therefore, ACM @ UIUC is still waiting for funds to settle and <b>no services should be performed until the funds settle.</b>
+
+Please contact Officer Board with any questions.
+                    `,
+              deadline: remoteDeadline,
+            });
+            await enqueueSubscriberCallback({
+              sqsClient,
+              environmentConfig,
+              requestLog: request.log,
+              requestId: request.id,
+              eventId,
+              eventType: "payment.pending",
+              linkId: paymentLinkId,
+              callbackUrl: entry.callbackUrl,
+              invoiceId: entry.invoiceId,
+              amount: paymentAmount,
+              currency: paymentCurrency,
+              paidInFull,
+              paymentMethod: paymentMethodString ?? null,
+              payerName: name,
+              payerEmail: email,
+              occurredAt,
+              deadline: remoteDeadline,
+            });
+          }
+          return reply.status(200).send({
+            handled: true,
+            requestId: request.id,
+            queueId: queueId || "",
+          });
+        }
         case "payment_intent.succeeded": {
           const intent = event.data.object as Stripe.PaymentIntent;
 

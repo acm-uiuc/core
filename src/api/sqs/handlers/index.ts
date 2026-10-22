@@ -8,4 +8,7 @@ export { createOrgGithubTeamHandler } from "./createOrgGithubTeam.js";
 export { syncExecCouncilHandler } from "./syncExecCouncil.js";
 export { syncCloudflareMemberHandler } from "./syncCloudflareMember.js";
 export { processStorePurchaseHandler } from "./handleStorePurchase.js";
-export { stripeLinkSubscriberCallbackHandler } from "./stripeLinkSubscriberCallbackHandler.js";
+export {
+  stripeLinkSubscriberCallbackHandler,
+  processStripeLinkSettlementHandler,
+} from "./stripeLinkSubscriberCallbackHandler.js";

@@ -1,9 +1,59 @@
 import { ValidLoggers } from "api/types.js";
-import { isProd } from "api/utils.js";
-import { InternalServerError } from "common/errors/index.js";
+import { isProd, isConditionalCheckFailed } from "api/utils.js";
+import { InternalServerError, ValidationError } from "common/errors/index.js";
 import { MaxLengthString } from "common/types/generic.js";
 import { capitalizeFirstLetter } from "common/types/roomRequest.js";
+import { Proceeds } from "common/types/stripe.js";
+import {
+  DynamoDBClient,
+  GetItemCommand,
+  TransactWriteItemsCommand,
+} from "@aws-sdk/client-dynamodb";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { ConfigType, genericConfig } from "common/config.js";
+import { STRIPE_LINK_RETENTION_DAYS } from "common/constants.js";
+import {
+  AvailableSQSFunctions,
+  SQSPayload,
+  StripeLinkCallbackEventType,
+} from "common/types/sqsMessage.js";
+import { getAllUserEmails } from "common/utils.js";
+import { Modules } from "common/modules.js";
+import { buildAuditLogTransactPut } from "./auditLog.js";
+import { getItemFromCache, insertItemIntoCache } from "./cache.js";
+import { createHash } from "crypto";
 import Stripe from "stripe";
+
+const STRIPE_ACCOUNT_IDENTITY_CACHE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * A Stripe remote call must finish before the shared remote deadline. When no
+ * deadline is supplied, keep the existing unbounded default (used by ordinary
+ * link creation and legacy callers).
+ */
+export const stripeRequestOptions = (
+  deadline?: number,
+): Stripe.RequestOptions => {
+  if (deadline === undefined) {
+    return { maxNetworkRetries: 0 };
+  }
+  const timeout = deadline - Date.now();
+  if (timeout <= 0) {
+    throw new Error("Stripe remote deadline exhausted.");
+  }
+  return { timeout, maxNetworkRetries: 0 };
+};
+export function awsOptions(deadline?: number) {
+  if (deadline === undefined) {
+    return {};
+  }
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) {
+    throw new Error("Stripe settlement local deadline exhausted.");
+  }
+  return { abortSignal: AbortSignal.timeout(remaining) };
+}
 
 type CheckoutSessionCreateParams = NonNullable<
   Parameters<InstanceType<typeof Stripe>["checkout"]["sessions"]["create"]>[0]
@@ -45,6 +95,8 @@ export type StripeLinkCreateParams = {
   stripeApiKey: string;
   statementDescriptorSuffix: MaxLengthString<7>;
   delayedSettlementAllowed: boolean;
+  stripeClient?: Stripe;
+  deadline?: number;
 };
 
 export type StripeCheckoutSessionCreateParams = {
@@ -81,42 +133,53 @@ export const createStripeLink = async ({
   stripeApiKey,
   statementDescriptorSuffix,
   delayedSettlementAllowed,
+  stripeClient,
+  deadline,
 }: StripeLinkCreateParams): Promise<{
   linkId: string;
   priceId: string;
   productId: string;
   url: string;
 }> => {
-  const stripe = new Stripe(stripeApiKey);
+  const stripe = stripeClient || new Stripe(stripeApiKey);
   const description = `Created for ${contactName} (${contactEmail}) by ${createdBy}.`;
-  const product = await stripe.products.create({
-    name: `Payment for Invoice: ${invoiceId}`,
-    description,
-  });
-  const price = await stripe.prices.create({
-    currency: "usd",
-    unit_amount: invoiceAmountUsd,
-    product: product.id,
-  });
-  const paymentLink = await stripe.paymentLinks.create({
-    line_items: [
-      {
-        price: price.id,
-        quantity: 1,
-      },
-    ],
-    payment_method_types: (delayedSettlementAllowed
-      ? allPaymentMethods
-      : instantSettlementMethods
-    ).filter(
-      (x) => x !== "crypto",
-    ) as Stripe.PaymentLinkCreateParams["payment_method_types"],
-    // Payment links don't support crypto
-
-    payment_intent_data: {
-      statement_descriptor_suffix: statementDescriptorSuffix,
+  const product = await stripe.products.create(
+    {
+      name: `Payment for Invoice: ${invoiceId}`,
+      description,
     },
-  });
+    stripeRequestOptions(deadline),
+  );
+  const price = await stripe.prices.create(
+    {
+      currency: "usd",
+      unit_amount: invoiceAmountUsd,
+      product: product.id,
+    },
+    stripeRequestOptions(deadline),
+  );
+  const paymentLink = await stripe.paymentLinks.create(
+    {
+      line_items: [
+        {
+          price: price.id,
+          quantity: 1,
+        },
+      ],
+      payment_method_types: (delayedSettlementAllowed
+        ? allPaymentMethods
+        : instantSettlementMethods
+      ).filter(
+        (x) => x !== "crypto",
+      ) as Stripe.PaymentLinkCreateParams["payment_method_types"],
+      // Payment links don't support crypto
+
+      payment_intent_data: {
+        statement_descriptor_suffix: statementDescriptorSuffix,
+      },
+    },
+    stripeRequestOptions(deadline),
+  );
   return {
     url: paymentLink.url,
     linkId: paymentLink.id,
@@ -261,41 +324,60 @@ export const getStripePaymentIntentData = async ({
   stripeClient,
   paymentIntentId,
   stripeApiKey,
+  expand,
+  requestOptions,
 }: {
   paymentIntentId: string;
   stripeApiKey: string;
   stripeClient?: Stripe;
+  expand?: string[];
+  requestOptions?: Stripe.RequestOptions;
 }) => {
   const stripe = stripeClient || new Stripe(stripeApiKey);
-  return await stripe.paymentIntents.retrieve(paymentIntentId);
+  return await stripe.paymentIntents.retrieve(
+    paymentIntentId,
+    expand ? { expand } : undefined,
+    requestOptions,
+  );
 };
 
 export const getPaymentMethodForPaymentIntent = async ({
   paymentIntentId,
   stripeApiKey,
+  stripeClient,
+  paymentIntentData,
+  requestOptions,
 }: {
   paymentIntentId: string;
   stripeApiKey: string;
+  stripeClient?: Stripe;
+  paymentIntentData?: Stripe.PaymentIntent;
+  requestOptions?: Stripe.RequestOptions;
 }) => {
-  const stripe = new Stripe(stripeApiKey);
-  const paymentIntentData = await getStripePaymentIntentData({
-    paymentIntentId,
-    stripeApiKey,
-    stripeClient: stripe,
-  });
-  if (!paymentIntentData) {
+  const stripe = stripeClient || new Stripe(stripeApiKey);
+  const data =
+    paymentIntentData ??
+    (await getStripePaymentIntentData({
+      paymentIntentId,
+      stripeApiKey,
+      stripeClient: stripe,
+    }));
+  if (!data) {
     throw new InternalServerError({
       internalLog: `Could not find payment intent data for payment intent ID "${paymentIntentId}".`,
     });
   }
-  const paymentMethodId = paymentIntentData.payment_method?.toString();
+  const paymentMethodId = data.payment_method?.toString();
   if (!paymentMethodId) {
     throw new InternalServerError({
       internalLog: `Could not find payment method ID for payment intent ID "${paymentIntentId}".`,
     });
   }
-  const paymentMethodData =
-    await stripe.paymentMethods.retrieve(paymentMethodId);
+  const paymentMethodData = await stripe.paymentMethods.retrieve(
+    paymentMethodId,
+    undefined,
+    requestOptions,
+  );
   if (!paymentMethodData) {
     throw new InternalServerError({
       internalLog: `Could not find payment method data for payment intent ID "${paymentIntentId}".`,
@@ -372,6 +454,130 @@ export const getPaymentMethodDescriptionString = ({
       }
       return `${friendlyName} (${cardBrandMap[cardPresentData.brand || "unknown"]} ending in ${cardPresentData.last4})`;
   }
+};
+
+export const getStripeNetProceeds = (
+  intent: Stripe.PaymentIntent,
+): Proceeds | null => {
+  if (intent.status !== "succeeded") {
+    throw new ValidationError({
+      message:
+        "Cannot compute net proceeds for a payment intent that has not succeeded.",
+    });
+  }
+  if (intent.currency !== "usd") {
+    throw new ValidationError({
+      message: "Stripe net proceeds require a USD payment intent.",
+    });
+  }
+  const charge = intent.latest_charge;
+  if (!charge || typeof charge === "string") {
+    // The expanded balance transaction is not available yet; caller retries.
+    return null;
+  }
+  if (charge.payment_intent !== intent.id) {
+    throw new ValidationError({
+      message: "Stripe latest charge does not belong to the payment intent.",
+    });
+  }
+  if (charge.status !== "succeeded" || !charge.captured) {
+    throw new ValidationError({
+      message: "Stripe latest charge is not a captured successful charge.",
+    });
+  }
+  if (charge.currency !== "usd") {
+    throw new ValidationError({
+      message: "Stripe net proceeds require a USD charge.",
+    });
+  }
+  const balanceTransaction = charge.balance_transaction;
+  if (!balanceTransaction || typeof balanceTransaction === "string") {
+    return null;
+  }
+  if (balanceTransaction.source !== charge.id) {
+    throw new ValidationError({
+      message: "Stripe balance transaction does not belong to the charge.",
+    });
+  }
+  if (balanceTransaction.currency !== "usd") {
+    throw new ValidationError({
+      message: "Stripe net proceeds require a USD balance transaction.",
+    });
+  }
+  const {
+    amount: grossCents,
+    fee: feeCents,
+    net: netCents,
+  } = balanceTransaction;
+  if (
+    !Number.isSafeInteger(grossCents) ||
+    !Number.isSafeInteger(feeCents) ||
+    !Number.isSafeInteger(netCents) ||
+    grossCents < 0 ||
+    feeCents < 0 ||
+    netCents < 0
+  ) {
+    throw new ValidationError({
+      message: "Stripe balance transaction has unsafe or negative amounts.",
+    });
+  }
+  if (grossCents - feeCents !== netCents) {
+    throw new ValidationError({
+      message: "Stripe gross, fee and net amounts are inconsistent.",
+    });
+  }
+  return {
+    grossCents,
+    feeCents,
+    netCents,
+    chargeId: charge.id,
+    balanceTransactionId: balanceTransaction.id,
+  };
+};
+
+/**
+ * The Stripe account ID backing this credential, cached under a digest of the
+ * credential so rotation inside the same account remains valid while a
+ * different key cannot alias a stale identity. Immutable per credential; the
+ * cache never stores Ramp permissions.
+ */
+export const getStripeAccountIdentity = async ({
+  stripeClient,
+  stripeApiKey,
+  dynamoClient,
+  deadline,
+}: {
+  stripeClient?: Stripe;
+  stripeApiKey: string;
+  dynamoClient: DynamoDBClient;
+  deadline?: number;
+}): Promise<string> => {
+  const stripe = stripeClient || new Stripe(stripeApiKey);
+  const cacheKey = `stripe_account_identity_${createHash("sha256").update(stripeApiKey).digest("hex")}`;
+  const remaining = deadline === undefined ? undefined : deadline - Date.now();
+  if (remaining !== undefined && remaining <= 0) {
+    throw new Error("Stripe account identity deadline exhausted.");
+  }
+  const cacheOptions =
+    remaining === undefined
+      ? undefined
+      : { abortSignal: AbortSignal.timeout(remaining) };
+  const cached = await getItemFromCache(dynamoClient, cacheKey, cacheOptions);
+  if (cached?.accountId) {
+    return cached.accountId as string;
+  }
+  const account = await stripe.accounts.retrieveCurrent(
+    undefined,
+    stripeRequestOptions(deadline),
+  );
+  await insertItemIntoCache(
+    dynamoClient,
+    cacheKey,
+    { accountId: account.id },
+    new Date(Date.now() + STRIPE_ACCOUNT_IDENTITY_CACHE_MS),
+    cacheOptions,
+  );
+  return account.id;
 };
 
 export type StripeCustomerCreateParams = {
@@ -520,4 +726,240 @@ export const shouldRetryStripeError = (error: unknown): boolean => {
   }
 
   return false;
+};
+
+/**
+ * Send the existing owner notification email through the main queue. The
+ * recipient is usually an email address (or an alias handled by
+ * getAllUserEmails); a non-email userId is not deliverable and is skipped.
+ */
+export const notifyLinkOwner = async ({
+  sqsClient,
+  environmentConfig,
+  requestLog,
+  requestId,
+  eventId,
+  userId,
+  subject,
+  content,
+  cc,
+  deadline,
+}: {
+  sqsClient: SQSClient;
+  environmentConfig: ConfigType;
+  requestLog: ValidLoggers;
+  requestId: string;
+  eventId: string;
+  userId: string;
+  subject: string;
+  content: string;
+  cc?: string[];
+  deadline?: number;
+}): Promise<string | undefined> => {
+  if (!userId.includes("@")) {
+    return undefined;
+  }
+  requestLog.info(`Sending email to ${userId}...`);
+  const sqsPayload: SQSPayload<AvailableSQSFunctions.EmailNotifications> = {
+    function: AvailableSQSFunctions.EmailNotifications,
+    metadata: { initiator: eventId, reqId: requestId },
+    payload: {
+      to: getAllUserEmails(userId),
+      ...(cc ? { cc } : {}),
+      subject,
+      content,
+      callToActionButton: {
+        name: "View Your Stripe Links",
+        url: `${environmentConfig.UserFacingUrl}/stripe`,
+      },
+    },
+  };
+  const result = await sqsClient.send(
+    new SendMessageCommand({
+      QueueUrl: environmentConfig.SqsQueueUrl,
+      MessageBody: JSON.stringify(sqsPayload),
+      MessageGroupId: "invoiceNotification",
+    }),
+    awsOptions(deadline),
+  );
+  return result.MessageId || "";
+};
+
+/**
+ * Enqueue the public subscriber callback. occurredAt is explicit for targeted
+ * settlements (it records the original provider event time) and defaults to
+ * now for ordinary link callbacks.
+ */
+export const enqueueSubscriberCallback = async ({
+  sqsClient,
+  environmentConfig,
+  requestLog,
+  requestId,
+  eventId,
+  eventType,
+  linkId,
+  callbackUrl,
+  invoiceId,
+  amount,
+  currency,
+  paidInFull,
+  paymentMethod,
+  payerName,
+  payerEmail,
+  occurredAt,
+  deadline,
+}: {
+  sqsClient: SQSClient;
+  environmentConfig: ConfigType;
+  requestLog: ValidLoggers;
+  requestId: string;
+  eventId: string;
+  eventType: StripeLinkCallbackEventType;
+  linkId: string;
+  callbackUrl: string | undefined;
+  invoiceId: string;
+  amount: number;
+  currency: string;
+  paidInFull: boolean;
+  paymentMethod: string | null;
+  payerName: string | null;
+  payerEmail: string | null;
+  occurredAt?: string;
+  deadline?: number;
+}): Promise<void> => {
+  if (!callbackUrl) {
+    return;
+  }
+  requestLog.info(
+    `Enqueueing ${eventType} subscriber callback for link ${linkId}`,
+  );
+  const callbackPayload: SQSPayload<AvailableSQSFunctions.StripeLinkSubscriberCallback> =
+    {
+      function: AvailableSQSFunctions.StripeLinkSubscriberCallback,
+      metadata: { initiator: eventId, reqId: requestId },
+      payload: {
+        linkId,
+        eventType,
+        eventId,
+        invoiceId,
+        amount,
+        currency,
+        paidInFull,
+        paymentMethod,
+        payerName,
+        payerEmail,
+        occurredAt: occurredAt ?? new Date().toISOString(),
+      },
+    };
+  await sqsClient.send(
+    new SendMessageCommand({
+      QueueUrl: environmentConfig.SqsQueueUrl,
+      MessageBody: JSON.stringify(callbackPayload),
+      MessageGroupId: "stripeLinkCallback",
+    }),
+    awsOptions(deadline),
+  );
+};
+
+/**
+ * Disable the presentation link and product after a full payment. The
+ * conditional write is idempotent: when it fails, a strong read must prove the
+ * row is already inactive (retained for presentation) before the failure is
+ * treated as complete; any other failure retries.
+ */
+export const deactivatePaidStripeLink = async ({
+  dynamoClient,
+  stripeClient,
+  entry,
+  eventId,
+  requestLog,
+  deadline,
+}: {
+  dynamoClient: DynamoDBClient;
+  stripeClient: Stripe;
+  entry: {
+    userId: string;
+    linkId: string;
+    invoiceId: string;
+    productId?: string;
+  };
+  eventId: string;
+  requestLog: ValidLoggers;
+  deadline?: number;
+}): Promise<void> => {
+  const logStatement = buildAuditLogTransactPut({
+    entry: {
+      module: Modules.STRIPE,
+      actor: eventId,
+      target: `Link ${entry.linkId} | Invoice ${entry.invoiceId}`,
+      message: "Disabled Stripe payment link as payment was made in full.",
+    },
+  });
+  const expiresAt =
+    Math.floor(Date.now() / 1000) + 86400 * STRIPE_LINK_RETENTION_DAYS;
+  const dynamoCommand = new TransactWriteItemsCommand({
+    TransactItems: [
+      ...(logStatement ? [logStatement] : []),
+      {
+        Update: {
+          TableName: genericConfig.StripeLinksDynamoTableName,
+          Key: {
+            userId: { S: entry.userId },
+            linkId: { S: entry.linkId },
+          },
+          UpdateExpression: "SET active = :new_val, expiresAt = :ttl",
+          ConditionExpression: "active = :old_val",
+          ExpressionAttributeValues: {
+            ":new_val": { BOOL: false },
+            ":old_val": { BOOL: true },
+            ":ttl": { N: expiresAt.toString() },
+          },
+        },
+      },
+    ],
+  });
+  if (entry.productId) {
+    requestLog.debug(`Deactivating Stripe product ${entry.productId}`);
+    await stripeClient.products.update(
+      entry.productId,
+      { active: false },
+      stripeRequestOptions(deadline),
+    );
+  }
+  requestLog.debug(`Deactivating Stripe link ${entry.linkId}`);
+  await stripeClient.paymentLinks.update(
+    entry.linkId,
+    { active: false },
+    stripeRequestOptions(deadline),
+  );
+  try {
+    await dynamoClient.send(dynamoCommand, awsOptions(deadline));
+  } catch (error) {
+    const conditional =
+      isConditionalCheckFailed(error) ||
+      (error instanceof Error &&
+        error.name === "TransactionCanceledException" &&
+        error.message.includes("ConditionalCheckFailed"));
+    if (!conditional) {
+      throw error;
+    }
+    // Prove the presentation row is already inactive before treating this as
+    // complete; a missing or still-active row means we must retry.
+    const row = await dynamoClient.send(
+      new GetItemCommand({
+        TableName: genericConfig.StripeLinksDynamoTableName,
+        Key: {
+          userId: { S: entry.userId },
+          linkId: { S: entry.linkId },
+        },
+        ConsistentRead: true,
+      }),
+      awsOptions(deadline),
+    );
+    const item = row.Item ? unmarshall(row.Item) : null;
+    if (item && item.active === false) {
+      return;
+    }
+    throw error;
+  }
 };

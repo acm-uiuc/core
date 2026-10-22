@@ -39,6 +39,7 @@ export type ConfigType = {
   ListmonkBaseUrl: string;
   ListmonkUsername: string;
   PaidMemberListmonkLists: number[];
+  RampApiBaseUrl: string;
 };
 
 export type GenericConfigType = {
@@ -159,10 +160,11 @@ const environmentConfig: EnvironmentConfigType = {
     OrgAdminGithubParentTeam: 14420860,
     GithubIdpSyncEnabled: false,
     AssetsBucketId: `427040638965-infra-core-api-assets-${genericConfig.AwsRegion}`,
-    AssetsBucketPublicUrl: 'core-assets.aws.qa.acmuiuc.org',
+    AssetsBucketPublicUrl: "core-assets.aws.qa.acmuiuc.org",
     ListmonkBaseUrl: "https://listmonk.acm.illinois.edu",
     ListmonkUsername: "coreapiqa",
     PaidMemberListmonkLists: [16],
+    RampApiBaseUrl: "https://demo-api.ramp.com",
   },
   prod: {
     UserFacingUrl: "https://core.acm.illinois.edu",
@@ -205,10 +207,11 @@ const environmentConfig: EnvironmentConfigType = {
     OrgAdminGithubParentTeam: 12025214,
     GithubIdpSyncEnabled: true,
     AssetsBucketId: `298118738376-infra-core-api-assets-${genericConfig.AwsRegion}`,
-    AssetsBucketPublicUrl: 'core-assets.acm.illinois.edu',
+    AssetsBucketPublicUrl: "core-assets.acm.illinois.edu",
     ListmonkBaseUrl: "https://listmonk.acm.illinois.edu",
     ListmonkUsername: "coreapiprod",
     PaidMemberListmonkLists: [4, 17],
+    RampApiBaseUrl: "https://api.ramp.com",
   },
 };
 
@@ -232,10 +235,13 @@ export type SecretConfig = {
   store_stripe_endpoint_secret: string;
   cloudflare_infra_team_group_id?: string;
   cloudflare_member_config?: string;
+  ramp_client_id?: string;
+  ramp_client_secret?: string;
+  ramp_credits_enabled?: boolean;
 };
 
 const roleArns = {
-  Entra: process.env.EntraRoleArn
+  Entra: process.env.EntraRoleArn,
 };
 
 export const EVENT_CACHED_DURATION = 120;

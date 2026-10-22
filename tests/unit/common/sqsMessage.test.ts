@@ -91,4 +91,28 @@ describe("SQS Message Parsing Tests", () => {
     };
     expect(parseSQSPayload(payload)).toBeInstanceOf(ZodError);
   });
+  test("Stripe link settlement message parses correctly", () => {
+    const payload = {
+      metadata: { reqId: "req_123", initiator: "evt_123" },
+      function: "processStripeLinkSettlement",
+      payload: {
+        stripeAccountId: "acct_123",
+        livemode: false,
+        paymentIntentId: "pi_123",
+      },
+    };
+    expect(parseSQSPayload(payload)).toStrictEqual(payload);
+  });
+  test("Stripe link settlement message rejects a non-boolean mode", () => {
+    const payload = {
+      metadata: { reqId: "req_123", initiator: "evt_123" },
+      function: "processStripeLinkSettlement",
+      payload: {
+        stripeAccountId: "acct_123",
+        livemode: "live",
+        paymentIntentId: "pi_123",
+      },
+    };
+    expect(parseSQSPayload(payload)).toBeInstanceOf(ZodError);
+  });
 });
