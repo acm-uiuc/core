@@ -57,7 +57,7 @@
     "pluralize": "^8.0.0",
     "qrcode": "^1.5.4",
     "redlock-universal": "^0.8.2",
-    "sanitize-html": "^2.18.0",
+    "sanitize-html": "^2.18.1",
     "stripe": "^22.6.2",
     "temporal-polyfill": "~1.0.5",
     "zod": "^4.6.5",
