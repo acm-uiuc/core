@@ -23,6 +23,7 @@ import { ViewProfilePage } from "./pages/profile/ViewProfile.page";
 import { ManageStripeLinksPage } from "./pages/stripe/ViewLinks.page";
 import { ManageRoomRequestsPage } from "./pages/roomRequest/RoomRequestLanding.page";
 import { ViewRoomRequest } from "./pages/roomRequest/ViewRoomRequest.page";
+import { ManageFundingRequestsPage } from "./pages/fundingRequest/FundingRequestLanding.page";
 import { ViewLogsPage } from "./pages/logs/ViewLogs.page";
 import { TermsOfService } from "./pages/tos/TermsOfService.page";
 import { ManageApiKeysPage } from "./pages/apiKeys/ManageKeys.page";
@@ -33,7 +34,7 @@ import { ViewStorePurchasesPage } from "./pages/store/ViewStorePurchases.page";
 import { ManageRsvpConfigFormPage } from "./pages/rsvps/ManageRsvpConfig.page";
 import { ScanRsvpCheckInPage } from "./pages/rsvps/ScanRsvpCheckIn.page";
 
-const ProfileRediect: React.FC = () => {
+const ProfileRedirect: React.FC = () => {
   const location = useLocation();
 
   // Don't store login-related paths and ALLOW the callback path
@@ -109,7 +110,7 @@ const profileRouter = createBrowserRouter([
       },
       {
         path: "*",
-        element: <ProfileRediect />,
+        element: <ProfileRedirect />,
       },
     ],
   },
@@ -234,6 +235,10 @@ const authenticatedRouter = createBrowserRouter([
       {
         path: "/roomRequests/:semesterId/:requestId",
         element: <ViewRoomRequest />,
+      },
+      {
+        path: "/fundingRequests",
+        element: <ManageFundingRequestsPage />,
       },
       {
         path: "/logs",

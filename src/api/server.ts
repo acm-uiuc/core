@@ -46,6 +46,7 @@ import linkryRoutes from "./routes/linkry.js";
 import stripeRoutes from "./routes/stripe.js";
 import membershipPlugin from "./routes/membership.js";
 import roomRequestRoutes from "./routes/roomRequests.js";
+import fundingRequestRoutes from "./routes/fundingRequests.js";
 import logsPlugin from "./routes/logs.js";
 import apiKeyRoute from "./routes/apiKey.js";
 import clearSessionRoute from "./routes/clearSession.js";
@@ -398,6 +399,7 @@ Otherwise, email [infra@acm.illinois.edu](mailto:infra@acm.illinois.edu) for sup
       api.register(stripeRoutes, { prefix: "/stripe" });
       api.register(storeRoutes, { prefix: "/store" });
       api.register(roomRequestRoutes, { prefix: "/roomRequests" });
+      api.register(fundingRequestRoutes, { prefix: "/fundingRequests" });
       api.register(logsPlugin, { prefix: "/logs" });
       api.register(apiKeyRoute, { prefix: "/apiKey" });
       api.register(clearSessionRoute, { prefix: "/clearSession" });
