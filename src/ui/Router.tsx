@@ -34,7 +34,7 @@ import { ViewStorePurchasesPage } from "./pages/store/ViewStorePurchases.page";
 import { ManageRsvpConfigFormPage } from "./pages/rsvps/ManageRsvpConfig.page";
 import { ScanRsvpCheckInPage } from "./pages/rsvps/ScanRsvpCheckIn.page";
 
-const ProfileRediect: React.FC = () => {
+const ProfileRedirect: React.FC = () => {
   const location = useLocation();
 
   // Don't store login-related paths and ALLOW the callback path
@@ -110,7 +110,7 @@ const profileRouter = createBrowserRouter([
       },
       {
         path: "*",
-        element: <ProfileRediect />,
+        element: <ProfileRedirect />,
       },
     ],
   },
