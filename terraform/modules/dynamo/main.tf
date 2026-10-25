@@ -146,6 +146,93 @@ resource "aws_dynamodb_table" "room_requests_status" {
 }
 
 
+resource "aws_dynamodb_table" "funding_requests" {
+  region                      = "us-east-2"
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-funding-requests"
+  deletion_protection_enabled = true
+  hash_key                    = "semesterId"
+  range_key                   = "orgId#requestId"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "semesterId"
+    type = "S"
+  }
+  attribute {
+    name = "orgId#requestId"
+    type = "S"
+  }
+  attribute {
+    name = "requestId"
+    type = "S"
+  }
+  global_secondary_index {
+    name            = "RequestIdIndex"
+    hash_key        = "requestId"
+    projection_type = "ALL"
+  }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
+}
+
+
+resource "aws_dynamodb_table" "funding_requests_status" {
+  region                      = "us-east-2"
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-funding-requests-status"
+  deletion_protection_enabled = true
+  hash_key                    = "requestId"
+  range_key                   = "createdAt#status"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "requestId"
+    type = "S"
+  }
+  attribute {
+    name = "createdAt#status"
+    type = "S"
+  }
+  attribute {
+    name = "semesterId"
+    type = "S"
+  }
+  global_secondary_index {
+    name            = "SemesterId"
+    hash_key        = "semesterId"
+    range_key       = "requestId"
+    projection_type = "ALL"
+  }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
+}
+
+
 resource "aws_dynamodb_table" "external_membership" {
   region                      = "us-east-2"
   billing_mode                = "PAY_PER_REQUEST"
