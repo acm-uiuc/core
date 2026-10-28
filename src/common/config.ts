@@ -61,6 +61,8 @@ export type GenericConfigType = {
   ProtectedEntraIDGroups: string[]; // these groups are too privileged to be modified via this portal and must be modified directly in Entra ID.
   RoomRequestsTableName: string;
   RoomRequestsStatusTableName: string;
+  FundingRequestsTableName: string;
+  FundingRequestsStatusTableName: string;
   AuditLogTable: string;
   ApiKeyTable: string;
   ConfigSecretName: string;
@@ -105,6 +107,8 @@ const genericConfig: GenericConfigType = {
   ExternalMembershipTableName: "infra-core-api-membership-external-v3",
   RoomRequestsTableName: "infra-core-api-room-requests",
   RoomRequestsStatusTableName: "infra-core-api-room-requests-status",
+  FundingRequestsTableName: "infra-core-api-funding-requests",
+  FundingRequestsStatusTableName: "infra-core-api-funding-requests-status",
   AuditLogTable: "infra-core-api-audit-log",
   ApiKeyTable: "infra-core-api-keys",
   ConfigSecretName: "infra-core-api-config",
