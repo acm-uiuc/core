@@ -28,7 +28,7 @@
     "@aws-sdk/signature-v4-crt": "^3.1141.0",
     "@aws-sdk/util-dynamodb": "^3.996.9",
     "@aws/durable-execution-sdk-js": "^2.4.0",
-    "@azure/msal-node": "^7.0.0",
+    "@azure/msal-node": "^7.1.0",
     "@fastify/auth": "^5.1.1",
     "@fastify/aws-lambda": "^6.4.1",
     "@fastify/cors": "^11.0.1",
