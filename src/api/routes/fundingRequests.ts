@@ -4,9 +4,19 @@ import * as z from "zod/v4";
 import rateLimiter from "api/plugins/rateLimiter.js";
 import { withRoles, withTags } from "api/components/index.js";
 import { NotImplementedError } from "common/errors/index.js";
+import { AppRoles } from "common/roles.js";
+import { assertAuthenticated } from "api/authenticated.js";
+import {
+  fundingRequestListQuery,
+  fundingRequestListResponse,
+} from "common/types/fundingRequest.js";
+import {
+  getFundingRequestScope,
+  listFundingRequests,
+} from "api/functions/fundingRequests.js";
 
-// TODO: replace [] with funding request roles once they are added to common/roles.ts.
-// An empty roles list means any authenticated user can call the route.
+// TODO: the remaining endpoints still use [] (any authenticated user) until
+// they are implemented with their own roles.
 
 const requestIdParams = z.object({
   requestId: z.string().min(1).meta({
@@ -39,21 +49,48 @@ const fundingRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
 
-  // GET /fundingRequests — list funding requests the user can access
+  // GET /fundingRequests?semesterId=fa26 — list funding requests the user can access.
+  // Users with FUNDING_REQUEST_VIEW_ALL see every request in the semester;
+  // org leads see only their own orgs' requests.
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "",
     {
       schema: withRoles(
-        [],
+        [AppRoles.FUNDING_REQUEST_VIEW_ALL, AppRoles.AT_LEAST_ONE_ORG_MANAGER],
         withTags(["Funding Requests"], {
           summary: "List funding requests the user can access.",
+          querystring: fundingRequestListQuery,
+          response: {
+            200: {
+              description: "The funding requests the user can access.",
+              content: {
+                "application/json": {
+                  schema: fundingRequestListResponse,
+                },
+              },
+            },
+          },
         }),
       ),
       onRequest: fastify.authorizeFromSchema,
     },
-    async (_request, _reply) => {
-      throw new NotImplementedError({});
-    },
+    assertAuthenticated(async (request, reply) => {
+      const scope = await getFundingRequestScope({
+        username: request.username,
+        userRoles: request.userRoles,
+        dynamoClient: fastify.dynamoClient,
+        logger: request.log,
+      });
+      if (scope !== "all" && scope.length === 0) {
+        return reply.status(200).send([]);
+      }
+      const items = await listFundingRequests({
+        semesterId: request.query.semesterId,
+        scope,
+        dynamoClient: fastify.dynamoClient,
+      });
+      return reply.status(200).send(items);
+    }),
   );
 
   // GET /fundingRequests/:requestId — view one funding request
