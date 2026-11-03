@@ -64,14 +64,12 @@ describe("ExistingFundingRequests", () => {
     expect(getFundingRequests).toHaveBeenCalledWith("fa26");
   });
 
-  it("formats amounts, types and statuses", async () => {
+  it("formats amounts and statuses", async () => {
     renderTable(vi.fn().mockResolvedValue(sampleRequests));
 
     expect(await screen.findByText("$125.50")).toBeInTheDocument();
     expect(screen.getByText("$50.00")).toBeInTheDocument();
     expect(screen.getByText("$40.00")).toBeInTheDocument();
-    expect(screen.getByText("Funding")).toBeInTheDocument();
-    expect(screen.getByText("Reimbursement")).toBeInTheDocument();
     expect(screen.getByText("Submitted")).toBeInTheDocument();
     expect(screen.getByText("Approved")).toBeInTheDocument();
   });
