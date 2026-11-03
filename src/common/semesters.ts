@@ -1,91 +1,25 @@
 export type SemesterOption = { value: string; label: string };
 
-export function getPreviousSemesters() {
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1;
+const semester = (season: "sp" | "fa", year: number): SemesterOption => ({
+  value: `${season}${year.toString().slice(-2)}`,
+  label: `${season === "sp" ? "Spring" : "Fall"} ${year}`,
+});
 
-  const semesters: { value: string; label: string }[] = [];
-  let currentSemester = "";
+const now = () => {
+  const d = new Date();
+  return { y: d.getFullYear(), spring: d.getMonth() + 1 <= 5 };
+};
 
-  if (currentMonth >= 1 && currentMonth <= 5) {
-    currentSemester = "Spring";
-  } else if (currentMonth >= 6 && currentMonth <= 12) {
-    currentSemester = "Fall";
-  }
-
-  if (currentSemester === "Spring") {
-    semesters.push({
-      value: `fa${(currentYear - 1).toString().slice(-2)}`,
-      label: `Fall ${currentYear - 1}`,
-    });
-    semesters.push({
-      value: `sp${(currentYear - 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear - 1}`,
-    });
-    semesters.push({
-      value: `fa${(currentYear - 2).toString().slice(-2)}`,
-      label: `Fall ${currentYear - 2}`,
-    });
-  } else if (currentSemester === "Fall") {
-    semesters.push({
-      value: `sp${currentYear.toString().slice(-2)}`,
-      label: `Spring ${currentYear}`,
-    });
-    semesters.push({
-      value: `fa${(currentYear - 1).toString().slice(-2)}`,
-      label: `Fall ${currentYear - 1}`,
-    });
-    semesters.push({
-      value: `sp${(currentYear - 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear - 1}`,
-    });
-  }
-
-  return semesters.reverse();
+export function getPreviousSemesters(): SemesterOption[] {
+  const { y, spring } = now();
+  return spring
+    ? [semester("fa", y - 2), semester("sp", y - 1), semester("fa", y - 1)]
+    : [semester("sp", y - 1), semester("fa", y - 1), semester("sp", y)];
 }
 
-export function getSemesters() {
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1;
-
-  const semesters: { value: string; label: string }[] = [];
-  let currentSemester = "";
-
-  if (currentMonth >= 1 && currentMonth <= 5) {
-    currentSemester = "Spring";
-  } else if (currentMonth >= 6 && currentMonth <= 12) {
-    currentSemester = "Fall";
-  }
-
-  if (currentSemester === "Spring") {
-    semesters.push({
-      value: `sp${currentYear.toString().slice(-2)}`,
-      label: `Spring ${currentYear}`,
-    });
-    semesters.push({
-      value: `fa${currentYear.toString().slice(-2)}`,
-      label: `Fall ${currentYear}`,
-    });
-    semesters.push({
-      value: `sp${(currentYear + 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear + 1}`,
-    });
-  } else if (currentSemester === "Fall") {
-    semesters.push({
-      value: `fa${currentYear.toString().slice(-2)}`,
-      label: `Fall ${currentYear}`,
-    });
-    semesters.push({
-      value: `sp${(currentYear + 1).toString().slice(-2)}`,
-      label: `Spring ${currentYear + 1}`,
-    });
-    semesters.push({
-      value: `fa${(currentYear + 1).toString().slice(-2)}`,
-      label: `Fall ${currentYear + 1}`,
-    });
-  }
-
-  return semesters;
+export function getSemesters(): SemesterOption[] {
+  const { y, spring } = now();
+  return spring
+    ? [semester("sp", y), semester("fa", y), semester("sp", y + 1)]
+    : [semester("fa", y), semester("sp", y + 1), semester("fa", y + 1)];
 }

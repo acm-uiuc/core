@@ -9,17 +9,13 @@ import { type OrganizationId } from "@acm-uiuc/js-shared";
 import { genericConfig } from "common/config.js";
 import { AppRoles } from "common/roles.js";
 import { DatabaseFetchError } from "common/errors/index.js";
+import { generateProjectionParams } from "common/utils.js";
 import {
   type FundingRequestListItem,
   type FundingRequestListResponse,
 } from "common/types/fundingRequest.js";
 import { getUserOrgRoles } from "./organizations.js";
 
-/**
- * Which funding requests a user is allowed to see.
- * - "all": the user has the view-all role (treasurer, infra, etc.)
- * - a list of org IDs: the orgs the user leads
- */
 export type FundingRequestScope = "all" | OrganizationId[];
 
 export async function getFundingRequestScope({
@@ -46,7 +42,6 @@ const LIST_FIELDS = [
   "requestId",
   "semesterId",
   "orgId",
-  "type",
   "title",
   "requestedAmountCents",
   "approvedAmountCents",
@@ -55,12 +50,7 @@ const LIST_FIELDS = [
   "createdAt",
 ] as const;
 
-const projection = {
-  ProjectionExpression: LIST_FIELDS.map((_, i) => `#f${i}`).join(", "),
-  ExpressionAttributeNames: Object.fromEntries(
-    LIST_FIELDS.map((field, i) => [`#f${i}`, field]),
-  ),
-};
+const projection = generateProjectionParams({ userFields: [...LIST_FIELDS] });
 
 async function queryAllPages(
   dynamoClient: DynamoDBClient,
@@ -83,10 +73,6 @@ async function queryAllPages(
   return items;
 }
 
-/**
- * Lists the funding requests in a semester that fall within the given scope,
- * newest first.
- */
 export async function listFundingRequests({
   semesterId,
   scope,
@@ -108,7 +94,6 @@ export async function listFundingRequests({
       },
     ];
   } else {
-    // Sort key is "orgId#requestId", so each org's requests share a prefix.
     queries = scope.map((orgId) => ({
       TableName,
       KeyConditionExpression:

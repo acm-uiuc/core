@@ -88,17 +88,6 @@ export const navItems = [
     validRoles: [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_UPDATE],
   },
   {
-    link: "/fundingRequests",
-    name: "Funding Requests",
-    icon: IconFileDollar,
-    description: null,
-    validRoles: [
-      AppRoles.FUNDING_REQUEST_VIEW_ALL,
-      AppRoles.AT_LEAST_ONE_ORG_MANAGER,
-    ],
-  },
-
-  {
     link: "/linkry",
     name: "Link Shortener",
     icon: IconLink,

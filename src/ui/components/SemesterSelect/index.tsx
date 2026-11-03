@@ -7,11 +7,6 @@ import {
   type SemesterOption,
 } from "@common/semesters";
 
-/**
- * Keeps the selected semester in the URL (?semester=fa26) so the choice
- * survives refreshes and can be shared as a link. Defaults to the current
- * semester when the URL has no (or an unknown) semester.
- */
 export function useSemesterSearchParam() {
   const [searchParams, setSearchParams] = useSearchParams();
   const currentAndUpcoming = useMemo(() => getSemesters(), []);
@@ -41,11 +36,14 @@ export function useSemesterSearchParam() {
   return { semester, setSemester, semesterOptions };
 }
 
-type SemesterSelectProps = {
+interface SemesterSelectProps extends Omit<
+  SelectProps,
+  "value" | "onChange" | "data"
+> {
   value: string;
   onChange: (semester: string | null) => void;
   options: SemesterOption[];
-} & Omit<SelectProps, "value" | "onChange" | "data">;
+}
 
 export const SemesterSelect: React.FC<SemesterSelectProps> = ({
   value,

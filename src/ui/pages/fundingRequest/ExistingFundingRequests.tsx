@@ -13,7 +13,6 @@ import {
   FundingRequestStatus,
   formatCentsAsUsd,
   formatFundingRequestStatus,
-  formatFundingRequestType,
 } from "@common/types/fundingRequest";
 
 export const getFundingRequestStatusColor = (status: FundingRequestStatus) => {
@@ -116,12 +115,6 @@ const ExistingFundingRequests: React.FC<ExistingFundingRequestsProps> = ({
       key: "orgId",
       label: "Organization",
       render: (item) => orgName(item.orgId),
-      sortable: true,
-    },
-    {
-      key: "type",
-      label: "Type",
-      render: (item) => formatFundingRequestType(item.type),
       sortable: true,
     },
     {

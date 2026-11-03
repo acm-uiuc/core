@@ -9,7 +9,6 @@ import ExistingFundingRequests, {
 import {
   FundingRequestListResponse,
   FundingRequestStatus,
-  FundingRequestType,
 } from "@common/types/fundingRequest";
 
 const sampleRequests: FundingRequestListResponse = [
@@ -17,7 +16,6 @@ const sampleRequests: FundingRequestListResponse = [
     requestId: "req-1",
     semesterId: "fa26",
     orgId: "C01",
-    type: FundingRequestType.FUNDING,
     title: "Hackathon snacks",
     requestedAmountCents: 12550,
     status: FundingRequestStatus.SUBMITTED,
@@ -28,7 +26,6 @@ const sampleRequests: FundingRequestListResponse = [
     requestId: "req-2",
     semesterId: "fa26",
     orgId: "C01",
-    type: FundingRequestType.REIMBURSEMENT,
     title: "Workshop supplies",
     requestedAmountCents: 5000,
     approvedAmountCents: 4000,

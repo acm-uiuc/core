@@ -49,9 +49,6 @@ const fundingRequestRoutes: FastifyPluginAsync = async (fastify, _options) => {
     },
   );
 
-  // GET /fundingRequests?semesterId=fa26 — list funding requests the user can access.
-  // Users with FUNDING_REQUEST_VIEW_ALL see every request in the semester;
-  // org leads see only their own orgs' requests.
   fastify.withTypeProvider<FastifyZodOpenApiTypeProvider>().get(
     "",
     {

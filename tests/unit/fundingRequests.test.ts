@@ -9,10 +9,7 @@ import { genericConfig } from "../../src/common/config.js";
 import { AppRoles, allAppRoles } from "../../src/common/roles.js";
 import { getUserRoles } from "../../src/api/functions/authorization.js";
 import { getUserOrgRoles } from "../../src/api/functions/organizations.js";
-import {
-  FundingRequestStatus,
-  FundingRequestType,
-} from "../../src/common/types/fundingRequest.js";
+import { FundingRequestStatus } from "../../src/common/types/fundingRequest.js";
 
 vi.mock("../../src/api/functions/organizations.js", () => ({
   getUserOrgRoles: vi.fn(),
@@ -47,7 +44,6 @@ const makeRow = (
     "orgId#requestId": `${orgId}#${requestId}`,
     requestId,
     orgId,
-    type: FundingRequestType.FUNDING,
     title: `Request ${requestId}`,
     requestedAmountCents: 5000,
     currentStatus: FundingRequestStatus.SUBMITTED,
