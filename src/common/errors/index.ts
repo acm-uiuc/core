@@ -222,6 +222,19 @@ export class ResourceConflictError extends BaseError<"ResourceConflictError"> {
   }
 }
 
+export class ServiceUnavailableError extends BaseError<"ServiceUnavailableError"> {
+  constructor({ message }: { message?: string }) {
+    super({
+      name: "ServiceUnavailableError",
+      id: 114,
+      message:
+        message ||
+        "The service is temporarily unavailable. Please try again later.",
+      httpStatusCode: 503,
+    });
+  }
+}
+
 export class PendingProvisioningError extends BaseError<"PendingProvisioningError"> {
   constructor({ message }: { message?: string }) {
     super({
@@ -229,7 +242,7 @@ export class PendingProvisioningError extends BaseError<"PendingProvisioningErro
       id: 113,
       message: message || "Pending provisioning for this resource",
       httpStatusCode: 400,
-    })
+    });
   }
 }
 

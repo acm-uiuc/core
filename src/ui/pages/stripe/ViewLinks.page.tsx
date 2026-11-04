@@ -8,6 +8,7 @@ import {
   GetInvoiceLinksResponse,
   PostInvoiceLinkRequest,
   PostInvoiceLinkResponse,
+  RampFundsResponse,
 } from "@common/types/stripe";
 import { useApi } from "@ui/util/api";
 
@@ -33,6 +34,11 @@ export const ManageStripeLinksPage: React.FC = () => {
     return response.data;
   };
 
+  const getRampFunds = async (): Promise<RampFundsResponse> => {
+    const response = await api.get("/api/v1/stripe/rampFunds");
+    return response.data;
+  };
+
   const deactivateLink = async (linkId: string): Promise<void> => {
     await api.delete(`/api/v1/stripe/paymentLinks/${linkId}`);
   };
@@ -50,7 +56,10 @@ export const ManageStripeLinksPage: React.FC = () => {
         <Text>
           Create a Stripe Payment Link to accept credit card payments.
         </Text>
-        <StripeCreateLinkPanel createLink={createLink} />
+        <StripeCreateLinkPanel
+          createLink={createLink}
+          getRampFunds={getRampFunds}
+        />
         <StripeCurrentLinksPanel
           getLinks={getLinks}
           deactivateLink={deactivateLink}

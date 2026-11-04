@@ -100,6 +100,34 @@ describe("StripeCurrentLinksPanel Tests", () => {
     });
   });
 
+  it("displays the saved Ramp fund name and None for untargeted links", async () => {
+    getLinksMock.mockResolvedValue([
+      {
+        id: "1",
+        active: true,
+        invoiceId: "INV-001",
+        invoiceAmountUsd: 5000,
+        userId: "user@example.com",
+        createdAt: "2024-02-01",
+        link: "http://example.com",
+        rampFund: { id: "fund-1", displayName: "Operations Fund" },
+      },
+      {
+        id: "2",
+        active: false,
+        invoiceId: "INV-002",
+        invoiceAmountUsd: 7500,
+        userId: "user@example.com",
+        createdAt: null,
+        link: "http://example.com/2",
+      },
+    ]);
+    await renderComponent();
+
+    expect(await screen.findByText("Operations Fund")).toBeInTheDocument();
+    expect(screen.getByText("None")).toBeInTheDocument();
+  });
+
   it("handles API failure gracefully", async () => {
     const notificationsMock = vi.spyOn(notifications, "show");
     getLinksMock.mockRejectedValue(new Error("API Error"));

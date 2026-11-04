@@ -9,6 +9,7 @@ import { SQSClient } from "@aws-sdk/client-sqs";
 import { AvailableAuthorizationPolicy } from "common/policies/definition.js";
 import type RedisModule from "ioredis";
 import { type S3Client } from "@aws-sdk/client-s3";
+import type { Context } from "aws-lambda";
 export type Redis = RedisModule.default;
 export type ValidLoggers = FastifyBaseLogger | pino.Logger;
 
@@ -58,6 +59,10 @@ declare module "fastify" {
     tokenPayload?: AadToken;
     policyRestrictions?: AvailableAuthorizationPolicy[];
     location: CloudfrontLocation;
+    awsLambda?: {
+      event: unknown;
+      context: Context;
+    };
   }
 }
 

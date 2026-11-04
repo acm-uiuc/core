@@ -2,7 +2,11 @@ import { afterAll, expect, test, beforeEach, vi, describe } from "vitest";
 import init from "../../src/api/server.js";
 import { mockClient } from "aws-sdk-client-mock";
 import { secretObject } from "./secret.testdata.js";
-import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBClient,
+  GetItemCommand,
+  QueryCommand,
+} from "@aws-sdk/client-dynamodb";
 import supertest from "supertest";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import stripe from "stripe";
@@ -54,6 +58,7 @@ describe("Test Stripe webhooks", async () => {
     const payload = JSON.stringify({
       type: "checkout.session.completed",
       id: "evt_abc123",
+      created: Math.floor(Date.now() / 1000),
       data: {
         object: {
           payment_link: linkId,
@@ -127,6 +132,46 @@ describe("Test Stripe webhooks", async () => {
       name: "ValidationError",
     });
   });
+  test.each([
+    ["dev", 200],
+    ["prod", 400],
+  ] as const)(
+    "accepts a local CLI signing secret only in dev (%s)",
+    async (runEnvironment, statusCode) => {
+      const previousEnvironment = app.runEnvironment;
+      const secret = "whsec_local_cli";
+      const payload = JSON.stringify({
+        id: "evt_local_cli",
+        type: "ping",
+        created: Math.floor(Date.now() / 1000),
+        data: { object: {} },
+      });
+      vi.stubEnv("STRIPE_LINKS_ENDPOINT_SECRET", secret);
+      app.runEnvironment = runEnvironment;
+      try {
+        await app.ready();
+        const response = await supertest(app.server)
+          .post("/api/v1/stripe/webhook")
+          .set("content-type", "application/json")
+          .set(
+            "stripe-signature",
+            stripe.webhooks.generateTestHeaderString({ payload, secret }),
+          )
+          .send(payload);
+        expect(response.statusCode).toBe(statusCode);
+        if (statusCode === 200) {
+          expect(response.body.handled).toBe(false);
+        } else {
+          expect(response.body.message).toBe(
+            "Stripe webhook could not be validated.",
+          );
+        }
+      } finally {
+        app.runEnvironment = previousEnvironment;
+        vi.unstubAllEnvs();
+      }
+    },
+  );
   test("Stripe Payment Link emails successfully", async () => {
     const queueId = randomUUID();
     sqsMock.on(SendMessageCommand).resolves({ MessageId: queueId });
@@ -152,12 +197,14 @@ describe("Test Stripe webhooks", async () => {
     const payload = JSON.stringify({
       type: "checkout.session.completed",
       id: "evt_abc123",
+      created: Math.floor(Date.now() / 1000),
       data: {
         object: {
           payment_link: linkId,
           amount_total: 10000,
           payment_intent: "pi_123",
           currency: "usd",
+          payment_status: "paid",
           customer_details: {
             name: "Test User",
             email: "testuser@example.com",
@@ -185,6 +232,48 @@ describe("Test Stripe webhooks", async () => {
       }),
     );
   });
+  test("Stripe Payment Link returns 503 for an unresolved paid link", async () => {
+    sqsMock.on(SendMessageCommand).rejects();
+    ddbMock
+      .on(QueryCommand, {
+        TableName: genericConfig.StripeLinksDynamoTableName,
+        IndexName: "LinkIdIndex",
+      })
+      .resolvesOnce({
+        Items: [],
+      });
+    const payload = JSON.stringify({
+      type: "checkout.session.completed",
+      id: "evt_abc123",
+      created: Math.floor(Date.now() / 1000),
+      data: {
+        object: {
+          payment_link: linkId,
+          amount_total: 10000,
+          payment_intent: "pi_123",
+          currency: "usd",
+          payment_status: "paid",
+          customer_details: {
+            name: "Test User",
+            email: "testuser@example.com",
+          },
+        },
+      },
+    });
+    await app.ready();
+    const response = await supertest(app.server)
+      .post("/api/v1/stripe/webhook")
+      .set("content-type", "application/json")
+      .set(
+        "stripe-signature",
+        stripe.webhooks.generateTestHeaderString({
+          payload,
+          secret: secretObject.stripe_links_endpoint_secret,
+        }),
+      )
+      .send(payload);
+    expect(response.statusCode).toBe(503);
+  });
   afterAll(async () => {
     await app.close();
   });
@@ -192,5 +281,6 @@ describe("Test Stripe webhooks", async () => {
     (app as any).redisClient.flushall();
     ddbMock.reset();
     sqsMock.reset();
+    ddbMock.on(GetItemCommand).resolves({});
   });
 });
