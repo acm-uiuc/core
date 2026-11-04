@@ -5,11 +5,11 @@ export const DEFAULT_VARIANT_ID = "DEFAULT";
 
 // ============ Enums ============
 export const orderStatusEnum = z.enum([
-  "PENDING",    // Cart created, payment not yet confirmed
-  "CAPTURING",  // Waiting to capture payment
-  "ACTIVE",     // Payment confirmed, order is active
-  "REFUNDED",   // Order has been fully refunded
-  "CANCELLED",  // Order was cancelled (payment voided or failed)
+  "PENDING", // Cart created, payment not yet confirmed
+  "CAPTURING", // Waiting to capture payment
+  "ACTIVE", // Payment confirmed, order is active
+  "REFUNDED", // Order has been fully refunded
+  "CANCELLED", // Order was cancelled (payment voided or failed)
 ]);
 
 export type OrderStatus = z.infer<typeof orderStatusEnum>;
@@ -38,31 +38,46 @@ export const variantSchema = z.object({
   soldCount: z.number().int().min(0).default(0),
   exchangesAllowed: z.boolean().default(true),
   memberPriceCents: z.number().int().nonnegative().meta({
-    description: "The cost to purchase this variant if the customer is a member of `memberLists`."
+    description:
+      "The cost to purchase this variant if the customer is a member of `memberLists`.",
   }),
   nonmemberPriceCents: z.number().int().nonnegative().meta({
-    description: "The cost to purchase this variant if the customer is NOT a member of `memberLists`."
+    description:
+      "The cost to purchase this variant if the customer is NOT a member of `memberLists`.",
   }),
 });
 
 export type Variant = z.infer<typeof variantSchema>;
 
 // ============ Product Schema (DEFAULT variant + metadata) ============
-const variantFriendlyName = z.string().min(1).max(30).optional().meta({
-  description: "A user-friendly name for a product variant.",
-  examples: ["Size", "Partner Organization"]
-});
+const variantFriendlyName = z
+  .string()
+  .min(1)
+  .max(30)
+  .optional()
+  .meta({
+    description: "A user-friendly name for a product variant.",
+    examples: ["Size", "Partner Organization"],
+  });
 
-const requestingImageUpload = z.optional(z.object({
-  mimeType: z.enum(['image/webp']),
-  contentMd5Hash: z.string().min(1),
-  fileSize: z.number().min(1).max(5e6),
-  width: z.number().int().min(100).max(4096),
-  height: z.number().int().min(100).max(4096),
-}).refine(
-  (data) => data.width === data.height,
-  { message: "Image must be square (width must equal height)" }
-)).meta({ description: "If specified, will return an S3 presigned URL to upload the product image." })
+const requestingImageUpload = z
+  .optional(
+    z
+      .object({
+        mimeType: z.enum(["image/webp"]),
+        contentMd5Hash: z.string().min(1),
+        fileSize: z.number().min(1).max(5e6),
+        width: z.number().int().min(100).max(4096),
+        height: z.number().int().min(100).max(4096),
+      })
+      .refine((data) => data.width === data.height, {
+        message: "Image must be square (width must equal height)",
+      }),
+  )
+  .meta({
+    description:
+      "If specified, will return an S3 presigned URL to upload the product image.",
+  });
 
 export const productSchema = z.object({
   productId: z.string().min(1),
@@ -75,36 +90,73 @@ export const productSchema = z.object({
   limitConfiguration: limitConfigurationSchema.optional(),
   verifiedIdentityRequired: z.boolean().default(true),
   inventoryMode: limitTypeEnum.default("PER_VARIANT").meta({
-    description: "Whether inventory is tracked per-variant or as a total across all variants.",
+    description:
+      "Whether inventory is tracked per-variant or as a total across all variants.",
   }),
   totalInventoryCount: z.number().int().min(0).nullable().optional().meta({
-    description: "Total inventory across all variants. Only used when inventoryMode is PER_PRODUCT.",
+    description:
+      "Total inventory across all variants. Only used when inventoryMode is PER_PRODUCT.",
   }),
   totalSoldCount: z.number().int().min(0).default(0).optional(),
-  additionalEmailText: z.string().min(1).optional().meta({ description: "This additional text will be included on confirmation emails sent to purchasers." }),
+  additionalEmailText: z.string().min(1).optional().meta({
+    description:
+      "This additional text will be included on confirmation emails sent to purchasers.",
+  }),
   variantFriendlyName: variantFriendlyName.default("Size"),
 });
 
 export type Product = z.infer<typeof productSchema>;
 
-export const modifyProductSchema = productSchema.pick({
-  name: true,
-  description: true,
-  openAt: true,
-  closeAt: true,
-  limitConfiguration: true,
-  verifiedIdentityRequired: true,
-  additionalEmailText: true,
-  variantFriendlyName: true,
-}).partial().extend({
-  verifiedIdentityRequired: z.boolean().optional(), // Override to remove the default
-  variantFriendlyName,
-  requestingImageUpload
-}).refine(
-  (data) =>
-    !data.openAt || !data.closeAt || data.openAt < data.closeAt,
-  { message: "openAt must be before closeAt" },
-);
+export const modifyVariantInventorySchema = z.object({
+  variantId: z.string().min(1),
+  delta: z
+    .number()
+    .int()
+    .refine((n) => n !== 0, {
+      message: "delta must not be zero",
+    }),
+});
+
+export type ModifyVariantInventory = z.infer<
+  typeof modifyVariantInventorySchema
+>;
+
+export const modifyProductSchema = productSchema
+  .pick({
+    name: true,
+    description: true,
+    openAt: true,
+    closeAt: true,
+    limitConfiguration: true,
+    verifiedIdentityRequired: true,
+    additionalEmailText: true,
+    variantFriendlyName: true,
+  })
+  .partial()
+  .extend({
+    verifiedIdentityRequired: z.boolean().optional(), // Override to remove the default
+    variantFriendlyName,
+    requestingImageUpload,
+    inventoryMode: z.never().optional(),
+    totalInventoryDelta: z
+      .number()
+      .int()
+      .refine((n) => n !== 0, { message: "delta must not be zero" })
+      .optional(),
+    variantInventory: z.array(modifyVariantInventorySchema).optional(),
+  })
+  .refine(
+    (data) =>
+      data.totalInventoryDelta === undefined || !data.variantInventory?.length,
+    {
+      message: "Product and variant inventory cannot be adjusted together.",
+      path: ["variantInventory"],
+    },
+  )
+  .refine(
+    (data) => !data.openAt || !data.closeAt || data.openAt < data.closeAt,
+    { message: "openAt must be before closeAt" },
+  );
 
 export type ModifyProductRequest = z.infer<typeof modifyProductSchema>;
 
@@ -113,9 +165,18 @@ export const productWithVariantsSchema = productSchema.extend({
   variants: z.array(variantSchema.omit({ productId: true })),
 });
 
-export const productWithVariantsPublicCountSchema = productSchema.extend({
-  variants: z.array(variantSchema.omit({ productId: true, soldCount: true, memberPriceId: true, nonmemberPriceId: true })),
-}).omit({ stripeProductId: true, totalSoldCount: true });
+export const productWithVariantsPublicCountSchema = productSchema
+  .extend({
+    variants: z.array(
+      variantSchema.omit({
+        productId: true,
+        soldCount: true,
+        memberPriceId: true,
+        nonmemberPriceId: true,
+      }),
+    ),
+  })
+  .omit({ stripeProductId: true, totalSoldCount: true });
 
 export type ProductWithVariants = z.infer<typeof productWithVariantsSchema>;
 
@@ -163,14 +224,19 @@ export type OrderWithLineItems = z.infer<typeof orderWithLineItemsSchema>;
 
 // Create Checkout Request
 export const createCheckoutRequestSchema = z.object({
-  items: z.array(z.object({
-    productId: z.string().min(1),
-    variantId: z.string().min(1),
-    quantity: z.number().int().positive().max(10),
-  })).min(1).max(20), // Max 20 items, max 10 of each
-  successRedirPath: z.string().startsWith('/').max(512),
-  cancelRedirPath: z.string().startsWith('/').max(512),
-  email: z.email().optional()
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1),
+        variantId: z.string().min(1),
+        quantity: z.number().int().positive().max(10),
+      }),
+    )
+    .min(1)
+    .max(20), // Max 20 items, max 10 of each
+  successRedirPath: z.string().startsWith("/").max(512),
+  cancelRedirPath: z.string().startsWith("/").max(512),
+  email: z.email().optional(),
 });
 
 export type CreateCheckoutRequest = z.infer<typeof createCheckoutRequestSchema>;
@@ -184,14 +250,18 @@ export const createCheckoutResponseSchema = z.object({
   expiresAt: z.number().int(),
 });
 
-export type CreateCheckoutResponse = z.infer<typeof createCheckoutResponseSchema>;
+export type CreateCheckoutResponse = z.infer<
+  typeof createCheckoutResponseSchema
+>;
 
 // List Products Response
 export const listProductsAdminResponseSchema = z.object({
   products: z.array(productWithVariantsSchema.extend({ isOpen: z.boolean() })),
 });
 
-export type AdminListProductsResponse = z.infer<typeof listProductsAdminResponseSchema>;
+export type AdminListProductsResponse = z.infer<
+  typeof listProductsAdminResponseSchema
+>;
 
 export const listProductsResponseSchema = z.object({
   products: z.array(productWithVariantsSchema),
@@ -243,7 +313,7 @@ export const createVariantRequestSchema = variantSchema
     variantId: true,
     memberPriceId: true,
     nonmemberPriceId: true,
-    soldCount: true
+    soldCount: true,
   })
   .extend({
     memberPriceCents: z.number().int().min(0),
@@ -255,12 +325,12 @@ export const createProductRequestSchema = productSchema
   .omit({
     stripeProductId: true, // We will generate this
     totalSoldCount: true,
-    imageUrl: true
+    imageUrl: true,
   })
   .extend({
     variants: z.array(createVariantRequestSchema).min(1),
-    requestingImageUpload
-  })
+    requestingImageUpload,
+  });
 
 export const createProductFunctionSchema = productSchema
   .omit({
@@ -269,7 +339,9 @@ export const createProductFunctionSchema = productSchema
   })
   .extend({
     variants: z.array(createVariantRequestSchema).min(1),
-  })
+  });
 
 export type CreateProductRequest = z.infer<typeof createProductRequestSchema>;
-export type CreateProductDataInputs = z.infer<typeof createProductFunctionSchema>;
+export type CreateProductDataInputs = z.infer<
+  typeof createProductFunctionSchema
+>;
