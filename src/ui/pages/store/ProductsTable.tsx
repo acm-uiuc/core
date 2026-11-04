@@ -10,6 +10,8 @@ import {
   Textarea,
   Switch,
   Stack,
+  NumberInput,
+  Divider,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
@@ -62,6 +64,111 @@ const formSchema = modifyProductSchema.refine(
   },
 );
 
+const InventoryAdjustRow: React.FC<{
+  label: string;
+  description?: string;
+  remaining: number | null;
+  delta: number;
+  onChange: (delta: number) => void;
+}> = ({ label, description, remaining, delta, onChange }) => {
+  const [amount, setAmount] = useState<number | string>(delta);
+  const isLimited = remaining !== null;
+
+  return (
+    <Group justify="space-between" align="flex-start" wrap="nowrap" gap="md">
+      <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+        <Text size="sm" fw={500}>
+          {label}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {isLimited ? `${remaining} remaining` : "Unlimited"}
+          {description ? ` · ${description}` : ""}
+        </Text>
+      </Stack>
+
+      {isLimited ? (
+        <Stack gap={4} align="flex-end">
+          <NumberInput
+            value={amount}
+            onChange={(value) => {
+              setAmount(value);
+              onChange(typeof value === "number" ? value : 0);
+            }}
+            min={-(remaining ?? 0)}
+            allowDecimal={false}
+            clampBehavior="strict"
+            w={110}
+            size="xs"
+            aria-label={`Amount to change ${label} by`}
+          />
+          <Text size="xs" c="dimmed">
+            {remaining} → {(remaining ?? 0) + delta}
+          </Text>
+        </Stack>
+      ) : (
+        <Text size="xs" c="dimmed" maw={220} ta="right">
+          This item has unlimited inventory, so there is no count to change.
+        </Text>
+      )}
+    </Group>
+  );
+};
+
+interface InventorySectionProps {
+  product: Product;
+  values: ModifyProductRequest;
+  onAdjust: (delta: number, variantId?: string) => void;
+}
+
+const InventorySection: React.FC<InventorySectionProps> = ({
+  product,
+  values,
+  onAdjust,
+}) => {
+  const isPerVariant = product.inventoryMode === "PER_VARIANT";
+
+  return (
+    <>
+      <Divider label="Inventory" labelPosition="left" my="xs" />
+      <Text size="xs" c="dimmed" mb="xs">
+        Positive amounts add stock; negative amounts remove stock. Changes apply
+        when you save and don&apos;t affect items already sold.
+      </Text>
+      {isPerVariant ? (
+        <Stack gap="sm">
+          {product.variants.length === 0 ? (
+            <Text size="sm" c="dimmed">
+              This product has no variants.
+            </Text>
+          ) : (
+            product.variants.map((variant) => (
+              <InventoryAdjustRow
+                key={variant.variantId}
+                label={variant.name}
+                remaining={variant.inventoryCount ?? null}
+                delta={
+                  values.variantInventory?.find(
+                    (item) => item.variantId === variant.variantId,
+                  )?.delta ?? 0
+                }
+                onChange={(delta) => onAdjust(delta, variant.variantId)}
+              />
+            ))
+          )}
+        </Stack>
+      ) : (
+        <InventoryAdjustRow
+          label="Product inventory"
+          description="tracked across all variants"
+          remaining={product.totalInventoryCount ?? null}
+          delta={values.totalInventoryDelta ?? 0}
+          onChange={(delta) => onAdjust(delta)}
+        />
+      )}
+    </>
+  );
+};
+
 export const ProductsTable: React.FC<ProductsTableProps> = ({
   getProducts,
   modifyProductMetadata,
@@ -112,7 +219,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
 
   const handleEdit = (product: Product) => {
     setEditCandidate(product);
-    form.setInitialValues(product);
+    form.setInitialValues({ ...product, inventoryMode: undefined });
     form.reset();
     open();
   };
@@ -120,6 +227,23 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
   const handleViewVariants = (product: Product) => {
     setSelectedProductForVariants(product);
     openVariantsModal();
+  };
+
+  const handleAdjustInventory = (delta: number, variantId?: string) => {
+    if (variantId === undefined) {
+      form.setFieldValue("totalInventoryDelta", delta || undefined);
+      return;
+    }
+    const updates = (form.values.variantInventory ?? []).filter(
+      (item) => item.variantId !== variantId,
+    );
+    if (delta !== 0) {
+      updates.push({ variantId, delta });
+    }
+    form.setFieldValue(
+      "variantInventory",
+      updates.length ? updates : undefined,
+    );
   };
 
   const handleSave = async () => {
@@ -395,6 +519,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
               minRows={2}
               {...form.getInputProps("additionalEmailText")}
             />
+            {editCandidate && (
+              <InventorySection
+                product={editCandidate}
+                values={form.values}
+                onAdjust={handleAdjustInventory}
+              />
+            )}
             <Group justify="flex-end">
               <Button variant="outline" onClick={handleCloseModal}>
                 Cancel

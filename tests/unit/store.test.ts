@@ -47,7 +47,7 @@ const {
 
 vi.mock("stripe", () => {
   return {
-    default: vi.fn(function () {
+    default: vi.fn(() => {
       return {
         products: {
           update: vi.fn(() => Promise.resolve({})),
@@ -687,6 +687,275 @@ describe("PATCH /admin/products/:productId", () => {
     // Verify no DynamoDB calls were made
     const transactCalls = ddbMock.commandCalls(TransactWriteItemsCommand);
     expect(transactCalls).toHaveLength(0);
+  });
+});
+
+describe("PATCH /admin/products/:productId (inventory)", () => {
+  beforeEach(() => {
+    (app as any).redisClient.flushall();
+    ddbMock.reset();
+    sqsMock.reset();
+    smMock.reset();
+    vi.clearAllMocks();
+  });
+
+  test.each([50, -3])(
+    "Applies product-level delta %i for a PER_PRODUCT product",
+    async (delta) => {
+      ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/v1/store/admin/products/testing",
+        headers: {
+          Authorization: `Bearer ${testJwt}`,
+        },
+        body: {
+          totalInventoryDelta: delta,
+        },
+      });
+
+      expect(response.statusCode).toBe(204);
+      expect(ddbMock.commandCalls(GetItemCommand)).toHaveLength(0);
+
+      const transactItems = ddbMock.commandCalls(TransactWriteItemsCommand)[0]
+        .args[0].input.TransactItems!;
+      const updateItem = transactItems.find(
+        (item) =>
+          item.Update !== undefined &&
+          item.Update.Key?.variantId?.S === DEFAULT_VARIANT_ID,
+      );
+      expect(updateItem?.Update?.UpdateExpression).toContain(
+        "#totalInventoryCount = #totalInventoryCount + :totalInventoryDelta",
+      );
+      expect(updateItem?.Update?.ExpressionAttributeValues).toEqual(
+        expect.objectContaining({
+          ":totalInventoryDelta": { N: String(delta) },
+          ":minimumCount": { N: String(Math.max(0, -delta)) },
+          ":inventoryMode": { S: "PER_PRODUCT" },
+        }),
+      );
+      expect(updateItem?.Update?.ExpressionAttributeNames).toEqual({
+        "#totalInventoryCount": "totalInventoryCount",
+        "#inventoryMode": "inventoryMode",
+      });
+      expect(updateItem?.Update?.ConditionExpression).toBe(
+        "#inventoryMode = :inventoryMode AND attribute_type(#totalInventoryCount, :numberType) AND #totalInventoryCount >= :minimumCount",
+      );
+    },
+  );
+
+  test("Applies positive and negative per-variant deltas", async () => {
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        variantInventory: [
+          { variantId: "c4981d77-8f1b-48f1-9be9-8e69ed7bd3e2", delta: 7 },
+          { variantId: "73b050da-e6f5-48bd-a389-861ef9c975f1", delta: -3 },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+
+    const transactItems = ddbMock.commandCalls(TransactWriteItemsCommand)[0]
+      .args[0].input.TransactItems!;
+    const updates = transactItems.filter((item) => item.Update !== undefined);
+    expect(updates).toHaveLength(2);
+    expect(ddbMock.commandCalls(GetItemCommand)).toHaveLength(0);
+    expect(
+      transactItems.find((item) => item.ConditionCheck)?.ConditionCheck,
+    ).toMatchObject({
+      Key: marshall({ productId: "testing", variantId: DEFAULT_VARIANT_ID }),
+      ConditionExpression:
+        "attribute_exists(productId) AND (attribute_not_exists(#inventoryMode) OR #inventoryMode = :inventoryMode)",
+      ExpressionAttributeValues: { ":inventoryMode": { S: "PER_VARIANT" } },
+    });
+
+    const small = updates.find(
+      (i) =>
+        i.Update?.Key?.variantId?.S === "c4981d77-8f1b-48f1-9be9-8e69ed7bd3e2",
+    );
+    expect(small?.Update?.ExpressionAttributeValues).toEqual(
+      expect.objectContaining({
+        ":delta": { N: "7" },
+        ":minimumCount": { N: "0" },
+      }),
+    );
+
+    const large = updates.find(
+      (i) =>
+        i.Update?.Key?.variantId?.S === "73b050da-e6f5-48bd-a389-861ef9c975f1",
+    );
+    expect(large?.Update?.ExpressionAttributeValues).toEqual(
+      expect.objectContaining({
+        ":delta": { N: "-3" },
+        ":minimumCount": { N: "3" },
+      }),
+    );
+    expect(large?.Update?.ConditionExpression).toBe(
+      "attribute_type(#inventoryCount, :numberType) AND #inventoryCount >= :minimumCount",
+    );
+  });
+
+  test("Rejects a zero delta", async () => {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        totalInventoryDelta: 0,
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand)).toHaveLength(0);
+  });
+
+  test.each([
+    { inventoryMode: "PER_PRODUCT" },
+    { inventoryMode: "PER_PRODUCT", totalInventoryDelta: 5 },
+    {
+      inventoryMode: "PER_VARIANT",
+      variantInventory: [{ variantId: "test", delta: 5 }],
+    },
+  ])("Rejects unsupported inventory mode overrides: %j", async (body) => {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      headers: { Authorization: `Bearer ${testJwt}` },
+      body,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand)).toHaveLength(0);
+  });
+
+  test("Surfaces a validation error when removing more than remains", async () => {
+    ddbMock.on(TransactWriteItemsCommand).rejects(
+      new TransactionCanceledException({
+        message: "Transaction cancelled",
+        CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
+      }),
+    );
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        variantInventory: [
+          { variantId: "c4981d77-8f1b-48f1-9be9-8e69ed7bd3e2", delta: -9999 },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  test("Rejects per-variant inventory on a PER_PRODUCT product", async () => {
+    ddbMock.on(TransactWriteItemsCommand).rejects(
+      new TransactionCanceledException({
+        message: "Wrong inventory mode",
+        CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
+      }),
+    );
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        variantInventory: [{ variantId: "some-variant", delta: 5 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand)).toHaveLength(1);
+  });
+
+  test("Rejects product-level delta on a PER_VARIANT product", async () => {
+    ddbMock.on(TransactWriteItemsCommand).rejects(
+      new TransactionCanceledException({
+        message: "Wrong inventory mode",
+        CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
+      }),
+    );
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      headers: {
+        Authorization: `Bearer ${testJwt}`,
+      },
+      body: {
+        totalInventoryDelta: 5,
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand)).toHaveLength(1);
+  });
+
+  test.each([
+    { totalInventoryDelta: 5 },
+    { variantInventory: [{ variantId: "small", delta: -3 }] },
+  ])(
+    "Saves metadata and inventory in one transaction: %j",
+    async (inventory) => {
+      ddbMock.on(TransactWriteItemsCommand).resolves({});
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/v1/store/admin/products/testing",
+        headers: { Authorization: `Bearer ${testJwt}` },
+        body: { verifiedIdentityRequired: false, ...inventory },
+      });
+
+      expect(response.statusCode).toBe(204);
+      expect(ddbMock.commandCalls(GetItemCommand)).toHaveLength(0);
+      const calls = ddbMock.commandCalls(TransactWriteItemsCommand);
+      expect(calls).toHaveLength(1);
+      const items = calls[0].args[0].input.TransactItems!;
+      expect(items.some((item) => item.ConditionCheck)).toBe(false);
+      const productUpdate = items.find(
+        (item) => item.Update?.Key?.variantId?.S === DEFAULT_VARIANT_ID,
+      )?.Update;
+      expect(productUpdate?.UpdateExpression).toContain(
+        "#verifiedIdentityRequired = :verifiedIdentityRequired",
+      );
+      expect(productUpdate?.ConditionExpression).toContain(
+        "#inventoryMode = :inventoryMode",
+      );
+      expect(items.filter((item) => item.Update)).toHaveLength(
+        "totalInventoryDelta" in inventory ? 1 : 2,
+      );
+    },
+  );
+
+  test("Rejects product and variant deltas together", async () => {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/store/admin/products/testing",
+      headers: { Authorization: `Bearer ${testJwt}` },
+      body: {
+        totalInventoryDelta: 5,
+        variantInventory: [{ variantId: "small", delta: 5 }],
+      },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand)).toHaveLength(0);
   });
 });
 
