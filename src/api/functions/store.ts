@@ -1888,9 +1888,24 @@ export async function modifyProduct({
 
   // Execute the transaction
   if (transactItems.length > 0) {
-    await dynamoClient.send(
-      new TransactWriteItemsCommand({ TransactItems: transactItems }),
-    );
+    try {
+      await dynamoClient.send(
+        new TransactWriteItemsCommand({ TransactItems: transactItems }),
+      );
+    } catch (error) {
+      if (
+        error instanceof TransactionCanceledException &&
+        error.CancellationReasons?.some(
+          (reason) => reason.Code === "ConditionalCheckFailed",
+        )
+      ) {
+        throw new ValidationError({
+          message:
+            "Inventory adjustment failed. Check the inventory mode and remaining stock, then refresh and try again.",
+        });
+      }
+      throw error;
+    }
   }
 }
 

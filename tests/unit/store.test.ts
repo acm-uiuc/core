@@ -47,13 +47,13 @@ const {
 
 vi.mock("stripe", () => {
   return {
-    default: vi.fn(() => {
-      return {
-        products: {
+    default: vi.fn(
+      class {
+        products = {
           update: vi.fn(() => Promise.resolve({})),
-        },
-      };
-    }),
+        };
+      },
+    ),
   };
 });
 
