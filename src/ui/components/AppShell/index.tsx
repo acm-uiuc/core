@@ -87,7 +87,6 @@ export const navItems = [
     description: null,
     validRoles: [AppRoles.ROOM_REQUEST_CREATE, AppRoles.ROOM_REQUEST_UPDATE],
   },
-
   {
     link: "/linkry",
     name: "Link Shortener",
