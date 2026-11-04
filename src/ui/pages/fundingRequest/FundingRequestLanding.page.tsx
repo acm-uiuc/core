@@ -1,19 +1,52 @@
 import React from "react";
-import { Container, Title, Text } from "@mantine/core";
+import { Container, Title } from "@mantine/core";
 import { AuthGuard } from "@ui/components/AuthGuard";
-
-// TODO: add funding request roles to validRoles once they exist in common/roles.ts.
-// An empty list lets any logged-in user see the page.
+import { AppRoles } from "@common/roles";
+import { useApi } from "@ui/util/api";
+import { FundingRequestListResponse } from "@common/types/fundingRequest";
+import {
+  SemesterSelect,
+  useSemesterSearchParam,
+} from "@ui/components/SemesterSelect";
+import ExistingFundingRequests from "./ExistingFundingRequests";
 
 export const ManageFundingRequestsPage: React.FC = () => {
+  const api = useApi("core");
+  const { semester, setSemester, semesterOptions } = useSemesterSearchParam();
+
+  const getFundingRequests = async (
+    semesterId: string,
+  ): Promise<FundingRequestListResponse> => {
+    const response = await api.get<FundingRequestListResponse>(
+      "/api/v1/fundingRequests",
+      { params: { semesterId } },
+    );
+    return response.data;
+  };
+
   return (
-    <AuthGuard resourceDef={{ service: "core", validRoles: [] }} showSidebar>
+    <AuthGuard
+      resourceDef={{
+        service: "core",
+        validRoles: [
+          AppRoles.FUNDING_REQUEST_VIEW_ALL,
+          AppRoles.AT_LEAST_ONE_ORG_MANAGER,
+        ],
+      }}
+      showSidebar
+    >
       <Container>
         <Title>Funding Requests</Title>
-        {/* TODO: semester selector + table of funding requests (GET /api/v1/fundingRequests) */}
-        <Text c="dimmed" mt="sm">
-          Funding requests will show up here.
-        </Text>
+        <SemesterSelect
+          placeholder="Select semester to view funding requests"
+          value={semester}
+          onChange={setSemester}
+          options={semesterOptions}
+        />
+        <ExistingFundingRequests
+          getFundingRequests={getFundingRequests}
+          semester={semester}
+        />
       </Container>
     </AuthGuard>
   );

@@ -1,38 +1,25 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Container, Title, Tabs, Select } from "@mantine/core";
+import React from "react";
+import { Container, Title, Tabs } from "@mantine/core";
 import { AuthGuard } from "@ui/components/AuthGuard";
 import { AppRoles } from "@common/roles";
 import { useApi } from "@ui/util/api";
 import ExistingRoomRequests from "./ExistingRoomRequests";
 import NewRoomRequest from "./NewRoomRequest";
 import {
-  getPreviousSemesters,
-  getSemesters,
   RoomRequestFormValues,
   RoomRequestListResponse,
   RoomRequestPostResponse,
   type RoomRequestStatus,
 } from "@common/types/roomRequest";
 import { OrganizationId } from "@acm-uiuc/js-shared";
-import { useSearchParams } from "react-router-dom";
+import {
+  SemesterSelect,
+  useSemesterSearchParam,
+} from "@ui/components/SemesterSelect";
 
 export const ManageRoomRequestsPage: React.FC = () => {
   const api = useApi("core");
-  const [semester, setSemesterState] = useState<string | null>(null);
-  const nextSemesters = useMemo(() => getSemesters(), []);
-  const semesterOptions = useMemo(
-    () => [...getPreviousSemesters(), ...nextSemesters],
-    [nextSemesters],
-  );
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const setSemester = (newSemester: string | null) => {
-    if (newSemester && newSemester !== semester) {
-      setSemesterState(newSemester);
-      const currentParams = Object.fromEntries(searchParams.entries());
-      setSearchParams({ ...currentParams, semester: newSemester });
-    }
-  };
+  const { semester, setSemester, semesterOptions } = useSemesterSearchParam();
 
   const createRoomRequest = async (
     payload: RoomRequestFormValues,
@@ -58,25 +45,6 @@ export const ManageRoomRequestsPage: React.FC = () => {
     return response.data.map((x) => ({ ...x, semester }));
   };
 
-  useEffect(() => {
-    const semesterFromUrl = searchParams.get("semester");
-    if (
-      semesterFromUrl &&
-      semesterOptions.map((x) => x.value).includes(semesterFromUrl)
-    ) {
-      if (semesterFromUrl !== semester) {
-        setSemesterState(semesterFromUrl);
-      }
-    } else {
-      const defaultSemester = nextSemesters[0].value;
-      if (defaultSemester !== semester) {
-        setSemesterState(defaultSemester);
-        const currentParams = Object.fromEntries(searchParams.entries());
-        setSearchParams({ ...currentParams, semester: defaultSemester });
-      }
-    }
-  }, [searchParams, semester, semesterOptions, nextSemesters, setSearchParams]);
-
   return (
     <AuthGuard
       resourceDef={{
@@ -97,22 +65,16 @@ export const ManageRoomRequestsPage: React.FC = () => {
           </Tabs.List>
 
           <Tabs.Panel value="existing_requests">
-            <Select
-              label="Select Semester"
+            <SemesterSelect
               placeholder="Select semester to view room requests"
-              searchable
               value={semester}
               onChange={setSemester}
-              data={semesterOptions}
-              mt="sm"
-              mb="sm"
+              options={semesterOptions}
             />
-            {semester && (
-              <ExistingRoomRequests
-                getRoomRequests={getRoomRequests}
-                semester={semester}
-              />
-            )}
+            <ExistingRoomRequests
+              getRoomRequests={getRoomRequests}
+              semester={semester}
+            />
           </Tabs.Panel>
 
           <Tabs.Panel value="new_requests">
