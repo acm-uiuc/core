@@ -32,6 +32,34 @@ export type FundingRequestListResponse = z.infer<
   typeof fundingRequestListResponse
 >;
 
+// The POST body. These are the only fields a requester fills in; the server
+// adds the IDs, status, timestamps and createdBy itself.
+export const fundingRequestCreateSchema = z.object({
+  semesterId: illinoisSemesterId,
+  orgId: OrgUniqueId,
+  title: z
+    .string()
+    .min(2, "Title must have at least 2 characters")
+    .max(100, "Title cannot exceed 100 characters"),
+  description: z
+    .string()
+    .min(10, "Description must have at least 10 characters")
+    .max(2000, "Description cannot exceed 2000 characters"),
+  requestedAmountCents: z
+    .number()
+    .int("Amount must be a whole number of cents")
+    .positive("Amount must be greater than $0"),
+});
+export type FundingRequestCreate = z.infer<typeof fundingRequestCreateSchema>;
+
+export const fundingRequestPostResponse = z.object({
+  id: z.string().min(1),
+  status: z.literal(FundingRequestStatus.SUBMITTED),
+});
+export type FundingRequestPostResponse = z.infer<
+  typeof fundingRequestPostResponse
+>;
+
 export const formatFundingRequestStatus = (status: FundingRequestStatus) => {
   const text = status.replaceAll("_", " ");
   return text.charAt(0).toUpperCase() + text.slice(1);

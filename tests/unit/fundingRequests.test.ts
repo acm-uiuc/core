@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import init from "../../src/api/server.js";
 import { mockClient } from "aws-sdk-client-mock";
-import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import {
+  DynamoDBClient,
+  QueryCommand,
+  TransactWriteItemsCommand,
+} from "@aws-sdk/client-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import supertest from "supertest";
 import { createJwt } from "./utils.js";
 import { genericConfig } from "../../src/common/config.js";
@@ -251,5 +255,208 @@ describe("GET /api/v1/fundingRequests", () => {
 
   test("users with every app role are treated as view-all", () => {
     expect(allAppRoles).toContain(AppRoles.FUNDING_REQUEST_VIEW_ALL);
+  });
+});
+
+const fundingBody = {
+  semesterId: "fa26",
+  orgId: "C01",
+  title: "Hackathon pizza",
+  description: "Pizza for 60 attendees at the fall hackathon.",
+  requestedAmountCents: 45000,
+};
+
+// Every attribute the main table schema defines, except approvedAmountCents,
+// which only the treasurer sets.
+const mainTableColumns = [
+  "semesterId",
+  "orgId#requestId",
+  "requestId",
+  "orgId",
+  "title",
+  "description",
+  "requestedAmountCents",
+  "currentStatus",
+  "createdBy",
+  "createdAt",
+  "updatedAt",
+  "expiresAt",
+];
+
+// LEAD has the meta role, so it passes the route's role check;
+// getUserOrgRoles decides which org they actually lead.
+const makeLeadOf = (org: string) => {
+  vi.mocked(getUserOrgRoles).mockResolvedValue([
+    { org: org as any, role: "LEAD" },
+  ]);
+};
+
+const sentItems = () => {
+  const calls = ddbMock.commandCalls(TransactWriteItemsCommand);
+  expect(calls.length).toBe(1);
+  return calls[0].args[0].input.TransactItems!;
+};
+
+describe("POST /api/v1/fundingRequests", () => {
+  beforeEach(() => {
+    ddbMock.reset();
+    vi.mocked(getUserRoles).mockImplementation(
+      async (_client, user) => rolesByUser[user as string] ?? [],
+    );
+    vi.mocked(getUserOrgRoles).mockReset();
+    vi.mocked(getUserOrgRoles).mockResolvedValue([]);
+  });
+
+  test("Rejects a request with no token", async () => {
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(listUrl)
+      .send(fundingBody);
+    expect(response.statusCode).toBe(401);
+  });
+
+  test("Rejects a user who does not lead any org", async () => {
+    await app.ready();
+    const response = await supertest(app.server)
+      .post(listUrl)
+      .set("authorization", `Bearer ${jwtFor(LEAD)}`)
+      .send(fundingBody);
+    expect(response.statusCode).toBe(403);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(0);
+  });
+
+  test("Rejects a lead creating a request for an org they don't lead", async () => {
+    await app.ready();
+    makeLeadOf("S01");
+    const response = await supertest(app.server)
+      .post(listUrl)
+      .set("authorization", `Bearer ${jwtFor(LEAD)}`)
+      .send(fundingBody);
+    expect(response.statusCode).toBe(403);
+    expect(ddbMock.commandCalls(TransactWriteItemsCommand).length).toBe(0);
+  });
+
+  test("Rejects a request missing its title", async () => {
+    await app.ready();
+    makeLeadOf("C01");
+    const { title: _title, ...missingTitle } = fundingBody;
+    const response = await supertest(app.server)
+      .post(listUrl)
+      .set("authorization", `Bearer ${jwtFor(LEAD)}`)
+      .send(missingTitle);
+    expect(response.statusCode).toBe(400);
+  });
+
+  test("Rejects a non-integer amount", async () => {
+    await app.ready();
+    makeLeadOf("C01");
+    const response = await supertest(app.server)
+      .post(listUrl)
+      .set("authorization", `Bearer ${jwtFor(LEAD)}`)
+      .send({ ...fundingBody, requestedAmountCents: 12.5 });
+    expect(response.statusCode).toBe(400);
+  });
+
+  test("Creates a funding request", async () => {
+    await app.ready();
+    makeLeadOf("C01");
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    const response = await supertest(app.server)
+      .post(listUrl)
+      .set("authorization", `Bearer ${jwtFor(LEAD)}`)
+      .send(fundingBody);
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body.status).toBe(FundingRequestStatus.SUBMITTED);
+    const requestId = response.body.id;
+    expect(requestId).toBeTruthy();
+
+    const items = sentItems();
+    const main = items[0].Put!;
+    expect(main.TableName).toBe(genericConfig.FundingRequestsTableName);
+    const mainRow = unmarshall(main.Item!);
+    expect(mainRow).toMatchObject({
+      semesterId: "fa26",
+      "orgId#requestId": `C01#${requestId}`,
+      requestId,
+      currentStatus: FundingRequestStatus.SUBMITTED,
+      createdBy: LEAD,
+      requestedAmountCents: 45000,
+    });
+    expect(mainRow.expiresAt).toBeGreaterThan(Date.now() / 1000);
+
+    const history = items[1].Put!;
+    expect(history.TableName).toBe(
+      genericConfig.FundingRequestsStatusTableName,
+    );
+    expect(unmarshall(history.Item!)).toMatchObject({
+      requestId,
+      status: FundingRequestStatus.SUBMITTED,
+      semesterId: "fa26",
+    });
+  });
+
+  test("Saves exactly the main table's columns, ignoring extra fields", async () => {
+    await app.ready();
+    makeLeadOf("C01");
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+
+    const response = await supertest(app.server)
+      .post(listUrl)
+      .set("authorization", `Bearer ${jwtFor(LEAD)}`)
+      .send({
+        ...fundingBody,
+        vendor: "Papa Del's",
+        currentStatus: "approved",
+        approvedAmountCents: 999999,
+      });
+
+    expect(response.statusCode).toBe(201);
+    const mainRow = unmarshall(sentItems()[0].Put!.Item!);
+    expect(Object.keys(mainRow).sort()).toEqual([...mainTableColumns].sort());
+    expect(mainRow.currentStatus).toBe(FundingRequestStatus.SUBMITTED);
+  });
+
+  test("A request created here shows up in the list endpoint", async () => {
+    await app.ready();
+    makeLeadOf("C01");
+    ddbMock.on(TransactWriteItemsCommand).resolves({});
+    const created = await supertest(app.server)
+      .post(listUrl)
+      .set("authorization", `Bearer ${jwtFor(LEAD)}`)
+      .send(fundingBody);
+    expect(created.statusCode).toBe(201);
+
+    // Feed the exact row POST wrote back through GET.
+    const savedRow = sentItems()[0].Put!.Item!;
+    ddbMock.on(QueryCommand).resolves({ Items: [savedRow] });
+    const listed = await supertest(app.server)
+      .get(listUrl)
+      .query({ semesterId: "fa26" })
+      .set("authorization", `Bearer ${jwtFor(LEAD)}`);
+
+    expect(listed.statusCode).toBe(200);
+    expect(listed.body).toHaveLength(1);
+    expect(listed.body[0]).toMatchObject({
+      requestId: created.body.id,
+      orgId: "C01",
+      title: "Hackathon pizza",
+      requestedAmountCents: 45000,
+      status: FundingRequestStatus.SUBMITTED,
+    });
+  });
+
+  test("Returns 500 when the database write fails", async () => {
+    await app.ready();
+    makeLeadOf("C01");
+    ddbMock.on(TransactWriteItemsCommand).rejects(new Error("ddb down"));
+
+    const response = await supertest(app.server)
+      .post(listUrl)
+      .set("authorization", `Bearer ${jwtFor(LEAD)}`)
+      .send(fundingBody);
+
+    expect(response.statusCode).toBe(500);
   });
 });

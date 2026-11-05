@@ -6,6 +6,9 @@ export const STRIPE_LINK_RETENTION_DAYS_QA = 0; // this number of days after the
 export const AUDIT_LOG_RETENTION_DAYS = 365;
 export const ROOM_RESERVATION_RETENTION_DAYS = 1460;
 export const ROOM_RESERVATION_RETENTION_DAYS_QA = 30;
+// 4 years in prod so people graduate before anything they need expires; 30 days in QA.
+export const FUNDING_REQUEST_RETENTION_DAYS = 1460;
+export const FUNDING_REQUEST_RETENTION_DAYS_QA = 30;
 export const UIN_RETENTION_DAYS = 365;
 export const FULFILLED_PURCHASES_RETENTION_DAYS = 1460; // ticketing/merch: after the purchase is marked as fulfilled.
 export const EVENTS_EXPIRY_AFTER_LAST_OCCURRENCE_DAYS = 1460; // hold events for 4 years after last occurrence
