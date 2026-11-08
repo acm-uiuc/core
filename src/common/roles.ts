@@ -31,6 +31,7 @@ export enum BaseRoles {
   STORE_MANAGER = "manage:store",
   STORE_FULFILLMENT = "fulfill:store",
   FUNDING_REQUEST_VIEW_ALL = "viewAll:fundingRequest",
+  VENDING_MACHINE = "manage:vending",
 }
 
 export enum MetaRoles {
@@ -79,4 +80,5 @@ export const AppRoleHumanMapper: Record<AppRoles, string> = {
   [AppRoles.STORE_MANAGER]: "Store Manager",
   [AppRoles.STORE_FULFILLMENT]: "Store Fulfillment",
   [AppRoles.FUNDING_REQUEST_VIEW_ALL]: "All Funding Request Viewer",
+  [AppRoles.VENDING_MACHINE]: "Vending Machine",
 };

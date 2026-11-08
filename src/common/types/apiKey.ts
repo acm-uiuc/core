@@ -1,4 +1,7 @@
-import { AuthorizationPoliciesRegistry, AvailableAuthorizationPolicy } from "../policies/definition.js";
+import {
+  AuthorizationPoliciesRegistry,
+  AvailableAuthorizationPolicy,
+} from "../policies/definition.js";
 import { AppRoles } from "../roles.js";
 import * as z from "zod/v4";
 import { InternalServerError } from "../errors/index.js";
@@ -26,19 +29,24 @@ const policySchemas = Object.entries(AuthorizationPoliciesRegistry).map(
   ([key, policy]) =>
     z.object({
       name: z.literal(key),
-      params: policy.paramsSchema
-    })
+      params: policy.paramsSchema,
+    }),
 );
 
 if (policySchemas.length === 0) {
   throw new InternalServerError({
-    message: "No authorization policies are defined in AuthorizationPoliciesRegistry. 'restrictions' will be an empty schema."
+    message:
+      "No authorization policies are defined in AuthorizationPoliciesRegistry. 'restrictions' will be an empty schema.",
   });
 }
 
-export const policyUnion = policySchemas.length > 0 ?
-  z.discriminatedUnion("name", policySchemas as [typeof policySchemas[0], ...typeof policySchemas]) :
-  z.never();
+export const policyUnion =
+  policySchemas.length > 0
+    ? z.discriminatedUnion(
+        "name",
+        policySchemas as [(typeof policySchemas)[0], ...typeof policySchemas],
+      )
+    : z.never();
 
 export const apiKeyAllowedRoles = [
   AppRoles.EVENTS_MANAGER,
@@ -46,32 +54,40 @@ export const apiKeyAllowedRoles = [
   AppRoles.TICKETS_SCANNER,
   AppRoles.ROOM_REQUEST_CREATE,
   AppRoles.STRIPE_LINK_CREATOR,
+  AppRoles.VENDING_MACHINE,
   AppRoles.LINKS_MANAGER,
   AppRoles.VIEW_INTERNAL_MEMBERSHIP_LIST,
   AppRoles.MANAGE_EXTERNAL_MEMBERSHIP_LIST,
-  AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST
+  AppRoles.VIEW_EXTERNAL_MEMBERSHIP_LIST,
 ];
 
-
 export const apiKeyPostBody = z.object({
-  roles: z.array(z.enum(apiKeyAllowedRoles as [AppRoles, ...AppRoles[]])).
-    min(1).
-    refine((items) => new Set(items).size === items.length, {
-      message: "All roles must be unique, no duplicate values allowed"
-    }).meta({
-      description: `Roles granted to the API key. These roles are a subset of the overall application roles.`
+  roles: z
+    .array(z.enum(apiKeyAllowedRoles as [AppRoles, ...AppRoles[]]))
+    .min(1)
+    .refine((items) => new Set(items).size === items.length, {
+      message: "All roles must be unique, no duplicate values allowed",
+    })
+    .meta({
+      description: `Roles granted to the API key. These roles are a subset of the overall application roles.`,
     }),
   description: z.string().min(1).meta({
     description: "Description of the key's use.",
-    example: "Publish events to ACM Calendar as part of the CI process."
+    example: "Publish events to ACM Calendar as part of the CI process.",
   }),
-  expiresAt: z.optional(z.number().refine((val) => val === undefined || val > Date.now() / 1000, {
-    message: "expiresAt must be a future epoch time."
-  })).meta({
-    description: "Epoch timestamp of when the key expires.",
-    example: 1745362658
-  }),
-  restrictions: z.optional(z.array(policyUnion)).meta({ description: "Policy restrictions applied to the API key." })
+  expiresAt: z
+    .optional(
+      z.number().refine((val) => val === undefined || val > Date.now() / 1000, {
+        message: "expiresAt must be a future epoch time.",
+      }),
+    )
+    .meta({
+      description: "Epoch timestamp of when the key expires.",
+      example: 1745362658,
+    }),
+  restrictions: z
+    .optional(z.array(policyUnion))
+    .meta({ description: "Policy restrictions applied to the API key." }),
 });
 
 export type ApiKeyPostBody = z.infer<typeof apiKeyPostBody>;

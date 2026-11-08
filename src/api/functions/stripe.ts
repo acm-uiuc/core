@@ -139,7 +139,9 @@ export const createCheckoutSession = async ({
   customText,
   statementDescriptorSuffix,
   expiresInSec,
-}: StripeCheckoutSessionCreateParams): Promise<string> => {
+}: StripeCheckoutSessionCreateParams): Promise<
+  Stripe.Response<Stripe.Checkout.Session>
+> => {
   const stripe = new Stripe(stripeApiKey);
   const payload: CheckoutSessionCreateParams = {
     success_url: successUrl || "",
@@ -175,7 +177,7 @@ export const createCheckoutSession = async ({
       message: "Could not create Stripe checkout session.",
     });
   }
-  return session.url;
+  return session;
 };
 
 export const createCheckoutSessionWithCustomer = async ({

@@ -596,6 +596,58 @@ resource "aws_dynamodb_table" "store_inventory" {
   }
 }
 
+resource "aws_dynamodb_table" "vending_inventory" {
+  region                      = "us-east-2"
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-vending-inventory"
+  deletion_protection_enabled = true
+  hash_key                    = "slotId"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "slotId"
+    type = "S"
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
+}
+
+resource "aws_dynamodb_table" "vending_transactions" {
+  region                      = "us-east-2"
+  billing_mode                = "PAY_PER_REQUEST"
+  name                        = "${var.ProjectId}-vending-transactions"
+  deletion_protection_enabled = true
+  hash_key                    = "vendId"
+  point_in_time_recovery {
+    enabled = true
+  }
+  attribute {
+    name = "vendId"
+    type = "S"
+  }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+  dynamic "replica" {
+    for_each = var.ReplicationRegions
+    content {
+      region_name                 = replica.value
+      deletion_protection_enabled = true
+    }
+  }
+}
+
 resource "aws_dynamodb_table" "store_carts_orders" {
   region                      = "us-east-2"
   billing_mode                = "PAY_PER_REQUEST"
