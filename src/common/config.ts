@@ -73,6 +73,8 @@ export type GenericConfigType = {
   StoreInventoryTableName: string;
   StoreCartsOrdersTableName: string;
   StoreLimitsTableName: string;
+  VendingInventoryTableName: string;
+  VendingTransactionsTableName: string;
 };
 
 type EnvironmentConfigType = {
@@ -120,6 +122,8 @@ const genericConfig: GenericConfigType = {
   StoreInventoryTableName: "infra-core-api-store-inventory",
   StoreCartsOrdersTableName: "infra-core-api-store-carts",
   StoreLimitsTableName: "infra-core-api-store-limits",
+  VendingInventoryTableName: "infra-core-api-vending-inventory",
+  VendingTransactionsTableName: "infra-core-api-vending-transactions",
 } as const;
 
 const environmentConfig: EnvironmentConfigType = {
@@ -144,6 +148,7 @@ const environmentConfig: EnvironmentConfigType = {
       "/infra-core-api/turnstile_secret_key",
       "/infra-core-api/listmonk_api_token",
       "/infra-core-api/store_stripe_endpoint_secret",
+      "/infra-core-api/vending_stripe_endpoint_secret",
     ],
     AadValidClientId: "39c28870-94e4-47ee-b4fb-affe0bf96c9f",
     LinkryBaseUrl: "https://core.aws.qa.acmuiuc.org",
@@ -163,7 +168,7 @@ const environmentConfig: EnvironmentConfigType = {
     OrgAdminGithubParentTeam: 14420860,
     GithubIdpSyncEnabled: false,
     AssetsBucketId: `427040638965-infra-core-api-assets-${genericConfig.AwsRegion}`,
-    AssetsBucketPublicUrl: 'core-assets.aws.qa.acmuiuc.org',
+    AssetsBucketPublicUrl: "core-assets.aws.qa.acmuiuc.org",
     ListmonkBaseUrl: "https://listmonk.acm.illinois.edu",
     ListmonkUsername: "coreapiqa",
     PaidMemberListmonkLists: [16],
@@ -209,7 +214,7 @@ const environmentConfig: EnvironmentConfigType = {
     OrgAdminGithubParentTeam: 12025214,
     GithubIdpSyncEnabled: true,
     AssetsBucketId: `298118738376-infra-core-api-assets-${genericConfig.AwsRegion}`,
-    AssetsBucketPublicUrl: 'core-assets.acm.illinois.edu',
+    AssetsBucketPublicUrl: "core-assets.acm.illinois.edu",
     ListmonkBaseUrl: "https://listmonk.acm.illinois.edu",
     ListmonkUsername: "coreapiprod",
     PaidMemberListmonkLists: [4, 17],
@@ -234,12 +239,13 @@ export type SecretConfig = {
   turnstile_secret_key: string;
   listmonk_api_token: string;
   store_stripe_endpoint_secret: string;
+  vending_stripe_endpoint_secret: string;
   cloudflare_infra_team_group_id?: string;
   cloudflare_member_config?: string;
 };
 
 const roleArns = {
-  Entra: process.env.EntraRoleArn
+  Entra: process.env.EntraRoleArn,
 };
 
 export const EVENT_CACHED_DURATION = 120;

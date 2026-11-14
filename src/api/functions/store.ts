@@ -682,12 +682,13 @@ export async function createStoreCheckout({
       { userId, isVerifiedIdentity },
       "Creating checkout with email",
     );
-    checkoutUrl = await createCheckoutSession({
+    const checkoutSession = await createCheckoutSession({
       ...checkoutParams,
       customerEmail: userId,
       statementDescriptorSuffix: maxLength("STORE", 7),
       delayedSettlementAllowed: false,
     });
+    checkoutUrl = checkoutSession.url!;
   }
 
   return {

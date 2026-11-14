@@ -49,7 +49,6 @@ vi.mock(import("../../src/api/functions/uin.js"), async (importOriginal) => {
     verifyUiucAccessToken: vi.fn(
       async ({
         accessToken,
-        logger,
       }: {
         accessToken: string | string[] | undefined;
         logger: unknown;
@@ -84,11 +83,10 @@ vi.mock(import("../../src/api/functions/uin.js"), async (importOriginal) => {
         };
         if (accessToken in validTokens) {
           return validTokens[accessToken as keyof typeof validTokens];
-        } else {
-          throw new UnauthenticatedError({
-            message: "Invalid or expired access token.",
-          });
         }
+        throw new UnauthenticatedError({
+          message: "Invalid or expired access token.",
+        });
       },
     ),
   };
@@ -189,7 +187,7 @@ ddbMock.on(QueryCommand).callsFake((command) => {
 });
 
 smMock.on(GetSecretValueCommand).callsFake((command) => {
-  if (command.SecretId == genericConfig.ConfigSecretName) {
+  if (command.SecretId === genericConfig.ConfigSecretName) {
     return Promise.resolve({ SecretString: secretJson });
   }
   return Promise.reject(new Error(`Secret ID ${command.SecretID} not mocked`));
@@ -203,6 +201,7 @@ const ssmParameters: Record<string, string> = {
   "/infra-core-api/turnstile_secret_key": "1x0000000000000000000000000000000AA",
   "/infra-core-api/listmonk_api_token": "abcdef",
   "/infra-core-api/store_stripe_endpoint_secret": "whsec_abcd123",
+  "/infra-core-api/vending_stripe_endpoint_secret": "whsec_vending123",
 };
 
 ssmMock.on(GetParameterCommand).callsFake((command) => {
@@ -231,7 +230,7 @@ ssmMock.on(GetParametersCommand).callsFake((command) => {
 
 vi.mock("ioredis", () => import("ioredis-mock"));
 
-let mockCacheStore = new Map();
+const mockCacheStore = new Map();
 
 vi.mock(import("../../src/api/functions/cache.js"), async (importOriginal) => {
   const mod = await importOriginal();
@@ -239,7 +238,9 @@ vi.mock(import("../../src/api/functions/cache.js"), async (importOriginal) => {
   // Create mock functions
   const getItemFromCacheMock = vi.fn(async (_, key) => {
     const item = mockCacheStore.get(key);
-    if (!item) return null;
+    if (!item) {
+      return null;
+    }
 
     const currentTime = Math.floor(Date.now() / 1000);
     if (item.expireAt < currentTime) {
@@ -284,7 +285,9 @@ vi.mock(import("../../src/api/functions/cache.js"), async (importOriginal) => {
 
   const deleteCacheCounterMock = vi.fn(async (_, key) => {
     const item = mockCacheStore.get(key);
-    if (!item) return null;
+    if (!item) {
+      return null;
+    }
 
     const counterValue =
       item.counterValue !== undefined ? item.counterValue : 0;
