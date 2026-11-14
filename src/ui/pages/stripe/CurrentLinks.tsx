@@ -182,6 +182,11 @@ export const StripeCurrentLinksPanel: React.FC<
       ),
     },
     {
+      key: "rampFund",
+      label: "Ramp Fund",
+      render: (link) => link.rampFund?.displayName ?? "None",
+    },
+    {
       key: "createdBy",
       label: "Created By",
       render: (link) => <NameOptionalUserCard email={link.userId} />,

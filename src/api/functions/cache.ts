@@ -8,10 +8,12 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { genericConfig } from "../../common/config.js";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import type { HttpHandlerOptions } from "@smithy/types";
 
 export async function getItemFromCache(
   dynamoClient: DynamoDBClient,
   key: string,
+  options?: HttpHandlerOptions,
 ): Promise<null | Record<string, string | number>> {
   const currentTime = Math.floor(Date.now() / 1000);
   const { Items } = await dynamoClient.send(
@@ -28,6 +30,7 @@ export async function getItemFromCache(
         ":ea": currentTime,
       }),
     }),
+    options,
   );
   if (!Items || Items.length === 0) {
     return null;
@@ -41,6 +44,7 @@ export async function insertItemIntoCache(
   key: string,
   value: Record<string, string | number>,
   expireAt: Date,
+  options?: HttpHandlerOptions,
 ) {
   const item = {
     primaryKey: key,
@@ -53,6 +57,7 @@ export async function insertItemIntoCache(
       TableName: genericConfig.CacheDynamoTableName,
       Item: marshall(item),
     }),
+    options,
   );
 }
 

@@ -10,7 +10,7 @@ import { APIGatewayProxyEventV2, Context } from "aws-lambda";
 const app = await init();
 const proxy = awsLambdaFastify(app, {
   payloadAsStream: true,
-  decorateRequest: false,
+  decorateRequest: true,
   callbackWaitsForEmptyEventLoop: false,
   serializeLambdaArguments: true,
   binaryMimeTypes: ["application/octet-stream", "application/vnd.apple.pkpass"], // from original code
