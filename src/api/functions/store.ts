@@ -1733,12 +1733,30 @@ export async function modifyProduct({
 }) {
   const transactItems: TransactWriteItemsCommandInput["TransactItems"] = [];
 
+  const {
+    variantInventory: variantInventoryUpdates,
+    totalInventoryDelta,
+    ...metadata
+  } = data;
+
   // Build the update expression dynamically based on keys in data
   const expressionAttributeNames: Record<string, string> = {};
   const expressionAttributeValues: Record<string, AttributeValue> = {};
   const updateClauses: string[] = [];
+  let inventoryCondition: string | undefined;
 
-  Object.entries(data).forEach(([key, value]) => {
+  if (totalInventoryDelta !== undefined || variantInventoryUpdates?.length) {
+    expressionAttributeNames["#inventoryMode"] = "inventoryMode";
+    expressionAttributeValues[":inventoryMode"] = marshall(
+      totalInventoryDelta !== undefined ? "PER_PRODUCT" : "PER_VARIANT",
+    );
+    inventoryCondition =
+      totalInventoryDelta !== undefined
+        ? "#inventoryMode = :inventoryMode"
+        : "attribute_exists(productId) AND (attribute_not_exists(#inventoryMode) OR #inventoryMode = :inventoryMode)";
+  }
+
+  Object.entries(metadata).forEach(([key, value]) => {
     if (value !== undefined) {
       const attrName = `#${key}`;
       const attrValue = `:${key}`;
@@ -1749,6 +1767,21 @@ export async function modifyProduct({
     }
   });
 
+  if (totalInventoryDelta !== undefined) {
+    updateClauses.push(
+      "#totalInventoryCount = #totalInventoryCount + :totalInventoryDelta",
+    );
+    expressionAttributeNames["#totalInventoryCount"] = "totalInventoryCount";
+    expressionAttributeValues[":totalInventoryDelta"] =
+      marshall(totalInventoryDelta);
+    expressionAttributeValues[":minimumCount"] = marshall(
+      Math.max(0, -totalInventoryDelta),
+    );
+    expressionAttributeValues[":numberType"] = marshall("N");
+    inventoryCondition +=
+      " AND attribute_type(#totalInventoryCount, :numberType) AND #totalInventoryCount >= :minimumCount";
+  }
+
   if (updateClauses.length > 0) {
     transactItems.push({
       Update: {
@@ -1758,10 +1791,41 @@ export async function modifyProduct({
           variantId: { S: "DEFAULT" },
         },
         UpdateExpression: `SET ${updateClauses.join(", ")}`,
+        ConditionExpression: inventoryCondition,
+        ExpressionAttributeValues: expressionAttributeValues,
+        ExpressionAttributeNames: expressionAttributeNames,
+      },
+    });
+  } else if (inventoryCondition) {
+    transactItems.push({
+      ConditionCheck: {
+        TableName: genericConfig.StoreInventoryTableName,
+        Key: marshall({ productId, variantId: DEFAULT_VARIANT_ID }),
+        ConditionExpression: inventoryCondition,
         ExpressionAttributeNames: expressionAttributeNames,
         ExpressionAttributeValues: expressionAttributeValues,
       },
     });
+  }
+
+  if (variantInventoryUpdates?.length) {
+    for (const { variantId, delta } of variantInventoryUpdates) {
+      transactItems.push({
+        Update: {
+          TableName: genericConfig.StoreInventoryTableName,
+          Key: marshall({ productId, variantId }),
+          UpdateExpression: "SET #inventoryCount = #inventoryCount + :delta",
+          ConditionExpression:
+            "attribute_type(#inventoryCount, :numberType) AND #inventoryCount >= :minimumCount",
+          ExpressionAttributeNames: { "#inventoryCount": "inventoryCount" },
+          ExpressionAttributeValues: {
+            ":delta": marshall(delta),
+            ":minimumCount": marshall(Math.max(0, -delta)),
+            ":numberType": marshall("N"),
+          },
+        },
+      });
+    }
   }
 
   // If name or description changed, update Stripe product as well
@@ -1824,9 +1888,24 @@ export async function modifyProduct({
 
   // Execute the transaction
   if (transactItems.length > 0) {
-    await dynamoClient.send(
-      new TransactWriteItemsCommand({ TransactItems: transactItems }),
-    );
+    try {
+      await dynamoClient.send(
+        new TransactWriteItemsCommand({ TransactItems: transactItems }),
+      );
+    } catch (error) {
+      if (
+        error instanceof TransactionCanceledException &&
+        error.CancellationReasons?.some(
+          (reason) => reason.Code === "ConditionalCheckFailed",
+        )
+      ) {
+        throw new ValidationError({
+          message:
+            "Inventory adjustment failed. Check the inventory mode and remaining stock, then refresh and try again.",
+        });
+      }
+      throw error;
+    }
   }
 }
 
