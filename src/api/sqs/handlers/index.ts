@@ -9,3 +9,4 @@ export { syncExecCouncilHandler } from "./syncExecCouncil.js";
 export { syncCloudflareMemberHandler } from "./syncCloudflareMember.js";
 export { processStorePurchaseHandler } from "./handleStorePurchase.js";
 export { stripeLinkSubscriberCallbackHandler } from "./stripeLinkSubscriberCallbackHandler.js";
+export { dispenseVendingItemHandler } from "./dispenseVendingItem.js";

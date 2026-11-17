@@ -13,6 +13,7 @@ export enum AvailableSQSFunctions {
   SyncCloudflareMember = "syncCloudflareMember",
   HandleStorePurchase = "handleStorePurchase",
   StripeLinkSubscriberCallback = "stripeLinkSubscriberCallback",
+  DispenseVendingItem = "dispenseVendingItem",
 }
 
 export const stripeLinkCallbackEventTypes = [
@@ -144,6 +145,13 @@ export const sqsPayloadSchemas = {
       payerName: z.string().nullable().optional(),
       payerEmail: z.string().nullable().optional(),
       occurredAt: z.iso.datetime(),
+    }),
+  ),
+  [AvailableSQSFunctions.DispenseVendingItem]: createSQSSchema(
+    AvailableSQSFunctions.DispenseVendingItem,
+    z.object({
+      vendId: z.uuid(),
+      slotId: z.string().min(1),
     }),
   ),
 } as const;
