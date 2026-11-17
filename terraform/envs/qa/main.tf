@@ -116,6 +116,7 @@ module "lambdas" {
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
   AdditionalIamPolicies            = { assets : module.assets.access_policy_arn, certIssuer : module.certificateIssuer.kms_sign_policy_arn }
+  VendingIotPublishRoleArn         = var.VendingIotPublishRoleArn
 }
 
 module "frontend" {
@@ -161,6 +162,7 @@ module "lambdas_usw2" {
   LogRetentionDays                 = var.LogRetentionDays
   EmailDomain                      = var.EmailDomain
   AdditionalIamPolicies            = { assets : module.assets.access_policy_arn, certIssuer : module.certificateIssuer.kms_sign_policy_arn }
+  VendingIotPublishRoleArn         = var.VendingIotPublishRoleArn
 }
 
 module "sqs_queues_usw2" {

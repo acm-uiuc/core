@@ -240,8 +240,25 @@ const vendingPlugin: FastifyPluginAsync = async (fastify, _options) => {
       const transaction = vendingTransactionSchema.parse(
         unmarshall(transactionResponse.Item),
       );
-      if (transaction.paymentStatus !== "pending") {
-        return reply.status(200).send(); // in case the webhook gets sent more than once
+      if (
+        transaction.checkoutSessionId !== checkoutSession.id ||
+        transaction.slotId !== checkoutSession.metadata.slotId
+      ) {
+        throw new ValidationError({
+          message:
+            "The checkout session does not match the vending transaction.",
+        });
+      }
+      const pending =
+        transaction.paymentStatus === "pending" &&
+        transaction.status === "pending_payment";
+      const awaitingQueue =
+        transaction.paymentStatus === "authorized" &&
+        transaction.status === "authorized" &&
+        transaction.paymentIntentId === checkoutSession.payment_intent &&
+        transaction.dispenseQueuedAt === undefined;
+      if (!pending && !awaitingQueue) {
+        return reply.status(200).send();
       }
       const paymentIntent = await getStripePaymentIntentData({
         paymentIntentId: checkoutSession.payment_intent,
@@ -263,7 +280,7 @@ const vendingPlugin: FastifyPluginAsync = async (fastify, _options) => {
           UpdateExpression:
             "SET paymentIntentId = :paymentIntentId, #paymentStatus = :paymentStatus, #status = :status, authorizedAt = if_not_exists(authorizedAt, :authorizedAt)",
           ConditionExpression:
-            "attribute_exists(vendId) AND #paymentStatus IN (:pending, :paymentStatus) AND #status IN (:pendingPayment, :status)",
+            "attribute_exists(vendId) AND attribute_not_exists(dispenseQueuedAt) AND ((#paymentStatus = :pending AND #status = :pendingPayment) OR (#paymentStatus = :paymentStatus AND #status = :status AND paymentIntentId = :paymentIntentId))",
           ExpressionAttributeNames: {
             "#status": "status",
             "#paymentStatus": "paymentStatus",
@@ -295,6 +312,18 @@ const vendingPlugin: FastifyPluginAsync = async (fastify, _options) => {
           QueueUrl: fastify.environmentConfig.SqsQueueUrl,
           MessageBody: JSON.stringify(sqsMessageBody),
           MessageGroupId: "vendingDispensal",
+        }),
+      );
+      await fastify.dynamoClient.send(
+        new UpdateItemCommand({
+          TableName: genericConfig.VendingTransactionsTableName,
+          Key: marshall({ vendId: transaction.vendId }),
+          UpdateExpression:
+            "SET dispenseQueuedAt = if_not_exists(dispenseQueuedAt, :queuedAt)",
+          ConditionExpression: "attribute_exists(vendId)",
+          ExpressionAttributeValues: marshall({
+            ":queuedAt": Math.floor(Date.now() / 1000),
+          }),
         }),
       );
       return reply.status(200).send();
@@ -330,6 +359,9 @@ const vendingPlugin: FastifyPluginAsync = async (fastify, _options) => {
       const transaction = vendingTransactionSchema.parse(
         unmarshall(transactionResponse.Item),
       );
+      if (transaction.paymentStatus === "captured") {
+        return reply.status(200).send();
+      }
       if (
         transaction.paymentStatus !== "authorized" ||
         !transaction.paymentIntentId

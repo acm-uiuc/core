@@ -41,3 +41,9 @@ variable "region" {
 variable "AdditionalIamPolicies" {
   type = map(string)
 }
+
+variable "VendingIotPublishRoleArn" {
+  type        = string
+  default     = null
+  description = "Role in vending account 728393074025 that trusts the Core SQS consumer roles and permits iot:Publish to vending/vending_machine_qa/commands/vend (dev) or vending/vending_machine_prod/commands/vend (prod). Required to process vending jobs."
+}

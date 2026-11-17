@@ -85,6 +85,20 @@
     "@smithy/types" "^4.19.0"
     tslib "^2.6.2"
 
+"@aws-sdk/client-iot-data-plane@^3.1141.0":
+  version "3.1141.0"
+  resolved "https://registry.yarnpkg.com/@aws-sdk/client-iot-data-plane/-/client-iot-data-plane-3.1141.0.tgz#e07edad08badff3b33561fea21a88f331d79d6eb"
+  integrity sha512-b2Asr5RYw8YZTX1AmYCZ1UfuhwtzTCq2OJ4jE7fL854btGWk+ZORFPpHCllW+mFwGp0uz1SAdiiBqPpGjAt9gw==
+  dependencies:
+    "@aws-sdk/core" "^3.978.1"
+    "@aws-sdk/credential-provider-node" "^3.972.84"
+    "@aws-sdk/types" "^3.974.6"
+    "@smithy/core" "^3.35.0"
+    "@smithy/fetch-http-handler" "^5.8.0"
+    "@smithy/node-http-handler" "^4.12.1"
+    "@smithy/types" "^4.19.0"
+    tslib "^2.6.2"
+
 "@aws-sdk/client-kms@^3.1141.0":
   version "3.1141.0"
   resolved "https://registry.yarnpkg.com/@aws-sdk/client-kms/-/client-kms-3.1141.0.tgz#164d0de9adfa6f75839db2213787eb20fc09a5c2"

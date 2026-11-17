@@ -101,3 +101,9 @@ variable "CloudflareMemberRoleIds" {
     error_message = "CloudflareMemberRoleIds must contain at least one 32-character hexadecimal member role ID."
   }
 }
+
+variable "VendingIotPublishRoleArn" {
+  type        = string
+  default     = null
+  description = "Role in vending account 728393074025 that allows Core SQS consumers to publish to this environment's vending command topic. Must trust the consumer roles in both Core regions."
+}

@@ -43,6 +43,11 @@ locals {
     shared = aws_iam_policy.shared_iam_policy.arn
   }
   is_primary_deployment = var.region == "us-east-2"
+  vending_iot_region    = "us-east-2"
+  # Matches vending-machine-rpi/rpi_server/src/mqtt/config.py.
+  vending_iot_endpoint   = "https://a32qwwrgj5wpn9-ats.iot.us-east-2.amazonaws.com"
+  vending_machine_id     = "vending_machine_${var.RunEnvironment == "prod" ? "prod" : "qa"}"
+  vending_dispense_topic = "vending/${local.vending_machine_id}/commands/vend"
 }
 data "aws_caller_identity" "current" {}
 
@@ -206,6 +211,20 @@ resource "aws_iam_policy" "sqs_policy" {
     ]
   }))
 
+}
+
+resource "aws_iam_role_policy" "vending_iot_publish" {
+  count = var.VendingIotPublishRoleArn == null ? 0 : 1
+  name  = "assume-vending-iot-publisher"
+  role  = aws_iam_role.sqs_consumer_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "sts:AssumeRole"
+      Resource = var.VendingIotPublishRoleArn
+    }]
+  })
 }
 
 resource "aws_iam_policy" "shared_iam_policy" {
@@ -477,6 +496,10 @@ resource "aws_lambda_function" "sqs_lambda" {
       "AWS_CRT_NODEJS_BINARY_ABSOLUTE_PATH" = "/opt/nodejs/node_modules/aws-crt/dist/bin/linux-${local.lambda_arch}-glibc/aws-crt-nodejs.node"
       EntraRoleArn                          = aws_iam_role.entra_role.arn
       "NODE_OPTIONS"                        = "--enable-source-maps"
+      VENDING_IOT_ENDPOINT                  = local.vending_iot_endpoint
+      VENDING_IOT_REGION                    = local.vending_iot_region
+      VENDING_DISPENSE_TOPIC                = local.vending_dispense_topic
+      VENDING_IOT_PUBLISH_ROLE_ARN          = var.VendingIotPublishRoleArn == null ? "" : var.VendingIotPublishRoleArn
     }
   }
 }

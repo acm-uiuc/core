@@ -48,6 +48,7 @@ export const vendingTransactionSchema = z.object({
   dispensedAt: unixTimestampSchema.nullish(),
   failedAt: unixTimestampSchema.nullish(),
   authorizedAt: unixTimestampSchema.optional(),
+  dispenseQueuedAt: unixTimestampSchema.optional(),
   capturedAt: unixTimestampSchema.optional(),
   canceledAt: unixTimestampSchema.optional(),
 });
