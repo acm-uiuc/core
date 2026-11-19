@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Generate a token
         id: generate-token
-        uses: actions/create-github-app-token@v3.2.0
+        uses: actions/create-github-app-token@v3.3.0
         with:
           app-id: ${{ secrets.REQUIRED_REVIEWS_APP_ID }}
           private-key: ${{ secrets.REQUIRED_REVIEWS_APP_KEY }}
@@ -33,7 +33,7 @@ jobs:
             -f context='Required Reviews' \
             -f description='Dependabot PR auto-approved'
 
-      - uses: Automattic/action-required-review@v5.0.1
+      - uses: Automattic/action-required-review@v6.0.0
         if: github.event.pull_request.user.login != 'dependabot[bot]' || github.actor != 'dependabot[bot]'
         with:
           token: ${{ steps.generate-token.outputs.token }}
